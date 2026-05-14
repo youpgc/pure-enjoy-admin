@@ -1,13 +1,16 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Tag } from 'antd'
 import DataTable from '../components/DataTable'
-import { supabase } from '../utils/supabase'
+import type { DataType } from '../components/DataTable'
+import { mockNotes } from '../utils/mockData'
 import dayjs from 'dayjs'
 
 const Notes: React.FC = () => {
+  const [data, setData] = useState<DataType[]>(mockNotes as unknown as DataType[])
+
   const columns = [
-    { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 200 },
-    { title: '标题', dataIndex: 'title', key: 'title' },
+    { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 200, sorter: (a: DataType, b: DataType) => String(a.user_id).localeCompare(String(b.user_id)) },
+    { title: '标题', dataIndex: 'title', key: 'title', sorter: (a: DataType, b: DataType) => String(a.title).localeCompare(String(b.title)) },
     {
       title: '内容',
       dataIndex: 'content',
@@ -15,41 +18,38 @@ const Notes: React.FC = () => {
       ellipsis: true,
       width: 300,
     },
-    { title: '分类', dataIndex: 'category', key: 'category' },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      key: 'category',
+      render: (category: string) => <Tag color="blue">{category}</Tag>,
+    },
     {
       title: '置顶',
-      dataIndex: 'pinned',
+      dataIndex: 'tags',
       key: 'pinned',
-      render: (pinned: boolean) => pinned ? <Tag color="gold">置顶</Tag> : null,
+      render: (tags: string[]) => tags.includes('置顶') ? <Tag color="gold">置顶</Tag> : null,
     },
     {
       title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
+      sorter: (a: DataType, b: DataType) => String(a.updated_at).localeCompare(String(b.updated_at)),
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
   ]
 
-  const fetchData = async () => {
-    const { data, error } = await supabase
-      .from('notes')
-      .select('*')
-      .order('updated_at', { ascending: false })
-    if (error) throw error
-    return (data || []) as Record<string, unknown>[]
-  }
-
-  const deleteItem = async (id: string) => {
-    const { error } = await supabase.from('notes').delete().eq('id', id)
-    if (error) throw error
+  const handleDelete = (ids: string[]) => {
+    setData(prev => prev.filter(item => !ids.includes(item.id)))
   }
 
   return (
     <DataTable
       title="笔记本管理"
       columns={columns}
-      fetchData={fetchData}
-      onDelete={deleteItem}
+      data={data}
+      onDelete={handleDelete}
+      searchPlaceholder="搜索标题或内容"
     />
   )
 }
