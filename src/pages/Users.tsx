@@ -1,48 +1,47 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Tag } from 'antd'
 import DataTable from '../components/DataTable'
-import { supabase } from '../utils/supabase'
+import type { DataType } from '../components/DataTable'
+import { mockUsers } from '../utils/mockData'
 import dayjs from 'dayjs'
 
 const Users: React.FC = () => {
+  const [data, setData] = useState<DataType[]>(mockUsers as unknown as DataType[])
+
   const columns = [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 280 },
-    { title: '邮箱', dataIndex: 'email', key: 'email' },
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 280, sorter: (a: DataType, b: DataType) => String(a.id).localeCompare(String(b.id)) },
+    { title: '邮箱', dataIndex: 'email', key: 'email', sorter: (a: DataType, b: DataType) => String(a.email).localeCompare(String(b.email)) },
+    { title: '昵称', dataIndex: 'name', key: 'name' },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => {
+        const colorMap: Record<string, string> = { active: 'green', inactive: 'default', banned: 'red' }
+        const labelMap: Record<string, string> = { active: '正常', inactive: '未激活', banned: '已封禁' }
+        return <Tag color={colorMap[status]}>{labelMap[status] || status}</Tag>
+      },
+    },
     {
       title: '注册时间',
       dataIndex: 'created_at',
       key: 'created_at',
+      sorter: (a: DataType, b: DataType) => new Date(String(a.created_at)).getTime() - new Date(String(b.created_at)).getTime(),
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
-    },
-    {
-      title: '最后登录',
-      dataIndex: 'last_sign_in_at',
-      key: 'last_sign_in_at',
-      render: (date: string | null) =>
-        date ? dayjs(date).format('YYYY-MM-DD HH:mm') : <Tag color="default">从未</Tag>,
     },
   ]
 
-  const fetchUsers = async () => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (error) throw error
-    return (data || []) as Record<string, unknown>[]
-  }
-
-  const deleteUser = async (id: string) => {
-    const { error } = await supabase.from('users').delete().eq('id', id)
-    if (error) throw error
+  const handleDelete = (ids: string[]) => {
+    setData(prev => prev.filter(item => !ids.includes(item.id)))
   }
 
   return (
     <DataTable
       title="用户管理"
       columns={columns}
-      fetchData={fetchUsers}
-      onDelete={deleteUser}
+      data={data}
+      onDelete={handleDelete}
+      searchPlaceholder="搜索邮箱或昵称"
     />
   )
 }
