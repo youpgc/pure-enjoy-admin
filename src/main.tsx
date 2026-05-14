@@ -10,7 +10,7 @@ import './index.css'
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ConfigProvider locale={zhCN}>
-      <BrowserRouter basename="/">
+      <BrowserRouter basename="/pure-enjoy-admin">
         <AuthProvider>
           <App />
         </AuthProvider>
