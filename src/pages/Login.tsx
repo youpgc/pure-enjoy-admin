@@ -63,9 +63,24 @@ const Login: React.FC = () => {
 
         <div className="login-test-info">
           <div style={{ marginBottom: 4, fontWeight: 'bold' }}>测试账号：</div>
-          <div>超级管理员：admin@pure.enjoy / admin123</div>
-          <div>管理员：manager@pure.enjoy / manager123</div>
-          <div>查看者：viewer@pure.enjoy / viewer123</div>
+          <div>超级管理员：admin@pureenjoy.com / admin123</div>
+          <div>管理员：manager@pureenjoy.com / manager123</div>
+          <div>查看者：viewer@pureenjoy.com / viewer123</div>
+          <Button 
+            type="link" 
+            size="small" 
+            onClick={() => {
+              localStorage.setItem('admin_user', JSON.stringify({
+                id: '1',
+                email: 'admin@pureenjoy.com',
+                role: 'super_admin',
+                created_at: new Date().toISOString()
+              }))
+              window.location.href = '/'
+            }}
+          >
+            [调试] 直接登录管理员
+          </Button>
         </div>
       </Card>
     </div>
