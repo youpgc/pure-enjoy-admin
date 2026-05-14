@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { supabase } from '../utils/supabase'
 import type { AdminUser, Role } from '../types/auth'
 
 interface AuthContextType {
@@ -35,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    // 硬编码测试账号（优先检查）
+    // 硬编码测试账号（登录完全使用硬编码账号）
     const testUsers = [
       { id: '1', email: 'admin@pureenjoy.com', password: 'admin123', role: 'super_admin' as Role, name: '超级管理员' },
       { id: '2', email: 'manager@pureenjoy.com', password: 'manager123', role: 'admin' as Role, name: '管理员' },
@@ -55,31 +54,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return
     }
     
-    // 尝试从数据库验证
-    try {
-      const { data, error } = await supabase
-        .from('admin_users')
-        .select('*')
-        .eq('email', email)
-        .eq('password', password)
-        .single()
-
-      if (error || !data) {
-        throw new Error('邮箱或密码错误')
-      }
-
-      const adminUser: AdminUser = {
-        id: data.id,
-        email: data.email,
-        role: data.role as Role,
-        created_at: data.created_at,
-      }
-
-      setUser(adminUser)
-      localStorage.setItem('admin_user', JSON.stringify(adminUser))
-    } catch {
-      throw new Error('邮箱或密码错误')
-    }
+    // 未找到匹配的账号
+    throw new Error('邮箱或密码错误')
   }, [])
 
   const logout = useCallback(() => {
