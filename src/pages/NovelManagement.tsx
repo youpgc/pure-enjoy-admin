@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Tag,
   Button,
@@ -9,8 +9,9 @@ import {
   Table,
   Card,
   Typography,
-  Progress,
-  Rate,
+  Image,
+  Switch,
+  Tooltip,
 } from 'antd'
 import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
 import type { Key } from 'react'
@@ -21,25 +22,42 @@ import {
   EditOutlined,
   DownOutlined,
   BookOutlined,
+  UnorderedListOutlined,
+  ImportOutlined,
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
-import {
-  mockNovels,
-  MockNovel,
-  NOVEL_CATEGORY_OPTIONS,
-  NOVEL_STATUS_OPTIONS,
-} from '../utils/mockData'
+import NovelChapterModal from '../components/NovelChapterModal'
+import { NOVEL_CATEGORY_OPTIONS } from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
+import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
 const { Title } = Typography
 
 // ==================== 类型定义 ====================
 
-interface NovelRecord extends MockNovel {
+export interface NovelRecord {
+  id: string
   key: string
+  title: string
+  author: string
+  source: string | null
+  source_url: string | null
+  cover_url: string | null
+  description: string | null
+  category: string | null
+  tags: string[]
+  word_count: number
+  chapter_count: number
+  status: 'ongoing' | 'completed'
+  is_free: boolean
+  price: number
+  rating: number | null
+  read_count: number
+  collect_count: number
+  created_at: string
+  updated_at: string
 }
 
 // ==================== 常量定义 ====================
@@ -64,19 +82,12 @@ const formatNumber = (num: number): string => {
 
 // ==================== 主组件 ====================
 
-const Novels: React.FC = () => {
-  const {
-    canReadNovels,
-    canWriteNovels,
-    canDeleteNovels,
-    canExportNovels,
-  } = usePermission()
+const NovelManagement: React.FC = () => {
+  const { canManageNovels, canDeleteNovels, canExportNovels } = usePermission()
 
   // 状态
-  const [data, setData] = useState<NovelRecord[]>(
-    mockNovels.map((item) => ({ ...item, key: item.id }))
-  )
-  const [loading] = useState(false)
+  const [data, setData] = useState<NovelRecord[]>([])
+  const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
   const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
@@ -95,6 +106,42 @@ const Novels: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<NovelRecord | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
 
+  // 章节弹窗状态
+  const [chapterModalOpen, setChapterModalOpen] = useState(false)
+  const [currentNovel, setCurrentNovel] = useState<NovelRecord | null>(null)
+
+  // 加载数据
+  const fetchNovels = useCallback(async () => {
+    setLoading(true)
+    try {
+      // 查询公共小说（user_id 为 null）
+      const { data: novels, error } = await supabase
+        .from('novels')
+        .select('*')
+        .is('user_id', null)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      const records: NovelRecord[] = (novels || []).map((novel) => ({
+        ...novel,
+        key: novel.id,
+        tags: novel.tags || [],
+      }))
+
+      setData(records)
+    } catch (error) {
+      console.error('获取小说列表失败:', error)
+      message.error('获取小说列表失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchNovels()
+  }, [fetchNovels])
+
   // ==================== 筛选配置 ====================
 
   const filterFields: FilterField[] = [
@@ -109,8 +156,21 @@ const Novels: React.FC = () => {
       name: 'status',
       label: '状态',
       type: 'select',
-      options: NOVEL_STATUS_OPTIONS,
+      options: [
+        { label: '连载中', value: 'ongoing' },
+        { label: '已完结', value: 'completed' },
+      ],
       placeholder: '选择状态',
+    },
+    {
+      name: 'is_free',
+      label: '是否免费',
+      type: 'select',
+      options: [
+        { label: '免费', value: 'true' },
+        { label: '付费', value: 'false' },
+      ],
+      placeholder: '选择',
     },
   ]
 
@@ -128,6 +188,7 @@ const Novels: React.FC = () => {
       name: 'author',
       label: '作者',
       type: 'text',
+      required: true,
       placeholder: '请输入作者',
     },
     {
@@ -135,6 +196,18 @@ const Novels: React.FC = () => {
       label: '来源',
       type: 'text',
       placeholder: '如：起点中文网',
+    },
+    {
+      name: 'source_url',
+      label: '来源链接',
+      type: 'text',
+      placeholder: '小说来源网址',
+    },
+    {
+      name: 'cover_url',
+      label: '封面链接',
+      type: 'text',
+      placeholder: '封面图片URL',
     },
     {
       name: 'category',
@@ -148,6 +221,30 @@ const Novels: React.FC = () => {
       label: '标签',
       type: 'tags',
       placeholder: '输入标签后按回车添加',
+    },
+    {
+      name: 'status',
+      label: '状态',
+      type: 'select',
+      options: [
+        { label: '连载中', value: 'ongoing' },
+        { label: '已完结', value: 'completed' },
+      ],
+      placeholder: '选择状态',
+      defaultValue: 'ongoing',
+    },
+    {
+      name: 'is_free',
+      label: '是否免费',
+      type: 'switch',
+      defaultValue: true,
+    },
+    {
+      name: 'price',
+      label: '价格',
+      type: 'number',
+      placeholder: '付费价格',
+      defaultValue: 0,
     },
     {
       name: 'description',
@@ -186,6 +283,12 @@ const Novels: React.FC = () => {
       result = result.filter((record) => record.status === filterValues.status)
     }
 
+    // 是否免费筛选
+    if (filterValues.is_free !== undefined && filterValues.is_free !== '') {
+      const isFree = filterValues.is_free === 'true'
+      result = result.filter((record) => record.is_free === isFree)
+    }
+
     return result
   }, [data, searchText, filterValues])
 
@@ -193,19 +296,19 @@ const Novels: React.FC = () => {
 
   // 新增
   const handleCreate = useCallback(() => {
-    if (!canWriteNovels) {
+    if (!canManageNovels) {
       message.warning('您没有新增小说的权限')
       return
     }
     setModalMode('create')
     setEditingRecord(null)
     setModalOpen(true)
-  }, [canWriteNovels])
+  }, [canManageNovels])
 
   // 编辑
   const handleEdit = useCallback(
     (record: NovelRecord) => {
-      if (!canWriteNovels) {
+      if (!canManageNovels) {
         message.warning('您没有编辑小说的权限')
         return
       }
@@ -213,24 +316,31 @@ const Novels: React.FC = () => {
       setEditingRecord(record)
       setModalOpen(true)
     },
-    [canWriteNovels]
+    [canManageNovels]
   )
 
   // 删除单条
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!canDeleteNovels) {
         message.warning('您没有删除小说的权限')
         return
       }
-      setData((prev) => prev.filter((item) => item.id !== id))
-      message.success('删除成功')
+      try {
+        const { error } = await supabase.from('novels').delete().eq('id', id)
+        if (error) throw error
+        setData((prev) => prev.filter((item) => item.id !== id))
+        message.success('删除成功')
+      } catch (error) {
+        console.error('删除失败:', error)
+        message.error('删除失败')
+      }
     },
     [canDeleteNovels]
   )
 
   // 批量删除
-  const handleBatchDelete = useCallback(() => {
+  const handleBatchDelete = useCallback(async () => {
     if (!canDeleteNovels) {
       message.warning('您没有删除小说的权限')
       return
@@ -239,9 +349,19 @@ const Novels: React.FC = () => {
       message.warning('请先选择要删除的数据')
       return
     }
-    setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
-    setSelectedRowKeys([])
-    message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    try {
+      const { error } = await supabase
+        .from('novels')
+        .delete()
+        .in('id', selectedRowKeys as string[])
+      if (error) throw error
+      setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
+      setSelectedRowKeys([])
+      message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    } catch (error) {
+      console.error('批量删除失败:', error)
+      message.error('批量删除失败')
+    }
   }, [selectedRowKeys, canDeleteNovels])
 
   // 表单提交
@@ -249,47 +369,56 @@ const Novels: React.FC = () => {
     async (values: Record<string, unknown>) => {
       setConfirmLoading(true)
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
+        const novelData = {
+          title: values.title as string,
+          author: values.author as string,
+          source: (values.source as string) || null,
+          source_url: (values.source_url as string) || null,
+          cover_url: (values.cover_url as string) || null,
+          category: (values.category as string) || null,
+          tags: (values.tags as string[]) || [],
+          status: (values.status as 'ongoing' | 'completed') || 'ongoing',
+          is_free: values.is_free !== false,
+          price: (values.price as number) || 0,
+          description: (values.description as string) || null,
+          user_id: null, // 公共小说
+        }
 
         if (modalMode === 'create') {
+          const { data: newNovel, error } = await supabase
+            .from('novels')
+            .insert(novelData)
+            .select()
+            .single()
+
+          if (error) throw error
+
           const newRecord: NovelRecord = {
-            id: `novel_${Date.now()}`,
-            key: `novel_${Date.now()}`,
-            user_id: 'current_user_id',
-            user_name: '当前用户',
-            title: values.title as string,
-            author: (values.author as string) || '',
-            source: (values.source as string) || '',
-            category: (values.category as string) || '',
-            tags: (values.tags as string[]) || [],
-            word_count: 0,
-            chapter_count: 0,
-            status: 'ongoing',
-            rating: 0,
-            read_count: 0,
-            collect_count: 0,
-            progress: 0,
-            last_read_at: null,
-            description: (values.description as string) || '',
-            cover_url: '',
-            created_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-            updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-          }
+            ...newNovel,
+            key: newNovel.id,
+            tags: newNovel.tags || [],
+          } as NovelRecord
+
           setData((prev) => [newRecord, ...prev])
           message.success('新增成功')
         } else {
+          const { error } = await supabase
+            .from('novels')
+            .update({
+              ...novelData,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', editingRecord?.id)
+
+          if (error) throw error
+
           setData((prev) =>
             prev.map((item) =>
               item.id === editingRecord?.id
                 ? {
                     ...item,
-                    title: values.title as string,
-                    author: (values.author as string) || '',
-                    source: (values.source as string) || '',
-                    category: (values.category as string) || '',
-                    tags: (values.tags as string[]) || [],
-                    description: (values.description as string) || '',
-                    updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+                    ...novelData,
+                    updated_at: new Date().toISOString(),
                   }
                 : item
             )
@@ -298,6 +427,7 @@ const Novels: React.FC = () => {
         }
         setModalOpen(false)
       } catch (error) {
+        console.error('操作失败:', error)
         message.error('操作失败，请重试')
       } finally {
         setConfirmLoading(false)
@@ -306,6 +436,12 @@ const Novels: React.FC = () => {
     [modalMode, editingRecord]
   )
 
+  // 查看章节
+  const handleViewChapters = useCallback((record: NovelRecord) => {
+    setCurrentNovel(record)
+    setChapterModalOpen(true)
+  }, [])
+
   // 导出
   const handleExportCSV = useCallback(() => {
     if (!canExportNovels) {
@@ -313,8 +449,6 @@ const Novels: React.FC = () => {
       return
     }
     const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
       { title: '书名', dataIndex: 'title' },
       { title: '作者', dataIndex: 'author' },
       { title: '来源', dataIndex: 'source' },
@@ -322,10 +456,12 @@ const Novels: React.FC = () => {
       { title: '字数', dataIndex: 'word_count' },
       { title: '章节数', dataIndex: 'chapter_count' },
       { title: '状态', dataIndex: 'status', render: (val: unknown) => String(STATUS_LABELS[val as string] || val) },
+      { title: '是否免费', dataIndex: 'is_free', render: (val: unknown) => val ? '免费' : '付费' },
       { title: '评分', dataIndex: 'rating' },
-      { title: '阅读进度', dataIndex: 'progress', render: (val: unknown) => `${((val as number) * 100).toFixed(0)}%` },
+      { title: '阅读数', dataIndex: 'read_count' },
+      { title: '收藏数', dataIndex: 'collect_count' },
     ]
-    exportToCSV<NovelRecord>(filteredData, columns, '小说书架')
+    exportToCSV<NovelRecord>(filteredData, columns, '小说库')
     message.success('CSV 导出成功')
   }, [filteredData, canExportNovels])
 
@@ -335,8 +471,6 @@ const Novels: React.FC = () => {
       return
     }
     const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
       { title: '书名', dataIndex: 'title' },
       { title: '作者', dataIndex: 'author' },
       { title: '来源', dataIndex: 'source' },
@@ -344,10 +478,12 @@ const Novels: React.FC = () => {
       { title: '字数', dataIndex: 'word_count' },
       { title: '章节数', dataIndex: 'chapter_count' },
       { title: '状态', dataIndex: 'status', render: (val: unknown) => String(STATUS_LABELS[val as string] || val) },
+      { title: '是否免费', dataIndex: 'is_free', render: (val: unknown) => val ? '免费' : '付费' },
       { title: '评分', dataIndex: 'rating' },
-      { title: '阅读进度', dataIndex: 'progress', render: (val: unknown) => `${((val as number) * 100).toFixed(0)}%` },
+      { title: '阅读数', dataIndex: 'read_count' },
+      { title: '收藏数', dataIndex: 'collect_count' },
     ]
-    exportToExcel<NovelRecord>(filteredData, columns, '小说书架')
+    exportToExcel<NovelRecord>(filteredData, columns, '小说库')
     message.success('Excel 导出成功')
   }, [filteredData, canExportNovels])
 
@@ -359,17 +495,62 @@ const Novels: React.FC = () => {
     setPagination((prev) => ({ ...prev, current: 1 }))
   }, [])
 
+  // 更新免费状态
+  const handleFreeChange = useCallback(async (record: NovelRecord, isFree: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('novels')
+        .update({ is_free: isFree, updated_at: new Date().toISOString() })
+        .eq('id', record.id)
+
+      if (error) throw error
+
+      setData((prev) =>
+        prev.map((item) =>
+          item.id === record.id ? { ...item, is_free: isFree } : item
+        )
+      )
+      message.success('更新成功')
+    } catch (error) {
+      console.error('更新失败:', error)
+      message.error('更新失败')
+    }
+  }, [])
+
   // ==================== 表格列配置 ====================
 
   const columns: ColumnsType<NovelRecord> = [
     {
-      title: '用户ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
-      width: 180,
-      ellipsis: true,
-      sorter: (a, b) => (a.user_id || '').localeCompare(b.user_id || ''),
-      render: (userId: string | null) => userId || '-',
+      title: '封面',
+      dataIndex: 'cover_url',
+      key: 'cover_url',
+      width: 80,
+      render: (coverUrl: string | null) => (
+        coverUrl ? (
+          <Image
+            src={coverUrl}
+            alt="封面"
+            width={50}
+            height={70}
+            style={{ objectFit: 'cover', borderRadius: 4 }}
+            fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+          />
+        ) : (
+          <div
+            style={{
+              width: 50,
+              height: 70,
+              background: '#f0f0f0',
+              borderRadius: 4,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <BookOutlined style={{ color: '#999', fontSize: 20 }} />
+          </div>
+        )
+      ),
     },
     {
       title: '书名',
@@ -378,10 +559,7 @@ const Novels: React.FC = () => {
       width: 180,
       sorter: (a, b) => a.title.localeCompare(b.title),
       render: (title: string) => (
-        <Space>
-          <BookOutlined style={{ color: '#1890ff' }} />
-          <span style={{ fontWeight: 500 }}>{title}</span>
-        </Space>
+        <span style={{ fontWeight: 500 }}>{title}</span>
       ),
     },
     {
@@ -390,15 +568,6 @@ const Novels: React.FC = () => {
       key: 'author',
       width: 100,
       render: (author: string) => author || '-',
-    },
-    {
-      title: '来源',
-      dataIndex: 'source',
-      key: 'source',
-      width: 120,
-      render: (source: string) => (
-        source ? <Tag color="purple">{source}</Tag> : '-'
-      ),
     },
     {
       title: '分类',
@@ -428,35 +597,14 @@ const Novels: React.FC = () => {
       render: (chapterCount: number) => `${chapterCount}章`,
     },
     {
-      title: '阅读进度',
-      dataIndex: 'progress',
-      key: 'progress',
-      width: 150,
-      sorter: (a, b) => a.progress - b.progress,
-      render: (progress: number) => (
-        <Progress
-          percent={Math.round(progress * 100)}
-          size="small"
-          status={progress >= 1 ? 'success' : 'active'}
-        />
-      ),
-    },
-    {
-      title: '评分',
-      dataIndex: 'rating',
-      key: 'rating',
-      width: 120,
-      sorter: (a, b) => a.rating - b.rating,
-      render: (rating: number) => (
-        <Rate disabled defaultValue={rating / 2} allowHalf style={{ fontSize: 12 }} />
-      ),
-    },
-    {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 80,
-      filters: NOVEL_STATUS_OPTIONS.map((opt) => ({ text: opt.label, value: opt.value })),
+      filters: [
+        { text: '连载中', value: 'ongoing' },
+        { text: '已完结', value: 'completed' },
+      ],
       onFilter: (value, record) => record.status === value,
       render: (status: string) => (
         <Tag color={STATUS_COLORS[status] || 'default'}>
@@ -465,27 +613,64 @@ const Novels: React.FC = () => {
       ),
     },
     {
-      title: '最后阅读',
-      dataIndex: 'last_read_at',
-      key: 'last_read_at',
-      width: 140,
-      sorter: (a, b) => {
-        if (!a.last_read_at) return 1
-        if (!b.last_read_at) return -1
-        return new Date(b.last_read_at).getTime() - new Date(a.last_read_at).getTime()
-      },
-      render: (date: string | null) => (
-        date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-'
+      title: '免费',
+      dataIndex: 'is_free',
+      key: 'is_free',
+      width: 80,
+      render: (isFree: boolean, record) => (
+        <Switch
+          checked={isFree}
+          size="small"
+          onChange={(checked) => handleFreeChange(record, checked)}
+        />
       ),
+    },
+    {
+      title: '评分',
+      dataIndex: 'rating',
+      key: 'rating',
+      width: 80,
+      sorter: (a, b) => (a.rating || 0) - (b.rating || 0),
+      render: (rating: number | null) => (
+        rating ? (
+          <span style={{ color: '#faad14' }}>{rating.toFixed(1)}</span>
+        ) : '-'
+      ),
+    },
+    {
+      title: '阅读数',
+      dataIndex: 'read_count',
+      key: 'read_count',
+      width: 100,
+      sorter: (a, b) => a.read_count - b.read_count,
+      render: (readCount: number) => formatNumber(readCount),
+    },
+    {
+      title: '收藏数',
+      dataIndex: 'collect_count',
+      key: 'collect_count',
+      width: 100,
+      sorter: (a, b) => a.collect_count - b.collect_count,
+      render: (collectCount: number) => formatNumber(collectCount),
     },
     {
       title: '操作',
       key: 'action',
       fixed: 'right',
-      width: 150,
+      width: 200,
       render: (_, record) => (
         <Space size="small">
-          {canWriteNovels && (
+          <Tooltip title="查看章节">
+            <Button
+              type="link"
+              size="small"
+              icon={<UnorderedListOutlined />}
+              onClick={() => handleViewChapters(record)}
+            >
+              章节
+            </Button>
+          </Tooltip>
+          {canManageNovels && (
             <Button
               type="link"
               size="small"
@@ -531,30 +716,23 @@ const Novels: React.FC = () => {
 
   // ==================== 渲染 ====================
 
-  if (!canReadNovels) {
-    return (
-      <Card>
-        <div style={{ textAlign: 'center', padding: '50px 0' }}>
-          <Title level={4} type="secondary">
-            您没有查看小说的权限
-          </Title>
-        </div>
-      </Card>
-    )
-  }
-
   return (
     <div>
       {/* 页面标题 */}
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Title level={4} style={{ margin: 0 }}>
-          小说书架管理
+          小说库管理
         </Title>
         <Space>
-          {canWriteNovels && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              新增小说
-            </Button>
+          {canManageNovels && (
+            <>
+              <Button icon={<ImportOutlined />}>
+                从爬虫导入
+              </Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                新增小说
+              </Button>
+            </>
           )}
           {canExportNovels && (
             <Dropdown menu={{ items: exportMenuItems, onClick: handleExportMenuClick }}>
@@ -612,7 +790,7 @@ const Novels: React.FC = () => {
             total: filteredData.length,
           }}
           onChange={(pag) => setPagination(pag)}
-          scroll={{ x: 1500 }}
+          scroll={{ x: 1400 }}
           rowSelection={
             canDeleteNovels
               ? {
@@ -636,10 +814,21 @@ const Novels: React.FC = () => {
         onOk={handleFormSubmit}
         onCancel={() => setModalOpen(false)}
         confirmLoading={confirmLoading}
-        width={600}
+        width={700}
+      />
+
+      {/* 章节管理弹窗 */}
+      <NovelChapterModal
+        open={chapterModalOpen}
+        novel={currentNovel}
+        onClose={() => {
+          setChapterModalOpen(false)
+          setCurrentNovel(null)
+          fetchNovels() // 刷新小说列表以更新章节数
+        }}
       />
     </div>
   )
 }
 
-export default Novels
+export default NovelManagement

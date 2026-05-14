@@ -12,6 +12,8 @@ import {
   ReadOutlined,
   MobileOutlined,
   LogoutOutlined,
+  SafetyOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons'
 import AuthGuard from './components/AuthGuard'
 import { useAuth } from './context/auth'
@@ -23,21 +25,25 @@ import MoodDiaries from './pages/MoodDiaries'
 import WeightRecords from './pages/WeightRecords'
 import Notes from './pages/Notes'
 import Novels from './pages/Novels'
+import NovelManagement from './pages/NovelManagement'
 import VersionManagement from './pages/VersionManagement'
+import RolePermission from './pages/RolePermission'
 import Login from './pages/Login'
 
 const { Header, Sider, Content } = Layout
 
-type PageKey = 'dashboard' | 'users' | 'expenses' | 'mood' | 'weight' | 'notes' | 'novels' | 'versions'
+type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' | 'novels' | 'novel_library' | 'versions'
 
 const allMenuItems: { key: PageKey; icon: React.ReactNode; label: string; requiredRole?: string }[] = [
   { key: 'dashboard', icon: <DashboardOutlined />, label: '数据概览' },
   { key: 'users', icon: <UserOutlined />, label: '用户管理' },
+  { key: 'roles', icon: <SafetyOutlined />, label: '角色权限', requiredRole: 'admin' },
   { key: 'expenses', icon: <WalletOutlined />, label: '消费记录' },
   { key: 'mood', icon: <SmileOutlined />, label: '心情日记' },
   { key: 'weight', icon: <LineChartOutlined />, label: '体重记录' },
   { key: 'notes', icon: <BookOutlined />, label: '笔记本' },
-  { key: 'novels', icon: <ReadOutlined />, label: '小说书架' },
+  { key: 'novels', icon: <ReadOutlined />, label: '用户书架' },
+  { key: 'novel_library', icon: <DatabaseOutlined />, label: '小说库管理' },
   { key: 'versions', icon: <MobileOutlined />, label: '版本管理', requiredRole: 'admin' },
 ]
 
@@ -76,6 +82,8 @@ const MainLayout: React.FC = () => {
         return <Dashboard />
       case 'users':
         return <Users />
+      case 'roles':
+        return <RolePermission />
       case 'expenses':
         return <Expenses />
       case 'mood':
@@ -86,6 +94,8 @@ const MainLayout: React.FC = () => {
         return <Notes />
       case 'novels':
         return <Novels />
+      case 'novel_library':
+        return <NovelManagement />
       case 'versions':
         return <VersionManagement />
       default:

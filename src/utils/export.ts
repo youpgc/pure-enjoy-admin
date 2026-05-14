@@ -3,10 +3,10 @@
  * 支持 CSV 和 Excel 导出
  */
 
-interface ExportColumn {
+interface ExportColumn<T = unknown> {
   title: string
   dataIndex: string
-  render?: (value: unknown, record: Record<string, unknown>) => string
+  render?: (value: unknown, record: T) => string
 }
 
 /**
@@ -15,9 +15,9 @@ interface ExportColumn {
  * @param columns 列配置
  * @param filename 文件名（不含扩展名）
  */
-export function exportToCSV(
-  data: Record<string, unknown>[],
-  columns: ExportColumn[],
+export function exportToCSV<T>(
+  data: T[],
+  columns: ExportColumn<T>[],
   filename: string = 'export'
 ): void {
   if (!data || data.length === 0) {
@@ -31,7 +31,7 @@ export function exportToCSV(
   // 生成数据行
   const rows = data.map(record => {
     return columns.map(col => {
-      const value = record[col.dataIndex]
+      const value = (record as Record<string, unknown>)[col.dataIndex]
       if (col.render) {
         return col.render(value, record)
       }
@@ -62,9 +62,9 @@ export function exportToCSV(
  * @param columns 列配置
  * @param filename 文件名（不含扩展名）
  */
-export function exportToExcel(
-  data: Record<string, unknown>[],
-  columns: ExportColumn[],
+export function exportToExcel<T>(
+  data: T[],
+  columns: ExportColumn<T>[],
   filename: string = 'export'
 ): void {
   if (!data || data.length === 0) {
@@ -76,7 +76,7 @@ export function exportToExcel(
   const headerCells = columns.map(col => `<th style="background-color:#f0f0f0;font-weight:bold;padding:8px;border:1px solid #ddd;">${escapeHtml(col.title)}</th>`).join('')
   const bodyRows = data.map(record => {
     const cells = columns.map(col => {
-      const value = record[col.dataIndex]
+      const value = (record as Record<string, unknown>)[col.dataIndex]
       let displayValue: string
       if (col.render) {
         displayValue = col.render(value, record)

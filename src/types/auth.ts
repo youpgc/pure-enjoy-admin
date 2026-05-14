@@ -4,6 +4,8 @@ export interface AdminUser {
   id: string
   email: string
   role: Role
+  nickname?: string
+  avatar_url?: string
   created_at: string
 }
 
