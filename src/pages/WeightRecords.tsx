@@ -1,47 +1,66 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Tag } from 'antd'
 import DataTable from '../components/DataTable'
-import { supabase } from '../utils/supabase'
+import type { DataType } from '../components/DataTable'
+import { mockWeightRecords } from '../utils/mockData'
 import dayjs from 'dayjs'
 
+const getBmiColor = (bmi: number): string => {
+  if (bmi < 18.5) return 'orange'
+  if (bmi < 24) return 'green'
+  if (bmi < 28) return 'blue'
+  return 'red'
+}
+
+const getBmiLabel = (bmi: number): string => {
+  if (bmi < 18.5) return '偏瘦'
+  if (bmi < 24) return '正常'
+  if (bmi < 28) return '偏胖'
+  return '肥胖'
+}
+
 const WeightRecords: React.FC = () => {
+  const [data, setData] = useState<DataType[]>(mockWeightRecords as unknown as DataType[])
+
   const columns = [
-    { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 200 },
+    { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 200, sorter: (a: DataType, b: DataType) => String(a.user_id).localeCompare(String(b.user_id)) },
     {
       title: '体重',
       dataIndex: 'weight',
       key: 'weight',
+      sorter: (a: DataType, b: DataType) => Number(a.weight) - Number(b.weight),
       render: (weight: number) => <Tag color="blue">{weight} kg</Tag>,
+    },
+    {
+      title: 'BMI',
+      dataIndex: 'weight',
+      key: 'bmi',
+      render: (weight: number) => {
+        const bmi = parseFloat((weight / (1.75 * 1.75)).toFixed(1))
+        return <Tag color={getBmiColor(bmi)}>{bmi} ({getBmiLabel(bmi)})</Tag>
+      },
     },
     { title: '备注', dataIndex: 'note', key: 'note' },
     {
       title: '日期',
       dataIndex: 'date',
       key: 'date',
+      sorter: (a: DataType, b: DataType) => String(a.date).localeCompare(String(b.date)),
       render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
     },
   ]
 
-  const fetchData = async () => {
-    const { data, error } = await supabase
-      .from('weight_records')
-      .select('*')
-      .order('date', { ascending: false })
-    if (error) throw error
-    return (data || []) as Record<string, unknown>[]
-  }
-
-  const deleteItem = async (id: string) => {
-    const { error } = await supabase.from('weight_records').delete().eq('id', id)
-    if (error) throw error
+  const handleDelete = (ids: string[]) => {
+    setData(prev => prev.filter(item => !ids.includes(item.id)))
   }
 
   return (
     <DataTable
       title="体重记录管理"
       columns={columns}
-      fetchData={fetchData}
-      onDelete={deleteItem}
+      data={data}
+      onDelete={handleDelete}
+      searchPlaceholder="搜索用户ID或备注"
     />
   )
 }
