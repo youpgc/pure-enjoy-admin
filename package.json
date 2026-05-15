@@ -5,24 +5,24 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.20.0",
-    "@supabase/supabase-js": "^2.39.0",
-    "recharts": "^2.10.0",
-    "antd": "^5.12.0",
-    "@ant-design/icons": "^5.2.0",
-    "dayjs": "^1.11.10"
+    "@ant-design/icons": "^5.5.2",
+    "@supabase/supabase-js": "^2.49.1",
+    "antd": "^5.24.2",
+    "dayjs": "^1.11.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.2",
+    "recharts": "^2.15.1"
   },
   "devDependencies": {
-    "@types/react": "^18.2.37",
-    "@types/react-dom": "^18.2.15",
-    "@vitejs/plugin-react": "^4.2.0",
-    "typescript": "^5.2.2",
-    "vite": "^5.0.0"
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.5"
   }
 }
