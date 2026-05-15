@@ -1,0 +1,46 @@
+{
+  "supabase": {
+    "url": "https://mhdrbjpqmzswswoazwjg.supabase.co",
+    "anon_key": "sb_publishable_wFx9tlxImVfEpRN4NMkS1g_QOm64aj6"
+  },
+  "sources": [
+    {
+      "name": "起点免费",
+      "base_url": "https://www.qidian.com/free",
+      "enabled": true,
+      "parser": "qidian"
+    },
+    {
+      "name": "纵横免费",
+      "base_url": "https://www.zongheng.com/free",
+      "enabled": false,
+      "parser": "zongheng"
+    },
+    {
+      "name": "17K免费",
+      "base_url": "https://www.17k.com/free",
+      "enabled": false,
+      "parser": "seventeenk"
+    }
+  ],
+  "settings": {
+    "max_novels": 100,
+    "max_chapters_per_novel": 500,
+    "request_delay": 1.0,
+    "timeout": 30,
+    "max_workers": 3,
+    "max_retries": 3,
+    "batch_size": 10
+  },
+  "categories": {
+    "玄幻奇幻": ["玄幻", "奇幻", "异世大陆", "东方玄幻", "王朝争霸"],
+    "都市言情": ["都市", "言情", "都市生活", "娱乐明星", "商战职场"],
+    "历史军事": ["历史", "军事", "架空历史", "抗战烽火", "军旅生涯"],
+    "科幻末世": ["科幻", "末世", "星际文明", "时空穿梭", "进化变异"],
+    "武侠仙侠": ["武侠", "仙侠", "传统武侠", "修真文明", "洪荒封神"],
+    "悬疑灵异": ["悬疑", "灵异", "探险生存", "恐怖惊悚", "悬疑侦探"],
+    "游戏竞技": ["游戏", "竞技", "电子竞技", "虚拟网游", "游戏异界"],
+    "轻小说": ["轻小说", "二次元", "同人", "衍生同人", "原生幻想"]
+  },
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
