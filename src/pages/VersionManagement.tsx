@@ -9,8 +9,8 @@ import {
   CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined
 } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
-import dayjs from 'dayjs'
 import { usePermission } from '../hooks/usePermission'
+import dayjs from 'dayjs'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -43,6 +43,7 @@ const statusMap: Record<string, { label: string; color: string; icon: React.Reac
 }
 
 const VersionManagement: React.FC = () => {
+  const { canManageVersions } = usePermission()
   const [versions, setVersions] = useState<AppVersion[]>([])
   const [loading, setLoading] = useState(false)
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
@@ -50,7 +51,6 @@ const VersionManagement: React.FC = () => {
   const [selectedVersion, setSelectedVersion] = useState<AppVersion | null>(null)
   const [uploading, setUploading] = useState(false)
   const [form] = Form.useForm()
-  const { canManageVersions, canDelete } = usePermission()
 
   useEffect(() => {
     fetchVersions()
@@ -70,14 +70,13 @@ const VersionManagement: React.FC = () => {
     setLoading(false)
   }
 
-  const handleUpload = async (values: any) => {
+  const handleUpload = async (values: { version: string; build_number: number; release_type: string; release_notes: string; apk: { originFileObj: File }[] }) => {
     setUploading(true)
     try {
       const file = values.apk?.[0]?.originFileObj
       let apkUrl: string | null = null
       let apkSize = 0
 
-      // 上传APK到Supabase Storage
       if (file) {
         const fileName = `pure-enjoy-v${values.version}-build${values.build_number}.apk`
         const { error: uploadError } = await supabase.storage
@@ -93,7 +92,6 @@ const VersionManagement: React.FC = () => {
         apkSize = file.size
       }
 
-      // 插入版本记录
       const { error: insertError } = await supabase
         .from('app_versions')
         .insert({
@@ -112,8 +110,9 @@ const VersionManagement: React.FC = () => {
       setUploadModalOpen(false)
       form.resetFields()
       fetchVersions()
-    } catch (error: any) {
-      message.error(`上传失败: ${error.message}`)
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误'
+      message.error(`上传失败: ${msg}`)
     }
     setUploading(false)
   }
@@ -131,8 +130,9 @@ const VersionManagement: React.FC = () => {
       if (error) throw error
       message.success(`v${record.version} 已发布`)
       fetchVersions()
-    } catch (error: any) {
-      message.error(`发布失败: ${error.message}`)
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误'
+      message.error(`发布失败: ${msg}`)
     }
   }
 
@@ -149,14 +149,14 @@ const VersionManagement: React.FC = () => {
       if (error) throw error
       message.success(`v${record.version} 已撤回`)
       fetchVersions()
-    } catch (error: any) {
-      message.error(`撤回失败: ${error.message}`)
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误'
+      message.error(`撤回失败: ${msg}`)
     }
   }
 
   const handleRollback = async (record: AppVersion) => {
     try {
-      // 1. 撤回当前已发布版本
       const currentReleased = versions.find(v => v.status === 'released')
       if (currentReleased) {
         await supabase
@@ -165,7 +165,6 @@ const VersionManagement: React.FC = () => {
           .eq('id', currentReleased.id)
       }
 
-      // 2. 重新发布选中的版本
       const { error } = await supabase
         .from('app_versions')
         .update({
@@ -178,8 +177,9 @@ const VersionManagement: React.FC = () => {
       if (error) throw error
       message.success(`已回滚到 v${record.version}`)
       fetchVersions()
-    } catch (error: any) {
-      message.error(`回滚失败: ${error.message}`)
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误'
+      message.error(`回滚失败: ${msg}`)
     }
   }
 
@@ -214,7 +214,7 @@ const VersionManagement: React.FC = () => {
       key: 'release_type',
       render: (type: string) => {
         const info = releaseTypeMap[type]
-        return <Tag color={info.color}>{info.label}</Tag>
+        return <Tag color={info?.color}>{info?.label}</Tag>
       },
     },
     {
@@ -223,7 +223,7 @@ const VersionManagement: React.FC = () => {
       key: 'status',
       render: (status: string) => {
         const info = statusMap[status]
-        return <Tag icon={info.icon} color={info.color}>{info.label}</Tag>
+        return <Tag icon={info?.icon} color={info?.color}>{info?.label}</Tag>
       },
     },
     {
@@ -252,12 +252,12 @@ const VersionManagement: React.FC = () => {
       key: 'created_at',
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
-    {
+    ...(canManageVersions ? [{
       title: '操作',
       key: 'action',
-      render: (_: any, record: AppVersion) => (
+      render: (_: unknown, record: AppVersion) => (
         <Space size="small">
-          {canManageVersions && record.status === 'draft' && record.apk_url && (
+          {record.status === 'draft' && record.apk_url && (
             <Tooltip title="发布此版本">
               <Button
                 type="primary"
@@ -269,7 +269,7 @@ const VersionManagement: React.FC = () => {
               </Button>
             </Tooltip>
           )}
-          {canManageVersions && record.status === 'released' && (
+          {record.status === 'released' && (
             <Tooltip title="撤回此版本">
               <Popconfirm
                 title="确认撤回"
@@ -285,7 +285,7 @@ const VersionManagement: React.FC = () => {
               </Popconfirm>
             </Tooltip>
           )}
-          {canManageVersions && (record.status === 'released' || record.status === 'revoked') && record.apk_url && (
+          {(record.status === 'released' || record.status === 'revoked') && record.apk_url && (
             <Tooltip title="回滚到此版本">
               <Popconfirm
                 title="确认回滚"
@@ -315,14 +315,14 @@ const VersionManagement: React.FC = () => {
                 size="small"
                 type="link"
                 icon={<DownloadOutlined />}
-                href={record.apk_url}
+                href={record.apk_url!}
                 target="_blank"
               />
             </Tooltip>
           )}
         </Space>
       ),
-    },
+    }] : []),
   ]
 
   return (
@@ -345,7 +345,6 @@ const VersionManagement: React.FC = () => {
         </Space>
       </div>
 
-      {/* 当前发布版本 */}
       {versions.filter(v => v.status === 'released').length > 0 && (
         <Card
           style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}
@@ -366,7 +365,7 @@ const VersionManagement: React.FC = () => {
                 const rv = versions.find(v => v.status === 'released')
                 if (!rv) return '-'
                 const info = releaseTypeMap[rv.release_type]
-                return <Tag color={info.color}>{info.label}</Tag>
+                return <Tag color={info?.color}>{info?.label}</Tag>
               })()}
             </Descriptions.Item>
             <Descriptions.Item label="发布时间">
@@ -388,69 +387,69 @@ const VersionManagement: React.FC = () => {
         scroll={{ x: 1200 }}
       />
 
-      {/* 上传弹窗 */}
-      <Modal
-        title="上传新版本"
-        open={uploadModalOpen}
-        onCancel={() => { setUploadModalOpen(false); form.resetFields() }}
-        onOk={() => form.submit()}
-        confirmLoading={uploading}
-        width={600}
-        okText="上传"
-      >
-        <Form form={form} layout="vertical" onFinish={handleUpload}>
-          <Form.Item
-            name="version"
-            label="版本号"
-            rules={[{ required: true, message: '请输入版本号' }]}
-          >
-            <Input placeholder="例如: 1.0.1" />
-          </Form.Item>
-          <Form.Item
-            name="build_number"
-            label="构建号"
-            rules={[{ required: true, message: '请输入构建号' }]}
-            extra="每次构建递增，用于版本比较"
-          >
-            <Input type="number" placeholder="例如: 2" />
-          </Form.Item>
-          <Form.Item
-            name="release_type"
-            label="更新类型"
-            rules={[{ required: true, message: '请选择更新类型' }]}
-          >
-            <Select placeholder="选择更新类型">
-              <Select.Option value="hotfix">热更新 - Bug修复</Select.Option>
-              <Select.Option value="feature">功能迭代 - 新功能</Select.Option>
-              <Select.Option value="force">强制更新 - 必须升级</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item
-            name="release_notes"
-            label="更新内容"
-          >
-            <TextArea
-              rows={4}
-              placeholder="请描述本次更新内容..."
-            />
-          </Form.Item>
-          <Form.Item
-            name="apk"
-            label="APK文件"
-            rules={[{ required: true, message: '请上传APK文件' }]}
-          >
-            <Upload
-              maxCount={1}
-              accept=".apk"
-              beforeUpload={() => false}
+      {canManageVersions && (
+        <Modal
+          title="上传新版本"
+          open={uploadModalOpen}
+          onCancel={() => { setUploadModalOpen(false); form.resetFields() }}
+          onOk={() => form.submit()}
+          confirmLoading={uploading}
+          width={600}
+          okText="上传"
+        >
+          <Form form={form} layout="vertical" onFinish={handleUpload}>
+            <Form.Item
+              name="version"
+              label="版本号"
+              rules={[{ required: true, message: '请输入版本号' }]}
             >
-              <Button icon={<UploadOutlined />}>选择APK文件</Button>
-            </Upload>
-          </Form.Item>
-        </Form>
-      </Modal>
+              <Input placeholder="例如: 1.0.1" />
+            </Form.Item>
+            <Form.Item
+              name="build_number"
+              label="构建号"
+              rules={[{ required: true, message: '请输入构建号' }]}
+              extra="每次构建递增，用于版本比较"
+            >
+              <Input type="number" placeholder="例如: 2" />
+            </Form.Item>
+            <Form.Item
+              name="release_type"
+              label="更新类型"
+              rules={[{ required: true, message: '请选择更新类型' }]}
+            >
+              <Select placeholder="选择更新类型">
+                <Select.Option value="hotfix">热更新 - Bug修复</Select.Option>
+                <Select.Option value="feature">功能迭代 - 新功能</Select.Option>
+                <Select.Option value="force">强制更新 - 必须升级</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item
+              name="release_notes"
+              label="更新内容"
+            >
+              <TextArea
+                rows={4}
+                placeholder="请描述本次更新内容..."
+              />
+            </Form.Item>
+            <Form.Item
+              name="apk"
+              label="APK文件"
+              rules={[{ required: true, message: '请上传APK文件' }]}
+            >
+              <Upload
+                maxCount={1}
+                accept=".apk"
+                beforeUpload={() => false}
+              >
+                <Button icon={<UploadOutlined />}>选择APK文件</Button>
+              </Upload>
+            </Form.Item>
+          </Form>
+        </Modal>
+      )}
 
-      {/* 二维码弹窗 */}
       <Modal
         title="扫码下载"
         open={qrModalOpen}
