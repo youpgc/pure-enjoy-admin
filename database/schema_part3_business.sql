@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS expenses (
     date DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT valid_amount CHECK (amount >= 0),
     CONSTRAINT valid_expense_category CHECK (category IN ('餐饮', '交通', '购物', '娱乐', '其他'))
@@ -23,12 +23,13 @@ COMMENT ON TABLE expenses IS '消费记录表';
 COMMENT ON COLUMN expenses.category IS '分类：餐饮/交通/购物/娱乐/其他';
 
 -- 消费记录表索引
-CREATE INDEX idx_expenses_user_id ON expenses(user_id);
-CREATE INDEX idx_expenses_date ON expenses(date);
-CREATE INDEX idx_expenses_category ON expenses(category);
-CREATE INDEX idx_expenses_user_date ON expenses(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_expenses_user_id ON expenses(user_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
+CREATE INDEX IF NOT EXISTS idx_expenses_category ON expenses(category);
+CREATE INDEX IF NOT EXISTS idx_expenses_user_date ON expenses(user_id, date);
 
 -- 消费记录表updated_at触发器
+DROP TRIGGER IF EXISTS update_expenses_updated_at ON expenses;
 CREATE TRIGGER update_expenses_updated_at
     BEFORE UPDATE ON expenses
     FOR EACH ROW
@@ -44,7 +45,7 @@ CREATE TABLE IF NOT EXISTS mood_diaries (
     date DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT valid_mood CHECK (mood IN ('开心', '平静', '一般', '难过', '焦虑'))
 );
@@ -53,11 +54,12 @@ COMMENT ON TABLE mood_diaries IS '心情日记表';
 COMMENT ON COLUMN mood_diaries.mood IS '心情：开心/平静/一般/难过/焦虑';
 
 -- 心情日记表索引
-CREATE INDEX idx_mood_diaries_user_id ON mood_diaries(user_id);
-CREATE INDEX idx_mood_diaries_date ON mood_diaries(date);
-CREATE INDEX idx_mood_diaries_user_date ON mood_diaries(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_mood_diaries_user_id ON mood_diaries(user_id);
+CREATE INDEX IF NOT EXISTS idx_mood_diaries_date ON mood_diaries(date);
+CREATE INDEX IF NOT EXISTS idx_mood_diaries_user_date ON mood_diaries(user_id, date);
 
 -- 心情日记表updated_at触发器
+DROP TRIGGER IF EXISTS update_mood_diaries_updated_at ON mood_diaries;
 CREATE TRIGGER update_mood_diaries_updated_at
     BEFORE UPDATE ON mood_diaries
     FOR EACH ROW
@@ -74,7 +76,7 @@ CREATE TABLE IF NOT EXISTS weight_records (
     date DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT valid_weight CHECK (weight > 0 AND weight < 1000),
     CONSTRAINT valid_bmi CHECK (bmi IS NULL OR (bmi >= 0 AND bmi <= 100)),
@@ -84,11 +86,12 @@ CREATE TABLE IF NOT EXISTS weight_records (
 COMMENT ON TABLE weight_records IS '体重记录表';
 
 -- 体重记录表索引
-CREATE INDEX idx_weight_records_user_id ON weight_records(user_id);
-CREATE INDEX idx_weight_records_date ON weight_records(date);
-CREATE INDEX idx_weight_records_user_date ON weight_records(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_weight_records_user_id ON weight_records(user_id);
+CREATE INDEX IF NOT EXISTS idx_weight_records_date ON weight_records(date);
+CREATE INDEX IF NOT EXISTS idx_weight_records_user_date ON weight_records(user_id, date);
 
 -- 体重记录表updated_at触发器
+DROP TRIGGER IF EXISTS update_weight_records_updated_at ON weight_records;
 CREATE TRIGGER update_weight_records_updated_at
     BEFORE UPDATE ON weight_records
     FOR EACH ROW
@@ -111,13 +114,14 @@ COMMENT ON TABLE notes IS '笔记表';
 COMMENT ON COLUMN notes.is_pinned IS '是否置顶';
 
 -- 笔记表索引
-CREATE INDEX idx_notes_user_id ON notes(user_id);
-CREATE INDEX idx_notes_category ON notes(category);
-CREATE INDEX idx_notes_is_pinned ON notes(is_pinned);
-CREATE INDEX idx_notes_user_pinned ON notes(user_id, is_pinned DESC);
-CREATE INDEX idx_notes_tags ON notes USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id);
+CREATE INDEX IF NOT EXISTS idx_notes_category ON notes(category);
+CREATE INDEX IF NOT EXISTS idx_notes_is_pinned ON notes(is_pinned);
+CREATE INDEX IF NOT EXISTS idx_notes_user_pinned ON notes(user_id, is_pinned DESC);
+CREATE INDEX IF NOT EXISTS idx_notes_tags ON notes USING GIN(tags);
 
 -- 笔记表updated_at触发器
+DROP TRIGGER IF EXISTS update_notes_updated_at ON notes;
 CREATE TRIGGER update_notes_updated_at
     BEFORE UPDATE ON notes
     FOR EACH ROW
@@ -145,7 +149,7 @@ CREATE TABLE IF NOT EXISTS novels (
     collect_count INTEGER DEFAULT 0 NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT valid_novel_status CHECK (status IN ('ongoing', 'completed')),
     CONSTRAINT valid_rating CHECK (rating IS NULL OR (rating >= 0 AND rating <= 5)),
@@ -158,15 +162,16 @@ COMMENT ON COLUMN novels.status IS '状态：ongoing-连载中，completed-已�
 COMMENT ON COLUMN novels.is_free IS '是否免费';
 
 -- 小说表索引
-CREATE INDEX idx_novels_user_id ON novels(user_id);
-CREATE INDEX idx_novels_category ON novels(category);
-CREATE INDEX idx_novels_status ON novels(status);
-CREATE INDEX idx_novels_is_free ON novels(is_free);
-CREATE INDEX idx_novels_tags ON novels USING GIN(tags);
-CREATE INDEX idx_novels_read_count ON novels(read_count DESC);
-CREATE INDEX idx_novels_collect_count ON novels(collect_count DESC);
+CREATE INDEX IF NOT EXISTS idx_novels_user_id ON novels(user_id);
+CREATE INDEX IF NOT EXISTS idx_novels_category ON novels(category);
+CREATE INDEX IF NOT EXISTS idx_novels_status ON novels(status);
+CREATE INDEX IF NOT EXISTS idx_novels_is_free ON novels(is_free);
+CREATE INDEX IF NOT EXISTS idx_novels_tags ON novels USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_novels_read_count ON novels(read_count DESC);
+CREATE INDEX IF NOT EXISTS idx_novels_collect_count ON novels(collect_count DESC);
 
 -- 小说表updated_at触发器
+DROP TRIGGER IF EXISTS update_novels_updated_at ON novels;
 CREATE TRIGGER update_novels_updated_at
     BEFORE UPDATE ON novels
     FOR EACH ROW
@@ -183,7 +188,7 @@ CREATE TABLE IF NOT EXISTS novel_chapters (
     is_free BOOLEAN DEFAULT TRUE NOT NULL,
     price DECIMAL(10,2) DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT unique_chapter UNIQUE (novel_id, chapter_num),
     CONSTRAINT valid_chapter_price CHECK (price >= 0)
@@ -193,8 +198,8 @@ COMMENT ON TABLE novel_chapters IS '小说章节表';
 COMMENT ON COLUMN novel_chapters.is_free IS '章节是否免费';
 
 -- 小说章节表索引
-CREATE INDEX idx_novel_chapters_novel_id ON novel_chapters(novel_id);
-CREATE INDEX idx_novel_chapters_chapter_num ON novel_chapters(novel_id, chapter_num);
+CREATE INDEX IF NOT EXISTS idx_novel_chapters_novel_id ON novel_chapters(novel_id);
+CREATE INDEX IF NOT EXISTS idx_novel_chapters_chapter_num ON novel_chapters(novel_id, chapter_num);
 
 -- 4.7 用户书架关联表
 CREATE TABLE IF NOT EXISTS user_novels (
@@ -207,7 +212,7 @@ CREATE TABLE IF NOT EXISTS user_novels (
     is_collected BOOLEAN DEFAULT FALSE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT unique_user_novel UNIQUE (user_id, novel_id),
     CONSTRAINT valid_progress CHECK (progress >= 0 AND progress <= 1)
@@ -218,11 +223,12 @@ COMMENT ON COLUMN user_novels.progress IS '阅读进度 0-1';
 COMMENT ON COLUMN user_novels.is_collected IS '是否收藏';
 
 -- 用户书架关联表索引
-CREATE INDEX idx_user_novels_user_id ON user_novels(user_id);
-CREATE INDEX idx_user_novels_novel_id ON user_novels(novel_id);
-CREATE INDEX idx_user_novels_collected ON user_novels(user_id, is_collected);
+CREATE INDEX IF NOT EXISTS idx_user_novels_user_id ON user_novels(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_novels_novel_id ON user_novels(novel_id);
+CREATE INDEX IF NOT EXISTS idx_user_novels_collected ON user_novels(user_id, is_collected);
 
 -- 用户书架关联表updated_at触发器
+DROP TRIGGER IF EXISTS update_user_novels_updated_at ON user_novels;
 CREATE TRIGGER update_user_novels_updated_at
     BEFORE UPDATE ON user_novels
     FOR EACH ROW
@@ -242,7 +248,7 @@ CREATE TABLE IF NOT EXISTS app_versions (
     revoked_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     created_by VARCHAR(32) REFERENCES users(id) ON DELETE SET NULL,
-    
+
     -- 约束
     CONSTRAINT valid_release_type CHECK (release_type IN ('hotfix', 'feature', 'force')),
     CONSTRAINT valid_version_status CHECK (status IN ('draft', 'released', 'revoked')),
@@ -254,8 +260,8 @@ COMMENT ON COLUMN app_versions.release_type IS '发布类型：hotfix-热修复�
 COMMENT ON COLUMN app_versions.status IS '状态：draft-草稿，released-已发布，revoked-已撤销';
 
 -- App版本表索引
-CREATE INDEX idx_app_versions_status ON app_versions(status);
-CREATE INDEX idx_app_versions_created_at ON app_versions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_app_versions_status ON app_versions(status);
+CREATE INDEX IF NOT EXISTS idx_app_versions_created_at ON app_versions(created_at DESC);
 
 -- 4.9 操作日志表
 CREATE TABLE IF NOT EXISTS operation_logs (
@@ -275,8 +281,8 @@ COMMENT ON COLUMN operation_logs.action IS '操作类型';
 COMMENT ON COLUMN operation_logs.target_id IS '操作目标ID';
 
 -- 操作日志表索引
-CREATE INDEX idx_operation_logs_user_id ON operation_logs(user_id);
-CREATE INDEX idx_operation_logs_module ON operation_logs(module);
-CREATE INDEX idx_operation_logs_created_at ON operation_logs(created_at DESC);
-CREATE INDEX idx_operation_logs_action ON operation_logs(action);
-CREATE INDEX idx_operation_logs_details ON operation_logs USING GIN(details);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_user_id ON operation_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_module ON operation_logs(module);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_created_at ON operation_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_action ON operation_logs(action);
+CREATE INDEX IF NOT EXISTS idx_operation_logs_details ON operation_logs USING GIN(details);
