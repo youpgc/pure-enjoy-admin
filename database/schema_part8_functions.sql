@@ -51,6 +51,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_novel_stats ON novel_chapters;
 CREATE TRIGGER trigger_update_novel_stats
     AFTER INSERT OR UPDATE OR DELETE ON novel_chapters
     FOR EACH ROW
