@@ -9,20 +9,19 @@ RETURNS INTEGER AS $$
 DECLARE
     deleted_count INTEGER;
 BEGIN
-    DELETE FROM operation_logs 
+    DELETE FROM operation_logs
     WHERE created_at < NOW() - (days_to_keep || ' days')::INTERVAL;
-    
+
     GET DIAGNOSTICS deleted_count = ROW_COUNT;
     RETURN deleted_count;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 创建更新统计数据的函数
--- 注：经检查，novel_chapters 表在 schema_part3_business.sql 第176行已创建，无错误
 CREATE OR REPLACE FUNCTION update_novel_stats(p_novel_id UUID)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE novels 
+    UPDATE novels
     SET chapter_count = (
         SELECT COUNT(*) FROM novel_chapters WHERE novel_id = p_novel_id
     ),
@@ -51,6 +50,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_novel_stats ON novel_chapters;
 CREATE TRIGGER trigger_update_novel_stats
     AFTER INSERT OR UPDATE OR DELETE ON novel_chapters
     FOR EACH ROW

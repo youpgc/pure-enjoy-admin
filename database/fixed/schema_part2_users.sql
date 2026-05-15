@@ -3,7 +3,7 @@
 -- 执行顺序：在 part1 之后执行
 -- ============================================================
 
--- 3.1 用户表
+-- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(32) PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS users (
     login_count INTEGER DEFAULT 0 NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT valid_role CHECK (role IN ('user', 'admin', 'super_admin')),
     CONSTRAINT valid_member_level CHECK (member_level IN ('normal', 'member', 'super_member')),
@@ -35,13 +35,14 @@ COMMENT ON COLUMN users.member_level IS '会员等级：normal-普通，member-�
 COMMENT ON COLUMN users.status IS '状态：active-正常，abnormal-异常，disabled-禁用，banned-封禁';
 
 -- 用户表索引
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_phone ON users(phone);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_status ON users(status);
-CREATE INDEX idx_users_created_at ON users(created_at);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
 
 -- 用户表updated_at触发器
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW

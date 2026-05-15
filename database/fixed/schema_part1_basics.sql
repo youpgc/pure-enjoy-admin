@@ -19,7 +19,7 @@ $$ LANGUAGE plpgsql;
 -- 基础表 - 角色和权限
 -- ============================================================
 
--- 2.1 角色表
+-- 角色表
 CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50) UNIQUE NOT NULL,
@@ -33,7 +33,7 @@ COMMENT ON TABLE roles IS '角色表';
 COMMENT ON COLUMN roles.name IS '角色标识：user/admin/super_admin';
 COMMENT ON COLUMN roles.level IS '角色等级：1-普通用户，2-管理员，3-超级管理员';
 
--- 2.2 权限表
+-- 权限表
 CREATE TABLE IF NOT EXISTS permissions (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) UNIQUE NOT NULL,
@@ -49,7 +49,7 @@ COMMENT ON COLUMN permissions.name IS '权限标识，如 users:read, users:writ
 COMMENT ON COLUMN permissions.module IS '模块：users/expenses/moods/weights/notes/novels/versions/system';
 COMMENT ON COLUMN permissions.action IS '操作类型：read/write/delete';
 
--- 2.3 角色权限关联表
+-- 角色权限关联表
 CREATE TABLE IF NOT EXISTS role_permissions (
     role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     permission_id INTEGER NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,

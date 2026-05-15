@@ -4,9 +4,8 @@
 -- ============================================================
 
 -- 7.1 用户统计视图
--- 注：经检查，users.id 和 expenses.user_id 都是 VARCHAR(32)，类型匹配
 CREATE OR REPLACE VIEW user_stats AS
-SELECT 
+SELECT
     u.id,
     u.nickname,
     u.role,
@@ -29,7 +28,7 @@ GROUP BY u.id;
 
 -- 7.2 系统概览视图
 CREATE OR REPLACE VIEW system_overview AS
-SELECT 
+SELECT
     (SELECT COUNT(*) FROM users) as total_users,
     (SELECT COUNT(*) FROM users WHERE status = 'active') as active_users,
     (SELECT COUNT(*) FROM users WHERE role = 'admin') as admin_count,
@@ -43,7 +42,7 @@ SELECT
 
 -- 7.3 每日活跃统计视图
 CREATE OR REPLACE VIEW daily_stats AS
-SELECT 
+SELECT
     DATE(created_at) as date,
     (SELECT COUNT(*) FROM users u WHERE DATE(u.created_at) = DATE(e.created_at)) as new_users,
     COUNT(DISTINCT e.user_id) as active_users,
@@ -80,7 +79,7 @@ CREATE OR REPLACE FUNCTION update_login_info(
 )
 RETURNS VOID AS $$
 BEGIN
-    UPDATE users 
+    UPDATE users
     SET last_login_ip = p_login_ip,
         last_login_at = NOW(),
         login_count = login_count + 1
@@ -133,7 +132,7 @@ BEGIN
         JOIN users u ON u.role = r.name
         WHERE u.id = p_user_id AND p.name = p_permission_name
     ) INTO has_perm;
-    
+
     RETURN has_perm;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;

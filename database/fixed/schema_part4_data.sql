@@ -3,15 +3,14 @@
 -- 执行顺序：在 part1, part2, part3 之后执行
 -- ============================================================
 
--- 5.1 插入角色数据
+-- 插入角色数据
 INSERT INTO roles (name, display_name, description, level) VALUES
 ('user', '普通用户', 'App普通用户，只能操作自己的数据', 1),
 ('admin', '管理员', '后台管理员，可以管理所有用户和业务数据', 2),
 ('super_admin', '超级管理员', '系统超级管理员，拥有所有权限', 3)
 ON CONFLICT (name) DO NOTHING;
 
--- 5.2 插入权限数据
-
+-- 插入权限数据
 -- 用户模块权限
 INSERT INTO permissions (name, display_name, module, action, description) VALUES
 -- 用户模块
@@ -63,13 +62,11 @@ INSERT INTO permissions (name, display_name, module, action, description) VALUES
 ('system:stats', '查看统计数据', 'system', 'read', '查看系统统计数据')
 ON CONFLICT (name) DO NOTHING;
 
--- 5.3 插入角色权限关联
-
+-- 插入角色权限关联
 -- 普通用户权限（只能操作自己的数据，通过RLS实现）
--- 普通用户在业务表上有基本读写权限，但通过RLS限制只能操作自己的数据
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
-WHERE r.name = 'user' 
+WHERE r.name = 'user'
 AND p.name IN (
     'expenses:read', 'expenses:write', 'expenses:delete',
     'moods:read', 'moods:write', 'moods:delete',
