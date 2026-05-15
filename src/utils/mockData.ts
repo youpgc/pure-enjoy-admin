@@ -564,6 +564,362 @@ export const getRolesWithPermissions = (): RoleWithPermissions[] => {
   }))
 }
 
+// ==================== 数据分析 - 用户活跃度 ====================
+export interface UserActivityItem {
+  date: string
+  DAU: number
+  WAU: number
+  MAU: number
+}
+
+export const mockUserActivity: UserActivityItem[] = Array.from({ length: 30 }, (_, i) => {
+  const date = dayjs().subtract(29 - i, 'day')
+  return {
+    date: date.format('MM-DD'),
+    DAU: Math.floor(Math.random() * 300) + 400,
+    WAU: Math.floor(Math.random() * 200) + 600,
+    MAU: Math.floor(Math.random() * 150) + 800,
+  }
+})
+
+// ==================== 数据分析 - 用户留存率 ====================
+export interface RetentionRate {
+  period: string
+  rate: number
+  userCount: number
+}
+
+export const mockRetentionRates: RetentionRate[] = [
+  { period: '次日留存', rate: 68.5, userCount: 862 },
+  { period: '3日留存', rate: 52.3, userCount: 658 },
+  { period: '7日留存', rate: 38.7, userCount: 487 },
+  { period: '30日留存', rate: 22.1, userCount: 278 },
+]
+
+// ==================== 数据分析 - 用户分布 ====================
+export interface UserDistribution {
+  name: string
+  value: number
+  color: string
+}
+
+export const mockUserByRole: UserDistribution[] = [
+  { name: '普通用户', value: 980, color: '#1890ff' },
+  { name: '管理员', value: 45, color: '#36cfc9' },
+  { name: '超级管理员', value: 8, color: '#9254de' },
+]
+
+export const mockUserByMemberLevel: UserDistribution[] = [
+  { name: '普通会员', value: 720, color: '#1890ff' },
+  { name: '会员', value: 380, color: '#597ef7' },
+  { name: '超级会员', value: 158, color: '#f759ab' },
+]
+
+export const mockUserByStatus: UserDistribution[] = [
+  { name: '正常', value: 1050, color: '#52c41a' },
+  { name: '异常', value: 85, color: '#faad14' },
+  { name: '禁用', value: 73, color: '#d9d9d9' },
+  { name: '封禁', value: 50, color: '#ff4d4f' },
+]
+
+// ==================== 数据分析 - 消费趋势 ====================
+export interface ExpenseTrendItem {
+  date: string
+  amount: number
+}
+
+export const mockExpenseTrend: ExpenseTrendItem[] = Array.from({ length: 30 }, (_, i) => {
+  const date = dayjs().subtract(29 - i, 'day')
+  return {
+    date: date.format('MM-DD'),
+    amount: parseFloat((Math.random() * 8000 + 3000).toFixed(2)),
+  }
+})
+
+// ==================== 数据分析 - 心情分布 ====================
+export interface MoodTrendItem {
+  date: string
+  开心: number
+  平静: number
+  一般: number
+  难过: number
+  焦虑: number
+}
+
+export const mockMoodTrend: MoodTrendItem[] = Array.from({ length: 14 }, (_, i) => {
+  const date = dayjs().subtract(13 - i, 'day')
+  return {
+    date: date.format('MM-DD'),
+    开心: Math.floor(Math.random() * 30) + 20,
+    平静: Math.floor(Math.random() * 20) + 15,
+    一般: Math.floor(Math.random() * 15) + 10,
+    难过: Math.floor(Math.random() * 10) + 5,
+    焦虑: Math.floor(Math.random() * 8) + 3,
+  }
+})
+
+// ==================== 数据分析 - 体重趋势 ====================
+export interface WeightAnalyticsItem {
+  date: string
+  avgWeight: number
+  avgBMI: number
+}
+
+export const mockWeightAnalytics: WeightAnalyticsItem[] = Array.from({ length: 30 }, (_, i) => {
+  const date = dayjs().subtract(29 - i, 'day')
+  return {
+    date: date.format('MM-DD'),
+    avgWeight: parseFloat((65 + Math.random() * 5 - i * 0.02).toFixed(1)),
+    avgBMI: parseFloat((22 + Math.random() * 2 - i * 0.01).toFixed(1)),
+  }
+})
+
+// ==================== 数据分析 - 笔记活跃度 ====================
+export interface NoteActivityItem {
+  date: string
+  count: number
+}
+
+export const mockNoteActivity: NoteActivityItem[] = Array.from({ length: 30 }, (_, i) => {
+  const date = dayjs().subtract(29 - i, 'day')
+  return {
+    date: date.format('MM-DD'),
+    count: Math.floor(Math.random() * 20) + 5,
+  }
+})
+
+// ==================== 数据分析 - 关键指标 ====================
+export interface AnalyticsKeyMetrics {
+  totalUsers: number
+  todayNewUsers: number
+  activeUsers: number
+  totalExpense: number
+  avgExpense: number
+  totalNotes: number
+  totalDiaries: number
+  novelReadCount: number
+}
+
+export const mockAnalyticsMetrics: AnalyticsKeyMetrics = {
+  totalUsers: 1258,
+  todayNewUsers: 23,
+  activeUsers: 876,
+  totalExpense: 156832.5,
+  avgExpense: 124.7,
+  totalNotes: 892,
+  totalDiaries: 3456,
+  novelReadCount: 28650,
+}
+
+// ==================== 操作日志 ====================
+export interface OperationLogItem {
+  id: string
+  time: string
+  user_name: string
+  action: string
+  module: string
+  target: string
+  ip: string
+  detail: string
+}
+
+const logActions = ['创建', '更新', '删除', '查看', '导出', '登录', '登出', '修改密码', '修改状态', '上传']
+const logModules = ['用户管理', '消费记录', '心情日记', '体重记录', '笔记', '小说', '版本管理', '系统']
+const logTargets = [
+  '用户 张三', '用户 李四', '用户 王五', '消费记录 #1024', '消费记录 #1025',
+  '心情日记 #2056', '体重记录 #3012', '笔记 "React Hooks 学习笔记"',
+  '笔记 "TypeScript 高级类型"', '小说 "星辰大海"', '版本 v2.3.1', '系统配置',
+  '用户 赵六', '用户 孙七', '笔记 "Docker 入门教程"', '消费记录 #1030',
+]
+
+export const mockOperationLogs: OperationLogItem[] = Array.from({ length: 100 }, (_, i) => {
+  const action = logActions[i % logActions.length]!
+  const module = logModules[i % logModules.length]!
+  const user = mockUsers[i % mockUsers.length]!
+  return {
+    id: `log_${String(i + 1).padStart(4, '0')}`,
+    time: dayjs().subtract(i, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+    user_name: user.nickname || '未知用户',
+    action,
+    module,
+    target: logTargets[i % logTargets.length]!,
+    ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+    detail: `${user.nickname || '未知用户'} 在 ${module} 模块执行了 ${action} 操作`,
+  }
+})
+
+// ==================== 系统监控 ====================
+export interface SystemStats {
+  totalUsers: number
+  totalDataSize: string
+  storageUsed: string
+  storageTotal: string
+  apiCallCount: number
+  apiCallToday: number
+  avgResponseTime: number
+  errorRate: number
+  uptime: string
+  version: string
+}
+
+export const mockSystemStats: SystemStats = {
+  totalUsers: 1258,
+  totalDataSize: '2.8 GB',
+  storageUsed: '1.2 GB',
+  storageTotal: '5.0 GB',
+  apiCallCount: 1256800,
+  apiCallToday: 34560,
+  avgResponseTime: 128,
+  errorRate: 0.32,
+  uptime: '99.97%',
+  version: 'v2.3.1',
+}
+
+export interface DbTableStat {
+  tableName: string
+  displayName: string
+  rowCount: number
+  size: string
+  lastUpdate: string
+}
+
+export const mockDbTableStats: DbTableStat[] = [
+  { tableName: 'users', displayName: '用户表', rowCount: 1258, size: '256 MB', lastUpdate: dayjs().subtract(5, 'minute').format('YYYY-MM-DD HH:mm:ss') },
+  { tableName: 'expenses', displayName: '消费记录表', rowCount: 45680, size: '512 MB', lastUpdate: dayjs().subtract(12, 'minute').format('YYYY-MM-DD HH:mm:ss') },
+  { tableName: 'mood_diaries', displayName: '心情日记表', rowCount: 34560, size: '384 MB', lastUpdate: dayjs().subtract(8, 'minute').format('YYYY-MM-DD HH:mm:ss') },
+  { tableName: 'weight_records', displayName: '体重记录表', rowCount: 18920, size: '128 MB', lastUpdate: dayjs().subtract(30, 'minute').format('YYYY-MM-DD HH:mm:ss') },
+  { tableName: 'notes', displayName: '笔记表', rowCount: 8920, size: '256 MB', lastUpdate: dayjs().subtract(15, 'minute').format('YYYY-MM-DD HH:mm:ss') },
+  { tableName: 'novels', displayName: '小说表', rowCount: 560, size: '64 MB', lastUpdate: dayjs().subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss') },
+  { tableName: 'novel_chapters', displayName: '小说章节表', rowCount: 128500, size: '768 MB', lastUpdate: dayjs().subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ss') },
+  { tableName: 'operation_logs', displayName: '操作日志表', rowCount: 356000, size: '480 MB', lastUpdate: dayjs().subtract(1, 'minute').format('YYYY-MM-DD HH:mm:ss') },
+  { tableName: 'versions', displayName: '版本表', rowCount: 45, size: '2 MB', lastUpdate: dayjs().subtract(3, 'day').format('YYYY-MM-DD HH:mm:ss') },
+  { tableName: 'roles', displayName: '角色表', rowCount: 3, size: '0.1 MB', lastUpdate: dayjs().subtract(30, 'day').format('YYYY-MM-DD HH:mm:ss') },
+]
+
+export interface ApiRequestItem {
+  id: string
+  time: string
+  method: string
+  path: string
+  status: number
+  duration: number
+  ip: string
+  userAgent: string
+}
+
+const apiPaths = [
+  '/api/users', '/api/expenses', '/api/moods', '/api/weights',
+  '/api/notes', '/api/novels', '/api/auth/login', '/api/auth/logout',
+  '/api/system/config', '/api/versions',
+]
+const apiMethods = ['GET', 'POST', 'PUT', 'DELETE']
+const userAgents = [
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+  'Mozilla/5.0 (Linux; Android 14; Pixel 8)',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+]
+
+export const mockApiRequests: ApiRequestItem[] = Array.from({ length: 50 }, (_, i) => {
+  const method = apiMethods[i % apiMethods.length]!
+  const status = i % 15 === 0 ? 500 : i % 10 === 0 ? 404 : i % 8 === 0 ? 401 : 200
+  return {
+    id: `req_${String(i + 1).padStart(4, '0')}`,
+    time: dayjs().subtract(i * 3, 'minute').format('YYYY-MM-DD HH:mm:ss'),
+    method,
+    path: apiPaths[i % apiPaths.length]!,
+    status,
+    duration: status >= 400 ? Math.floor(Math.random() * 2000) + 500 : Math.floor(Math.random() * 300) + 20,
+    ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+    userAgent: userAgents[i % userAgents.length]!,
+  }
+})
+
+export interface AlertItem {
+  id: string
+  time: string
+  level: 'error' | 'warning' | 'info'
+  type: string
+  message: string
+  module: string
+  resolved: boolean
+}
+
+export const mockAlerts: AlertItem[] = [
+  {
+    id: 'alert_1',
+    time: dayjs().subtract(10, 'minute').format('YYYY-MM-DD HH:mm:ss'),
+    level: 'error',
+    type: 'API异常',
+    message: '/api/users 接口响应超时 (>3000ms)',
+    module: '用户管理',
+    resolved: false,
+  },
+  {
+    id: 'alert_2',
+    time: dayjs().subtract(25, 'minute').format('YYYY-MM-DD HH:mm:ss'),
+    level: 'warning',
+    type: '异常登录',
+    message: '用户 "张三" 在异常IP (45.33.32.156) 登录',
+    module: '用户管理',
+    resolved: false,
+  },
+  {
+    id: 'alert_3',
+    time: dayjs().subtract(1, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+    level: 'error',
+    type: '数据库异常',
+    message: 'notes 表查询性能下降，平均响应时间 >500ms',
+    module: '笔记',
+    resolved: true,
+  },
+  {
+    id: 'alert_4',
+    time: dayjs().subtract(2, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+    level: 'warning',
+    type: '存储告警',
+    message: '存储使用率已达 24%，建议关注增长趋势',
+    module: '系统',
+    resolved: true,
+  },
+  {
+    id: 'alert_5',
+    time: dayjs().subtract(3, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+    level: 'info',
+    type: '系统更新',
+    message: '系统已自动更新至 v2.3.1',
+    module: '系统',
+    resolved: true,
+  },
+  {
+    id: 'alert_6',
+    time: dayjs().subtract(5, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+    level: 'error',
+    type: 'API异常',
+    message: '/api/expenses 接口返回 500 错误 (3次)',
+    module: '消费记录',
+    resolved: true,
+  },
+  {
+    id: 'alert_7',
+    time: dayjs().subtract(8, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+    level: 'warning',
+    type: '异常登录',
+    message: '用户 "李四" 连续登录失败 5 次',
+    module: '用户管理',
+    resolved: true,
+  },
+  {
+    id: 'alert_8',
+    time: dayjs().subtract(12, 'hour').format('YYYY-MM-DD HH:mm:ss'),
+    level: 'info',
+    type: '备份完成',
+    message: '数据库自动备份完成 (大小: 2.8GB)',
+    module: '系统',
+    resolved: true,
+  },
+]
+
 // ==================== 导出所有 Mock 数据 ====================
 export {
   mockUsers,
