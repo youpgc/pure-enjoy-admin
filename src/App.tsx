@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Layout, Menu, theme, Dropdown, Avatar, Badge, Space, Tag } from 'antd'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { Layout, Menu, theme } from 'antd'
 import type { MenuProps } from 'antd'
 import {
   DashboardOutlined,
@@ -12,14 +12,12 @@ import {
   ReadOutlined,
   MobileOutlined,
   LogoutOutlined,
-  SettingOutlined,
-  DownOutlined,
+  SafetyOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons'
-import { AuthProvider, useAuth } from './context/auth'
-import { AuthGuard, PublicRoute } from './components/AuthGuard'
-import { ROLE_DISPLAY_NAMES, ROLE_TAG_COLORS } from './types/auth'
+import AuthGuard from './components/AuthGuard'
+import { useAuth } from './context/auth'
 import { usePermission } from './hooks/usePermission'
-import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import Expenses from './pages/Expenses'
@@ -27,50 +25,56 @@ import MoodDiaries from './pages/MoodDiaries'
 import WeightRecords from './pages/WeightRecords'
 import Notes from './pages/Notes'
 import Novels from './pages/Novels'
+import NovelManagement from './pages/NovelManagement'
 import VersionManagement from './pages/VersionManagement'
+import RolePermission from './pages/RolePermission'
+import Login from './pages/Login'
 
 const { Header, Sider, Content } = Layout
 
-type PageKey = 'dashboard' | 'users' | 'expenses' | 'mood' | 'weight' | 'notes' | 'novels' | 'versions'
+type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' | 'novels' | 'novel_library' | 'versions'
 
-interface MenuItem {
-  key: PageKey
-  icon: React.ReactNode
-  label: string
-  permission: string
-}
+const allMenuItems: { key: PageKey; icon: React.ReactNode; label: string; requiredRole?: string }[] = [
+  { key: 'dashboard', icon: <DashboardOutlined />, label: '数据概览' },
+  { key: 'users', icon: <UserOutlined />, label: '用户管理' },
+  { key: 'roles', icon: <SafetyOutlined />, label: '角色权限', requiredRole: 'admin' },
+  { key: 'expenses', icon: <WalletOutlined />, label: '消费记录' },
+  { key: 'mood', icon: <SmileOutlined />, label: '心情日记' },
+  { key: 'weight', icon: <LineChartOutlined />, label: '体重记录' },
+  { key: 'notes', icon: <BookOutlined />, label: '笔记本' },
+  { key: 'novels', icon: <ReadOutlined />, label: '用户书架' },
+  { key: 'novel_library', icon: <DatabaseOutlined />, label: '小说库管理' },
+  { key: 'versions', icon: <MobileOutlined />, label: '版本管理', requiredRole: 'admin' },
+]
 
-// 主布局组件
 const MainLayout: React.FC = () => {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed] = useState(false)
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
-  const { logout, user } = useAuth()
-  const permissions = usePermission()
+  const { user, logout } = useAuth()
+  const { canManageUsers, canManageVersions } = usePermission()
   const {
     token: { colorBgContainer },
   } = theme.useToken()
 
-  const menuItems: MenuItem[] = [
-    { key: 'dashboard', icon: <DashboardOutlined />, label: '数据概览', permission: 'canViewDashboard' },
-    { key: 'users', icon: <UserOutlined />, label: '用户管理', permission: 'canViewUsers' },
-    { key: 'expenses', icon: <WalletOutlined />, label: '消费记录', permission: 'canViewExpenses' },
-    { key: 'mood', icon: <SmileOutlined />, label: '心情日记', permission: 'canViewMoodDiaries' },
-    { key: 'weight', icon: <LineChartOutlined />, label: '体重记录', permission: 'canViewWeightRecords' },
-    { key: 'notes', icon: <BookOutlined />, label: '笔记本', permission: 'canViewNotes' },
-    { key: 'novels', icon: <ReadOutlined />, label: '小说书架', permission: 'canViewNovels' },
-    { key: 'versions', icon: <MobileOutlined />, label: '版本管理', permission: 'canViewVersions' },
-  ]
-
-  // 根据权限过滤菜单
-  const filteredMenuItems = menuItems.filter(item => {
-    return permissions[item.permission as keyof typeof permissions] === true
+  // Filter menu items based on role
+  const filteredMenuItems = allMenuItems.filter(item => {
+    if (item.requiredRole === 'admin') return canManageVersions
+    if (item.key === 'users') return canManageUsers
+    return true
   })
 
-  const antdMenuItems: MenuProps['items'] = filteredMenuItems.map(item => ({
-    key: item.key,
-    icon: item.icon,
-    label: item.label,
-  }))
+  const antdMenuItems: MenuProps['items'] = [
+    ...filteredMenuItems.slice(0, filteredMenuItems.length > 7 ? 7 : filteredMenuItems.length).map(item => ({
+      key: item.key,
+      icon: item.icon,
+      label: item.label,
+    })),
+    ...(filteredMenuItems.length > 7 ? [{ type: 'divider' as const }, ...filteredMenuItems.slice(7).map(item => ({
+      key: item.key,
+      icon: item.icon,
+      label: item.label,
+    }))] : []),
+  ]
 
   const renderPage = () => {
     switch (currentPage) {
@@ -78,6 +82,8 @@ const MainLayout: React.FC = () => {
         return <Dashboard />
       case 'users':
         return <Users />
+      case 'roles':
+        return <RolePermission />
       case 'expenses':
         return <Expenses />
       case 'mood':
@@ -88,6 +94,8 @@ const MainLayout: React.FC = () => {
         return <Notes />
       case 'novels':
         return <Novels />
+      case 'novel_library':
+        return <NovelManagement />
       case 'versions':
         return <VersionManagement />
       default:
@@ -95,33 +103,9 @@ const MainLayout: React.FC = () => {
     }
   }
 
-  // 用户下拉菜单
-  const userMenuItems: MenuProps['items'] = [
-    {
-      key: 'profile',
-      icon: <UserOutlined />,
-      label: '个人信息',
-      disabled: true,
-    },
-    {
-      key: 'settings',
-      icon: <SettingOutlined />,
-      label: '系统设置',
-      disabled: true,
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: '退出登录',
-      danger: true,
-      onClick: logout,
-    },
-  ]
-
-  const currentMenuItem = menuItems.find(item => item.key === currentPage)
+  const handleLogout = () => {
+    logout()
+  }
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -145,44 +129,17 @@ const MainLayout: React.FC = () => {
         />
       </Sider>
       <Layout>
-        <Header 
-          style={{ 
-            padding: '0 24px', 
-            background: colorBgContainer, 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-          }}
-        >
+        <Header style={{ padding: '0 24px', background: colorBgContainer, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h1 style={{ margin: 0, fontSize: 18 }}>
-            {currentMenuItem?.label || '数据概览'}
+            {allMenuItems.find(item => item.key === currentPage)?.label || '数据概览'}
           </h1>
-          
-          <Space size="large">
-            <span style={{ color: '#999' }}>纯享App管理后台</span>
-            
-            <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-              <Space style={{ cursor: 'pointer' }}>
-                <Avatar 
-                  style={{ backgroundColor: '#6C63FF' }}
-                  icon={<UserOutlined />}
-                >
-                  {user?.name?.charAt(0)}
-                </Avatar>
-                <Space direction="vertical" size={0} style={{ lineHeight: 1.2 }}>
-                  <span style={{ fontSize: 14, fontWeight: 500 }}>{user?.name}</span>
-                  <Tag 
-                    color={ROLE_TAG_COLORS[user?.role || 'viewer']} 
-                    style={{ fontSize: 10, padding: '0 4px', margin: 0 }}
-                  >
-                    {ROLE_DISPLAY_NAMES[user?.role || 'viewer']}
-                  </Tag>
-                </Space>
-                <DownOutlined style={{ fontSize: 12, color: '#999' }} />
-              </Space>
-            </Dropdown>
-          </Space>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ color: '#999' }}>{user?.email}</span>
+            <span style={{ color: '#bbb' }}>|</span>
+            <a onClick={handleLogout} style={{ color: '#999', cursor: 'pointer' }}>
+              <LogoutOutlined /> 退出
+            </a>
+          </div>
         </Header>
         <Content style={{ margin: 24, padding: 24, background: colorBgContainer, borderRadius: 8 }}>
           {renderPage()}
@@ -192,38 +149,20 @@ const MainLayout: React.FC = () => {
   )
 }
 
-// 应用内容组件
-const AppContent: React.FC = () => {
+const App: React.FC = () => {
   return (
     <Routes>
+      <Route path="/login" element={<Login />} />
       <Route
-        path="/login"
-        element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/*"
+        path="/"
         element={
           <AuthGuard>
             <MainLayout />
           </AuthGuard>
         }
       />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-  )
-}
-
-// 主应用组件
-const App: React.FC = () => {
-  return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </BrowserRouter>
   )
 }
 
