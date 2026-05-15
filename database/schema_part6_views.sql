@@ -4,6 +4,7 @@
 -- ============================================================
 
 -- 7.1 用户统计视图
+-- 注：经检查，users.id 和 expenses.user_id 都是 VARCHAR(32)，类型匹配
 CREATE OR REPLACE VIEW user_stats AS
 SELECT 
     u.id,

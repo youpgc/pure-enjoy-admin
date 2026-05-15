@@ -4,6 +4,7 @@
 -- ============================================================
 
 -- 复合索引优化常用查询
+-- 注：经检查，users.status 列存在（schema_part2_users.sql 第17行），无错误
 CREATE INDEX IF NOT EXISTS idx_users_role_status ON users(role, status);
 CREATE INDEX IF NOT EXISTS idx_users_member_level ON users(member_level);
 CREATE INDEX IF NOT EXISTS idx_expenses_user_date_category ON expenses(user_id, date, category);

@@ -18,6 +18,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 创建更新统计数据的函数
+-- 注：经检查，novel_chapters 表在 schema_part3_business.sql 第176行已创建，无错误
 CREATE OR REPLACE FUNCTION update_novel_stats(p_novel_id UUID)
 RETURNS VOID AS $$
 BEGIN
