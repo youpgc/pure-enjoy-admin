@@ -14,6 +14,16 @@ import {
   LogoutOutlined,
   SafetyOutlined,
   DatabaseOutlined,
+  BarChartOutlined,
+  FileTextOutlined,
+  MonitorOutlined,
+  BellOutlined,
+  CalendarOutlined,
+  MessageOutlined,
+  ApiOutlined,
+  SyncOutlined,
+  EditOutlined,
+  DollarOutlined,
 } from '@ant-design/icons'
 import AuthGuard from './components/AuthGuard'
 import { useAuth } from './context/auth'
@@ -26,13 +36,23 @@ import WeightRecords from './pages/WeightRecords'
 import Notes from './pages/Notes'
 import Novels from './pages/Novels'
 import NovelManagement from './pages/NovelManagement'
+import NovelContentEditor from './pages/NovelContentEditor'
+import NovelPricing from './pages/NovelPricing'
 import VersionManagement from './pages/VersionManagement'
 import RolePermission from './pages/RolePermission'
 import Login from './pages/Login'
+import Analytics from './pages/Analytics'
+import OperationLogs from './pages/OperationLogs'
+import SystemMonitor from './pages/SystemMonitor'
+import ApiManagement from './pages/ApiManagement'
+import DataSync from './pages/DataSync'
+import MessagePush from './pages/MessagePush'
+import ActivityManagement from './pages/ActivityManagement'
+import UserFeedback from './pages/UserFeedback'
 
 const { Header, Sider, Content } = Layout
 
-type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' | 'novels' | 'novel_library' | 'versions'
+type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' | 'novels' | 'novel_library' | 'novel_content' | 'novel_pricing' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' | 'api_management' | 'data_sync' | 'message_push' | 'activity_management' | 'user_feedback'
 
 const allMenuItems: { key: PageKey; icon: React.ReactNode; label: string; requiredRole?: string }[] = [
   { key: 'dashboard', icon: <DashboardOutlined />, label: '数据概览' },
@@ -44,7 +64,17 @@ const allMenuItems: { key: PageKey; icon: React.ReactNode; label: string; requir
   { key: 'notes', icon: <BookOutlined />, label: '笔记本' },
   { key: 'novels', icon: <ReadOutlined />, label: '用户书架' },
   { key: 'novel_library', icon: <DatabaseOutlined />, label: '小说库管理' },
+  { key: 'novel_content', icon: <EditOutlined />, label: '小说内容管理', requiredRole: 'admin' },
+  { key: 'novel_pricing', icon: <DollarOutlined />, label: '付费管理', requiredRole: 'admin' },
   { key: 'versions', icon: <MobileOutlined />, label: '版本管理', requiredRole: 'admin' },
+  { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析', requiredRole: 'admin' },
+  { key: 'operation_logs', icon: <FileTextOutlined />, label: '操作日志', requiredRole: 'admin' },
+  { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控', requiredRole: 'admin' },
+  { key: 'api_management', icon: <ApiOutlined />, label: 'API 管理', requiredRole: 'admin' },
+  { key: 'data_sync', icon: <SyncOutlined />, label: '数据同步', requiredRole: 'admin' },
+  { key: 'message_push', icon: <BellOutlined />, label: '消息推送', requiredRole: 'admin' },
+  { key: 'activity_management', icon: <CalendarOutlined />, label: '活动管理', requiredRole: 'admin' },
+  { key: 'user_feedback', icon: <MessageOutlined />, label: '用户反馈', requiredRole: 'admin' },
 ]
 
 const MainLayout: React.FC = () => {
@@ -96,8 +126,28 @@ const MainLayout: React.FC = () => {
         return <Novels />
       case 'novel_library':
         return <NovelManagement />
+      case 'novel_content':
+        return <NovelContentEditor />
+      case 'novel_pricing':
+        return <NovelPricing />
       case 'versions':
         return <VersionManagement />
+      case 'analytics':
+        return <Analytics />
+      case 'operation_logs':
+        return <OperationLogs />
+      case 'system_monitor':
+        return <SystemMonitor />
+      case 'api_management':
+        return <ApiManagement />
+      case 'data_sync':
+        return <DataSync />
+      case 'message_push':
+        return <MessagePush />
+      case 'activity_management':
+        return <ActivityManagement />
+      case 'user_feedback':
+        return <UserFeedback />
       default:
         return <Dashboard />
     }
