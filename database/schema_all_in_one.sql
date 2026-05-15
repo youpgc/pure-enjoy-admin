@@ -143,10 +143,10 @@ CREATE TABLE IF NOT EXISTS novels (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
 
--- 3.10 小说章节表
+-- 3.10 小说章节表（暂不设外键，由应用层保证数据完整性）
 CREATE TABLE IF NOT EXISTS novel_chapters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    novel_id UUID NOT NULL REFERENCES novels(id) ON DELETE CASCADE,
+    novel_id TEXT NOT NULL,
     chapter_num INTEGER NOT NULL,
     title VARCHAR(255) NOT NULL,
     content TEXT NOT NULL,
@@ -157,11 +157,11 @@ CREATE TABLE IF NOT EXISTS novel_chapters (
     UNIQUE(novel_id, chapter_num)
 );
 
--- 3.11 用户书架关联表
+-- 3.11 用户书架关联表（暂不设外键，由应用层保证数据完整性）
 CREATE TABLE IF NOT EXISTS user_novels (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id VARCHAR(32) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    novel_id UUID NOT NULL REFERENCES novels(id) ON DELETE CASCADE,
+    user_id VARCHAR(32) NOT NULL,
+    novel_id TEXT NOT NULL,
     progress DECIMAL(5,4) DEFAULT 0 NOT NULL,
     last_chapter INTEGER DEFAULT 0 NOT NULL,
     last_read_at TIMESTAMP WITH TIME ZONE,
@@ -243,7 +243,7 @@ ALTER TABLE weight_records ADD COLUMN IF NOT EXISTS body_fat DECIMAL(4,2);
 
 -- user_novels 表缺失列
 ALTER TABLE user_novels ADD COLUMN IF NOT EXISTS user_id VARCHAR(32);
-ALTER TABLE user_novels ADD COLUMN IF NOT EXISTS novel_id UUID;
+ALTER TABLE user_novels ADD COLUMN IF NOT EXISTS novel_id TEXT;
 ALTER TABLE user_novels ADD COLUMN IF NOT EXISTS progress DECIMAL(5,4) DEFAULT 0;
 ALTER TABLE user_novels ADD COLUMN IF NOT EXISTS last_chapter INTEGER DEFAULT 0;
 ALTER TABLE user_novels ADD COLUMN IF NOT EXISTS last_read_at TIMESTAMP WITH TIME ZONE;
