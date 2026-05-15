@@ -1,5 +1,5 @@
 -- ============================================================
--- 纯享App后台管理系统 - Supabase PostgreSQL 数据库表结构
+-- 纯享App后台管理系统 - 完整数据库表结构 (统一版)
 -- 支持100万用户规模
 -- 创建时间: 2024
 -- ============================================================
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS users (
     login_count INTEGER DEFAULT 0 NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT valid_role CHECK (role IN ('user', 'admin', 'super_admin')),
     CONSTRAINT valid_member_level CHECK (member_level IN ('normal', 'member', 'super_member')),
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS expenses (
     date DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT valid_amount CHECK (amount >= 0),
     CONSTRAINT valid_expense_category CHECK (category IN ('餐饮', '交通', '购物', '娱乐', '其他'))
@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS mood_diaries (
     date DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT valid_mood CHECK (mood IN ('开心', '平静', '一般', '难过', '焦虑'))
 );
@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS weight_records (
     date DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT valid_weight CHECK (weight > 0 AND weight < 1000),
     CONSTRAINT valid_bmi CHECK (bmi IS NULL OR (bmi >= 0 AND bmi <= 100)),
@@ -262,7 +262,7 @@ CREATE TABLE IF NOT EXISTS novels (
     collect_count INTEGER DEFAULT 0 NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT valid_novel_status CHECK (status IN ('ongoing', 'completed')),
     CONSTRAINT valid_rating CHECK (rating IS NULL OR (rating >= 0 AND rating <= 5)),
@@ -301,7 +301,7 @@ CREATE TABLE IF NOT EXISTS novel_chapters (
     is_free BOOLEAN DEFAULT TRUE NOT NULL,
     price DECIMAL(10,2) DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT unique_chapter UNIQUE (novel_id, chapter_num),
     CONSTRAINT valid_chapter_price CHECK (price >= 0)
@@ -325,7 +325,7 @@ CREATE TABLE IF NOT EXISTS user_novels (
     is_collected BOOLEAN DEFAULT FALSE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
-    
+
     -- 约束
     CONSTRAINT unique_user_novel UNIQUE (user_id, novel_id),
     CONSTRAINT valid_progress CHECK (progress >= 0 AND progress <= 1)
@@ -361,7 +361,7 @@ CREATE TABLE IF NOT EXISTS app_versions (
     revoked_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     created_by VARCHAR(32) REFERENCES users(id) ON DELETE SET NULL,
-    
+
     -- 约束
     CONSTRAINT valid_release_type CHECK (release_type IN ('hotfix', 'feature', 'force')),
     CONSTRAINT valid_version_status CHECK (status IN ('draft', 'released', 'revoked')),
@@ -467,10 +467,9 @@ ON CONFLICT (name) DO NOTHING;
 -- 5.3 插入角色权限关联
 
 -- 普通用户权限（只能操作自己的数据，通过RLS实现）
--- 普通用户在业务表上有基本读写权限，但通过RLS限制只能操作自己的数据
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r, permissions p
-WHERE r.name = 'user' 
+WHERE r.name = 'user'
 AND p.name IN (
     'expenses:read', 'expenses:write', 'expenses:delete',
     'moods:read', 'moods:write', 'moods:delete',
@@ -519,12 +518,13 @@ ALTER TABLE app_versions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE operation_logs ENABLE ROW LEVEL SECURITY;
 
 -- 创建辅助函数：检查用户角色
+-- 注意：auth.uid() 返回 UUID，需要转换为 TEXT 与 VARCHAR(32) 比较
 CREATE OR REPLACE FUNCTION is_admin()
 RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
-        SELECT 1 FROM users 
-        WHERE id = auth.uid()::VARCHAR(32) 
+        SELECT 1 FROM users
+        WHERE id = auth.uid()::TEXT
         AND role IN ('admin', 'super_admin')
     );
 END;
@@ -534,8 +534,8 @@ CREATE OR REPLACE FUNCTION is_super_admin()
 RETURNS BOOLEAN AS $$
 BEGIN
     RETURN EXISTS (
-        SELECT 1 FROM users 
-        WHERE id = auth.uid()::VARCHAR(32) 
+        SELECT 1 FROM users
+        WHERE id = auth.uid()::TEXT
         AND role = 'super_admin'
     );
 END;
@@ -546,9 +546,9 @@ RETURNS VARCHAR(20) AS $$
 DECLARE
     user_role VARCHAR(20);
 BEGIN
-    SELECT role INTO user_role 
-    FROM users 
-    WHERE id = auth.uid()::VARCHAR(32);
+    SELECT role INTO user_role
+    FROM users
+    WHERE id = auth.uid()::TEXT;
     RETURN COALESCE(user_role, 'user');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
@@ -557,10 +557,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 -- 6.1 用户表 RLS 策略
 -- ============================================================
 
--- 普通用户只能查看和更新自己的信息
 CREATE POLICY "用户可以查看自己的信息" ON users
     FOR SELECT
-    USING (id = auth.uid()::VARCHAR(32));
+    USING (id = auth.uid()::TEXT);
 
 CREATE POLICY "管理员可以查看所有用户" ON users
     FOR SELECT
@@ -568,7 +567,7 @@ CREATE POLICY "管理员可以查看所有用户" ON users
 
 CREATE POLICY "用户可以更新自己的信息" ON users
     FOR UPDATE
-    USING (id = auth.uid()::VARCHAR(32));
+    USING (id = auth.uid()::TEXT);
 
 CREATE POLICY "管理员可以更新所有用户" ON users
     FOR UPDATE
@@ -576,7 +575,7 @@ CREATE POLICY "管理员可以更新所有用户" ON users
 
 CREATE POLICY "超级管理员可以插入用户" ON users
     FOR INSERT
-    WITH CHECK (is_super_admin() OR id = auth.uid()::VARCHAR(32));
+    WITH CHECK (is_super_admin() OR id = auth.uid()::TEXT);
 
 CREATE POLICY "超级管理员可以删除用户" ON users
     FOR DELETE
@@ -588,19 +587,19 @@ CREATE POLICY "超级管理员可以删除用户" ON users
 
 CREATE POLICY "用户可以查看自己的消费记录" ON expenses
     FOR SELECT
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以创建自己的消费记录" ON expenses
     FOR INSERT
-    WITH CHECK (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    WITH CHECK (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以更新自己的消费记录" ON expenses
     FOR UPDATE
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以删除自己的消费记录" ON expenses
     FOR DELETE
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 -- ============================================================
 -- 6.3 心情日记表 RLS 策略
@@ -608,19 +607,19 @@ CREATE POLICY "用户可以删除自己的消费记录" ON expenses
 
 CREATE POLICY "用户可以查看自己的心情日记" ON mood_diaries
     FOR SELECT
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以创建自己的心情日记" ON mood_diaries
     FOR INSERT
-    WITH CHECK (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    WITH CHECK (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以更新自己的心情日记" ON mood_diaries
     FOR UPDATE
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以删除自己的心情日记" ON mood_diaries
     FOR DELETE
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 -- ============================================================
 -- 6.4 体重记录表 RLS 策略
@@ -628,19 +627,19 @@ CREATE POLICY "用户可以删除自己的心情日记" ON mood_diaries
 
 CREATE POLICY "用户可以查看自己的体重记录" ON weight_records
     FOR SELECT
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以创建自己的体重记录" ON weight_records
     FOR INSERT
-    WITH CHECK (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    WITH CHECK (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以更新自己的体重记录" ON weight_records
     FOR UPDATE
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以删除自己的体重记录" ON weight_records
     FOR DELETE
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 -- ============================================================
 -- 6.5 笔记表 RLS 策略
@@ -648,19 +647,19 @@ CREATE POLICY "用户可以删除自己的体重记录" ON weight_records
 
 CREATE POLICY "用户可以查看自己的笔记" ON notes
     FOR SELECT
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以创建自己的笔记" ON notes
     FOR INSERT
-    WITH CHECK (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    WITH CHECK (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以更新自己的笔记" ON notes
     FOR UPDATE
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以删除自己的笔记" ON notes
     FOR DELETE
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 -- ============================================================
 -- 6.6 小说表 RLS 策略
@@ -669,7 +668,7 @@ CREATE POLICY "用户可以删除自己的笔记" ON notes
 -- 小说比较特殊：公共小说所有人可见，私有小说只有拥有者可见
 CREATE POLICY "用户可以查看公共小说和自己的小说" ON novels
     FOR SELECT
-    USING (user_id IS NULL OR user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id IS NULL OR user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "管理员可以创建小说" ON novels
     FOR INSERT
@@ -691,9 +690,9 @@ CREATE POLICY "用户可以查看小说章节" ON novel_chapters
     FOR SELECT
     USING (
         EXISTS (
-            SELECT 1 FROM novels 
-            WHERE novels.id = novel_chapters.novel_id 
-            AND (novels.user_id IS NULL OR novels.user_id = auth.uid()::VARCHAR(32) OR is_admin())
+            SELECT 1 FROM novels
+            WHERE novels.id = novel_chapters.novel_id
+            AND (novels.user_id IS NULL OR novels.user_id = auth.uid()::TEXT OR is_admin())
         )
     );
 
@@ -707,19 +706,19 @@ CREATE POLICY "管理员可以管理小说章节" ON novel_chapters
 
 CREATE POLICY "用户可以查看自己的书架" ON user_novels
     FOR SELECT
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以添加小说到书架" ON user_novels
     FOR INSERT
-    WITH CHECK (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    WITH CHECK (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以更新自己的阅读进度" ON user_novels
     FOR UPDATE
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 CREATE POLICY "用户可以从书架移除小说" ON user_novels
     FOR DELETE
-    USING (user_id = auth.uid()::VARCHAR(32) OR is_admin());
+    USING (user_id = auth.uid()::TEXT OR is_admin());
 
 -- ============================================================
 -- 6.9 App版本表 RLS 策略
@@ -752,7 +751,7 @@ CREATE POLICY "管理员可以查看操作日志" ON operation_logs
 
 CREATE POLICY "系统可以插入操作日志" ON operation_logs
     FOR INSERT
-    WITH CHECK (is_admin() OR user_id = auth.uid()::VARCHAR(32));
+    WITH CHECK (is_admin() OR user_id = auth.uid()::TEXT);
 
 -- ============================================================
 -- 第七部分：视图和存储过程
@@ -760,7 +759,7 @@ CREATE POLICY "系统可以插入操作日志" ON operation_logs
 
 -- 7.1 用户统计视图
 CREATE OR REPLACE VIEW user_stats AS
-SELECT 
+SELECT
     u.id,
     u.nickname,
     u.role,
@@ -783,7 +782,7 @@ GROUP BY u.id;
 
 -- 7.2 系统概览视图
 CREATE OR REPLACE VIEW system_overview AS
-SELECT 
+SELECT
     (SELECT COUNT(*) FROM users) as total_users,
     (SELECT COUNT(*) FROM users WHERE status = 'active') as active_users,
     (SELECT COUNT(*) FROM users WHERE role = 'admin') as admin_count,
@@ -797,7 +796,7 @@ SELECT
 
 -- 7.3 每日活跃统计视图
 CREATE OR REPLACE VIEW daily_stats AS
-SELECT 
+SELECT
     DATE(created_at) as date,
     (SELECT COUNT(*) FROM users u WHERE DATE(u.created_at) = DATE(e.created_at)) as new_users,
     COUNT(DISTINCT e.user_id) as active_users,
@@ -834,7 +833,7 @@ CREATE OR REPLACE FUNCTION update_login_info(
 )
 RETURNS VOID AS $$
 BEGIN
-    UPDATE users 
+    UPDATE users
     SET last_login_ip = p_login_ip,
         last_login_at = NOW(),
         login_count = login_count + 1
@@ -887,7 +886,7 @@ BEGIN
         JOIN users u ON u.role = r.name
         WHERE u.id = p_user_id AND p.name = p_permission_name
     ) INTO has_perm;
-    
+
     RETURN has_perm;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
@@ -916,9 +915,9 @@ RETURNS INTEGER AS $$
 DECLARE
     deleted_count INTEGER;
 BEGIN
-    DELETE FROM operation_logs 
+    DELETE FROM operation_logs
     WHERE created_at < NOW() - (days_to_keep || ' days')::INTERVAL;
-    
+
     GET DIAGNOSTICS deleted_count = ROW_COUNT;
     RETURN deleted_count;
 END;
@@ -928,7 +927,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION update_novel_stats(p_novel_id UUID)
 RETURNS VOID AS $$
 BEGIN
-    UPDATE novels 
+    UPDATE novels
     SET chapter_count = (
         SELECT COUNT(*) FROM novel_chapters WHERE novel_id = p_novel_id
     ),
@@ -967,7 +966,6 @@ CREATE TRIGGER trigger_update_novel_stats
 -- 完成提示
 -- ============================================================
 
--- 输出完成信息
 DO $$
 BEGIN
     RAISE NOTICE '========================================';
