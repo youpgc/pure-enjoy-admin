@@ -14,6 +14,9 @@ import {
   LogoutOutlined,
   SafetyOutlined,
   DatabaseOutlined,
+  BarChartOutlined,
+  FileTextOutlined,
+  MonitorOutlined,
 } from '@ant-design/icons'
 import AuthGuard from './components/AuthGuard'
 import { useAuth } from './context/auth'
@@ -29,10 +32,13 @@ import NovelManagement from './pages/NovelManagement'
 import VersionManagement from './pages/VersionManagement'
 import RolePermission from './pages/RolePermission'
 import Login from './pages/Login'
+import Analytics from './pages/Analytics'
+import OperationLogs from './pages/OperationLogs'
+import SystemMonitor from './pages/SystemMonitor'
 
 const { Header, Sider, Content } = Layout
 
-type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' | 'novels' | 'novel_library' | 'versions'
+type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' | 'novels' | 'novel_library' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor'
 
 const allMenuItems: { key: PageKey; icon: React.ReactNode; label: string; requiredRole?: string }[] = [
   { key: 'dashboard', icon: <DashboardOutlined />, label: '数据概览' },
@@ -45,6 +51,9 @@ const allMenuItems: { key: PageKey; icon: React.ReactNode; label: string; requir
   { key: 'novels', icon: <ReadOutlined />, label: '用户书架' },
   { key: 'novel_library', icon: <DatabaseOutlined />, label: '小说库管理' },
   { key: 'versions', icon: <MobileOutlined />, label: '版本管理', requiredRole: 'admin' },
+  { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析', requiredRole: 'admin' },
+  { key: 'operation_logs', icon: <FileTextOutlined />, label: '操作日志', requiredRole: 'admin' },
+  { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控', requiredRole: 'admin' },
 ]
 
 const MainLayout: React.FC = () => {
@@ -98,6 +107,12 @@ const MainLayout: React.FC = () => {
         return <NovelManagement />
       case 'versions':
         return <VersionManagement />
+      case 'analytics':
+        return <Analytics />
+      case 'operation_logs':
+        return <OperationLogs />
+      case 'system_monitor':
+        return <SystemMonitor />
       default:
         return <Dashboard />
     }
