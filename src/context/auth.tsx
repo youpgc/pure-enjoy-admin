@@ -1,190 +1,148 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
-import { message } from 'antd'
-import type { UserInfo, LoginCredentials, AuthState, UserRole } from '../types/auth'
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import type { AdminUser, Role } from '../types/auth'
+import { supabase } from '../utils/supabase'
 
-// 模拟用户数据（实际项目中应该从后端API获取）
-const MOCK_USERS: Record<string, { password: string; userInfo: UserInfo }> = {
-  'admin@pureenjoy.com': {
-    password: 'admin123',
-    userInfo: {
-      id: '1',
-      email: 'admin@pureenjoy.com',
-      role: 'super_admin',
-      name: '超级管理员',
-      created_at: new Date().toISOString(),
-    },
-  },
-  'manager@pureenjoy.com': {
-    password: 'manager123',
-    userInfo: {
-      id: '2',
-      email: 'manager@pureenjoy.com',
-      role: 'admin',
-      name: '管理员',
-      created_at: new Date().toISOString(),
-    },
-  },
-  'viewer@pureenjoy.com': {
-    password: 'viewer123',
-    userInfo: {
-      id: '3',
-      email: 'viewer@pureenjoy.com',
-      role: 'viewer',
-      name: '查看者',
-      created_at: new Date().toISOString(),
-    },
-  },
-}
-
-interface AuthContextType extends AuthState {
-  login: (credentials: LoginCredentials) => Promise<boolean>
+interface AuthContextType {
+  user: AdminUser | null
+  loading: boolean
+  login: (email: string, password: string) => Promise<void>
   logout: () => void
-  updateUser: (user: Partial<UserInfo>) => void
-  hasRole: (roles: UserRole[]) => boolean
+  checkPermission: (permission: string) => boolean
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+  login: async () => {},
+  logout: () => {},
+  checkPermission: () => false,
+})
 
-const AUTH_STORAGE_KEY = 'pure_enjoy_admin_auth'
+export const useAuth = () => useContext(AuthContext)
+
+// 数据库用户类型
+interface DbUser {
+  id: string
+  email: string
+  password_hash: string
+  nickname: string | null
+  avatar_url: string | null
+  role: string
+  member_level: string
+  points: number
+  status: string
+  register_ip: string | null
+  last_login_ip: string | null
+  last_login_at: string | null
+  login_count: number
+  created_at: string
+  updated_at: string
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AuthState>({
-    isAuthenticated: false,
-    user: null,
-    isLoading: true,
-    error: null,
-  })
+  const [user, setUser] = useState<AdminUser | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  // 初始化时检查本地存储
   useEffect(() => {
-    const initAuth = () => {
+    const stored = localStorage.getItem('admin_user')
+    if (stored) {
       try {
-        const stored = localStorage.getItem(AUTH_STORAGE_KEY)
-        if (stored) {
-          const user = JSON.parse(stored) as UserInfo
-          setState({
-            isAuthenticated: true,
-            user,
-            isLoading: false,
-            error: null,
-          })
-        } else {
-          setState(prev => ({ ...prev, isLoading: false }))
-        }
+        setUser(JSON.parse(stored))
       } catch {
-        setState(prev => ({ ...prev, isLoading: false }))
+        localStorage.removeItem('admin_user')
       }
     }
-    initAuth()
+    setLoading(false)
   }, [])
 
-  const login = useCallback(async (credentials: LoginCredentials): Promise<boolean> => {
-    setState(prev => ({ ...prev, isLoading: true, error: null }))
+  const login = useCallback(async (email: string, password: string) => {
+    // 1. 查询用户
+    const { data: dbUser, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single()
 
-    try {
-      // 模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      const userData = MOCK_USERS[credentials.email]
-
-      if (!userData || userData.password !== credentials.password) {
-        setState(prev => ({
-          ...prev,
-          isLoading: false,
-          error: '邮箱或密码错误',
-        }))
-        message.error('邮箱或密码错误')
-        return false
-      }
-
-      const userInfo = {
-        ...userData.userInfo,
-        last_sign_in_at: new Date().toISOString(),
-      }
-
-      // 保存到本地存储
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userInfo))
-
-      setState({
-        isAuthenticated: true,
-        user: userInfo,
-        isLoading: false,
-        error: null,
-      })
-
-      message.success(`欢迎回来，${userInfo.name}`)
-      return true
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: '登录失败，请稍后重试',
-      }))
-      message.error('登录失败，请稍后重试')
-      return false
+    if (error || !dbUser) {
+      throw new Error('用户不存在')
     }
+
+    const user = dbUser as DbUser
+
+    // 2. 验证密码（简单比较，实际应该用 bcrypt）
+    if (user.password_hash !== password) {
+      throw new Error('密码错误')
+    }
+
+    // 3. 检查状态
+    if (user.status !== 'active') {
+      throw new Error('账号已被禁用')
+    }
+
+    // 4. 检查角色
+    if (user.role === 'user') {
+      throw new Error('普通用户无法登录后台')
+    }
+
+    // 5. 更新登录信息
+    await supabase
+      .from('users')
+      .update({
+        last_login_at: new Date().toISOString(),
+        last_login_ip: '127.0.0.1', // 实际应该获取真实IP
+        login_count: user.login_count + 1
+      })
+      .eq('id', user.id)
+
+    // 6. 存储用户信息
+    const adminUser: AdminUser = {
+      id: user.id,
+      email: user.email,
+      role: user.role as Role,
+      nickname: user.nickname || undefined,
+      avatar_url: user.avatar_url || undefined,
+      created_at: user.created_at,
+    }
+
+    setUser(adminUser)
+    localStorage.setItem('admin_user', JSON.stringify(adminUser))
   }, [])
 
   const logout = useCallback(() => {
-    localStorage.removeItem(AUTH_STORAGE_KEY)
-    setState({
-      isAuthenticated: false,
-      user: null,
-      isLoading: false,
-      error: null,
-    })
-    message.success('已退出登录')
+    setUser(null)
+    localStorage.removeItem('admin_user')
   }, [])
 
-  const updateUser = useCallback((userData: Partial<UserInfo>) => {
-    setState(prev => {
-      if (!prev.user) return prev
-      const updatedUser = { ...prev.user, ...userData }
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser))
-      return {
-        ...prev,
-        user: updatedUser,
-      }
-    })
-  }, [])
+  const checkPermission = useCallback((permission: string): boolean => {
+    if (!user) return false
 
-  const hasRole = useCallback((roles: UserRole[]): boolean => {
-    if (!state.user) return false
-    return roles.includes(state.user.role)
-  }, [state.user])
+    // 角色权限映射
+    const rolePermissions: Record<string, string[]> = {
+      super_admin: ['*'], // 超级管理员拥有所有权限
+      admin: [
+        'users:read', 'users:write', 'users:delete', 'users:export',
+        'expenses:read', 'expenses:write', 'expenses:delete', 'expenses:export',
+        'moods:read', 'moods:write', 'moods:delete', 'moods:export',
+        'weights:read', 'weights:write', 'weights:delete', 'weights:export',
+        'notes:read', 'notes:write', 'notes:delete', 'notes:export',
+        'novels:read', 'novels:write', 'novels:delete', 'novels:export',
+        'novel_library:read', 'novel_library:write', 'novel_library:delete', 'novel_library:export',
+        'versions:read', 'versions:write', 'versions:release',
+        'system:read', 'system:logs', 'system:stats'
+      ],
+      viewer: [
+        'expenses:read', 'moods:read', 'weights:read', 'notes:read', 'novels:read',
+        'novel_library:read'
+      ]
+    }
+
+    const permissions = rolePermissions[user.role] || []
+    return permissions.includes('*') || permissions.includes(permission)
+  }, [user])
 
   return (
-    <AuthContext.Provider
-      value={{
-        ...state,
-        login,
-        logout,
-        updateUser,
-        hasRole,
-      }}
-    >
+    <AuthContext.Provider value={{ user, loading, login, logout, checkPermission }}>
       {children}
     </AuthContext.Provider>
   )
-}
-
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
-}
-
-// 检查是否已登录（用于路由守卫）
-export const checkAuth = (): UserInfo | null => {
-  try {
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY)
-    if (stored) {
-      return JSON.parse(stored) as UserInfo
-    }
-  } catch {
-    // 解析失败
-  }
-  return null
 }
