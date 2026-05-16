@@ -24,6 +24,9 @@ import {
   SyncOutlined,
   EditOutlined,
   DollarOutlined,
+  StarOutlined,
+  ClockCircleOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons'
 import AuthGuard from './components/AuthGuard'
 import { useAuth } from './context/auth'
@@ -49,62 +52,134 @@ import DataSync from './pages/DataSync'
 import MessagePush from './pages/MessagePush'
 import ActivityManagement from './pages/ActivityManagement'
 import UserFeedback from './pages/UserFeedback'
+import Favorites from './pages/Favorites'
+import Reminders from './pages/Reminders'
+import Habits from './pages/Habits'
 
 const { Header, Sider, Content } = Layout
 
-type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' | 'novels' | 'novel_library' | 'novel_content' | 'novel_pricing' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' | 'api_management' | 'data_sync' | 'message_push' | 'activity_management' | 'user_feedback'
+type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' | 
+  'favorites' | 'reminders' | 'habits' |
+  'novels' | 'novel_library' | 'novel_content' | 'novel_pricing' | 
+  'versions' | 'analytics' | 'operation_logs' | 'system_monitor' | 
+  'api_management' | 'data_sync' | 'message_push' | 'activity_management' | 'user_feedback'
 
-const allMenuItems: { key: PageKey; icon: React.ReactNode; label: string; requiredRole?: string }[] = [
-  { key: 'dashboard', icon: <DashboardOutlined />, label: '数据概览' },
-  { key: 'users', icon: <UserOutlined />, label: '用户管理' },
-  { key: 'roles', icon: <SafetyOutlined />, label: '角色权限', requiredRole: 'admin' },
-  { key: 'expenses', icon: <WalletOutlined />, label: '消费记录' },
-  { key: 'mood', icon: <SmileOutlined />, label: '心情日记' },
-  { key: 'weight', icon: <LineChartOutlined />, label: '体重记录' },
-  { key: 'notes', icon: <BookOutlined />, label: '笔记本' },
-  { key: 'novels', icon: <ReadOutlined />, label: '用户书架' },
-  { key: 'novel_library', icon: <DatabaseOutlined />, label: '小说库管理' },
-  { key: 'novel_content', icon: <EditOutlined />, label: '小说内容管理', requiredRole: 'admin' },
-  { key: 'novel_pricing', icon: <DollarOutlined />, label: '付费管理', requiredRole: 'admin' },
-  { key: 'versions', icon: <MobileOutlined />, label: '版本管理', requiredRole: 'admin' },
-  { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析', requiredRole: 'admin' },
-  { key: 'operation_logs', icon: <FileTextOutlined />, label: '操作日志', requiredRole: 'admin' },
-  { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控', requiredRole: 'admin' },
-  { key: 'api_management', icon: <ApiOutlined />, label: 'API 管理', requiredRole: 'admin' },
-  { key: 'data_sync', icon: <SyncOutlined />, label: '数据同步', requiredRole: 'admin' },
-  { key: 'message_push', icon: <BellOutlined />, label: '消息推送', requiredRole: 'admin' },
-  { key: 'activity_management', icon: <CalendarOutlined />, label: '活动管理', requiredRole: 'admin' },
-  { key: 'user_feedback', icon: <MessageOutlined />, label: '用户反馈', requiredRole: 'admin' },
+interface MenuItem {
+  key: PageKey
+  icon: React.ReactNode
+  label: string
+  requiredRole?: string
+}
+
+interface MenuGroup {
+  key: string
+  icon: React.ReactNode
+  label: string
+  children: MenuItem[]
+}
+
+// 菜单分组配置
+const menuGroups: MenuGroup[] = [
+  {
+    key: 'overview',
+    icon: <DashboardOutlined />,
+    label: '数据概览',
+    children: [
+      { key: 'dashboard', icon: <DashboardOutlined />, label: '数据概览' },
+    ],
+  },
+  {
+    key: 'user_management',
+    icon: <UserOutlined />,
+    label: '用户管理',
+    children: [
+      { key: 'users', icon: <UserOutlined />, label: '用户管理' },
+      { key: 'roles', icon: <SafetyOutlined />, label: '角色权限', requiredRole: 'admin' },
+    ],
+  },
+  {
+    key: 'life_records',
+    icon: <WalletOutlined />,
+    label: '生活记录',
+    children: [
+      { key: 'expenses', icon: <WalletOutlined />, label: '消费记录' },
+      { key: 'mood', icon: <SmileOutlined />, label: '心情日记' },
+      { key: 'weight', icon: <LineChartOutlined />, label: '体重记录' },
+      { key: 'notes', icon: <BookOutlined />, label: '笔记本' },
+      { key: 'favorites', icon: <StarOutlined />, label: '收藏夹' },
+      { key: 'reminders', icon: <ClockCircleOutlined />, label: '日程提醒' },
+      { key: 'habits', icon: <CheckCircleOutlined />, label: '习惯打卡' },
+    ],
+  },
+  {
+    key: 'novel_management',
+    icon: <ReadOutlined />,
+    label: '小说管理',
+    children: [
+      { key: 'novels', icon: <ReadOutlined />, label: '用户书架' },
+      { key: 'novel_library', icon: <DatabaseOutlined />, label: '小说库管理' },
+      { key: 'novel_content', icon: <EditOutlined />, label: '小说内容管理', requiredRole: 'admin' },
+      { key: 'novel_pricing', icon: <DollarOutlined />, label: '付费管理', requiredRole: 'admin' },
+    ],
+  },
+  {
+    key: 'operations',
+    icon: <MobileOutlined />,
+    label: '运营管理',
+    children: [
+      { key: 'versions', icon: <MobileOutlined />, label: '版本管理', requiredRole: 'admin' },
+      { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析', requiredRole: 'admin' },
+      { key: 'operation_logs', icon: <FileTextOutlined />, label: '操作日志', requiredRole: 'admin' },
+      { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控', requiredRole: 'admin' },
+      { key: 'api_management', icon: <ApiOutlined />, label: 'API 管理', requiredRole: 'admin' },
+      { key: 'data_sync', icon: <SyncOutlined />, label: '数据同步', requiredRole: 'admin' },
+      { key: 'message_push', icon: <BellOutlined />, label: '消息推送', requiredRole: 'admin' },
+      { key: 'activity_management', icon: <CalendarOutlined />, label: '活动管理', requiredRole: 'admin' },
+      { key: 'user_feedback', icon: <MessageOutlined />, label: '用户反馈', requiredRole: 'admin' },
+    ],
+  },
 ]
+
+// 默认展开的菜单组
+const defaultOpenKeys = ['overview', 'life_records']
 
 const MainLayout: React.FC = () => {
   const [collapsed] = useState(false)
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
+  const [openKeys, setOpenKeys] = useState<string[]>(defaultOpenKeys)
   const { user, logout } = useAuth()
   const { canManageUsers, canManageVersions } = usePermission()
   const {
     token: { colorBgContainer },
   } = theme.useToken()
 
-  // Filter menu items based on role
-  const filteredMenuItems = allMenuItems.filter(item => {
+  // 过滤菜单项基于角色
+  const filterMenuItem = (item: MenuItem): boolean => {
     if (item.requiredRole === 'admin') return canManageVersions
     if (item.key === 'users') return canManageUsers
     return true
-  })
+  }
 
-  const antdMenuItems: MenuProps['items'] = [
-    ...filteredMenuItems.slice(0, filteredMenuItems.length > 7 ? 7 : filteredMenuItems.length).map(item => ({
+  // 过滤菜单组
+  const filteredMenuGroups = menuGroups.map(group => ({
+    ...group,
+    children: group.children.filter(filterMenuItem),
+  })).filter(group => group.children.length > 0)
+
+  // 构建 Ant Design Menu items
+  const antdMenuItems: MenuProps['items'] = filteredMenuGroups.map(group => ({
+    key: group.key,
+    icon: group.icon,
+    label: group.label,
+    children: group.children.map(item => ({
       key: item.key,
       icon: item.icon,
       label: item.label,
     })),
-    ...(filteredMenuItems.length > 7 ? [{ type: 'divider' as const }, ...filteredMenuItems.slice(7).map(item => ({
-      key: item.key,
-      icon: item.icon,
-      label: item.label,
-    }))] : []),
-  ]
+  }))
+
+  // 获取所有菜单项的扁平列表（用于查找标签）
+  const allMenuItems = menuGroups.flatMap(group => group.children)
 
   const renderPage = () => {
     switch (currentPage) {
@@ -122,6 +197,12 @@ const MainLayout: React.FC = () => {
         return <WeightRecords />
       case 'notes':
         return <Notes />
+      case 'favorites':
+        return <Favorites />
+      case 'reminders':
+        return <Reminders />
+      case 'habits':
+        return <Habits />
       case 'novels':
         return <Novels />
       case 'novel_library':
@@ -157,6 +238,14 @@ const MainLayout: React.FC = () => {
     logout()
   }
 
+  const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
+    setCurrentPage(key as PageKey)
+  }
+
+  const handleOpenChange = (keys: string[]) => {
+    setOpenKeys(keys)
+  }
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
@@ -181,8 +270,10 @@ const MainLayout: React.FC = () => {
         <Menu
           mode="inline"
           selectedKeys={[currentPage]}
+          openKeys={openKeys}
           items={antdMenuItems}
-          onClick={({ key }) => setCurrentPage(key as PageKey)}
+          onClick={handleMenuClick}
+          onOpenChange={handleOpenChange}
         />
       </Sider>
       <Layout>

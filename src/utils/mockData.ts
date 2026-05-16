@@ -1523,3 +1523,214 @@ export const calculateBmi = (weight: number, height: number): number => {
   if (!weight || !height) return 0
   return parseFloat((weight / Math.pow(height / 100, 2)).toFixed(1))
 }
+
+// ==================== 收藏夹 ====================
+export interface MockFavorite {
+  id: string
+  user_id: string
+  title: string
+  url: string | null
+  category: string
+  tags: string[]
+  is_pinned: boolean
+  created_at: string
+  updated_at: string
+}
+
+export const favoriteCategoryMap: Record<string, { label: string; color: string }> = {
+  article: { label: '文章', color: 'blue' },
+  video: { label: '视频', color: 'red' },
+  tool: { label: '工具', color: 'green' },
+  website: { label: '网站', color: 'purple' },
+  other: { label: '其他', color: 'default' },
+}
+
+const favoriteTitles = [
+  'React 官方文档', 'TypeScript 入门教程', 'Ant Design 组件库',
+  'MDN Web Docs', 'GitHub 开源项目', 'Stack Overflow',
+  'CSS-Tricks 技巧', 'JavaScript 高级程序设计', 'Node.js 最佳实践',
+  'Docker 入门指南', 'Kubernetes 教程', 'Linux 命令大全',
+  'VS Code 插件推荐', 'Chrome 开发者工具', 'Figma 设计资源',
+]
+
+const favoriteUrls = [
+  'https://react.dev', 'https://www.typescriptlang.org/docs', 'https://ant.design',
+  'https://developer.mozilla.org', 'https://github.com', 'https://stackoverflow.com',
+  'https://css-tricks.com', 'https://book.douban.com/subject/35196328', 'https://nodejs.org',
+  'https://www.docker.com', 'https://kubernetes.io', 'https://linux.die.net',
+  'https://marketplace.visualstudio.com', 'https://developer.chrome.com', 'https://www.figma.com',
+]
+
+const favoriteCategories = ['article', 'video', 'tool', 'website', 'other']
+const favoriteTagsList = ['前端', '后端', '工具', '教程', '参考', '开源', '设计', '文档']
+
+export const mockFavorites: MockFavorite[] = Array.from({ length: 15 }, (_, i) => {
+  const user = mockUsers[i % mockUsers.length]!
+  const category = favoriteCategories[i % favoriteCategories.length]!
+  return {
+    id: `fav_${String(i + 1).padStart(3, '0')}`,
+    user_id: user.id,
+    title: favoriteTitles[i]!,
+    url: favoriteUrls[i]!,
+    category,
+    tags: [favoriteTagsList[i % favoriteTagsList.length]!, favoriteTagsList[(i + 2) % favoriteTagsList.length]!],
+    is_pinned: i < 3,
+    created_at: dayjs().subtract(Math.floor(Math.random() * 90) + 1, 'day').format('YYYY-MM-DD HH:mm:ss'),
+    updated_at: dayjs().subtract(Math.floor(Math.random() * 7), 'day').format('YYYY-MM-DD HH:mm:ss'),
+  }
+})
+
+// ==================== 日程提醒 ====================
+export interface MockReminder {
+  id: string
+  user_id: string
+  title: string
+  description: string | null
+  remind_at: string
+  is_completed: boolean
+  priority: 'low' | 'normal' | 'high'
+  created_at: string
+}
+
+export const reminderPriorityMap: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  low: { label: '低', color: 'default', icon: null },
+  normal: { label: '中', color: 'blue', icon: null },
+  high: { label: '高', color: 'red', icon: null },
+}
+
+const reminderTitles = [
+  '完成项目报告', '团队周会', '客户演示', '代码审查', '发布新版本',
+  '学习新技术', '健身运动', '阅读书籍', '家庭聚会', '缴纳账单',
+  '预约体检', '购买生活用品', '整理笔记', '备份数据', '更新简历',
+]
+
+const reminderDescriptions = [
+  '需要完成Q4季度的项目总结报告',
+  '每周五下午3点的团队例会',
+  '向客户展示新功能',
+  '审查团队成员提交的代码',
+  '发布v2.4.0版本到生产环境',
+  '学习React 18新特性',
+  '去健身房锻炼1小时',
+  '阅读《深度工作》30分钟',
+  '周末家庭聚餐',
+  '缴纳水电费和网费',
+  '预约年度健康体检',
+  '去超市购买生活用品',
+  '整理本周的学习笔记',
+  '备份重要数据到云端',
+  '更新个人简历',
+]
+
+export const mockReminders: MockReminder[] = Array.from({ length: 15 }, (_, i) => {
+  const user = mockUsers[i % mockUsers.length]!
+  const priorities: MockReminder['priority'][] = ['low', 'normal', 'high']
+  const isCompleted = i < 5
+  return {
+    id: `reminder_${String(i + 1).padStart(3, '0')}`,
+    user_id: user.id,
+    title: reminderTitles[i]!,
+    description: reminderDescriptions[i]!,
+    remind_at: dayjs().add(i - 5, 'day').hour(9 + i % 8).minute(0).format('YYYY-MM-DD HH:mm:ss'),
+    is_completed: isCompleted,
+    priority: priorities[i % priorities.length]!,
+    created_at: dayjs().subtract(Math.floor(Math.random() * 30) + 1, 'day').format('YYYY-MM-DD HH:mm:ss'),
+  }
+})
+
+// ==================== 习惯打卡 ====================
+export interface MockHabit {
+  id: string
+  user_id: string
+  name: string
+  description: string | null
+  frequency: 'daily' | 'weekly' | 'monthly'
+  target_days: number
+  current_streak: number
+  max_streak: number
+  total_checkins: number
+  color: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface MockHabitCheckin {
+  id: string
+  habit_id: string
+  checkin_date: string
+  note: string | null
+  created_at: string
+}
+
+export const habitFrequencyMap: Record<string, { label: string }> = {
+  daily: { label: '每天' },
+  weekly: { label: '每周' },
+  monthly: { label: '每月' },
+}
+
+const habitNames = [
+  '早起', '阅读', '运动', '冥想', '喝水',
+  '写日记', '背单词', '练琴', '画画', '编程',
+  '整理房间', '吃水果', '早睡', '拉伸', '记账',
+]
+
+const habitDescriptions = [
+  '每天早上7点前起床',
+  '每天阅读30分钟',
+  '每天运动30分钟',
+  '每天冥想10分钟',
+  '每天喝8杯水',
+  '每天写日记记录生活',
+  '每天背20个单词',
+  '每天练习钢琴30分钟',
+  '每天画画1小时',
+  '每天编程学习2小时',
+  '每天整理房间10分钟',
+  '每天吃2份水果',
+  '每天晚上11点前睡觉',
+  '每天拉伸15分钟',
+  '每天记录收支',
+]
+
+const habitColors = [
+  '#1890FF', '#52C41A', '#FAAD14', '#FF4D4F', '#722ED1',
+  '#13C2C2', '#EB2F96', '#F5222D', '#FA541C', '#FA8C16',
+  '#2F4554', '#61A5E8', '#91C7AE', '#D53A35', '#E062AE',
+]
+
+export const mockHabits: MockHabit[] = Array.from({ length: 12 }, (_, i) => {
+  const user = mockUsers[i % 5]!
+  const currentStreak = Math.floor(Math.random() * 30)
+  const totalCheckins = Math.floor(Math.random() * 100) + currentStreak
+  return {
+    id: `habit_${String(i + 1).padStart(3, '0')}`,
+    user_id: user.id,
+    name: habitNames[i]!,
+    description: habitDescriptions[i]!,
+    frequency: 'daily',
+    target_days: 21,
+    current_streak: currentStreak,
+    max_streak: Math.max(currentStreak, Math.floor(Math.random() * 60) + 10),
+    total_checkins: totalCheckins,
+    color: habitColors[i % habitColors.length]!,
+    is_active: i < 10,
+    created_at: dayjs().subtract(Math.floor(Math.random() * 90) + 30, 'day').format('YYYY-MM-DD HH:mm:ss'),
+  }
+})
+
+// 生成打卡记录
+export const mockHabitCheckins: MockHabitCheckin[] = []
+mockHabits.forEach(habit => {
+  // 为每个习惯生成最近7天的打卡记录（随机）
+  for (let i = 0; i < 7; i++) {
+    if (Math.random() > 0.3) { // 70%概率打卡
+      mockHabitCheckins.push({
+        id: `checkin_${habit.id}_${i}`,
+        habit_id: habit.id,
+        checkin_date: dayjs().subtract(i, 'day').format('YYYY-MM-DD'),
+        note: i === 0 ? '今天感觉很好！' : null,
+        created_at: dayjs().subtract(i, 'day').hour(8 + Math.floor(Math.random() * 12)).format('YYYY-MM-DD HH:mm:ss'),
+      })
+    }
+  }
+})
