@@ -17,6 +17,12 @@ import {
   BarChartOutlined,
   FileTextOutlined,
   MonitorOutlined,
+  AppstoreOutlined,
+  StarOutlined,
+  BellOutlined,
+  CheckCircleOutlined,
+  MenuUnfoldOutlined,
+  MenuFoldOutlined,
 } from '@ant-design/icons'
 import AuthGuard from './components/AuthGuard'
 import { useAuth } from './context/auth'
@@ -35,29 +41,18 @@ import Login from './pages/Login'
 import Analytics from './pages/Analytics'
 import OperationLogs from './pages/OperationLogs'
 import SystemMonitor from './pages/SystemMonitor'
+import Favorites from './pages/Favorites'
+import Reminders from './pages/Reminders'
+import Habits from './pages/Habits'
 
 const { Header, Sider, Content } = Layout
 
-type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' | 'novels' | 'novel_library' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor'
-
-const allMenuItems: { key: PageKey; icon: React.ReactNode; label: string; requiredRole?: string }[] = [
-  { key: 'dashboard', icon: <DashboardOutlined />, label: '数据概览' },
-  { key: 'users', icon: <UserOutlined />, label: '用户管理' },
-  { key: 'roles', icon: <SafetyOutlined />, label: '角色权限', requiredRole: 'admin' },
-  { key: 'expenses', icon: <WalletOutlined />, label: '消费记录' },
-  { key: 'mood', icon: <SmileOutlined />, label: '心情日记' },
-  { key: 'weight', icon: <LineChartOutlined />, label: '体重记录' },
-  { key: 'notes', icon: <BookOutlined />, label: '笔记本' },
-  { key: 'novels', icon: <ReadOutlined />, label: '用户书架' },
-  { key: 'novel_library', icon: <DatabaseOutlined />, label: '小说库管理' },
-  { key: 'versions', icon: <MobileOutlined />, label: '版本管理', requiredRole: 'admin' },
-  { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析', requiredRole: 'admin' },
-  { key: 'operation_logs', icon: <FileTextOutlined />, label: '操作日志', requiredRole: 'admin' },
-  { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控', requiredRole: 'admin' },
-]
+type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' | 
+  'novels' | 'novel_library' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
+  'favorites' | 'reminders' | 'habits'
 
 const MainLayout: React.FC = () => {
-  const [collapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
   const { user, logout } = useAuth()
   const { canManageUsers, canManageVersions } = usePermission()
@@ -65,24 +60,66 @@ const MainLayout: React.FC = () => {
     token: { colorBgContainer },
   } = theme.useToken()
 
-  // Filter menu items based on role
-  const filteredMenuItems = allMenuItems.filter(item => {
-    if (item.requiredRole === 'admin') return canManageVersions
-    if (item.key === 'users') return canManageUsers
-    return true
-  })
+  const handleLogout = () => {
+    logout()
+  }
 
-  const antdMenuItems: MenuProps['items'] = [
-    ...filteredMenuItems.slice(0, filteredMenuItems.length > 7 ? 7 : filteredMenuItems.length).map(item => ({
-      key: item.key,
-      icon: item.icon,
-      label: item.label,
-    })),
-    ...(filteredMenuItems.length > 7 ? [{ type: 'divider' as const }, ...filteredMenuItems.slice(7).map(item => ({
-      key: item.key,
-      icon: item.icon,
-      label: item.label,
-    }))] : []),
+  // 定义菜单项
+  const menuItems: MenuProps['items'] = [
+    {
+      key: 'dashboard',
+      icon: <DashboardOutlined />,
+      label: '数据概览',
+    },
+    {
+      key: 'users',
+      icon: <UserOutlined />,
+      label: '用户管理',
+    },
+    {
+      key: 'life',
+      icon: <AppstoreOutlined />,
+      label: '生活记录',
+      children: [
+        { key: 'expenses', icon: <WalletOutlined />, label: '消费记录' },
+        { key: 'mood', icon: <SmileOutlined />, label: '心情日记' },
+        { key: 'weight', icon: <LineChartOutlined />, label: '体重记录' },
+        { key: 'notes', icon: <BookOutlined />, label: '笔记本' },
+      ],
+    },
+    {
+      key: 'extension',
+      icon: <StarOutlined />,
+      label: '扩展功能',
+      children: [
+        { key: 'favorites', icon: <StarOutlined />, label: '收藏夹' },
+        { key: 'reminders', icon: <BellOutlined />, label: '提醒事项' },
+        { key: 'habits', icon: <CheckCircleOutlined />, label: '习惯打卡' },
+      ],
+    },
+    {
+      key: 'novel',
+      icon: <ReadOutlined />,
+      label: '小说管理',
+      children: [
+        { key: 'novels', icon: <BookOutlined />, label: '用户书架' },
+        { key: 'novel_library', icon: <DatabaseOutlined />, label: '小说库管理' },
+      ],
+    },
+    ...(canManageVersions ? [
+      {
+        key: 'operation',
+        icon: <BarChartOutlined />,
+        label: '运营管理',
+        children: [
+          { key: 'versions', icon: <MobileOutlined />, label: '版本管理' },
+          { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析' },
+          { key: 'operation_logs', icon: <FileTextOutlined />, label: '操作日志' },
+          { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控' },
+          { key: 'roles', icon: <SafetyOutlined />, label: '角色权限' },
+        ],
+      },
+    ] : []),
   ]
 
   const renderPage = () => {
@@ -113,13 +150,37 @@ const MainLayout: React.FC = () => {
         return <OperationLogs />
       case 'system_monitor':
         return <SystemMonitor />
+      case 'favorites':
+        return <Favorites />
+      case 'reminders':
+        return <Reminders />
+      case 'habits':
+        return <Habits />
       default:
         return <Dashboard />
     }
   }
 
-  const handleLogout = () => {
-    logout()
+  const getPageTitle = () => {
+    const titles: Record<PageKey, string> = {
+      dashboard: '数据概览',
+      users: '用户管理',
+      roles: '角色权限',
+      expenses: '消费记录',
+      mood: '心情日记',
+      weight: '体重记录',
+      notes: '笔记本',
+      novels: '用户书架',
+      novel_library: '小说库管理',
+      versions: '版本管理',
+      analytics: '数据分析',
+      operation_logs: '操作日志',
+      system_monitor: '系统监控',
+      favorites: '收藏夹',
+      reminders: '提醒事项',
+      habits: '习惯打卡',
+    }
+    return titles[currentPage] || '数据概览'
   }
 
   return (
@@ -139,15 +200,22 @@ const MainLayout: React.FC = () => {
         <Menu
           mode="inline"
           selectedKeys={[currentPage]}
-          items={antdMenuItems}
+          items={menuItems}
           onClick={({ key }) => setCurrentPage(key as PageKey)}
+          style={{ borderRight: 0 }}
         />
       </Sider>
       <Layout>
         <Header style={{ padding: '0 24px', background: colorBgContainer, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h1 style={{ margin: 0, fontSize: 18 }}>
-            {allMenuItems.find(item => item.key === currentPage)?.label || '数据概览'}
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
+              style: { fontSize: 18, cursor: 'pointer', color: '#999' },
+              onClick: () => setCollapsed(!collapsed),
+            })}
+            <h1 style={{ margin: 0, fontSize: 18 }}>
+              {getPageTitle()}
+            </h1>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ color: '#999' }}>{user?.email}</span>
             <span style={{ color: '#bbb' }}>|</span>
