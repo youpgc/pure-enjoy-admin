@@ -80,8 +80,6 @@ const VersionManagement: React.FC = () => {
       
       // 映射字段：将 GitHub Actions 创建的字段名转换为前端使用的字段名
       const mappedData = (data || []).map((item: any) => {
-        console.log('Processing item:', item)
-        
         // 处理发布时间：优先使用 released_at，否则使用 created_at
         const releasedAt = item.released_at || item.created_at || null
         
@@ -91,8 +89,12 @@ const VersionManagement: React.FC = () => {
         // 处理更新类型
         const releaseType = item.release_type || (item.is_force_update ? 'force' : 'feature')
         
-        // 处理 APK 大小（确保是数字）
-        const apkSize = Number(item.apk_size || item.file_size || 0)
+        // 处理 APK 大小（确保是数字，且大于0）
+        let apkSize = Number(item.apk_size || item.file_size || 0)
+        // 如果 file_size 是字符串，尝试转换
+        if (typeof item.file_size === 'string') {
+          apkSize = parseInt(item.file_size, 10) || 0
+        }
         
         return {
           ...item,
@@ -104,7 +106,7 @@ const VersionManagement: React.FC = () => {
           // 确保其他字段也有默认值
           version: item.version || '1.0.0',
           build_number: Number(item.build_number) || 1,
-          release_notes: item.release_notes || item.release_notes || '无更新说明',
+          release_notes: item.release_notes || '无更新说明',
         }
       })
       
