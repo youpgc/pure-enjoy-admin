@@ -28,6 +28,13 @@ interface AppVersion {
   revoked_at: string | null
   created_at: string
   created_by: string | null
+  // 兼容字段（GitHub Actions 工作流创建的记录使用这些字段名）
+  download_url?: string | null
+  file_size?: number
+  file_name?: string
+  checksum?: string
+  is_force_update?: boolean
+  platform?: string
 }
 
 const releaseTypeMap: Record<string, { label: string; color: string }> = {
@@ -58,14 +65,26 @@ const VersionManagement: React.FC = () => {
 
   const fetchVersions = async () => {
     setLoading(true)
+    console.log('Fetching versions from Supabase...')
     const { data, error } = await supabase
       .from('app_versions')
       .select('*')
       .order('build_number', { ascending: false })
+    console.log('Supabase response:', { data, error })
     if (error) {
-      message.error('加载版本列表失败')
+      console.error('Error fetching versions:', error)
+      message.error('加载版本列表失败: ' + error.message)
     } else {
-      setVersions(data || [])
+      console.log('Versions loaded:', data?.length || 0, 'records')
+      // 映射字段：将 GitHub Actions 创建的字段名转换为前端使用的字段名
+      const mappedData = (data || []).map((item: any) => ({
+        ...item,
+        apk_url: item.apk_url || item.download_url || null,
+        apk_size: item.apk_size || item.file_size || 0,
+        release_type: item.release_type || (item.is_force_update ? 'force' : 'feature'),
+        status: item.status || (item.is_active ? 'released' : 'draft'),
+      }))
+      setVersions(mappedData)
     }
     setLoading(false)
   }
