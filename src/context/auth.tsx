@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { AdminUser, Role } from '../types/auth'
 import { supabase } from '../utils/supabase'
+import sha256 from 'crypto-js/sha256'
 
 interface AuthContextType {
   user: AdminUser | null
@@ -69,8 +70,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const user = dbUser as DbUser
 
-    // 2. 验证密码（简单比较，实际应该用 bcrypt）
-    if (user.password_hash !== password) {
+    // 2. 验证密码（使用 SHA-256 哈希比较）
+    if (user.password_hash !== sha256(password).toString()) {
       throw new Error('密码错误')
     }
 
