@@ -91,7 +91,7 @@ const Habits: React.FC = () => {
         .from('user_habits')
         .select(`
           *,
-          users:user_id (username)
+          users:user_id (nickname)
         `)
         .order('created_at', { ascending: false });
 

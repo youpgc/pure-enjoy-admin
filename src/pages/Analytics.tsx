@@ -96,8 +96,8 @@ const Analytics: React.FC = () => {
           supabase.from('mood_diaries').select('id', { count: 'exact', head: true }),
           // 总笔记数
           supabase.from('notes').select('id', { count: 'exact', head: true }),
-          // 小说阅读量（user_novels 的 read_count 总和）
-          supabase.from('user_novels').select('read_count'),
+          // 小说阅读量（novels 的 read_count 总和）
+          supabase.from('novels').select('read_count'),
           // 用户增长趋势（30天）
           supabase.from('users').select('created_at').gte('created_at', thirtyDaysAgo),
           // 所有用户（用于分布统计和留存率计算）

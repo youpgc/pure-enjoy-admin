@@ -74,7 +74,7 @@ const Favorites: React.FC = () => {
         .from('user_favorites')
         .select(`
           *,
-          users:user_id (username)
+          users:user_id (nickname)
         `)
         .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false });

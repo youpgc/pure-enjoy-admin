@@ -64,9 +64,9 @@ interface OperationLogRow {
   user_id: string
   action: string
   module: string
-  target: string | null
+  target_id: string | null
   ip: string | null
-  detail: string | null
+  details: Record<string, unknown> | string | null
   created_at: string
   users?: { nickname: string | null } | null
 }
@@ -78,9 +78,9 @@ const mapRowToLogItem = (row: OperationLogRow): OperationLogItem => ({
   user_name: row.users?.nickname || '未知用户',
   action: row.action,
   module: row.module,
-  target: row.target || '',
+  target: row.target_id || '',
   ip: row.ip || '',
-  detail: row.detail || '',
+  detail: typeof row.details === 'object' && row.details !== null ? JSON.stringify(row.details) : (row.details as string) || '',
 })
 
 const OperationLogs: React.FC = () => {

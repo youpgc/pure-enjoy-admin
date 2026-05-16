@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import {
-  Tag,
   Button,
   Space,
   Popconfirm,
@@ -39,7 +38,6 @@ interface MoodDiaryRecord {
   user_name: string
   mood: string
   mood_label: string
-  tags: string[]
   content: string
   date: string
   created_at: string
@@ -102,7 +100,6 @@ const MoodDiaries: React.FC = () => {
         ...item,
         key: item.id,
         user_name: item.users?.nickname || '未知用户',
-        tags: item.tags || [],
       }))
 
       setData(records)
@@ -146,12 +143,6 @@ const MoodDiaries: React.FC = () => {
       required: true,
     },
     {
-      name: 'tags',
-      label: '标签',
-      type: 'tags',
-      placeholder: '输入标签后按回车添加',
-    },
-    {
       name: 'content',
       label: '内容',
       type: 'textarea',
@@ -179,8 +170,7 @@ const MoodDiaries: React.FC = () => {
         return (
           record.user_name?.toLowerCase().includes(keyword) ||
           record.mood?.toLowerCase().includes(keyword) ||
-          record.content?.toLowerCase().includes(keyword) ||
-          record.tags?.some((tag) => tag.toLowerCase().includes(keyword))
+          record.content?.toLowerCase().includes(keyword)
         )
       })
     }
@@ -284,7 +274,6 @@ const MoodDiaries: React.FC = () => {
           const { error } = await supabase.from('mood_diaries').insert({
             mood: values.mood as string,
             mood_label: MOOD_OPTIONS.find((opt) => opt.value === values.mood)?.label || '',
-            tags: (values.tags as string[]) || [],
             content: (values.content as string) || '',
             date: values.date as string,
           })
@@ -296,7 +285,6 @@ const MoodDiaries: React.FC = () => {
             .update({
               mood: values.mood as string,
               mood_label: MOOD_OPTIONS.find((opt) => opt.value === values.mood)?.label || '',
-              tags: (values.tags as string[]) || [],
               content: (values.content as string) || '',
               date: values.date as string,
             })
@@ -326,7 +314,6 @@ const MoodDiaries: React.FC = () => {
       { title: '用户ID', dataIndex: 'user_id' },
       { title: '用户名', dataIndex: 'user_name' },
       { title: '心情', dataIndex: 'mood' },
-      { title: '标签', dataIndex: 'tags', render: (val: unknown) => Array.isArray(val) ? val.join(', ') : '' },
       { title: '内容', dataIndex: 'content' },
       { title: '日期', dataIndex: 'date' },
     ]
@@ -343,7 +330,6 @@ const MoodDiaries: React.FC = () => {
       { title: '用户ID', dataIndex: 'user_id' },
       { title: '用户名', dataIndex: 'user_name' },
       { title: '心情', dataIndex: 'mood' },
-      { title: '标签', dataIndex: 'tags', render: (val: unknown) => Array.isArray(val) ? val.join(', ') : '' },
       { title: '内容', dataIndex: 'content' },
       { title: '日期', dataIndex: 'date' },
     ]
@@ -389,21 +375,6 @@ const MoodDiaries: React.FC = () => {
             {MOOD_EMOJI_MAP[mood] || '😐'}
           </span>
         </Tooltip>
-      ),
-    },
-    {
-      title: '标签',
-      dataIndex: 'tags',
-      key: 'tags',
-      width: 180,
-      render: (tags: string[]) => (
-        <Space size={[0, 4]} wrap>
-          {tags?.map((tag) => (
-            <Tag key={tag} color="blue">
-              {tag}
-            </Tag>
-          ))}
-        </Space>
       ),
     },
     {

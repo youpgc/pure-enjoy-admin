@@ -76,7 +76,7 @@ const Reminders: React.FC = () => {
         .from('user_reminders')
         .select(`
           *,
-          users:user_id (username)
+          users:user_id (nickname)
         `)
         .order('is_completed', { ascending: true })
         .order('remind_at', { ascending: true });

@@ -44,7 +44,6 @@ interface WeightRecord {
   user_id: string
   user_name: string
   weight: number
-  height: number
   bmi: number
   body_fat: number | null
   note: string
@@ -173,17 +172,6 @@ const WeightRecords: React.FC = () => {
       max: 300,
       precision: 1,
       placeholder: '请输入体重',
-    },
-    {
-      name: 'height',
-      label: '身高 (cm)',
-      type: 'number',
-      required: false,
-      min: 100,
-      max: 250,
-      precision: 0,
-      placeholder: '用于计算BMI',
-      tooltip: '身高用于计算BMI，可选填',
     },
     {
       name: 'body_fat',
@@ -328,13 +316,11 @@ const WeightRecords: React.FC = () => {
       setConfirmLoading(true)
       try {
         const weight = values.weight as number
-        const height = (values.height as number) || 170 // 默认身高170cm
-        const bmi = calculateBmi(weight, height)
+        const bmi = calculateBmi(weight, 170) // 默认身高170cm
 
         if (modalMode === 'create') {
           const { error } = await supabase.from('weight_records').insert({
             weight,
-            height,
             bmi,
             body_fat: (values.body_fat as number) || null,
             note: (values.note as string) || '',
@@ -347,7 +333,6 @@ const WeightRecords: React.FC = () => {
             .from('weight_records')
             .update({
               weight,
-              height,
               bmi,
               body_fat: (values.body_fat as number) || null,
               note: (values.note as string) || '',
@@ -379,7 +364,6 @@ const WeightRecords: React.FC = () => {
       { title: '用户ID', dataIndex: 'user_id' },
       { title: '用户名', dataIndex: 'user_name' },
       { title: '体重(kg)', dataIndex: 'weight' },
-      { title: '身高(cm)', dataIndex: 'height' },
       { title: 'BMI', dataIndex: 'bmi' },
       { title: '体脂率(%)', dataIndex: 'body_fat' },
       { title: '备注', dataIndex: 'note' },
@@ -398,7 +382,6 @@ const WeightRecords: React.FC = () => {
       { title: '用户ID', dataIndex: 'user_id' },
       { title: '用户名', dataIndex: 'user_name' },
       { title: '体重(kg)', dataIndex: 'weight' },
-      { title: '身高(cm)', dataIndex: 'height' },
       { title: 'BMI', dataIndex: 'bmi' },
       { title: '体脂率(%)', dataIndex: 'body_fat' },
       { title: '备注', dataIndex: 'note' },
