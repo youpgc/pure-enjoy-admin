@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Tag,
   Button,
@@ -10,6 +10,7 @@ import {
   Card,
   Typography,
   Tooltip,
+  Select,
 } from 'antd'
 import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
 import type { Key } from 'react'
@@ -19,20 +20,39 @@ import {
   DeleteOutlined,
   EditOutlined,
   DownOutlined,
+  UserOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
-import { mockMoodDiaries, MockMoodDiary, MOOD_OPTIONS } from '../utils/mockData'
+import { MOOD_OPTIONS } from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { usePermission } from '../hooks/usePermission'
+import { supabase } from '../utils/supabase'
 
 const { Title } = Typography
 
 // ==================== 类型定义 ====================
 
-interface MoodDiaryRecord extends MockMoodDiary {
+interface MoodDiaryRecord {
+  id: string
   key: string
+  user_id: string
+  user_name?: string
+  nickname?: string
+  mood: string
+  mood_label?: string
+  tags: string[]
+  content: string
+  date: string
+  created_at: string
+  updated_at: string
+}
+
+interface UserOption {
+  id: string
+  username: string | null
+  nickname: string | null
 }
 
 // ==================== 常量定义 ====================
@@ -56,10 +76,8 @@ const MoodDiaries: React.FC = () => {
   } = usePermission()
 
   // 状态
-  const [data, setData] = useState<MoodDiaryRecord[]>(
-    mockMoodDiaries.map((item) => ({ ...item, key: item.id }))
-  )
-  const [loading] = useState(false)
+  const [data, setData] = useState<MoodDiaryRecord[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
@@ -72,11 +90,75 @@ const MoodDiaries: React.FC = () => {
     showTotal: (total) => `共 ${total} 条`,
   })
 
+  // 用户选择器
+  const [userOptions, setUserOptions] = useState<UserOption[]>([])
+  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(undefined)
+
   // 弹窗状态
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
   const [editingRecord, setEditingRecord] = useState<MoodDiaryRecord | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
+
+  // ==================== 数据加载 ====================
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, nickname')
+      if (error) throw error
+      setUserOptions(data || [])
+    } catch (err) {
+      console.error('加载用户列表失败:', err)
+    }
+  }, [])
+
+  const fetchData = useCallback(async (userId?: string) => {
+    setLoading(true)
+    try {
+      let query = supabase
+        .from('mood_diaries')
+        .select('*, users(username, nickname)')
+
+      if (userId) {
+        query = query.eq('user_id', userId)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
+
+      const records: MoodDiaryRecord[] = (data || []).map((item: Record<string, unknown>) => ({
+        id: item.id as string,
+        key: item.id as string,
+        user_id: item.user_id as string,
+        user_name: (item.users as Record<string, unknown>)?.username as string || '',
+        nickname: (item.users as Record<string, unknown>)?.nickname as string || '',
+        mood: item.mood as string,
+        mood_label: item.mood_label as string || '',
+        tags: (item.tags as string[]) || [],
+        content: (item.content as string) || '',
+        date: item.date as string,
+        created_at: item.created_at as string,
+        updated_at: item.updated_at as string,
+      }))
+
+      setData(records)
+    } catch (err) {
+      console.error('加载心情日记失败:', err)
+      message.error('加载数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
+
+  useEffect(() => {
+    fetchData(selectedUserId)
+  }, [selectedUserId, fetchData])
 
   // ==================== 筛选配置 ====================
 
@@ -132,12 +214,12 @@ const MoodDiaries: React.FC = () => {
   const filteredData = useMemo(() => {
     let result = [...data]
 
-    // 关键词搜索
     if (searchText.trim()) {
       const keyword = searchText.trim().toLowerCase()
       result = result.filter((record) => {
+        const displayName = record.nickname || record.user_name || ''
         return (
-          record.user_name?.toLowerCase().includes(keyword) ||
+          displayName.toLowerCase().includes(keyword) ||
           record.mood?.toLowerCase().includes(keyword) ||
           record.content?.toLowerCase().includes(keyword) ||
           record.tags?.some((tag) => tag.toLowerCase().includes(keyword))
@@ -145,12 +227,10 @@ const MoodDiaries: React.FC = () => {
       })
     }
 
-    // 心情筛选
     if (filterValues.mood) {
       result = result.filter((record) => record.mood === filterValues.mood)
     }
 
-    // 日期范围筛选
     if (filterValues.dateRange && Array.isArray(filterValues.dateRange)) {
       const [startDate, endDate] = filterValues.dateRange as [string, string]
       if (startDate && endDate) {
@@ -165,7 +245,6 @@ const MoodDiaries: React.FC = () => {
 
   // ==================== 操作处理 ====================
 
-  // 新增
   const handleCreate = useCallback(() => {
     if (!canWriteMoods) {
       message.warning('您没有新增心情日记的权限')
@@ -176,7 +255,6 @@ const MoodDiaries: React.FC = () => {
     setModalOpen(true)
   }, [canWriteMoods])
 
-  // 编辑
   const handleEdit = useCallback(
     (record: MoodDiaryRecord) => {
       if (!canWriteMoods) {
@@ -190,21 +268,25 @@ const MoodDiaries: React.FC = () => {
     [canWriteMoods]
   )
 
-  // 删除单条
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!canDeleteMoods) {
         message.warning('您没有删除心情日记的权限')
         return
       }
-      setData((prev) => prev.filter((item) => item.id !== id))
-      message.success('删除成功')
+      try {
+        const { error } = await supabase.from('mood_diaries').delete().eq('id', id)
+        if (error) throw error
+        setData((prev) => prev.filter((item) => item.id !== id))
+        message.success('删除成功')
+      } catch (err) {
+        message.error('删除失败')
+      }
     },
     [canDeleteMoods]
   )
 
-  // 批量删除
-  const handleBatchDelete = useCallback(() => {
+  const handleBatchDelete = useCallback(async () => {
     if (!canDeleteMoods) {
       message.warning('您没有删除心情日记的权限')
       return
@@ -213,38 +295,75 @@ const MoodDiaries: React.FC = () => {
       message.warning('请先选择要删除的数据')
       return
     }
-    setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
-    setSelectedRowKeys([])
-    message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    try {
+      const { error } = await supabase
+        .from('mood_diaries')
+        .delete()
+        .in('id', selectedRowKeys as string[])
+      if (error) throw error
+      setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
+      setSelectedRowKeys([])
+      message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    } catch (err) {
+      message.error('批量删除失败')
+    }
   }, [selectedRowKeys, canDeleteMoods])
 
-  // 表单提交
   const handleFormSubmit = useCallback(
     async (values: Record<string, unknown>) => {
       setConfirmLoading(true)
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
         if (modalMode === 'create') {
-          const newRecord: MoodDiaryRecord = {
-            id: `mood_${Date.now()}`,
-            key: `mood_${Date.now()}`,
-            user_id: 'current_user_id',
-            user_name: '当前用户',
-            mood: values.mood as string,
-            mood_label: MOOD_OPTIONS.find((opt) => opt.value === values.mood)?.label || '',
-            tags: (values.tags as string[]) || [],
-            content: (values.content as string) || '',
-            date: values.date as string,
-            created_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-            updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+          const { data: newData, error } = await supabase
+            .from('mood_diaries')
+            .insert({
+              user_id: 'current_user_id',
+              mood: values.mood,
+              mood_label: MOOD_OPTIONS.find((opt) => opt.value === values.mood)?.label || '',
+              tags: values.tags || [],
+              content: values.content || '',
+              date: values.date,
+            })
+            .select('*, users(username, nickname)')
+            .single()
+
+          if (error) throw error
+
+          if (newData) {
+            const newRecord: MoodDiaryRecord = {
+              id: newData.id,
+              key: newData.id,
+              user_id: newData.user_id,
+              user_name: newData.users?.username || '',
+              nickname: newData.users?.nickname || '',
+              mood: newData.mood,
+              mood_label: newData.mood_label || '',
+              tags: newData.tags || [],
+              content: newData.content || '',
+              date: newData.date,
+              created_at: newData.created_at,
+              updated_at: newData.updated_at,
+            }
+            setData((prev) => [newRecord, ...prev])
           }
-          setData((prev) => [newRecord, ...prev])
           message.success('新增成功')
-        } else {
+        } else if (editingRecord) {
+          const { error } = await supabase
+            .from('mood_diaries')
+            .update({
+              mood: values.mood,
+              mood_label: MOOD_OPTIONS.find((opt) => opt.value === values.mood)?.label || '',
+              tags: values.tags || [],
+              content: values.content || '',
+              date: values.date,
+            })
+            .eq('id', editingRecord.id)
+
+          if (error) throw error
+
           setData((prev) =>
             prev.map((item) =>
-              item.id === editingRecord?.id
+              item.id === editingRecord.id
                 ? {
                     ...item,
                     mood: values.mood as string,
@@ -268,15 +387,13 @@ const MoodDiaries: React.FC = () => {
     [modalMode, editingRecord]
   )
 
-  // 导出
   const handleExportCSV = useCallback(() => {
     if (!canExportMoods) {
       message.warning('您没有导出心情日记的权限')
       return
     }
     const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
+      { title: '用户', dataIndex: 'nickname' },
       { title: '心情', dataIndex: 'mood' },
       { title: '标签', dataIndex: 'tags', render: (val: unknown) => Array.isArray(val) ? val.join(', ') : '' },
       { title: '内容', dataIndex: 'content' },
@@ -292,8 +409,7 @@ const MoodDiaries: React.FC = () => {
       return
     }
     const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
+      { title: '用户', dataIndex: 'nickname' },
       { title: '心情', dataIndex: 'mood' },
       { title: '标签', dataIndex: 'tags', render: (val: unknown) => Array.isArray(val) ? val.join(', ') : '' },
       { title: '内容', dataIndex: 'content' },
@@ -303,7 +419,6 @@ const MoodDiaries: React.FC = () => {
     message.success('Excel 导出成功')
   }, [filteredData, canExportMoods])
 
-  // 重置
   const handleReset = useCallback(() => {
     setSearchText('')
     setFilterValues({})
@@ -311,22 +426,24 @@ const MoodDiaries: React.FC = () => {
     setPagination((prev) => ({ ...prev, current: 1 }))
   }, [])
 
+  const handleUserChange = useCallback((userId: string | undefined) => {
+    setSelectedUserId(userId)
+    setPagination((prev) => ({ ...prev, current: 1 }))
+  }, [])
+
   // ==================== 表格列配置 ====================
 
   const columns: ColumnsType<MoodDiaryRecord> = [
     {
-      title: '用户ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
-      width: 180,
-      ellipsis: true,
-      sorter: (a, b) => a.user_id.localeCompare(b.user_id),
-    },
-    {
-      title: '用户名',
-      dataIndex: 'user_name',
-      key: 'user_name',
-      width: 100,
+      title: '用户',
+      key: 'user',
+      width: 120,
+      render: (_, record) => (
+        <Space>
+          <UserOutlined />
+          <span>{record.nickname || record.user_name || '未知用户'}</span>
+        </Space>
+      ),
     },
     {
       title: '心情',
@@ -451,6 +568,22 @@ const MoodDiaries: React.FC = () => {
           心情日记管理
         </Title>
         <Space>
+          {/* 用户选择器 */}
+          <Select
+            placeholder="选择用户"
+            allowClear
+            showSearch
+            style={{ width: 200 }}
+            value={selectedUserId}
+            onChange={handleUserChange}
+            filterOption={(input, option) =>
+              (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            options={userOptions.map((u) => ({
+              value: u.id,
+              label: u.nickname || u.username || u.id,
+            }))}
+          />
           {canWriteMoods && (
             <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
               新增日记
@@ -512,7 +645,7 @@ const MoodDiaries: React.FC = () => {
             total: filteredData.length,
           }}
           onChange={(pag) => setPagination(pag)}
-          scroll={{ x: 1100 }}
+          scroll={{ x: 1000 }}
           rowSelection={
             canDeleteMoods
               ? {
