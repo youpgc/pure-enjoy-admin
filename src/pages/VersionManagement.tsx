@@ -400,7 +400,9 @@ const VersionManagement: React.FC = () => {
       </div>
 
       {(() => {
-        const releasedVersion = versions.find(v => v.status === 'released')
+        const releasedVersion = versions
+          .filter(v => v.status === 'released')
+          .sort((a, b) => (b.build_number || 0) - (a.build_number || 0))[0]
         if (!releasedVersion) return null
         return (
           <Card
