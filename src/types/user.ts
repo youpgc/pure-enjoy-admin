@@ -18,6 +18,7 @@ export interface User {
   email: string
   username: string | null
   phone: string | null
+  password_hash: string | null
   nickname: string | null
   avatar_url: string | null
   role: UserRole

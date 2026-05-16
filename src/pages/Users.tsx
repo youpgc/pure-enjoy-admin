@@ -33,6 +33,7 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import sha256 from 'crypto-js/sha256'
 import type { User, UserFormData, UserStats, OperationLog, UserRole, MemberLevel, UserStatus } from '../types/user'
 import {
   USER_ROLE_LABELS,
@@ -193,11 +194,17 @@ const Users: React.FC = () => {
 
   // 新增用户
   const handleCreate = useCallback(async (formData: UserFormData) => {
+    // 对密码进行 SHA-256 哈希
+    const passwordHash = formData.password
+      ? sha256(formData.password).toString()
+      : sha256('123456').toString() // 默认密码
+
     const newUser: User = {
       id: generateUserId(),
       email: formData.email,
       username: formData.username || null,
       phone: formData.phone || null,
+      password_hash: passwordHash,
       nickname: formData.nickname || null,
       avatar_url: null,
       role: formData.role,
@@ -232,18 +239,25 @@ const Users: React.FC = () => {
     if (!currentUser) return
 
     try {
+      const updateData: Record<string, any> = {
+        username: formData.username || null,
+        phone: formData.phone || null,
+        nickname: formData.nickname || null,
+        role: formData.role,
+        member_level: formData.member_level,
+        status: formData.status,
+        points: formData.points,
+        updated_at: new Date().toISOString(),
+      }
+
+      // 如果填写了新密码，更新密码哈希
+      if (formData.password) {
+        updateData.password_hash = sha256(formData.password).toString()
+      }
+
       const { error } = await supabase
         .from('users')
-        .update({
-          username: formData.username || null,
-          phone: formData.phone || null,
-          nickname: formData.nickname || null,
-          role: formData.role,
-          member_level: formData.member_level,
-          status: formData.status,
-          points: formData.points,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', currentUser.id)
 
       if (error) {
