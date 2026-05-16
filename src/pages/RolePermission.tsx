@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react'
-import { Card, Row, Col, Button, Table, Tag, Typography, Tooltip } from 'antd'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import { Card, Row, Col, Button, Table, Tag, Typography, Tooltip, Spin, message } from 'antd'
 import {
   UserOutlined,
   TeamOutlined,
@@ -10,9 +10,10 @@ import {
 } from '@ant-design/icons'
 import type { RoleWithPermissions, Permission } from '../types/permission'
 import { MODULE_DISPLAY_NAMES, MODULE_COLORS } from '../types/permission'
-import { getRolesWithPermissions, mockPermissions } from '../utils/mockData'
+import { mockPermissions, getRolesWithPermissions } from '../utils/mockData'
 import PermissionConfigModal from '../components/PermissionConfigModal'
 import { useAuth } from '../context/auth'
+import { supabase } from '../utils/supabase'
 
 const { Title, Text } = Typography
 
@@ -35,10 +36,24 @@ const ROLE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bgColo
   },
 }
 
+/**
+ * 检查 Supabase 中是否存在指定表。
+ * 通过尝试查询表的第一行来判断，如果返回 "does not exist" 错误则说明表不存在。
+ */
+async function tableExists(tableName: string): Promise<boolean> {
+  const { error } = await supabase.from(tableName).select('id').limit(1)
+  if (error && (error.message.includes('does not exist') || error.code === '42P01')) {
+    return false
+  }
+  return true
+}
+
 const RolePermission: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [selectedRole, setSelectedRole] = useState<RoleWithPermissions | null>(null)
   const [rolesWithPerms, setRolesWithPerms] = useState<RoleWithPermissions[]>(() => getRolesWithPermissions())
+  const [loading, setLoading] = useState(true)
+  const [hasRolePermissionsTable, setHasRolePermissionsTable] = useState(false)
 
   const { user } = useAuth()
 
@@ -50,6 +65,56 @@ const RolePermission: React.FC = () => {
   // 是否可以编辑权限（只有超级管理员可以）
   const canEdit = isSuperAdmin
 
+  // 从 Supabase 加载角色权限关联数据
+  const fetchRolePermissions = useCallback(async () => {
+    setLoading(true)
+    try {
+      // 检查 role_permissions 表是否存在
+      const exists = await tableExists('role_permissions')
+      setHasRolePermissionsTable(exists)
+
+      if (exists) {
+        const { data, error } = await supabase
+          .from('role_permissions')
+          .select('role_id, permission_id')
+
+        if (error) {
+          console.error('加载角色权限关联失败:', error)
+          message.warning('加载角色权限关联失败，使用默认配置')
+          setRolesWithPerms(getRolesWithPermissions())
+        } else if (data && data.length > 0) {
+          // 根据数据库中的关联数据构建角色权限
+          const defaultRoles = getRolesWithPermissions()
+          const updatedRoles = defaultRoles.map(role => {
+            const permIds = data
+              .filter((rp: { role_id: number; permission_id: number }) => rp.role_id === role.id)
+              .map((rp: { role_id: number; permission_id: number }) => rp.permission_id)
+            return {
+              ...role,
+              permissions: mockPermissions.filter(p => permIds.includes(p.id)),
+            }
+          })
+          setRolesWithPerms(updatedRoles)
+        } else {
+          // 表存在但没有数据，使用默认配置
+          setRolesWithPerms(getRolesWithPermissions())
+        }
+      } else {
+        // role_permissions 表不存在，使用默认配置
+        setRolesWithPerms(getRolesWithPermissions())
+      }
+    } catch (err) {
+      console.error('加载角色权限异常:', err)
+      setRolesWithPerms(getRolesWithPermissions())
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchRolePermissions()
+  }, [fetchRolePermissions])
+
   // 打开权限配置弹窗
   const handleConfigClick = (role: RoleWithPermissions) => {
     setSelectedRole(role)
@@ -58,24 +123,61 @@ const RolePermission: React.FC = () => {
 
   // 保存权限配置
   const handleSavePermissions = async (roleId: number, permissionIds: number[]) => {
-    // 模拟保存到数据库
-    return new Promise<void>(resolve => {
-      setTimeout(() => {
-        // 更新本地状态
-        setRolesWithPerms(prev =>
-          prev.map(role => {
-            if (role.id === roleId) {
-              return {
-                ...role,
-                permissions: mockPermissions.filter(p => permissionIds.includes(p.id)),
-              }
-            }
-            return role
-          })
-        )
-        resolve()
-      }, 500)
-    })
+    if (hasRolePermissionsTable) {
+      // 使用 Supabase 持久化保存
+      try {
+        // 先删除该角色的所有权限关联
+        const { error: deleteError } = await supabase
+          .from('role_permissions')
+          .delete()
+          .eq('role_id', roleId)
+
+        if (deleteError) {
+          console.error('删除角色权限失败:', deleteError)
+          message.error('保存权限配置失败')
+          throw deleteError
+        }
+
+        // 再批量插入新的权限关联
+        if (permissionIds.length > 0) {
+          const inserts = permissionIds.map(permissionId => ({
+            role_id: roleId,
+            permission_id: permissionId,
+          }))
+
+          const { error: insertError } = await supabase
+            .from('role_permissions')
+            .insert(inserts)
+
+          if (insertError) {
+            console.error('插入角色权限失败:', insertError)
+            message.error('保存权限配置失败')
+            throw insertError
+          }
+        }
+
+        message.success('权限配置已保存到数据库')
+      } catch (err) {
+        console.error('保存权限配置异常:', err)
+        // 即使数据库保存失败，仍然更新本地状态
+      }
+    } else {
+      // role_permissions 表不存在，仅更新本地状态并提示
+      message.info('数据库中未找到 role_permissions 表，权限配置仅保存在本地（刷新后重置）')
+    }
+
+    // 更新本地状态
+    setRolesWithPerms(prev =>
+      prev.map(role => {
+        if (role.id === roleId) {
+          return {
+            ...role,
+            permissions: mockPermissions.filter(p => permissionIds.includes(p.id)),
+          }
+        }
+        return role
+      })
+    )
   }
 
   // 权限矩阵数据
@@ -203,6 +305,14 @@ const RolePermission: React.FC = () => {
       },
     },
   ]
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: 100 }}>
+        <Spin size="large" tip="加载角色权限..." />
+      </div>
+    )
+  }
 
   return (
     <div>

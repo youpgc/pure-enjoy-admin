@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Tag,
   Button,
@@ -23,16 +23,27 @@ import {
 import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
-import { mockMoodDiaries, MockMoodDiary, MOOD_OPTIONS } from '../utils/mockData'
+import { MOOD_OPTIONS } from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
+import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
 const { Title } = Typography
 
 // ==================== 类型定义 ====================
 
-interface MoodDiaryRecord extends MockMoodDiary {
+interface MoodDiaryRecord {
+  id: string
   key: string
+  user_id: string
+  user_name: string
+  mood: string
+  mood_label: string
+  tags: string[]
+  content: string
+  date: string
+  created_at: string
+  updated_at: string
 }
 
 // ==================== 常量定义 ====================
@@ -56,10 +67,8 @@ const MoodDiaries: React.FC = () => {
   } = usePermission()
 
   // 状态
-  const [data, setData] = useState<MoodDiaryRecord[]>(
-    mockMoodDiaries.map((item) => ({ ...item, key: item.id }))
-  )
-  const [loading] = useState(false)
+  const [data, setData] = useState<MoodDiaryRecord[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
@@ -77,6 +86,37 @@ const MoodDiaries: React.FC = () => {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
   const [editingRecord, setEditingRecord] = useState<MoodDiaryRecord | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
+
+  // 加载数据
+  const fetchMoodDiaries = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data: diaries, error } = await supabase
+        .from('mood_diaries')
+        .select('*, users:user_id(username)')
+        .order('date', { ascending: false })
+
+      if (error) throw error
+
+      const records: MoodDiaryRecord[] = (diaries || []).map((item: any) => ({
+        ...item,
+        key: item.id,
+        user_name: item.users?.username || '未知用户',
+        tags: item.tags || [],
+      }))
+
+      setData(records)
+    } catch (error) {
+      console.error('获取心情日记失败:', error)
+      message.error('获取心情日记失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchMoodDiaries()
+  }, [fetchMoodDiaries])
 
   // ==================== 筛选配置 ====================
 
@@ -192,19 +232,26 @@ const MoodDiaries: React.FC = () => {
 
   // 删除单条
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!canDeleteMoods) {
         message.warning('您没有删除心情日记的权限')
         return
       }
-      setData((prev) => prev.filter((item) => item.id !== id))
-      message.success('删除成功')
+      try {
+        const { error } = await supabase.from('mood_diaries').delete().eq('id', id)
+        if (error) throw error
+        setData((prev) => prev.filter((item) => item.id !== id))
+        message.success('删除成功')
+      } catch (error) {
+        console.error('删除失败:', error)
+        message.error('删除失败')
+      }
     },
     [canDeleteMoods]
   )
 
   // 批量删除
-  const handleBatchDelete = useCallback(() => {
+  const handleBatchDelete = useCallback(async () => {
     if (!canDeleteMoods) {
       message.warning('您没有删除心情日记的权限')
       return
@@ -213,9 +260,19 @@ const MoodDiaries: React.FC = () => {
       message.warning('请先选择要删除的数据')
       return
     }
-    setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
-    setSelectedRowKeys([])
-    message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    try {
+      const { error } = await supabase
+        .from('mood_diaries')
+        .delete()
+        .in('id', selectedRowKeys as string[])
+      if (error) throw error
+      setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
+      setSelectedRowKeys([])
+      message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    } catch (error) {
+      console.error('批量删除失败:', error)
+      message.error('批量删除失败')
+    }
   }, [selectedRowKeys, canDeleteMoods])
 
   // 表单提交
@@ -223,49 +280,40 @@ const MoodDiaries: React.FC = () => {
     async (values: Record<string, unknown>) => {
       setConfirmLoading(true)
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
         if (modalMode === 'create') {
-          const newRecord: MoodDiaryRecord = {
-            id: `mood_${Date.now()}`,
-            key: `mood_${Date.now()}`,
-            user_id: 'current_user_id',
-            user_name: '当前用户',
+          const { error } = await supabase.from('mood_diaries').insert({
             mood: values.mood as string,
             mood_label: MOOD_OPTIONS.find((opt) => opt.value === values.mood)?.label || '',
             tags: (values.tags as string[]) || [],
             content: (values.content as string) || '',
             date: values.date as string,
-            created_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-            updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-          }
-          setData((prev) => [newRecord, ...prev])
+          })
+          if (error) throw error
           message.success('新增成功')
         } else {
-          setData((prev) =>
-            prev.map((item) =>
-              item.id === editingRecord?.id
-                ? {
-                    ...item,
-                    mood: values.mood as string,
-                    tags: (values.tags as string[]) || [],
-                    content: (values.content as string) || '',
-                    date: values.date as string,
-                    updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-                  }
-                : item
-            )
-          )
+          const { error } = await supabase
+            .from('mood_diaries')
+            .update({
+              mood: values.mood as string,
+              mood_label: MOOD_OPTIONS.find((opt) => opt.value === values.mood)?.label || '',
+              tags: (values.tags as string[]) || [],
+              content: (values.content as string) || '',
+              date: values.date as string,
+            })
+            .eq('id', editingRecord?.id)
+          if (error) throw error
           message.success('更新成功')
         }
         setModalOpen(false)
+        fetchMoodDiaries()
       } catch (error) {
+        console.error('操作失败:', error)
         message.error('操作失败，请重试')
       } finally {
         setConfirmLoading(false)
       }
     },
-    [modalMode, editingRecord]
+    [modalMode, editingRecord, fetchMoodDiaries]
   )
 
   // 导出

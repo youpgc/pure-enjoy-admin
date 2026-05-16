@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Tag,
   Button,
@@ -26,20 +26,40 @@ import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
 import {
-  mockNovels,
-  MockNovel,
   NOVEL_CATEGORY_OPTIONS,
   NOVEL_STATUS_OPTIONS,
 } from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
+import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
 const { Title } = Typography
 
 // ==================== 类型定义 ====================
 
-interface NovelRecord extends MockNovel {
+interface NovelRecord {
+  id: string
   key: string
+  user_id: string | null
+  user_name: string | null
+  novel_id: string | null
+  title: string
+  author: string
+  source: string
+  category: string
+  tags: string[]
+  word_count: number
+  chapter_count: number
+  status: 'ongoing' | 'completed'
+  rating: number
+  read_count: number
+  collect_count: number
+  progress: number
+  last_read_at: string | null
+  description: string
+  cover_url: string
+  created_at: string
+  updated_at: string
 }
 
 // ==================== 常量定义 ====================
@@ -73,10 +93,8 @@ const Novels: React.FC = () => {
   } = usePermission()
 
   // 状态
-  const [data, setData] = useState<NovelRecord[]>(
-    mockNovels.map((item) => ({ ...item, key: item.id }))
-  )
-  const [loading] = useState(false)
+  const [data, setData] = useState<NovelRecord[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
@@ -94,6 +112,53 @@ const Novels: React.FC = () => {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
   const [editingRecord, setEditingRecord] = useState<NovelRecord | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
+
+  // 加载数据
+  const fetchNovels = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data: userNovels, error } = await supabase
+        .from('user_novels')
+        .select('*, users:user_id(username), novels:novel_id(*)')
+        .order('last_read_at', { ascending: false })
+
+      if (error) throw error
+
+      const records: NovelRecord[] = (userNovels || []).map((item: any) => {
+        const novel = item.novels || {}
+        return {
+          ...item,
+          key: item.id,
+          user_name: item.users?.username || '未知用户',
+          novel_id: item.novel_id,
+          title: novel.title || '',
+          author: novel.author || '',
+          source: novel.source || '',
+          category: novel.category || '',
+          tags: novel.tags || [],
+          word_count: novel.word_count || 0,
+          chapter_count: novel.chapter_count || 0,
+          status: novel.status || 'ongoing',
+          rating: novel.rating || 0,
+          read_count: novel.read_count || 0,
+          collect_count: novel.collect_count || 0,
+          description: novel.description || '',
+          cover_url: novel.cover_url || '',
+        }
+      })
+
+      setData(records)
+    } catch (error) {
+      console.error('获取小说书架失败:', error)
+      message.error('获取小说书架失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchNovels()
+  }, [fetchNovels])
 
   // ==================== 筛选配置 ====================
 
@@ -191,7 +256,7 @@ const Novels: React.FC = () => {
 
   // ==================== 操作处理 ====================
 
-  // 新增
+  // 新增（添加到书架）
   const handleCreate = useCallback(() => {
     if (!canWriteNovels) {
       message.warning('您没有新增小说的权限')
@@ -216,21 +281,28 @@ const Novels: React.FC = () => {
     [canWriteNovels]
   )
 
-  // 删除单条
+  // 删除单条（从书架移除）
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!canDeleteNovels) {
         message.warning('您没有删除小说的权限')
         return
       }
-      setData((prev) => prev.filter((item) => item.id !== id))
-      message.success('删除成功')
+      try {
+        const { error } = await supabase.from('user_novels').delete().eq('id', id)
+        if (error) throw error
+        setData((prev) => prev.filter((item) => item.id !== id))
+        message.success('删除成功')
+      } catch (error) {
+        console.error('删除失败:', error)
+        message.error('删除失败')
+      }
     },
     [canDeleteNovels]
   )
 
   // 批量删除
-  const handleBatchDelete = useCallback(() => {
+  const handleBatchDelete = useCallback(async () => {
     if (!canDeleteNovels) {
       message.warning('您没有删除小说的权限')
       return
@@ -239,9 +311,19 @@ const Novels: React.FC = () => {
       message.warning('请先选择要删除的数据')
       return
     }
-    setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
-    setSelectedRowKeys([])
-    message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    try {
+      const { error } = await supabase
+        .from('user_novels')
+        .delete()
+        .in('id', selectedRowKeys as string[])
+      if (error) throw error
+      setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
+      setSelectedRowKeys([])
+      message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    } catch (error) {
+      console.error('批量删除失败:', error)
+      message.error('批量删除失败')
+    }
   }, [selectedRowKeys, canDeleteNovels])
 
   // 表单提交
@@ -249,61 +331,61 @@ const Novels: React.FC = () => {
     async (values: Record<string, unknown>) => {
       setConfirmLoading(true)
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
         if (modalMode === 'create') {
-          const newRecord: NovelRecord = {
-            id: `novel_${Date.now()}`,
-            key: `novel_${Date.now()}`,
-            user_id: 'current_user_id',
-            user_name: '当前用户',
-            title: values.title as string,
-            author: (values.author as string) || '',
-            source: (values.source as string) || '',
-            category: (values.category as string) || '',
-            tags: (values.tags as string[]) || [],
-            word_count: 0,
-            chapter_count: 0,
-            status: 'ongoing',
-            rating: 0,
-            read_count: 0,
-            collect_count: 0,
-            progress: 0,
-            last_read_at: null,
-            description: (values.description as string) || '',
-            cover_url: '',
-            created_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-            updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-          }
-          setData((prev) => [newRecord, ...prev])
+          // 先创建小说记录，再添加到书架
+          const { data: newNovel, error: novelError } = await supabase
+            .from('novels')
+            .insert({
+              title: values.title as string,
+              author: (values.author as string) || '',
+              source: (values.source as string) || '',
+              category: (values.category as string) || '',
+              tags: (values.tags as string[]) || [],
+              description: (values.description as string) || '',
+            })
+            .select()
+            .single()
+
+          if (novelError) throw novelError
+
+          // 添加到用户书架
+          const { error: shelfError } = await supabase
+            .from('user_novels')
+            .insert({
+              novel_id: newNovel.id,
+              progress: 0,
+            })
+
+          if (shelfError) throw shelfError
+
           message.success('新增成功')
         } else {
-          setData((prev) =>
-            prev.map((item) =>
-              item.id === editingRecord?.id
-                ? {
-                    ...item,
-                    title: values.title as string,
-                    author: (values.author as string) || '',
-                    source: (values.source as string) || '',
-                    category: (values.category as string) || '',
-                    tags: (values.tags as string[]) || [],
-                    description: (values.description as string) || '',
-                    updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-                  }
-                : item
-            )
-          )
+          // 更新小说信息
+          const { error } = await supabase
+            .from('novels')
+            .update({
+              title: values.title as string,
+              author: (values.author as string) || '',
+              source: (values.source as string) || '',
+              category: (values.category as string) || '',
+              tags: (values.tags as string[]) || [],
+              description: (values.description as string) || '',
+            })
+            .eq('id', editingRecord?.novel_id)
+
+          if (error) throw error
           message.success('更新成功')
         }
         setModalOpen(false)
+        fetchNovels()
       } catch (error) {
+        console.error('操作失败:', error)
         message.error('操作失败，请重试')
       } finally {
         setConfirmLoading(false)
       }
     },
-    [modalMode, editingRecord]
+    [modalMode, editingRecord, fetchNovels]
   )
 
   // 导出

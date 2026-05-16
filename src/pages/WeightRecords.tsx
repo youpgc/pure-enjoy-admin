@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Tag,
   Button,
@@ -27,20 +27,30 @@ import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
 import {
-  mockWeightRecords,
-  MockWeightRecord,
   getBmiLevel,
   calculateBmi,
 } from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
+import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
 const { Title } = Typography
 
 // ==================== 类型定义 ====================
 
-interface WeightRecord extends MockWeightRecord {
+interface WeightRecord {
+  id: string
   key: string
+  user_id: string
+  user_name: string
+  weight: number
+  height: number
+  bmi: number
+  body_fat: number | null
+  note: string
+  date: string
+  created_at: string
+  updated_at: string
 }
 
 // ==================== 主组件 ====================
@@ -54,10 +64,8 @@ const WeightRecords: React.FC = () => {
   } = usePermission()
 
   // 状态
-  const [data, setData] = useState<WeightRecord[]>(
-    mockWeightRecords.map((item) => ({ ...item, key: item.id }))
-  )
-  const [loading] = useState(false)
+  const [data, setData] = useState<WeightRecord[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
@@ -76,26 +84,56 @@ const WeightRecords: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<WeightRecord | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
 
+  // 加载数据
+  const fetchWeightRecords = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data: records, error } = await supabase
+        .from('weight_records')
+        .select('*, users:user_id(username)')
+        .order('date', { ascending: false })
+
+      if (error) throw error
+
+      const formatted: WeightRecord[] = (records || []).map((item: any) => ({
+        ...item,
+        key: item.id,
+        user_name: item.users?.username || '未知用户',
+      }))
+
+      setData(formatted)
+    } catch (error) {
+      console.error('获取体重记录失败:', error)
+      message.error('获取体重记录失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchWeightRecords()
+  }, [fetchWeightRecords])
+
   // ==================== 统计数据 ====================
 
   const stats = useMemo(() => {
     if (data.length === 0) return null
-    
-    const sortedData = [...data].sort((a, b) => 
+
+    const sortedData = [...data].sort((a, b) =>
       new Date(b.date).getTime() - new Date(a.date).getTime()
     )
-    
+
     const latest = sortedData[0]
     const previous = sortedData[1]
-    
+
     const avgWeight = data.reduce((sum, item) => sum + item.weight, 0) / data.length
     const avgBmi = data.reduce((sum, item) => sum + item.bmi, 0) / data.length
-    
+
     let weightChange = 0
     if (previous && latest) {
       weightChange = latest.weight - previous.weight
     }
-    
+
     return {
       latestWeight: latest?.weight || 0,
       latestBmi: latest?.bmi || 0,
@@ -241,19 +279,26 @@ const WeightRecords: React.FC = () => {
 
   // 删除单条
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!canDeleteWeights) {
         message.warning('您没有删除体重记录的权限')
         return
       }
-      setData((prev) => prev.filter((item) => item.id !== id))
-      message.success('删除成功')
+      try {
+        const { error } = await supabase.from('weight_records').delete().eq('id', id)
+        if (error) throw error
+        setData((prev) => prev.filter((item) => item.id !== id))
+        message.success('删除成功')
+      } catch (error) {
+        console.error('删除失败:', error)
+        message.error('删除失败')
+      }
     },
     [canDeleteWeights]
   )
 
   // 批量删除
-  const handleBatchDelete = useCallback(() => {
+  const handleBatchDelete = useCallback(async () => {
     if (!canDeleteWeights) {
       message.warning('您没有删除体重记录的权限')
       return
@@ -262,9 +307,19 @@ const WeightRecords: React.FC = () => {
       message.warning('请先选择要删除的数据')
       return
     }
-    setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
-    setSelectedRowKeys([])
-    message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    try {
+      const { error } = await supabase
+        .from('weight_records')
+        .delete()
+        .in('id', selectedRowKeys as string[])
+      if (error) throw error
+      setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
+      setSelectedRowKeys([])
+      message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    } catch (error) {
+      console.error('批量删除失败:', error)
+      message.error('批量删除失败')
+    }
   }, [selectedRowKeys, canDeleteWeights])
 
   // 表单提交
@@ -272,56 +327,46 @@ const WeightRecords: React.FC = () => {
     async (values: Record<string, unknown>) => {
       setConfirmLoading(true)
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
         const weight = values.weight as number
         const height = (values.height as number) || 170 // 默认身高170cm
         const bmi = calculateBmi(weight, height)
 
         if (modalMode === 'create') {
-          const newRecord: WeightRecord = {
-            id: `weight_${Date.now()}`,
-            key: `weight_${Date.now()}`,
-            user_id: 'current_user_id',
-            user_name: '当前用户',
+          const { error } = await supabase.from('weight_records').insert({
             weight,
             height,
             bmi,
             body_fat: (values.body_fat as number) || null,
             note: (values.note as string) || '',
             date: values.date as string,
-            created_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-            updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-          }
-          setData((prev) => [newRecord, ...prev])
+          })
+          if (error) throw error
           message.success('新增成功')
         } else {
-          setData((prev) =>
-            prev.map((item) =>
-              item.id === editingRecord?.id
-                ? {
-                    ...item,
-                    weight,
-                    height,
-                    bmi,
-                    body_fat: (values.body_fat as number) || null,
-                    note: (values.note as string) || '',
-                    date: values.date as string,
-                    updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-                  }
-                : item
-            )
-          )
+          const { error } = await supabase
+            .from('weight_records')
+            .update({
+              weight,
+              height,
+              bmi,
+              body_fat: (values.body_fat as number) || null,
+              note: (values.note as string) || '',
+              date: values.date as string,
+            })
+            .eq('id', editingRecord?.id)
+          if (error) throw error
           message.success('更新成功')
         }
         setModalOpen(false)
+        fetchWeightRecords()
       } catch (error) {
+        console.error('操作失败:', error)
         message.error('操作失败，请重试')
       } finally {
         setConfirmLoading(false)
       }
     },
-    [modalMode, editingRecord]
+    [modalMode, editingRecord, fetchWeightRecords]
   )
 
   // 导出
@@ -546,7 +591,7 @@ const WeightRecords: React.FC = () => {
                 value={stats.weightChange}
                 precision={1}
                 suffix="kg"
-                valueStyle={{ 
+                valueStyle={{
                   color: stats.weightChange > 0 ? '#ff4d4f' : stats.weightChange < 0 ? '#52c41a' : '#8c8c8c'
                 }}
               />

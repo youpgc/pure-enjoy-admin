@@ -1,12 +1,12 @@
-import React, { useEffect, useState, useMemo } from 'react'
-import { Card, Table, Input, Select, DatePicker, Button, Tag, Space, Spin, Empty, Tooltip } from 'antd'
+import React, { useEffect, useState, useMemo, useCallback } from 'react'
+import { Card, Table, Input, Select, DatePicker, Button, Tag, Space, Spin, Empty, Tooltip, message } from 'antd'
 import { SearchOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import { usePermission } from '../hooks/usePermission'
-import { mockOperationLogs } from '../utils/mockData'
 import type { OperationLogItem } from '../utils/mockData'
 import { exportToCSV } from '../utils/export'
+import { supabase } from '../utils/supabase'
 
 const { RangePicker } = DatePicker
 
@@ -58,6 +58,31 @@ const ACTION_COLOR_MAP: Record<string, string> = {
   '上传': 'geekblue',
 }
 
+// Supabase operation_logs 表返回的原始数据类型
+interface OperationLogRow {
+  id: string
+  user_id: string
+  action: string
+  module: string
+  target: string | null
+  ip: string | null
+  detail: string | null
+  created_at: string
+  users?: { username: string | null } | null
+}
+
+/** 将 Supabase 原始行映射为前端 OperationLogItem */
+const mapRowToLogItem = (row: OperationLogRow): OperationLogItem => ({
+  id: row.id,
+  time: dayjs(row.created_at).format('YYYY-MM-DD HH:mm:ss'),
+  user_name: row.users?.username || '未知用户',
+  action: row.action,
+  module: row.module,
+  target: row.target || '',
+  ip: row.ip || '',
+  detail: row.detail || '',
+})
+
 const OperationLogs: React.FC = () => {
   const { isAdmin } = usePermission()
   const [loading, setLoading] = useState(true)
@@ -69,13 +94,37 @@ const OperationLogs: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLogs(mockOperationLogs)
+  // 从 Supabase 加载操作日志
+  const fetchLogs = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('operation_logs')
+        .select('*, users:user_id(username)')
+        .order('created_at', { ascending: false })
+        .limit(100)
+
+      if (error) {
+        console.error('加载操作日志失败:', error)
+        message.error('加载操作日志失败')
+        setLogs([])
+        return
+      }
+
+      const items: OperationLogItem[] = (data as OperationLogRow[] || []).map(mapRowToLogItem)
+      setLogs(items)
+    } catch (err) {
+      console.error('加载操作日志异常:', err)
+      message.error('加载操作日志异常')
+      setLogs([])
+    } finally {
       setLoading(false)
-    }, 500)
-    return () => clearTimeout(timer)
+    }
   }, [])
+
+  useEffect(() => {
+    fetchLogs()
+  }, [fetchLogs])
 
   // 筛选后的数据
   const filteredLogs = useMemo(() => {
@@ -239,6 +288,12 @@ const OperationLogs: React.FC = () => {
           />
           <Button icon={<ReloadOutlined />} onClick={handleReset}>
             重置
+          </Button>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={fetchLogs}
+          >
+            刷新
           </Button>
           <Button
             type="primary"

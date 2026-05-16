@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import {
   Tag,
   Button,
@@ -26,16 +26,27 @@ import {
 import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
-import { mockNotes, MockNote, NOTE_CATEGORY_OPTIONS } from '../utils/mockData'
+import { NOTE_CATEGORY_OPTIONS } from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
+import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
 const { Title } = Typography
 
 // ==================== 类型定义 ====================
 
-interface NoteRecord extends MockNote {
+interface NoteRecord {
+  id: string
   key: string
+  user_id: string
+  user_name: string
+  title: string
+  content: string
+  category: string
+  tags: string[]
+  is_pinned: boolean
+  created_at: string
+  updated_at: string
 }
 
 // ==================== 主组件 ====================
@@ -49,10 +60,8 @@ const Notes: React.FC = () => {
   } = usePermission()
 
   // 状态
-  const [data, setData] = useState<NoteRecord[]>(
-    mockNotes.map((item) => ({ ...item, key: item.id }))
-  )
-  const [loading] = useState(false)
+  const [data, setData] = useState<NoteRecord[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
@@ -70,6 +79,38 @@ const Notes: React.FC = () => {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
   const [editingRecord, setEditingRecord] = useState<NoteRecord | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
+
+  // 加载数据
+  const fetchNotes = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data: notes, error } = await supabase
+        .from('notes')
+        .select('*, users:user_id(username)')
+        .order('is_pinned', { ascending: false })
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+
+      const records: NoteRecord[] = (notes || []).map((item: any) => ({
+        ...item,
+        key: item.id,
+        user_name: item.users?.username || '未知用户',
+        tags: item.tags || [],
+      }))
+
+      setData(records)
+    } catch (error) {
+      console.error('获取笔记失败:', error)
+      message.error('获取笔记失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchNotes()
+  }, [fetchNotes])
 
   // ==================== 筛选配置 ====================
 
@@ -185,19 +226,26 @@ const Notes: React.FC = () => {
 
   // 删除单条
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!canDeleteNotes) {
         message.warning('您没有删除笔记的权限')
         return
       }
-      setData((prev) => prev.filter((item) => item.id !== id))
-      message.success('删除成功')
+      try {
+        const { error } = await supabase.from('notes').delete().eq('id', id)
+        if (error) throw error
+        setData((prev) => prev.filter((item) => item.id !== id))
+        message.success('删除成功')
+      } catch (error) {
+        console.error('删除失败:', error)
+        message.error('删除失败')
+      }
     },
     [canDeleteNotes]
   )
 
   // 批量删除
-  const handleBatchDelete = useCallback(() => {
+  const handleBatchDelete = useCallback(async () => {
     if (!canDeleteNotes) {
       message.warning('您没有删除笔记的权限')
       return
@@ -206,26 +254,44 @@ const Notes: React.FC = () => {
       message.warning('请先选择要删除的数据')
       return
     }
-    setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
-    setSelectedRowKeys([])
-    message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .delete()
+        .in('id', selectedRowKeys as string[])
+      if (error) throw error
+      setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
+      setSelectedRowKeys([])
+      message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    } catch (error) {
+      console.error('批量删除失败:', error)
+      message.error('批量删除失败')
+    }
   }, [selectedRowKeys, canDeleteNotes])
 
   // 切换置顶状态
   const handleTogglePin = useCallback(
-    (id: string, isPinned: boolean) => {
+    async (id: string, isPinned: boolean) => {
       if (!canWriteNotes) {
         message.warning('您没有编辑笔记的权限')
         return
       }
-      setData((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? { ...item, is_pinned: !isPinned, updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss') }
-            : item
+      try {
+        const { error } = await supabase
+          .from('notes')
+          .update({ is_pinned: !isPinned })
+          .eq('id', id)
+        if (error) throw error
+        setData((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, is_pinned: !isPinned } : item
+          )
         )
-      )
-      message.success(isPinned ? '已取消置顶' : '已置顶')
+        message.success(isPinned ? '已取消置顶' : '已置顶')
+      } catch (error) {
+        console.error('切换置顶失败:', error)
+        message.error('切换置顶失败')
+      }
     },
     [canWriteNotes]
   )
@@ -235,50 +301,40 @@ const Notes: React.FC = () => {
     async (values: Record<string, unknown>) => {
       setConfirmLoading(true)
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
         if (modalMode === 'create') {
-          const newRecord: NoteRecord = {
-            id: `note_${Date.now()}`,
-            key: `note_${Date.now()}`,
-            user_id: 'current_user_id',
-            user_name: '当前用户',
+          const { error } = await supabase.from('notes').insert({
             title: values.title as string,
             content: (values.content as string) || '',
             category: (values.category as string) || '',
             tags: (values.tags as string[]) || [],
             is_pinned: (values.is_pinned as boolean) || false,
-            created_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-            updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-          }
-          setData((prev) => [newRecord, ...prev])
+          })
+          if (error) throw error
           message.success('新增成功')
         } else {
-          setData((prev) =>
-            prev.map((item) =>
-              item.id === editingRecord?.id
-                ? {
-                    ...item,
-                    title: values.title as string,
-                    content: (values.content as string) || '',
-                    category: (values.category as string) || '',
-                    tags: (values.tags as string[]) || [],
-                    is_pinned: (values.is_pinned as boolean) || false,
-                    updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-                  }
-                : item
-            )
-          )
+          const { error } = await supabase
+            .from('notes')
+            .update({
+              title: values.title as string,
+              content: (values.content as string) || '',
+              category: (values.category as string) || '',
+              tags: (values.tags as string[]) || [],
+              is_pinned: (values.is_pinned as boolean) || false,
+            })
+            .eq('id', editingRecord?.id)
+          if (error) throw error
           message.success('更新成功')
         }
         setModalOpen(false)
+        fetchNotes()
       } catch (error) {
+        console.error('操作失败:', error)
         message.error('操作失败，请重试')
       } finally {
         setConfirmLoading(false)
       }
     },
-    [modalMode, editingRecord]
+    [modalMode, editingRecord, fetchNotes]
   )
 
   // 导出
