@@ -117,19 +117,54 @@ const Novels: React.FC = () => {
   const fetchNovels = useCallback(async () => {
     setLoading(true)
     try {
+      // 先查询 user_novels，再分别查询关联数据
       const { data: userNovels, error } = await supabase
         .from('user_novels')
-        .select('*, users:user_id(nickname), novels:novel_id(*)')
+        .select('*')
         .order('last_read_at', { ascending: false })
 
       if (error) throw error
 
-      const records: NovelRecord[] = (userNovels || []).map((item: any) => {
-        const novel = item.novels || {}
+      if (!userNovels || userNovels.length === 0) {
+        setData([])
+        return
+      }
+
+      // 获取所有关联的 novel_id
+      const novelIds = [...new Set(userNovels.map((item: any) => item.novel_id).filter(Boolean))]
+      const userIds = [...new Set(userNovels.map((item: any) => item.user_id).filter(Boolean))]
+
+      // 批量查询小说信息
+      let novelsMap: Record<string, any> = {}
+      if (novelIds.length > 0) {
+        const { data: novels } = await supabase
+          .from('novels')
+          .select('*')
+          .in('id', novelIds)
+        if (novels) {
+          novels.forEach((n: any) => { novelsMap[n.id] = n })
+        }
+      }
+
+      // 批量查询用户信息
+      let usersMap: Record<string, any> = {}
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, nickname')
+          .in('id', userIds)
+        if (users) {
+          users.forEach((u: any) => { usersMap[u.id] = u })
+        }
+      }
+
+      const records: NovelRecord[] = userNovels.map((item: any) => {
+        const novel = novelsMap[item.novel_id] || {}
+        const user = usersMap[item.user_id] || {}
         return {
           ...item,
           key: item.id,
-          user_name: item.users?.nickname || '未知用户',
+          user_name: user.nickname || '未知用户',
           novel_id: item.novel_id,
           title: novel.title || '',
           author: novel.author || '',
