@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Row, Col, Card, Statistic, Spin, Timeline, Tag, Table, Progress } from 'antd'
+import { Row, Col, Card, Statistic, Spin, Tag, Table, Progress } from 'antd'
 import {
   UserOutlined,
   UserAddOutlined,
@@ -7,7 +7,6 @@ import {
   RiseOutlined,
   FallOutlined,
   DashboardOutlined,
-  LoginOutlined,
   FileTextOutlined,
   HeartOutlined,
   BookOutlined,
@@ -21,8 +20,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
   Legend,
 } from 'recharts'
 import dayjs from 'dayjs'
@@ -97,8 +94,8 @@ const Dashboard: React.FC = () => {
         supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
         // 上周新增用户
         supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo),
-        // 最近7天活跃用户
-        supabase.from('operation_logs').select('user_id').gte('created_at', sevenDaysAgo),
+        // 最近7天活跃用户（包含模块信息）
+        supabase.from('operation_logs').select('user_id, module').gte('created_at', sevenDaysAgo),
         // 上周活跃用户
         supabase.from('operation_logs').select('user_id').gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo),
         // 用户增长趋势（30天）
@@ -179,7 +176,7 @@ const Dashboard: React.FC = () => {
 
       // ==================== 模块使用统计 ====================
       const moduleCounts: Record<string, number> = {}
-      operationLogs7dRes.data?.forEach(log => {
+      ;(operationLogs7dRes.data || []).forEach((log: any) => {
         if (log.module) {
           moduleCounts[log.module] = (moduleCounts[log.module] || 0) + 1
         }
