@@ -414,7 +414,7 @@ const VersionManagement: React.FC = () => {
       {(() => {
         const releasedVersion = versions
           .filter(v => v.status === 'released')
-          .sort((a, b) => (b.build_number || 0) - (a.build_number || 0))[0]
+          .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0]
         if (!releasedVersion) return null
         return (
           <Card
