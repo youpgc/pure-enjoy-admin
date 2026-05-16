@@ -55,7 +55,7 @@ const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
   const { user, logout } = useAuth()
-  const { canManageUsers, canManageVersions } = usePermission()
+  const { canManageVersions } = usePermission()
   const {
     token: { colorBgContainer },
   } = theme.useToken()

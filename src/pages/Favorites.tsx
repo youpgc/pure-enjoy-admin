@@ -25,7 +25,7 @@ import {
   PushpinOutlined,
   PushpinFilled,
 } from '@ant-design/icons';
-import { supabase } from '../services/supabase';
+import { supabase } from '../utils/supabase';
 
 interface Favorite {
   id: string;

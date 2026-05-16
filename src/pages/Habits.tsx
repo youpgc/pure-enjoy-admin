@@ -9,6 +9,7 @@ import {
   Modal,
   Form,
   Select,
+  Switch,
   Progress,
   message,
   Popconfirm,
@@ -28,7 +29,7 @@ import {
   CheckCircleOutlined,
   CalendarOutlined,
 } from '@ant-design/icons';
-import { supabase } from '../services/supabase';
+import { supabase } from '../utils/supabase';
 import dayjs from 'dayjs';
 
 interface Habit {
