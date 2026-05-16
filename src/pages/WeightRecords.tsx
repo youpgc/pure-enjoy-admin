@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Tag,
   Button,
@@ -13,6 +13,7 @@ import {
   Statistic,
   Row,
   Col,
+  Select,
 } from 'antd'
 import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
 import type { Key } from 'react'
@@ -22,25 +23,43 @@ import {
   DeleteOutlined,
   EditOutlined,
   DownOutlined,
+  UserOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
 import {
-  mockWeightRecords,
-  MockWeightRecord,
   getBmiLevel,
   calculateBmi,
 } from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { usePermission } from '../hooks/usePermission'
+import { supabase } from '../utils/supabase'
 
 const { Title } = Typography
 
 // ==================== 类型定义 ====================
 
-interface WeightRecord extends MockWeightRecord {
+interface WeightRecord {
+  id: string
   key: string
+  user_id: string
+  user_name?: string
+  nickname?: string
+  weight: number
+  height: number
+  bmi: number
+  body_fat: number | null
+  note: string
+  date: string
+  created_at: string
+  updated_at: string
+}
+
+interface UserOption {
+  id: string
+  username: string | null
+  nickname: string | null
 }
 
 // ==================== 主组件 ====================
@@ -54,10 +73,8 @@ const WeightRecords: React.FC = () => {
   } = usePermission()
 
   // 状态
-  const [data, setData] = useState<WeightRecord[]>(
-    mockWeightRecords.map((item) => ({ ...item, key: item.id }))
-  )
-  const [loading] = useState(false)
+  const [data, setData] = useState<WeightRecord[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
@@ -70,32 +87,97 @@ const WeightRecords: React.FC = () => {
     showTotal: (total) => `共 ${total} 条`,
   })
 
+  // 用户选择器
+  const [userOptions, setUserOptions] = useState<UserOption[]>([])
+  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(undefined)
+
   // 弹窗状态
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
   const [editingRecord, setEditingRecord] = useState<WeightRecord | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
 
+  // ==================== 数据加载 ====================
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, nickname')
+      if (error) throw error
+      setUserOptions(data || [])
+    } catch (err) {
+      console.error('加载用户列表失败:', err)
+    }
+  }, [])
+
+  const fetchData = useCallback(async (userId?: string) => {
+    setLoading(true)
+    try {
+      let query = supabase
+        .from('weight_records')
+        .select('*, users(username, nickname)')
+
+      if (userId) {
+        query = query.eq('user_id', userId)
+      }
+
+      const { data, error } = await query
+      if (error) throw error
+
+      const records: WeightRecord[] = (data || []).map((item: Record<string, unknown>) => ({
+        id: item.id as string,
+        key: item.id as string,
+        user_id: item.user_id as string,
+        user_name: (item.users as Record<string, unknown>)?.username as string || '',
+        nickname: (item.users as Record<string, unknown>)?.nickname as string || '',
+        weight: item.weight as number,
+        height: (item.height as number) || 170,
+        bmi: item.bmi as number || calculateBmi(item.weight as number, (item.height as number) || 170),
+        body_fat: (item.body_fat as number) || null,
+        note: (item.note as string) || '',
+        date: item.date as string,
+        created_at: item.created_at as string,
+        updated_at: item.updated_at as string,
+      }))
+
+      setData(records)
+    } catch (err) {
+      console.error('加载体重记录失败:', err)
+      message.error('加载数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
+
+  useEffect(() => {
+    fetchData(selectedUserId)
+  }, [selectedUserId, fetchData])
+
   // ==================== 统计数据 ====================
 
   const stats = useMemo(() => {
     if (data.length === 0) return null
-    
-    const sortedData = [...data].sort((a, b) => 
+
+    const sortedData = [...data].sort((a, b) =>
       new Date(b.date).getTime() - new Date(a.date).getTime()
     )
-    
+
     const latest = sortedData[0]
     const previous = sortedData[1]
-    
+
     const avgWeight = data.reduce((sum, item) => sum + item.weight, 0) / data.length
     const avgBmi = data.reduce((sum, item) => sum + item.bmi, 0) / data.length
-    
+
     let weightChange = 0
     if (previous && latest) {
       weightChange = latest.weight - previous.weight
     }
-    
+
     return {
       latestWeight: latest?.weight || 0,
       latestBmi: latest?.bmi || 0,
@@ -178,18 +260,17 @@ const WeightRecords: React.FC = () => {
   const filteredData = useMemo(() => {
     let result = [...data]
 
-    // 关键词搜索
     if (searchText.trim()) {
       const keyword = searchText.trim().toLowerCase()
       result = result.filter((record) => {
+        const displayName = record.nickname || record.user_name || ''
         return (
-          record.user_name?.toLowerCase().includes(keyword) ||
+          displayName.toLowerCase().includes(keyword) ||
           record.note?.toLowerCase().includes(keyword)
         )
       })
     }
 
-    // 体重范围筛选
     if (filterValues.weightRange && Array.isArray(filterValues.weightRange)) {
       const [min, max] = filterValues.weightRange as [number | null, number | null]
       result = result.filter((record) => {
@@ -199,7 +280,6 @@ const WeightRecords: React.FC = () => {
       })
     }
 
-    // 日期范围筛选
     if (filterValues.dateRange && Array.isArray(filterValues.dateRange)) {
       const [startDate, endDate] = filterValues.dateRange as [string, string]
       if (startDate && endDate) {
@@ -214,7 +294,6 @@ const WeightRecords: React.FC = () => {
 
   // ==================== 操作处理 ====================
 
-  // 新增
   const handleCreate = useCallback(() => {
     if (!canWriteWeights) {
       message.warning('您没有新增体重记录的权限')
@@ -225,7 +304,6 @@ const WeightRecords: React.FC = () => {
     setModalOpen(true)
   }, [canWriteWeights])
 
-  // 编辑
   const handleEdit = useCallback(
     (record: WeightRecord) => {
       if (!canWriteWeights) {
@@ -239,21 +317,25 @@ const WeightRecords: React.FC = () => {
     [canWriteWeights]
   )
 
-  // 删除单条
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!canDeleteWeights) {
         message.warning('您没有删除体重记录的权限')
         return
       }
-      setData((prev) => prev.filter((item) => item.id !== id))
-      message.success('删除成功')
+      try {
+        const { error } = await supabase.from('weight_records').delete().eq('id', id)
+        if (error) throw error
+        setData((prev) => prev.filter((item) => item.id !== id))
+        message.success('删除成功')
+      } catch (err) {
+        message.error('删除失败')
+      }
     },
     [canDeleteWeights]
   )
 
-  // 批量删除
-  const handleBatchDelete = useCallback(() => {
+  const handleBatchDelete = useCallback(async () => {
     if (!canDeleteWeights) {
       message.warning('您没有删除体重记录的权限')
       return
@@ -262,43 +344,82 @@ const WeightRecords: React.FC = () => {
       message.warning('请先选择要删除的数据')
       return
     }
-    setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
-    setSelectedRowKeys([])
-    message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    try {
+      const { error } = await supabase
+        .from('weight_records')
+        .delete()
+        .in('id', selectedRowKeys as string[])
+      if (error) throw error
+      setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
+      setSelectedRowKeys([])
+      message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    } catch (err) {
+      message.error('批量删除失败')
+    }
   }, [selectedRowKeys, canDeleteWeights])
 
-  // 表单提交
   const handleFormSubmit = useCallback(
     async (values: Record<string, unknown>) => {
       setConfirmLoading(true)
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
         const weight = values.weight as number
-        const height = (values.height as number) || 170 // 默认身高170cm
+        const height = (values.height as number) || 170
         const bmi = calculateBmi(weight, height)
 
         if (modalMode === 'create') {
-          const newRecord: WeightRecord = {
-            id: `weight_${Date.now()}`,
-            key: `weight_${Date.now()}`,
-            user_id: 'current_user_id',
-            user_name: '当前用户',
-            weight,
-            height,
-            bmi,
-            body_fat: (values.body_fat as number) || null,
-            note: (values.note as string) || '',
-            date: values.date as string,
-            created_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-            updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+          const { data: newData, error } = await supabase
+            .from('weight_records')
+            .insert({
+              user_id: 'current_user_id',
+              weight,
+              height,
+              bmi,
+              body_fat: values.body_fat || null,
+              note: values.note || '',
+              date: values.date,
+            })
+            .select('*, users(username, nickname)')
+            .single()
+
+          if (error) throw error
+
+          if (newData) {
+            const newRecord: WeightRecord = {
+              id: newData.id,
+              key: newData.id,
+              user_id: newData.user_id,
+              user_name: newData.users?.username || '',
+              nickname: newData.users?.nickname || '',
+              weight: newData.weight,
+              height: newData.height || 170,
+              bmi: newData.bmi || bmi,
+              body_fat: newData.body_fat,
+              note: newData.note || '',
+              date: newData.date,
+              created_at: newData.created_at,
+              updated_at: newData.updated_at,
+            }
+            setData((prev) => [newRecord, ...prev])
           }
-          setData((prev) => [newRecord, ...prev])
           message.success('新增成功')
-        } else {
+        } else if (editingRecord) {
+          const { error } = await supabase
+            .from('weight_records')
+            .update({
+              weight,
+              height,
+              bmi,
+              body_fat: values.body_fat || null,
+              note: values.note || '',
+              date: values.date,
+            })
+            .eq('id', editingRecord.id)
+
+          if (error) throw error
+
           setData((prev) =>
             prev.map((item) =>
-              item.id === editingRecord?.id
+              item.id === editingRecord.id
                 ? {
                     ...item,
                     weight,
@@ -324,15 +445,13 @@ const WeightRecords: React.FC = () => {
     [modalMode, editingRecord]
   )
 
-  // 导出
   const handleExportCSV = useCallback(() => {
     if (!canExportWeights) {
       message.warning('您没有导出体重记录的权限')
       return
     }
     const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
+      { title: '用户', dataIndex: 'nickname' },
       { title: '体重(kg)', dataIndex: 'weight' },
       { title: '身高(cm)', dataIndex: 'height' },
       { title: 'BMI', dataIndex: 'bmi' },
@@ -350,8 +469,7 @@ const WeightRecords: React.FC = () => {
       return
     }
     const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
+      { title: '用户', dataIndex: 'nickname' },
       { title: '体重(kg)', dataIndex: 'weight' },
       { title: '身高(cm)', dataIndex: 'height' },
       { title: 'BMI', dataIndex: 'bmi' },
@@ -363,7 +481,6 @@ const WeightRecords: React.FC = () => {
     message.success('Excel 导出成功')
   }, [filteredData, canExportWeights])
 
-  // 重置
   const handleReset = useCallback(() => {
     setSearchText('')
     setFilterValues({})
@@ -371,22 +488,24 @@ const WeightRecords: React.FC = () => {
     setPagination((prev) => ({ ...prev, current: 1 }))
   }, [])
 
+  const handleUserChange = useCallback((userId: string | undefined) => {
+    setSelectedUserId(userId)
+    setPagination((prev) => ({ ...prev, current: 1 }))
+  }, [])
+
   // ==================== 表格列配置 ====================
 
   const columns: ColumnsType<WeightRecord> = [
     {
-      title: '用户ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
-      width: 180,
-      ellipsis: true,
-      sorter: (a, b) => a.user_id.localeCompare(b.user_id),
-    },
-    {
-      title: '用户名',
-      dataIndex: 'user_name',
-      key: 'user_name',
-      width: 100,
+      title: '用户',
+      key: 'user',
+      width: 120,
+      render: (_, record) => (
+        <Space>
+          <UserOutlined />
+          <span>{record.nickname || record.user_name || '未知用户'}</span>
+        </Space>
+      ),
     },
     {
       title: '体重',
@@ -513,6 +632,22 @@ const WeightRecords: React.FC = () => {
           体重记录管理
         </Title>
         <Space>
+          {/* 用户选择器 */}
+          <Select
+            placeholder="选择用户"
+            allowClear
+            showSearch
+            style={{ width: 200 }}
+            value={selectedUserId}
+            onChange={handleUserChange}
+            filterOption={(input, option) =>
+              (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            options={userOptions.map((u) => ({
+              value: u.id,
+              label: u.nickname || u.username || u.id,
+            }))}
+          />
           {canWriteWeights && (
             <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
               新增记录
@@ -546,7 +681,7 @@ const WeightRecords: React.FC = () => {
                 value={stats.weightChange}
                 precision={1}
                 suffix="kg"
-                valueStyle={{ 
+                valueStyle={{
                   color: stats.weightChange > 0 ? '#ff4d4f' : stats.weightChange < 0 ? '#52c41a' : '#8c8c8c'
                 }}
               />
@@ -616,7 +751,7 @@ const WeightRecords: React.FC = () => {
             total: filteredData.length,
           }}
           onChange={(pag) => setPagination(pag)}
-          scroll={{ x: 1100 }}
+          scroll={{ x: 1000 }}
           rowSelection={
             canDeleteWeights
               ? {
