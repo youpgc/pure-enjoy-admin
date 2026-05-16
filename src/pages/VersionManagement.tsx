@@ -252,9 +252,37 @@ const VersionManagement: React.FC = () => {
       key: 'created_at',
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
+    {
+      title: '通用操作',
+      key: 'common-action',
+      render: (_: unknown, record: AppVersion) => (
+        <Space size="small">
+          {record.apk_url && (
+            <Tooltip title="下载二维码">
+              <Button
+                size="small"
+                icon={<QrcodeOutlined />}
+                onClick={() => showQrCode(record)}
+              />
+            </Tooltip>
+          )}
+          {record.apk_url && (
+            <Tooltip title="下载APK">
+              <Button
+                size="small"
+                type="link"
+                icon={<DownloadOutlined />}
+                href={record.apk_url!}
+                target="_blank"
+              />
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    },
     ...(canManageVersions ? [{
-      title: '操作',
-      key: 'action',
+      title: '管理操作',
+      key: 'manage-action',
       render: (_: unknown, record: AppVersion) => (
         <Space size="small">
           {record.status === 'draft' && record.apk_url && (
@@ -300,26 +328,6 @@ const VersionManagement: React.FC = () => {
               </Popconfirm>
             </Tooltip>
           )}
-          {record.apk_url && (
-            <Tooltip title="下载二维码">
-              <Button
-                size="small"
-                icon={<QrcodeOutlined />}
-                onClick={() => showQrCode(record)}
-              />
-            </Tooltip>
-          )}
-          {record.apk_url && (
-            <Tooltip title="下载APK">
-              <Button
-                size="small"
-                type="link"
-                icon={<DownloadOutlined />}
-                href={record.apk_url!}
-                target="_blank"
-              />
-            </Tooltip>
-          )}
         </Space>
       ),
     }] : []),
@@ -345,38 +353,53 @@ const VersionManagement: React.FC = () => {
         </Space>
       </div>
 
-      {versions.filter(v => v.status === 'released').length > 0 && (
-        <Card
-          style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}
-          size="small"
-        >
-          <Descriptions
+      {(() => {
+        const releasedVersion = versions.find(v => v.status === 'released')
+        if (!releasedVersion) return null
+        return (
+          <Card
+            style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}
             size="small"
-            column={4}
-            title="当前线上版本"
           >
-            <Descriptions.Item label="版本号">
-              <Text strong>
-                v{versions.find(v => v.status === 'released')?.version}
-              </Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="更新类型">
-              {(() => {
-                const rv = versions.find(v => v.status === 'released')
-                if (!rv) return '-'
-                const info = releaseTypeMap[rv.release_type]
-                return <Tag color={info?.color}>{info?.label}</Tag>
-              })()}
-            </Descriptions.Item>
-            <Descriptions.Item label="发布时间">
-              {dayjs(versions.find(v => v.status === 'released')?.released_at).format('YYYY-MM-DD HH:mm')}
-            </Descriptions.Item>
-            <Descriptions.Item label="APK大小">
-              {formatSize(versions.find(v => v.status === 'released')?.apk_size || 0)}
-            </Descriptions.Item>
-          </Descriptions>
-        </Card>
-      )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <Descriptions
+                size="small"
+                column={4}
+                title="当前线上版本"
+                style={{ flex: 1 }}
+              >
+                <Descriptions.Item label="版本号">
+                  <Text strong>v{releasedVersion.version}</Text>
+                </Descriptions.Item>
+                <Descriptions.Item label="更新类型">
+                  {(() => {
+                    const info = releaseTypeMap[releasedVersion.release_type]
+                    return <Tag color={info?.color}>{info?.label}</Tag>
+                  })()}
+                </Descriptions.Item>
+                <Descriptions.Item label="发布时间">
+                  {dayjs(releasedVersion.released_at).format('YYYY-MM-DD HH:mm')}
+                </Descriptions.Item>
+                <Descriptions.Item label="APK大小">
+                  {formatSize(releasedVersion.apk_size || 0)}
+                </Descriptions.Item>
+              </Descriptions>
+              {releasedVersion.apk_url && (
+                <div style={{ marginLeft: 24, textAlign: 'center', flexShrink: 0 }}>
+                  <QRCode
+                    value={releasedVersion.apk_url}
+                    size={120}
+                    style={{ borderRadius: 4 }}
+                  />
+                  <div style={{ marginTop: 4 }}>
+                    <Text type="secondary" style={{ fontSize: 12 }}>扫码下载</Text>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )
+      })()}
 
       <Table
         columns={columns}

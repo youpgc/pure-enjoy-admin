@@ -91,7 +91,7 @@ const Expenses: React.FC = () => {
     try {
       const { data: expenses, error } = await supabase
         .from('expenses')
-        .select('*, users:user_id(username)')
+        .select('*, users:user_id(nickname)')
         .order('date', { ascending: false })
 
       if (error) throw error
@@ -99,7 +99,7 @@ const Expenses: React.FC = () => {
       const records: ExpenseRecord[] = (expenses || []).map((item: any) => ({
         ...item,
         key: item.id,
-        user_name: item.users?.username || '未知用户',
+        user_name: item.users?.nickname || '未知用户',
       }))
 
       setData(records)

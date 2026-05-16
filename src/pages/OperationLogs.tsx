@@ -68,14 +68,14 @@ interface OperationLogRow {
   ip: string | null
   detail: string | null
   created_at: string
-  users?: { username: string | null } | null
+  users?: { nickname: string | null } | null
 }
 
 /** 将 Supabase 原始行映射为前端 OperationLogItem */
 const mapRowToLogItem = (row: OperationLogRow): OperationLogItem => ({
   id: row.id,
   time: dayjs(row.created_at).format('YYYY-MM-DD HH:mm:ss'),
-  user_name: row.users?.username || '未知用户',
+  user_name: row.users?.nickname || '未知用户',
   action: row.action,
   module: row.module,
   target: row.target || '',
@@ -100,7 +100,7 @@ const OperationLogs: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('operation_logs')
-        .select('*, users:user_id(username)')
+        .select('*, users:user_id(nickname)')
         .order('created_at', { ascending: false })
         .limit(100)
 

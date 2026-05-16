@@ -32,6 +32,7 @@ const mockUsers: User[] = userNames.map((name, i) => {
     email: `${['zhangsan', 'lisi', 'wangwu', 'zhaoliu', 'sunqi', 'zhouba', 'wujiu', 'zhengshi', 'chenxm', 'linxh', 'huangdw', 'liuml', 'yangzq', 'xujw', 'maty', 'zhuly', 'hujh', 'guoxm', 'heff', 'luowb'][i]!}@example.com`,
     phone: `1${3 + (i % 8)}${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}`,
     nickname: name,
+    username: `${['zhangsan', 'lisi', 'wangwu', 'zhaoliu', 'sunqi', 'zhouba', 'wujiu', 'zhengshi', 'chenxm', 'linxh', 'huangdw', 'liuml', 'yangzq', 'xujw', 'maty', 'zhuly', 'hujh', 'guoxm', 'heff', 'luowb'][i]}`,
     avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
     role: roles[i % roles.length]!,
     member_level: memberLevels[i % memberLevels.length]!,

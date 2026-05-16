@@ -99,7 +99,7 @@ const Habits: React.FC = () => {
 
       const formattedHabits = (habitsData || []).map((item: any) => ({
         ...item,
-        username: item.users?.username || '未知用户',
+        username: item.users?.nickname || '未知用户',
       }));
 
       setHabits(formattedHabits);

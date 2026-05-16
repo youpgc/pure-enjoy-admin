@@ -119,7 +119,7 @@ const Novels: React.FC = () => {
     try {
       const { data: userNovels, error } = await supabase
         .from('user_novels')
-        .select('*, users:user_id(username), novels:novel_id(*)')
+        .select('*, users:user_id(nickname), novels:novel_id(*)')
         .order('last_read_at', { ascending: false })
 
       if (error) throw error
@@ -129,7 +129,7 @@ const Novels: React.FC = () => {
         return {
           ...item,
           key: item.id,
-          user_name: item.users?.username || '未知用户',
+          user_name: item.users?.nickname || '未知用户',
           novel_id: item.novel_id,
           title: novel.title || '',
           author: novel.author || '',

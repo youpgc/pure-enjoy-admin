@@ -196,6 +196,7 @@ const Users: React.FC = () => {
     const newUser: User = {
       id: generateUserId(),
       email: formData.email,
+      username: formData.username || null,
       phone: formData.phone || null,
       nickname: formData.nickname || null,
       avatar_url: null,
@@ -234,6 +235,7 @@ const Users: React.FC = () => {
       const { error } = await supabase
         .from('users')
         .update({
+          username: formData.username || null,
           phone: formData.phone || null,
           nickname: formData.nickname || null,
           role: formData.role,
@@ -250,6 +252,7 @@ const Users: React.FC = () => {
           user.id === currentUser.id
             ? {
                 ...user,
+                username: formData.username || null,
                 phone: formData.phone || null,
                 nickname: formData.nickname || null,
                 role: formData.role,
@@ -270,6 +273,7 @@ const Users: React.FC = () => {
         user.id === currentUser.id
           ? {
               ...user,
+              username: formData.username || null,
               phone: formData.phone || null,
               nickname: formData.nickname || null,
               role: formData.role,
@@ -464,11 +468,25 @@ const Users: React.FC = () => {
       ellipsis: true,
     },
     {
+      title: '用户名',
+      dataIndex: 'username',
+      key: 'username',
+      width: 120,
+      render: (username: string | null) => username || <Text type="secondary">未设置</Text>,
+    },
+    {
       title: '昵称',
       dataIndex: 'nickname',
       key: 'nickname',
       width: 120,
       render: (nickname: string | null) => nickname || <Text type="secondary">未设置</Text>,
+    },
+    {
+      title: '手机号',
+      dataIndex: 'phone',
+      key: 'phone',
+      width: 130,
+      render: (phone: string | null) => phone || <Text type="secondary">未设置</Text>,
     },
     {
       title: '角色',

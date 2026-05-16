@@ -83,7 +83,7 @@ const Favorites: React.FC = () => {
 
       const formattedData = (data || []).map((item: any) => ({
         ...item,
-        username: item.users?.username || '未知用户',
+        username: item.users?.nickname || '未知用户',
       }));
 
       setFavorites(formattedData);

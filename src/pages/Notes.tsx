@@ -86,7 +86,7 @@ const Notes: React.FC = () => {
     try {
       const { data: notes, error } = await supabase
         .from('notes')
-        .select('*, users:user_id(username)')
+        .select('*, users:user_id(nickname)')
         .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false })
 
@@ -95,7 +95,7 @@ const Notes: React.FC = () => {
       const records: NoteRecord[] = (notes || []).map((item: any) => ({
         ...item,
         key: item.id,
-        user_name: item.users?.username || '未知用户',
+        user_name: item.users?.nickname || '未知用户',
         tags: item.tags || [],
       }))
 

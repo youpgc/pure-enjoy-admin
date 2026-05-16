@@ -90,7 +90,7 @@ const WeightRecords: React.FC = () => {
     try {
       const { data: records, error } = await supabase
         .from('weight_records')
-        .select('*, users:user_id(username)')
+        .select('*, users:user_id(nickname)')
         .order('date', { ascending: false })
 
       if (error) throw error
@@ -98,7 +98,7 @@ const WeightRecords: React.FC = () => {
       const formatted: WeightRecord[] = (records || []).map((item: any) => ({
         ...item,
         key: item.id,
-        user_name: item.users?.username || '未知用户',
+        user_name: item.users?.nickname || '未知用户',
       }))
 
       setData(formatted)

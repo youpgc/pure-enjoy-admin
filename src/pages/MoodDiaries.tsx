@@ -93,7 +93,7 @@ const MoodDiaries: React.FC = () => {
     try {
       const { data: diaries, error } = await supabase
         .from('mood_diaries')
-        .select('*, users:user_id(username)')
+        .select('*, users:user_id(nickname)')
         .order('date', { ascending: false })
 
       if (error) throw error
@@ -101,7 +101,7 @@ const MoodDiaries: React.FC = () => {
       const records: MoodDiaryRecord[] = (diaries || []).map((item: any) => ({
         ...item,
         key: item.id,
-        user_name: item.users?.username || '未知用户',
+        user_name: item.users?.nickname || '未知用户',
         tags: item.tags || [],
       }))
 
