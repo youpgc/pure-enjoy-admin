@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Tag,
   Button,
@@ -9,6 +9,7 @@ import {
   Table,
   Card,
   Typography,
+  Select,
 } from 'antd'
 import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
 import type { Key } from 'react'
@@ -18,20 +19,38 @@ import {
   DeleteOutlined,
   EditOutlined,
   DownOutlined,
+  UserOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
-import { mockExpenses, MockExpense, EXPENSE_CATEGORY_OPTIONS } from '../utils/mockData'
+import { EXPENSE_CATEGORY_OPTIONS } from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { usePermission } from '../hooks/usePermission'
+import { supabase } from '../utils/supabase'
 
 const { Title } = Typography
 
 // ==================== 类型定义 ====================
 
-interface ExpenseRecord extends MockExpense {
+interface ExpenseRecord {
+  id: string
   key: string
+  user_id: string
+  user_name?: string
+  nickname?: string
+  amount: number
+  category: string
+  note: string
+  date: string
+  created_at: string
+  updated_at: string
+}
+
+interface UserOption {
+  id: string
+  username: string | null
+  nickname: string | null
 }
 
 // ==================== 常量定义 ====================
@@ -55,10 +74,8 @@ const Expenses: React.FC = () => {
   } = usePermission()
 
   // 状态
-  const [data, setData] = useState<ExpenseRecord[]>(
-    mockExpenses.map((item) => ({ ...item, key: item.id }))
-  )
-  const [loading] = useState(false)
+  const [data, setData] = useState<ExpenseRecord[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
   const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
   const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
@@ -71,11 +88,79 @@ const Expenses: React.FC = () => {
     showTotal: (total) => `共 ${total} 条`,
   })
 
+  // 用户选择器
+  const [userOptions, setUserOptions] = useState<UserOption[]>([])
+  const [selectedUserId, setSelectedUserId] = useState<string | undefined>(undefined)
+
   // 弹窗状态
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
   const [editingRecord, setEditingRecord] = useState<ExpenseRecord | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
+
+  // ==================== 数据加载 ====================
+
+  // 加载用户列表
+  const fetchUsers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, nickname')
+
+      if (error) throw error
+      setUserOptions(data || [])
+    } catch (err) {
+      console.error('加载用户列表失败:', err)
+    }
+  }, [])
+
+  // 加载消费记录
+  const fetchData = useCallback(async (userId?: string) => {
+    setLoading(true)
+    try {
+      let query = supabase
+        .from('expenses')
+        .select('*, users(username, nickname)')
+        .order('date', { ascending: false })
+
+      if (userId) {
+        query = query.eq('user_id', userId)
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+
+      const records: ExpenseRecord[] = (data || []).map((item: Record<string, unknown>) => ({
+        id: item.id as string,
+        key: item.id as string,
+        user_id: item.user_id as string,
+        user_name: (item.users as Record<string, unknown>)?.username as string || '',
+        nickname: (item.users as Record<string, unknown>)?.nickname as string || '',
+        amount: item.amount as number,
+        category: item.category as string,
+        note: (item.note as string) || '',
+        date: item.date as string,
+        created_at: item.created_at as string,
+        updated_at: item.updated_at as string,
+      }))
+
+      setData(records)
+    } catch (err) {
+      console.error('加载消费记录失败:', err)
+      message.error('加载数据失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
+
+  useEffect(() => {
+    fetchData(selectedUserId)
+  }, [selectedUserId, fetchData])
 
   // ==================== 筛选配置 ====================
 
@@ -147,8 +232,9 @@ const Expenses: React.FC = () => {
     if (searchText.trim()) {
       const keyword = searchText.trim().toLowerCase()
       result = result.filter((record) => {
+        const displayName = record.nickname || record.user_name || ''
         return (
-          record.user_name?.toLowerCase().includes(keyword) ||
+          displayName.toLowerCase().includes(keyword) ||
           record.category?.toLowerCase().includes(keyword) ||
           record.note?.toLowerCase().includes(keyword)
         )
@@ -212,19 +298,25 @@ const Expenses: React.FC = () => {
 
   // 删除单条
   const handleDelete = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (!canDeleteExpenses) {
         message.warning('您没有删除消费记录的权限')
         return
       }
-      setData((prev) => prev.filter((item) => item.id !== id))
-      message.success('删除成功')
+      try {
+        const { error } = await supabase.from('expenses').delete().eq('id', id)
+        if (error) throw error
+        setData((prev) => prev.filter((item) => item.id !== id))
+        message.success('删除成功')
+      } catch (err) {
+        message.error('删除失败')
+      }
     },
     [canDeleteExpenses]
   )
 
   // 批量删除
-  const handleBatchDelete = useCallback(() => {
+  const handleBatchDelete = useCallback(async () => {
     if (!canDeleteExpenses) {
       message.warning('您没有删除消费记录的权限')
       return
@@ -233,9 +325,18 @@ const Expenses: React.FC = () => {
       message.warning('请先选择要删除的数据')
       return
     }
-    setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
-    setSelectedRowKeys([])
-    message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .delete()
+        .in('id', selectedRowKeys as string[])
+      if (error) throw error
+      setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
+      setSelectedRowKeys([])
+      message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+    } catch (err) {
+      message.error('批量删除失败')
+    }
   }, [selectedRowKeys, canDeleteExpenses])
 
   // 表单提交
@@ -243,31 +344,56 @@ const Expenses: React.FC = () => {
     async (values: Record<string, unknown>) => {
       setConfirmLoading(true)
       try {
-        // 模拟异步操作
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
         if (modalMode === 'create') {
-          const newRecord: ExpenseRecord = {
-            id: `expense_${Date.now()}`,
-            key: `expense_${Date.now()}`,
-            user_id: 'current_user_id',
-            user_name: '当前用户',
-            amount: values.amount as number,
-            category: values.category as string,
-            note: (values.note as string) || '',
-            date: values.date as string,
-            created_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
-            updated_at: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+          const { data: newData, error } = await supabase
+            .from('expenses')
+            .insert({
+              user_id: 'current_user_id',
+              amount: values.amount,
+              category: values.category,
+              note: values.note || '',
+              date: values.date,
+            })
+            .select('*, users(username, nickname)')
+            .single()
+
+          if (error) throw error
+
+          if (newData) {
+            const newRecord: ExpenseRecord = {
+              id: newData.id,
+              key: newData.id,
+              user_id: newData.user_id,
+              user_name: newData.users?.username || '',
+              nickname: newData.users?.nickname || '',
+              amount: newData.amount,
+              category: newData.category,
+              note: newData.note || '',
+              date: newData.date,
+              created_at: newData.created_at,
+              updated_at: newData.updated_at,
+            }
+            setData((prev) => [newRecord, ...prev])
           }
-          setData((prev) => [newRecord, ...prev])
           message.success('新增成功')
-        } else {
+        } else if (editingRecord) {
+          const { error } = await supabase
+            .from('expenses')
+            .update({
+              amount: values.amount,
+              category: values.category,
+              note: values.note || '',
+              date: values.date,
+            })
+            .eq('id', editingRecord.id)
+
+          if (error) throw error
+
           setData((prev) =>
             prev.map((item) =>
-              item.id === editingRecord?.id
+              item.id === editingRecord.id
                 ? {
                     ...item,
-                    ...values,
                     amount: values.amount as number,
                     category: values.category as string,
                     note: (values.note as string) || '',
@@ -296,8 +422,7 @@ const Expenses: React.FC = () => {
       return
     }
     const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
+      { title: '用户', dataIndex: 'nickname' },
       { title: '金额', dataIndex: 'amount' },
       { title: '分类', dataIndex: 'category' },
       { title: '备注', dataIndex: 'note' },
@@ -313,8 +438,7 @@ const Expenses: React.FC = () => {
       return
     }
     const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
+      { title: '用户', dataIndex: 'nickname' },
       { title: '金额', dataIndex: 'amount' },
       { title: '分类', dataIndex: 'category' },
       { title: '备注', dataIndex: 'note' },
@@ -332,22 +456,25 @@ const Expenses: React.FC = () => {
     setPagination((prev) => ({ ...prev, current: 1 }))
   }, [])
 
+  // 用户选择变更
+  const handleUserChange = useCallback((userId: string | undefined) => {
+    setSelectedUserId(userId)
+    setPagination((prev) => ({ ...prev, current: 1 }))
+  }, [])
+
   // ==================== 表格列配置 ====================
 
   const columns: ColumnsType<ExpenseRecord> = [
     {
-      title: '用户ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
-      width: 180,
-      ellipsis: true,
-      sorter: (a, b) => a.user_id.localeCompare(b.user_id),
-    },
-    {
-      title: '用户名',
-      dataIndex: 'user_name',
-      key: 'user_name',
-      width: 100,
+      title: '用户',
+      key: 'user',
+      width: 120,
+      render: (_, record) => (
+        <Space>
+          <UserOutlined />
+          <span>{record.nickname || record.user_name || '未知用户'}</span>
+        </Space>
+      ),
     },
     {
       title: '金额',
@@ -458,6 +585,22 @@ const Expenses: React.FC = () => {
           消费记录管理
         </Title>
         <Space>
+          {/* 用户选择器 */}
+          <Select
+            placeholder="选择用户"
+            allowClear
+            showSearch
+            style={{ width: 200 }}
+            value={selectedUserId}
+            onChange={handleUserChange}
+            filterOption={(input, option) =>
+              (option?.label as string ?? '').toLowerCase().includes(input.toLowerCase())
+            }
+            options={userOptions.map((u) => ({
+              value: u.id,
+              label: u.nickname || u.username || u.id,
+            }))}
+          />
           {canWriteExpenses && (
             <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
               新增记录
@@ -519,7 +662,7 @@ const Expenses: React.FC = () => {
             total: filteredData.length,
           }}
           onChange={(pag) => setPagination(pag)}
-          scroll={{ x: 1000 }}
+          scroll={{ x: 900 }}
           rowSelection={
             canDeleteExpenses
               ? {

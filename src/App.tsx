@@ -166,10 +166,17 @@ const MainLayout: React.FC = () => {
         theme="light"
         style={{ boxShadow: '2px 0 8px rgba(0,0,0,0.05)' }}
       >
-        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <h2 style={{ margin: 0, color: '#6C63FF', fontSize: collapsed ? 14 : 20 }}>
-            {collapsed ? '纯' : '纯享管理'}
-          </h2>
+        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: collapsed ? 0 : 8 }}>
+          <img
+            src="/logo.jpg"
+            alt="纯享"
+            style={{ width: 32, height: 32, borderRadius: 6 }}
+          />
+          {!collapsed && (
+            <h2 style={{ margin: 0, color: '#6C63FF', fontSize: 20 }}>
+              纯享管理
+            </h2>
+          )}
         </div>
         <Menu
           mode="inline"
