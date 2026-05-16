@@ -77,13 +77,28 @@ const VersionManagement: React.FC = () => {
     } else {
       console.log('Versions loaded:', data?.length || 0, 'records')
       // 映射字段：将 GitHub Actions 创建的字段名转换为前端使用的字段名
-      const mappedData = (data || []).map((item: any) => ({
-        ...item,
-        apk_url: item.apk_url || item.download_url || null,
-        apk_size: item.apk_size || item.file_size || 0,
-        release_type: item.release_type || (item.is_force_update ? 'force' : 'feature'),
-        status: item.status || (item.is_active ? 'released' : 'draft'),
-      }))
+      const mappedData = (data || []).map((item: any) => {
+        // 处理发布时间：优先使用 released_at，否则使用 created_at
+        const releasedAt = item.released_at || item.created_at || null
+        // 处理版本状态
+        const status = item.status || (item.is_active ? 'released' : 'draft')
+        // 处理更新类型
+        const releaseType = item.release_type || (item.is_force_update ? 'force' : 'feature')
+        
+        return {
+          ...item,
+          apk_url: item.apk_url || item.download_url || null,
+          apk_size: item.apk_size || item.file_size || 0,
+          release_type: releaseType,
+          status: status,
+          released_at: releasedAt,
+          // 确保其他字段也有默认值
+          version: item.version || '1.0.0',
+          build_number: item.build_number || 1,
+          release_notes: item.release_notes || '无更新说明',
+        }
+      })
+      console.log('Mapped data:', mappedData)
       setVersions(mappedData)
     }
     setLoading(false)
