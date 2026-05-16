@@ -69,7 +69,7 @@ const VersionManagement: React.FC = () => {
     const { data, error } = await supabase
       .from('app_versions')
       .select('*')
-      .order('build_number', { ascending: false })
+      .order('created_at', { ascending: false })
     console.log('Supabase response:', { data, error })
     if (error) {
       console.error('Error fetching versions:', error)
@@ -165,6 +165,18 @@ const VersionManagement: React.FC = () => {
 
   const handleRelease = async (record: AppVersion) => {
     try {
+      // 先将其他所有已发布版本改为已下架
+      const otherReleased = versions.filter(v => v.status === 'released' && v.id !== record.id)
+      if (otherReleased.length > 0) {
+        const otherIds = otherReleased.map(v => v.id)
+        const { error: updateError } = await supabase
+          .from('app_versions')
+          .update({ status: 'revoked', revoked_at: new Date().toISOString() })
+          .in('id', otherIds)
+        if (updateError) console.error('下架旧版本失败:', updateError)
+      }
+
+      // 发布当前版本
       const { error } = await supabase
         .from('app_versions')
         .update({
@@ -174,7 +186,7 @@ const VersionManagement: React.FC = () => {
         .eq('id', record.id)
 
       if (error) throw error
-      message.success(`v${record.version} 已发布`)
+      message.success(`v${record.version} 已发布，其他版本已下架`)
       fetchVersions()
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '未知错误'

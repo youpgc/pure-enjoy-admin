@@ -114,11 +114,10 @@ const NovelManagement: React.FC = () => {
   const fetchNovels = useCallback(async () => {
     setLoading(true)
     try {
-      // 查询公共小说（user_id 为 null）
+      // 查询所有小说（不限制 user_id 为 null，因为可能没有公共小说）
       const { data: novels, error } = await supabase
         .from('novels')
         .select('*')
-        .is('user_id', null)
         .order('created_at', { ascending: false })
 
       if (error) throw error
