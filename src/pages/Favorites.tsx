@@ -9,7 +9,6 @@ import {
   Modal,
   Form,
   Select,
-  Switch,
   message,
   Popconfirm,
   Row,
@@ -22,8 +21,6 @@ import {
   EditOutlined,
   DeleteOutlined,
   LinkOutlined,
-  PushpinOutlined,
-  PushpinFilled,
 } from '@ant-design/icons';
 import { supabase } from '../utils/supabase';
 
@@ -32,12 +29,10 @@ interface Favorite {
   user_id: string;
   title: string;
   url: string | null;
+  description: string | null;
   category: string;
-  tags: string[] | null;
-  is_pinned: boolean;
   created_at: string;
   updated_at: string;
-  username?: string;
 }
 
 const categories = [
@@ -59,7 +54,6 @@ const Favorites: React.FC = () => {
   const [form] = Form.useForm();
   const [stats, setStats] = useState({
     total: 0,
-    pinned: 0,
     byCategory: {} as Record<string, number>,
   });
 
@@ -72,22 +66,13 @@ const Favorites: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('user_favorites')
-        .select(`
-          *,
-          users:user_id (nickname)
-        `)
-        .order('is_pinned', { ascending: false })
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const formattedData = (data || []).map((item: any) => ({
-        ...item,
-        username: item.users?.nickname || '未知用户',
-      }));
-
-      setFavorites(formattedData);
-      calculateStats(formattedData);
+      setFavorites(data || []);
+      calculateStats(data || []);
     } catch (error) {
       message.error('获取收藏列表失败');
     } finally {
@@ -103,27 +88,21 @@ const Favorites: React.FC = () => {
 
     setStats({
       total: data.length,
-      pinned: data.filter((i) => i.is_pinned).length,
       byCategory,
     });
   };
 
   const handleSubmit = async (values: any) => {
     try {
-      const payload = {
-        ...values,
-        tags: values.tags ? values.tags.split(',').map((t: string) => t.trim()) : null,
-      };
-
       if (editingFavorite) {
         const { error } = await supabase
           .from('user_favorites')
-          .update(payload)
+          .update(values)
           .eq('id', editingFavorite.id);
         if (error) throw error;
         message.success('更新成功');
       } else {
-        const { error } = await supabase.from('user_favorites').insert([payload]);
+        const { error } = await supabase.from('user_favorites').insert([values]);
         if (error) throw error;
         message.success('创建成功');
       }
@@ -148,30 +127,14 @@ const Favorites: React.FC = () => {
     }
   };
 
-  const togglePin = async (record: Favorite) => {
-    try {
-      const { error } = await supabase
-        .from('user_favorites')
-        .update({ is_pinned: !record.is_pinned })
-        .eq('id', record.id);
-      if (error) throw error;
-      message.success(record.is_pinned ? '取消置顶' : '置顶成功');
-      fetchFavorites();
-    } catch (error) {
-      message.error('操作失败');
-    }
-  };
-
   const openModal = (record?: Favorite) => {
     if (record) {
       setEditingFavorite(record);
-      form.setFieldsValue({
-        ...record,
-        tags: record.tags?.join(', '),
-      });
+      form.setFieldsValue(record);
     } else {
       setEditingFavorite(null);
       form.resetFields();
+      form.setFieldsValue({ category: 'other' });
     }
     setModalVisible(true);
   };
@@ -180,7 +143,7 @@ const Favorites: React.FC = () => {
     const matchSearch =
       !searchText ||
       item.title.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.tags?.some((t) => t.toLowerCase().includes(searchText.toLowerCase()));
+      item.description?.toLowerCase().includes(searchText.toLowerCase());
     const matchCategory = !categoryFilter || item.category === categoryFilter;
     return matchSearch && matchCategory;
   });
@@ -192,7 +155,6 @@ const Favorites: React.FC = () => {
       key: 'title',
       render: (text: string, record: Favorite) => (
         <Space>
-          {record.is_pinned && <PushpinFilled style={{ color: '#1890ff' }} />}
           <span>{text}</span>
           {record.url && <LinkOutlined style={{ color: '#52c41a' }} />}
         </Space>
@@ -208,16 +170,23 @@ const Favorites: React.FC = () => {
       },
     },
     {
-      title: '标签',
-      dataIndex: 'tags',
-      key: 'tags',
-      render: (tags: string[] | null) =>
-        tags?.map((tag) => <Tag key={tag} color="blue">{tag}</Tag>),
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
     },
     {
-      title: '用户',
-      dataIndex: 'username',
-      key: 'username',
+      title: '链接',
+      dataIndex: 'url',
+      key: 'url',
+      render: (url: string | null) =>
+        url ? (
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            访问链接
+          </a>
+        ) : (
+          '-'
+        ),
     },
     {
       title: '创建时间',
@@ -230,13 +199,6 @@ const Favorites: React.FC = () => {
       key: 'action',
       render: (_: any, record: Favorite) => (
         <Space>
-          <Button
-            icon={record.is_pinned ? <PushpinFilled /> : <PushpinOutlined />}
-            onClick={() => togglePin(record)}
-            type={record.is_pinned ? 'primary' : 'default'}
-          >
-            {record.is_pinned ? '取消置顶' : '置顶'}
-          </Button>
           <Button icon={<EditOutlined />} onClick={() => openModal(record)}>
             编辑
           </Button>
@@ -261,12 +223,7 @@ const Favorites: React.FC = () => {
             <Statistic title="总收藏数" value={stats.total} />
           </Card>
         </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="置顶收藏" value={stats.pinned} />
-          </Card>
-        </Col>
-        <Col span={12}>
+        <Col span={18}>
           <Card title="分类统计">
             <Space>
               {Object.entries(stats.byCategory).map(([cat, count]) => (
@@ -289,7 +246,7 @@ const Favorites: React.FC = () => {
       >
         <Space style={{ marginBottom: 16 }}>
           <Input
-            placeholder="搜索标题或标签"
+            placeholder="搜索标题或描述"
             prefix={<SearchOutlined />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
@@ -338,6 +295,9 @@ const Favorites: React.FC = () => {
           <Form.Item name="url" label="链接">
             <Input placeholder="https://..." />
           </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={2} placeholder="请输入描述" />
+          </Form.Item>
           <Form.Item
             name="category"
             label="分类"
@@ -345,12 +305,6 @@ const Favorites: React.FC = () => {
             initialValue="other"
           >
             <Select options={categories} />
-          </Form.Item>
-          <Form.Item name="tags" label="标签">
-            <Input placeholder="用逗号分隔多个标签" />
-          </Form.Item>
-          <Form.Item name="is_pinned" label="置顶" valuePropName="checked">
-            <Switch />
           </Form.Item>
         </Form>
       </Modal>

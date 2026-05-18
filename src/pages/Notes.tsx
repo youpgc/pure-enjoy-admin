@@ -26,7 +26,6 @@ import {
 import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
-import { NOTE_CATEGORY_OPTIONS } from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
@@ -39,10 +38,8 @@ interface NoteRecord {
   id: string
   key: string
   user_id: string
-  user_name: string
   title: string
   content: string
-  category: string
   tags: string[]
   is_pinned: boolean
   created_at: string
@@ -86,8 +83,7 @@ const Notes: React.FC = () => {
     try {
       const { data: notes, error } = await supabase
         .from('notes')
-        .select('*, users:user_id(nickname)')
-        .order('is_pinned', { ascending: false })
+        .select('*')
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -95,7 +91,6 @@ const Notes: React.FC = () => {
       const records: NoteRecord[] = (notes || []).map((item: any) => ({
         ...item,
         key: item.id,
-        user_name: item.users?.nickname || '未知用户',
         tags: item.tags || [],
       }))
 
@@ -116,11 +111,15 @@ const Notes: React.FC = () => {
 
   const filterFields: FilterField[] = [
     {
-      name: 'category',
-      label: '分类',
+      name: 'is_pinned',
+      label: '置顶状态',
       type: 'select',
-      options: NOTE_CATEGORY_OPTIONS,
-      placeholder: '选择分类',
+      options: [
+        { label: '全部', value: '' },
+        { label: '已置顶', value: 'true' },
+        { label: '未置顶', value: 'false' },
+      ],
+      placeholder: '选择置顶状态',
     },
   ]
 
@@ -140,14 +139,6 @@ const Notes: React.FC = () => {
       type: 'textarea',
       rows: 6,
       placeholder: '记录笔记内容...',
-    },
-    {
-      name: 'category',
-      label: '分类',
-      type: 'select',
-      required: false,
-      options: NOTE_CATEGORY_OPTIONS,
-      placeholder: '选择分类',
     },
     {
       name: 'tags',
@@ -175,23 +166,23 @@ const Notes: React.FC = () => {
         return (
           record.title?.toLowerCase().includes(keyword) ||
           record.content?.toLowerCase().includes(keyword) ||
-          record.category?.toLowerCase().includes(keyword) ||
           record.tags?.some((tag) => tag.toLowerCase().includes(keyword))
         )
       })
     }
 
-    // 分类筛选
-    if (filterValues.category) {
-      result = result.filter((record) => record.category === filterValues.category)
+    // 置顶筛选
+    if (filterValues.is_pinned !== undefined && filterValues.is_pinned !== '') {
+      const isPinned = filterValues.is_pinned === 'true'
+      result = result.filter((record) => record.is_pinned === isPinned)
     }
 
-    // 排序：置顶优先，然后按更新时间降序
+    // 排序：置顶优先，然后按创建时间降序
     result.sort((a, b) => {
       if (a.is_pinned !== b.is_pinned) {
         return a.is_pinned ? -1 : 1
       }
-      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
 
     return result
@@ -305,7 +296,6 @@ const Notes: React.FC = () => {
           const { error } = await supabase.from('notes').insert({
             title: values.title as string,
             content: (values.content as string) || '',
-            category: (values.category as string) || '',
             tags: (values.tags as string[]) || [],
             is_pinned: (values.is_pinned as boolean) || false,
           })
@@ -317,7 +307,6 @@ const Notes: React.FC = () => {
             .update({
               title: values.title as string,
               content: (values.content as string) || '',
-              category: (values.category as string) || '',
               tags: (values.tags as string[]) || [],
               is_pinned: (values.is_pinned as boolean) || false,
             })
@@ -345,12 +334,11 @@ const Notes: React.FC = () => {
     }
     const columns = [
       { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
       { title: '标题', dataIndex: 'title' },
       { title: '内容', dataIndex: 'content' },
-      { title: '分类', dataIndex: 'category' },
       { title: '标签', dataIndex: 'tags', render: (val: unknown) => Array.isArray(val) ? val.join(', ') : '' },
       { title: '置顶', dataIndex: 'is_pinned', render: (val: unknown) => val ? '是' : '否' },
+      { title: '创建时间', dataIndex: 'created_at' },
       { title: '更新时间', dataIndex: 'updated_at' },
     ]
     exportToCSV<NoteRecord>(filteredData, columns, '笔记')
@@ -364,12 +352,11 @@ const Notes: React.FC = () => {
     }
     const columns = [
       { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
       { title: '标题', dataIndex: 'title' },
       { title: '内容', dataIndex: 'content' },
-      { title: '分类', dataIndex: 'category' },
       { title: '标签', dataIndex: 'tags', render: (val: unknown) => Array.isArray(val) ? val.join(', ') : '' },
       { title: '置顶', dataIndex: 'is_pinned', render: (val: unknown) => val ? '是' : '否' },
+      { title: '创建时间', dataIndex: 'created_at' },
       { title: '更新时间', dataIndex: 'updated_at' },
     ]
     exportToExcel<NoteRecord>(filteredData, columns, '笔记')
@@ -427,17 +414,6 @@ const Notes: React.FC = () => {
       ),
     },
     {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-      width: 100,
-      filters: NOTE_CATEGORY_OPTIONS.map((opt) => ({ text: opt.label, value: opt.value })),
-      onFilter: (value, record) => record.category === value,
-      render: (category: string) => (
-        category ? <Tag color="blue">{category}</Tag> : '-'
-      ),
-    },
-    {
       title: '标签',
       dataIndex: 'tags',
       key: 'tags',
@@ -475,11 +451,11 @@ const Notes: React.FC = () => {
       ),
     },
     {
-      title: '更新时间',
-      dataIndex: 'updated_at',
-      key: 'updated_at',
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
       width: 160,
-      sorter: (a, b) => new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime(),
+      sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
     {
@@ -576,7 +552,7 @@ const Notes: React.FC = () => {
         values={filterValues}
         onChange={setFilterValues}
         onReset={handleReset}
-        searchPlaceholder="搜索标题、内容、分类或标签"
+        searchPlaceholder="搜索标题、内容或标签"
         searchText={searchText}
         onSearchTextChange={setSearchText}
         loading={loading}

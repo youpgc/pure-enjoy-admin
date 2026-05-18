@@ -9,7 +9,6 @@ import {
   Table,
   Card,
   Typography,
-  Tooltip,
   Statistic,
   Row,
   Col,
@@ -26,10 +25,6 @@ import {
 import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
-import {
-  getBmiLevel,
-  calculateBmi,
-} from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
@@ -42,12 +37,9 @@ interface WeightRecord {
   id: string
   key: string
   user_id: string
-  user_name: string
   weight: number
-  bmi: number
   body_fat: number | null
-  note: string
-  date: string
+  record_date: string
   created_at: string
   updated_at: string
 }
@@ -89,15 +81,14 @@ const WeightRecords: React.FC = () => {
     try {
       const { data: records, error } = await supabase
         .from('weight_records')
-        .select('*, users:user_id(nickname)')
-        .order('date', { ascending: false })
+        .select('*')
+        .order('record_date', { ascending: false })
 
       if (error) throw error
 
       const formatted: WeightRecord[] = (records || []).map((item: any) => ({
         ...item,
         key: item.id,
-        user_name: item.users?.nickname || '未知用户',
       }))
 
       setData(formatted)
@@ -119,14 +110,13 @@ const WeightRecords: React.FC = () => {
     if (data.length === 0) return null
 
     const sortedData = [...data].sort((a, b) =>
-      new Date(b.date).getTime() - new Date(a.date).getTime()
+      new Date(b.record_date).getTime() - new Date(a.record_date).getTime()
     )
 
     const latest = sortedData[0]
     const previous = sortedData[1]
 
     const avgWeight = data.reduce((sum, item) => sum + item.weight, 0) / data.length
-    const avgBmi = data.reduce((sum, item) => sum + item.bmi, 0) / data.length
 
     let weightChange = 0
     if (previous && latest) {
@@ -135,10 +125,11 @@ const WeightRecords: React.FC = () => {
 
     return {
       latestWeight: latest?.weight || 0,
-      latestBmi: latest?.bmi || 0,
       avgWeight: parseFloat(avgWeight.toFixed(1)),
-      avgBmi: parseFloat(avgBmi.toFixed(1)),
       weightChange: parseFloat(weightChange.toFixed(1)),
+      avgBodyFat: data.filter(item => item.body_fat !== null).length > 0
+        ? parseFloat((data.filter(item => item.body_fat !== null).reduce((sum, item) => sum + (item.body_fat || 0), 0) / data.filter(item => item.body_fat !== null).length).toFixed(1))
+        : null,
       totalRecords: data.length,
     }
   }, [data])
@@ -153,7 +144,7 @@ const WeightRecords: React.FC = () => {
       placeholder: '体重范围 (kg)',
     },
     {
-      name: 'dateRange',
+      name: 'recordDateRange',
       label: '日期范围',
       type: 'dateRange',
       placeholder: '选择日期范围',
@@ -184,14 +175,7 @@ const WeightRecords: React.FC = () => {
       placeholder: '可选',
     },
     {
-      name: 'note',
-      label: '备注',
-      type: 'textarea',
-      rows: 3,
-      placeholder: '记录备注信息',
-    },
-    {
-      name: 'date',
+      name: 'record_date',
       label: '日期',
       type: 'date',
       required: true,
@@ -204,14 +188,11 @@ const WeightRecords: React.FC = () => {
   const filteredData = useMemo(() => {
     let result = [...data]
 
-    // 关键词搜索
+    // 关键词搜索（搜索用户ID）
     if (searchText.trim()) {
       const keyword = searchText.trim().toLowerCase()
       result = result.filter((record) => {
-        return (
-          record.user_name?.toLowerCase().includes(keyword) ||
-          record.note?.toLowerCase().includes(keyword)
-        )
+        return record.user_id?.toLowerCase().includes(keyword)
       })
     }
 
@@ -226,11 +207,11 @@ const WeightRecords: React.FC = () => {
     }
 
     // 日期范围筛选
-    if (filterValues.dateRange && Array.isArray(filterValues.dateRange)) {
-      const [startDate, endDate] = filterValues.dateRange as [string, string]
+    if (filterValues.recordDateRange && Array.isArray(filterValues.recordDateRange)) {
+      const [startDate, endDate] = filterValues.recordDateRange as [string, string]
       if (startDate && endDate) {
         result = result.filter((record) => {
-          return record.date >= startDate && record.date <= endDate
+          return record.record_date >= startDate && record.record_date <= endDate
         })
       }
     }
@@ -316,15 +297,12 @@ const WeightRecords: React.FC = () => {
       setConfirmLoading(true)
       try {
         const weight = values.weight as number
-        const bmi = calculateBmi(weight, 170) // 默认身高170cm
 
         if (modalMode === 'create') {
           const { error } = await supabase.from('weight_records').insert({
             weight,
-            bmi,
             body_fat: (values.body_fat as number) || null,
-            note: (values.note as string) || '',
-            date: values.date as string,
+            record_date: values.record_date as string,
           })
           if (error) throw error
           message.success('新增成功')
@@ -333,10 +311,8 @@ const WeightRecords: React.FC = () => {
             .from('weight_records')
             .update({
               weight,
-              bmi,
               body_fat: (values.body_fat as number) || null,
-              note: (values.note as string) || '',
-              date: values.date as string,
+              record_date: values.record_date as string,
             })
             .eq('id', editingRecord?.id)
           if (error) throw error
@@ -362,12 +338,9 @@ const WeightRecords: React.FC = () => {
     }
     const columns = [
       { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
       { title: '体重(kg)', dataIndex: 'weight' },
-      { title: 'BMI', dataIndex: 'bmi' },
       { title: '体脂率(%)', dataIndex: 'body_fat' },
-      { title: '备注', dataIndex: 'note' },
-      { title: '日期', dataIndex: 'date' },
+      { title: '日期', dataIndex: 'record_date' },
     ]
     exportToCSV<WeightRecord>(filteredData, columns, '体重记录')
     message.success('CSV 导出成功')
@@ -380,12 +353,9 @@ const WeightRecords: React.FC = () => {
     }
     const columns = [
       { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
       { title: '体重(kg)', dataIndex: 'weight' },
-      { title: 'BMI', dataIndex: 'bmi' },
       { title: '体脂率(%)', dataIndex: 'body_fat' },
-      { title: '备注', dataIndex: 'note' },
-      { title: '日期', dataIndex: 'date' },
+      { title: '日期', dataIndex: 'record_date' },
     ]
     exportToExcel<WeightRecord>(filteredData, columns, '体重记录')
     message.success('Excel 导出成功')
@@ -411,12 +381,6 @@ const WeightRecords: React.FC = () => {
       sorter: (a, b) => a.user_id.localeCompare(b.user_id),
     },
     {
-      title: '用户名',
-      dataIndex: 'user_name',
-      key: 'user_name',
-      width: 100,
-    },
-    {
       title: '体重',
       dataIndex: 'weight',
       key: 'weight',
@@ -425,23 +389,6 @@ const WeightRecords: React.FC = () => {
       render: (weight: number) => (
         <Tag color="blue">{weight} kg</Tag>
       ),
-    },
-    {
-      title: 'BMI',
-      dataIndex: 'bmi',
-      key: 'bmi',
-      width: 120,
-      sorter: (a, b) => a.bmi - b.bmi,
-      render: (bmi: number) => {
-        const level = getBmiLevel(bmi)
-        return (
-          <Tooltip title={`BMI ${bmi} - ${level.label}`}>
-            <Tag color={level.color}>
-              {bmi} ({level.label})
-            </Tag>
-          </Tooltip>
-        )
-      },
     },
     {
       title: '体脂率',
@@ -453,19 +400,11 @@ const WeightRecords: React.FC = () => {
       ),
     },
     {
-      title: '备注',
-      dataIndex: 'note',
-      key: 'note',
-      ellipsis: true,
-      width: 150,
-      render: (note: string) => note || '-',
-    },
-    {
       title: '日期',
-      dataIndex: 'date',
-      key: 'date',
+      dataIndex: 'record_date',
+      key: 'record_date',
       width: 120,
-      sorter: (a, b) => a.date.localeCompare(b.date),
+      sorter: (a, b) => a.record_date.localeCompare(b.record_date),
       render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
     },
     {
@@ -581,19 +520,21 @@ const WeightRecords: React.FC = () => {
             </Col>
             <Col xs={12} sm={6}>
               <Statistic
-                title="最新BMI"
-                value={stats.latestBmi}
-                suffix={getBmiLevel(stats.latestBmi).label}
-                valueStyle={{ color: getBmiLevel(stats.latestBmi).color }}
-              />
-            </Col>
-            <Col xs={12} sm={6}>
-              <Statistic
                 title="平均体重"
                 value={stats.avgWeight}
                 suffix="kg"
               />
             </Col>
+            {stats.avgBodyFat !== null && (
+              <Col xs={12} sm={6}>
+                <Statistic
+                  title="平均体脂率"
+                  value={stats.avgBodyFat}
+                  suffix="%"
+                  valueStyle={{ color: '#13c2c2' }}
+                />
+              </Col>
+            )}
           </Row>
         </Card>
       )}
@@ -604,7 +545,7 @@ const WeightRecords: React.FC = () => {
         values={filterValues}
         onChange={setFilterValues}
         onReset={handleReset}
-        searchPlaceholder="搜索用户名或备注"
+        searchPlaceholder="搜索用户ID"
         searchText={searchText}
         onSearchTextChange={setSearchText}
         loading={loading}

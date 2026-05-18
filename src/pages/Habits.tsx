@@ -8,7 +8,6 @@ import {
   Space,
   Modal,
   Form,
-  Select,
   Switch,
   Progress,
   message,
@@ -37,37 +36,26 @@ interface Habit {
   user_id: string;
   name: string;
   description: string | null;
-  frequency: 'daily' | 'weekly';
   target_days: number;
   current_streak: number;
-  max_streak: number;
-  total_checkins: number;
-  color: string;
+  longest_streak: number;
   is_active: boolean;
   created_at: string;
-  username?: string;
+  updated_at: string;
 }
 
-interface HabitCheckin {
+interface HabitRecord {
   id: string;
   habit_id: string;
-  checkin_at: string;
+  user_id: string;
+  check_in_date: string;
+  note: string | null;
+  created_at: string;
 }
-
-const colorOptions = [
-  { value: 'red', label: '红色', color: '#f5222d' },
-  { value: 'orange', label: '橙色', color: '#fa8c16' },
-  { value: 'yellow', label: '黄色', color: '#fadb14' },
-  { value: 'green', label: '绿色', color: '#52c41a' },
-  { value: 'cyan', label: '青色', color: '#13c2c2' },
-  { value: 'blue', label: '蓝色', color: '#1890ff' },
-  { value: 'purple', label: '紫色', color: '#722ed1' },
-  { value: 'pink', label: '粉色', color: '#eb2f96' },
-];
 
 const Habits: React.FC = () => {
   const [habits, setHabits] = useState<Habit[]>([]);
-  const [checkins, setCheckins] = useState<Record<string, HabitCheckin[]>>({});
+  const [records, setRecords] = useState<Record<string, HabitRecord[]>>({});
   const [loading, setLoading] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
@@ -76,7 +64,7 @@ const Habits: React.FC = () => {
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
-    totalCheckins: 0,
+    totalRecords: 0,
     avgStreak: 0,
   });
 
@@ -89,34 +77,26 @@ const Habits: React.FC = () => {
     try {
       const { data: habitsData, error: habitsError } = await supabase
         .from('user_habits')
-        .select(`
-          *,
-          users:user_id (nickname)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (habitsError) throw habitsError;
 
-      const formattedHabits = (habitsData || []).map((item: any) => ({
-        ...item,
-        username: item.users?.nickname || '未知用户',
-      }));
-
-      setHabits(formattedHabits);
+      setHabits(habitsData || []);
 
       // 获取打卡记录
-      const checkinsMap: Record<string, HabitCheckin[]> = {};
-      for (const habit of formattedHabits) {
-        const { data: checkinData } = await supabase
-          .from('habit_checkins')
+      const recordsMap: Record<string, HabitRecord[]> = {};
+      for (const habit of habitsData || []) {
+        const { data: recordData } = await supabase
+          .from('habit_records')
           .select('*')
           .eq('habit_id', habit.id)
-          .order('checkin_at', { ascending: false });
-        checkinsMap[habit.id] = checkinData || [];
+          .order('check_in_date', { ascending: false });
+        recordsMap[habit.id] = recordData || [];
       }
-      setCheckins(checkinsMap);
+      setRecords(recordsMap);
 
-      calculateStats(formattedHabits, checkinsMap);
+      calculateStats(habitsData || [], recordsMap);
     } catch (error) {
       message.error('获取习惯列表失败');
     } finally {
@@ -124,8 +104,8 @@ const Habits: React.FC = () => {
     }
   };
 
-  const calculateStats = (habitsData: Habit[], checkinsMap: Record<string, HabitCheckin[]>) => {
-    const totalCheckins = Object.values(checkinsMap).reduce((sum, arr) => sum + arr.length, 0);
+  const calculateStats = (habitsData: Habit[], recordsMap: Record<string, HabitRecord[]>) => {
+    const totalRecords = Object.values(recordsMap).reduce((sum, arr) => sum + arr.length, 0);
     const avgStreak = habitsData.length > 0
       ? Math.round(habitsData.reduce((sum, h) => sum + h.current_streak, 0) / habitsData.length)
       : 0;
@@ -133,7 +113,7 @@ const Habits: React.FC = () => {
     setStats({
       total: habitsData.length,
       active: habitsData.filter((h) => h.is_active).length,
-      totalCheckins,
+      totalRecords,
       avgStreak,
     });
   };
@@ -195,13 +175,8 @@ const Habits: React.FC = () => {
       setEditingHabit(null);
       form.resetFields();
       form.setFieldsValue({
-        frequency: 'daily',
         target_days: 21,
-        color: 'blue',
         is_active: true,
-        current_streak: 0,
-        max_streak: 0,
-        total_checkins: 0,
       });
     }
     setModalVisible(true);
@@ -214,10 +189,10 @@ const Habits: React.FC = () => {
       item.description?.toLowerCase().includes(searchText.toLowerCase())
   );
 
-  const getTodayCheckins = (habitId: string) => {
-    const habitCheckins = checkins[habitId] || [];
+  const getTodayRecords = (habitId: string) => {
+    const habitRecords = records[habitId] || [];
     const today = dayjs().format('YYYY-MM-DD');
-    return habitCheckins.filter((c) => dayjs(c.checkin_at).format('YYYY-MM-DD') === today).length;
+    return habitRecords.filter((c) => c.check_in_date === today).length;
   };
 
   const columns = [
@@ -227,7 +202,7 @@ const Habits: React.FC = () => {
       key: 'name',
       render: (text: string, record: Habit) => (
         <Space>
-          <Avatar style={{ backgroundColor: colorOptions.find((c) => c.value === record.color)?.color }}>
+          <Avatar style={{ backgroundColor: '#1890ff' }}>
             <FireOutlined />
           </Avatar>
           <span>{text}</span>
@@ -240,12 +215,6 @@ const Habits: React.FC = () => {
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
-    },
-    {
-      title: '频率',
-      dataIndex: 'frequency',
-      key: 'frequency',
-      render: (freq: string) => freq === 'daily' ? '每天' : '每周',
     },
     {
       title: '进度',
@@ -268,29 +237,26 @@ const Habits: React.FC = () => {
             当前: {record.current_streak}
           </Tag>
           <Tag icon={<TrophyOutlined />} color="gold">
-            最高: {record.max_streak}
+            最高: {record.longest_streak}
           </Tag>
         </Space>
       ),
     },
     {
       title: '总打卡',
-      dataIndex: 'total_checkins',
-      key: 'total_checkins',
-      render: (total: number, record: Habit) => (
-        <Space>
-          <CheckCircleOutlined style={{ color: '#52c41a' }} />
-          <span>{total} 次</span>
-          {getTodayCheckins(record.id) > 0 && (
-            <Tag color="success">今日已打卡</Tag>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: '用户',
-      dataIndex: 'username',
-      key: 'username',
+      key: 'total_records',
+      render: (_: any, record: Habit) => {
+        const habitRecords = records[record.id] || [];
+        return (
+          <Space>
+            <CheckCircleOutlined style={{ color: '#52c41a' }} />
+            <span>{habitRecords.length} 次</span>
+            {getTodayRecords(record.id) > 0 && (
+              <Tag color="success">今日已打卡</Tag>
+            )}
+          </Space>
+        );
+      },
     },
     {
       title: '操作',
@@ -328,7 +294,7 @@ const Habits: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="总打卡次数" value={stats.totalCheckins} />
+            <Statistic title="总打卡次数" value={stats.totalRecords} />
           </Card>
         </Col>
         <Col span={6}>
@@ -363,16 +329,17 @@ const Habits: React.FC = () => {
           rowKey="id"
           expandable={{
             expandedRowRender: (record: Habit) => {
-              const habitCheckins = checkins[record.id] || [];
-              const recentCheckins = habitCheckins.slice(0, 10);
+              const habitRecords = records[record.id] || [];
+              const recentRecords = habitRecords.slice(0, 10);
               return (
                 <div style={{ padding: '16px 0' }}>
                   <h4>最近打卡记录</h4>
-                  {recentCheckins.length > 0 ? (
+                  {recentRecords.length > 0 ? (
                     <Space wrap>
-                      {recentCheckins.map((c) => (
+                      {recentRecords.map((c) => (
                         <Tag key={c.id} icon={<CalendarOutlined />}>
-                          {dayjs(c.checkin_at).format('MM-DD HH:mm')}
+                          {dayjs(c.check_in_date).format('MM-DD HH:mm')}
+                          {c.note && ` - ${c.note}`}
                         </Tag>
                       ))}
                     </Space>
@@ -411,25 +378,8 @@ const Habits: React.FC = () => {
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={2} placeholder="请输入描述" />
           </Form.Item>
-          <Form.Item name="frequency" label="频率" rules={[{ required: true }]}>
-            <Select
-              options={[
-                { label: '每天', value: 'daily' },
-                { label: '每周', value: 'weekly' },
-              ]}
-            />
-          </Form.Item>
           <Form.Item name="target_days" label="目标天数" rules={[{ required: true }]}>
             <Input type="number" placeholder="例如：21" />
-          </Form.Item>
-          <Form.Item name="color" label="颜色" rules={[{ required: true }]}>
-            <Select>
-              {colorOptions.map((c) => (
-                <Select.Option key={c.value} value={c.value}>
-                  <span style={{ color: c.color }}>●</span> {c.label}
-                </Select.Option>
-              ))}
-            </Select>
           </Form.Item>
           <Form.Item name="is_active" label="激活状态" valuePropName="checked">
             <Switch defaultChecked />

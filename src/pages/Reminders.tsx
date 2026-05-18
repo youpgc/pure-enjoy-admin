@@ -38,16 +38,11 @@ interface Reminder {
   description: string | null;
   remind_at: string;
   is_completed: boolean;
-  priority: 'low' | 'normal' | 'high';
+  is_repeated: boolean;
+  repeat_type: string | null;
   created_at: string;
-  username?: string;
+  updated_at: string;
 }
-
-const priorityOptions = [
-  { label: '高', value: 'high', color: 'red' },
-  { label: '中', value: 'normal', color: 'orange' },
-  { label: '低', value: 'low', color: 'green' },
-];
 
 const Reminders: React.FC = () => {
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -62,7 +57,7 @@ const Reminders: React.FC = () => {
     total: 0,
     pending: 0,
     completed: 0,
-    highPriority: 0,
+    repeated: 0,
   });
 
   useEffect(() => {
@@ -74,22 +69,13 @@ const Reminders: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('user_reminders')
-        .select(`
-          *,
-          users:user_id (nickname)
-        `)
-        .order('is_completed', { ascending: true })
+        .select('*')
         .order('remind_at', { ascending: true });
 
       if (error) throw error;
 
-      const formattedData = (data || []).map((item: any) => ({
-        ...item,
-        username: item.users?.nickname || '未知用户',
-      }));
-
-      setReminders(formattedData);
-      calculateStats(formattedData);
+      setReminders(data || []);
+      calculateStats(data || []);
     } catch (error) {
       message.error('获取提醒列表失败');
     } finally {
@@ -102,7 +88,7 @@ const Reminders: React.FC = () => {
       total: data.length,
       pending: data.filter((i) => !i.is_completed).length,
       completed: data.filter((i) => i.is_completed).length,
-      highPriority: data.filter((i) => i.priority === 'high' && !i.is_completed).length,
+      repeated: data.filter((i) => i.is_repeated).length,
     });
   };
 
@@ -170,7 +156,7 @@ const Reminders: React.FC = () => {
     } else {
       setEditingReminder(null);
       form.resetFields();
-      form.setFieldsValue({ priority: 'normal', remind_at: dayjs() });
+      form.setFieldsValue({ is_completed: false, is_repeated: false, remind_at: dayjs() });
     }
     setModalVisible(true);
   };
@@ -199,7 +185,7 @@ const Reminders: React.FC = () => {
         {listData.map((item) => (
           <li key={item.id}>
             <Badge
-              status={item.is_completed ? 'default' : item.priority === 'high' ? 'error' : 'warning'}
+              status={item.is_completed ? 'default' : 'warning'}
               text={item.title}
             />
           </li>
@@ -242,15 +228,6 @@ const Reminders: React.FC = () => {
       ellipsis: true,
     },
     {
-      title: '优先级',
-      dataIndex: 'priority',
-      key: 'priority',
-      render: (priority: string) => {
-        const p = priorityOptions.find((o) => o.value === priority);
-        return <Tag color={p?.color}>{p?.label}</Tag>;
-      },
-    },
-    {
       title: '提醒时间',
       dataIndex: 'remind_at',
       key: 'remind_at',
@@ -265,9 +242,14 @@ const Reminders: React.FC = () => {
       },
     },
     {
-      title: '用户',
-      dataIndex: 'username',
-      key: 'username',
+      title: '重复',
+      dataIndex: 'is_repeated',
+      key: 'is_repeated',
+      render: (repeated: boolean) => (
+        <Tag color={repeated ? 'blue' : 'default'}>
+          {repeated ? '是' : '否'}
+        </Tag>
+      ),
     },
     {
       title: '操作',
@@ -307,7 +289,7 @@ const Reminders: React.FC = () => {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="高优先级" value={stats.highPriority} valueStyle={{ color: '#ff4d4f' }} />
+            <Statistic title="循环提醒" value={stats.repeated} valueStyle={{ color: '#1890ff' }} />
           </Card>
         </Col>
       </Row>
@@ -395,8 +377,19 @@ const Reminders: React.FC = () => {
           >
             <DatePicker showTime style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="priority" label="优先级" rules={[{ required: true }]}>
-            <Select options={priorityOptions} />
+          <Form.Item name="is_repeated" label="是否循环" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+          <Form.Item name="repeat_type" label="循环类型">
+            <Select
+              allowClear
+              placeholder="请选择循环类型"
+              options={[
+                { label: '每天', value: 'daily' },
+                { label: '每周', value: 'weekly' },
+                { label: '每月', value: 'monthly' },
+              ]}
+            />
           </Form.Item>
           <Form.Item name="is_completed" label="已完成" valuePropName="checked">
             <Switch />

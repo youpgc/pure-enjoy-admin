@@ -35,11 +35,10 @@ interface ExpenseRecord {
   id: string
   key: string
   user_id: string
-  user_name: string
   amount: number
   category: string
-  note: string
-  date: string
+  description: string
+  expense_date: string
   created_at: string
   updated_at: string
 }
@@ -91,15 +90,14 @@ const Expenses: React.FC = () => {
     try {
       const { data: expenses, error } = await supabase
         .from('expenses')
-        .select('*, users:user_id(nickname)')
-        .order('date', { ascending: false })
+        .select('*')
+        .order('expense_date', { ascending: false })
 
       if (error) throw error
 
       const records: ExpenseRecord[] = (expenses || []).map((item: any) => ({
         ...item,
         key: item.id,
-        user_name: item.users?.nickname || '未知用户',
       }))
 
       setData(records)
@@ -161,19 +159,19 @@ const Expenses: React.FC = () => {
       placeholder: '请选择分类',
     },
     {
-      name: 'note',
-      label: '备注',
-      type: 'textarea',
-      rows: 3,
-      placeholder: '请输入备注信息',
-    },
-    {
-      name: 'date',
-      label: '日期',
-      type: 'date',
-      required: true,
-      defaultValue: dayjs().format('YYYY-MM-DD'),
-    },
+        name: 'description',
+        label: '备注',
+        type: 'textarea',
+        rows: 3,
+        placeholder: '请输入备注信息',
+      },
+      {
+        name: 'expense_date',
+        label: '日期',
+        type: 'date',
+        required: true,
+        defaultValue: dayjs().format('YYYY-MM-DD'),
+      },
   ]
 
   // ==================== 数据处理 ====================
@@ -186,9 +184,9 @@ const Expenses: React.FC = () => {
       const keyword = searchText.trim().toLowerCase()
       result = result.filter((record) => {
         return (
-          record.user_name?.toLowerCase().includes(keyword) ||
+          record.user_id?.toLowerCase().includes(keyword) ||
           record.category?.toLowerCase().includes(keyword) ||
-          record.note?.toLowerCase().includes(keyword)
+          record.description?.toLowerCase().includes(keyword)
         )
       })
     }
@@ -213,7 +211,7 @@ const Expenses: React.FC = () => {
       const [startDate, endDate] = filterValues.dateRange as [string, string]
       if (startDate && endDate) {
         result = result.filter((record) => {
-          return record.date >= startDate && record.date <= endDate
+          return record.expense_date >= startDate && record.expense_date <= endDate
         })
       }
     }
@@ -302,8 +300,8 @@ const Expenses: React.FC = () => {
           const { error } = await supabase.from('expenses').insert({
             amount: values.amount as number,
             category: values.category as string,
-            note: (values.note as string) || '',
-            date: values.date as string,
+            description: (values.description as string) || '',
+            expense_date: values.expense_date as string,
           })
           if (error) throw error
           message.success('新增成功')
@@ -313,8 +311,8 @@ const Expenses: React.FC = () => {
             .update({
               amount: values.amount as number,
               category: values.category as string,
-              note: (values.note as string) || '',
-              date: values.date as string,
+              description: (values.description as string) || '',
+              expense_date: values.expense_date as string,
             })
             .eq('id', editingRecord?.id)
           if (error) throw error
@@ -339,12 +337,10 @@ const Expenses: React.FC = () => {
       return
     }
     const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
       { title: '金额', dataIndex: 'amount' },
       { title: '分类', dataIndex: 'category' },
-      { title: '备注', dataIndex: 'note' },
-      { title: '日期', dataIndex: 'date' },
+      { title: '备注', dataIndex: 'description' },
+      { title: '日期', dataIndex: 'expense_date' },
     ]
     exportToCSV<ExpenseRecord>(filteredData, columns, '消费记录')
     message.success('CSV 导出成功')
@@ -355,15 +351,13 @@ const Expenses: React.FC = () => {
       message.warning('您没有导出消费记录的权限')
       return
     }
-    const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
+    const excelColumns = [
       { title: '金额', dataIndex: 'amount' },
       { title: '分类', dataIndex: 'category' },
-      { title: '备注', dataIndex: 'note' },
-      { title: '日期', dataIndex: 'date' },
+      { title: '备注', dataIndex: 'description' },
+      { title: '日期', dataIndex: 'expense_date' },
     ]
-    exportToExcel<ExpenseRecord>(filteredData, columns, '消费记录')
+    exportToExcel<ExpenseRecord>(filteredData, excelColumns, '消费记录')
     message.success('Excel 导出成功')
   }, [filteredData, canExportExpenses])
 
@@ -378,20 +372,6 @@ const Expenses: React.FC = () => {
   // ==================== 表格列配置 ====================
 
   const columns: ColumnsType<ExpenseRecord> = [
-    {
-      title: '用户ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
-      width: 180,
-      ellipsis: true,
-      sorter: (a, b) => a.user_id.localeCompare(b.user_id),
-    },
-    {
-      title: '用户名',
-      dataIndex: 'user_name',
-      key: 'user_name',
-      width: 100,
-    },
     {
       title: '金额',
       dataIndex: 'amount',
@@ -415,17 +395,17 @@ const Expenses: React.FC = () => {
     },
     {
       title: '备注',
-      dataIndex: 'note',
-      key: 'note',
+      dataIndex: 'description',
+      key: 'description',
       ellipsis: true,
       width: 200,
     },
     {
       title: '日期',
-      dataIndex: 'date',
-      key: 'date',
+      dataIndex: 'expense_date',
+      key: 'expense_date',
       width: 120,
-      sorter: (a, b) => a.date.localeCompare(b.date),
+      sorter: (a, b) => a.expense_date.localeCompare(b.expense_date),
       render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
     },
     {

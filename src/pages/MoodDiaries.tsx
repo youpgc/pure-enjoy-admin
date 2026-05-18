@@ -9,6 +9,7 @@ import {
   Card,
   Typography,
   Tooltip,
+  Tag,
 } from 'antd'
 import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
 import type { Key } from 'react'
@@ -35,11 +36,11 @@ interface MoodDiaryRecord {
   id: string
   key: string
   user_id: string
-  user_name: string
   mood: string
-  mood_label: string
+  mood_score: number
   content: string
-  date: string
+  tags: string[]
+  entry_date: string
   created_at: string
   updated_at: string
 }
@@ -91,15 +92,15 @@ const MoodDiaries: React.FC = () => {
     try {
       const { data: diaries, error } = await supabase
         .from('mood_diaries')
-        .select('*, users:user_id(nickname)')
-        .order('date', { ascending: false })
+        .select('*')
+        .order('entry_date', { ascending: false })
 
       if (error) throw error
 
       const records: MoodDiaryRecord[] = (diaries || []).map((item: any) => ({
         ...item,
         key: item.id,
-        user_name: item.users?.nickname || '未知用户',
+        tags: item.tags || [],
       }))
 
       setData(records)
@@ -126,7 +127,7 @@ const MoodDiaries: React.FC = () => {
       placeholder: '选择心情',
     },
     {
-      name: 'dateRange',
+      name: 'entryDateRange',
       label: '日期范围',
       type: 'dateRange',
       placeholder: '选择日期范围',
@@ -143,6 +144,16 @@ const MoodDiaries: React.FC = () => {
       required: true,
     },
     {
+      name: 'mood_score',
+      label: '心情评分',
+      type: 'number',
+      required: true,
+      min: 1,
+      max: 10,
+      precision: 0,
+      placeholder: '1-10分',
+    },
+    {
       name: 'content',
       label: '内容',
       type: 'textarea',
@@ -150,7 +161,13 @@ const MoodDiaries: React.FC = () => {
       placeholder: '记录今天的心情...',
     },
     {
-      name: 'date',
+      name: 'tags',
+      label: '标签',
+      type: 'tags',
+      placeholder: '输入标签后按回车添加',
+    },
+    {
+      name: 'entry_date',
       label: '日期',
       type: 'date',
       required: true,
@@ -168,9 +185,9 @@ const MoodDiaries: React.FC = () => {
       const keyword = searchText.trim().toLowerCase()
       result = result.filter((record) => {
         return (
-          record.user_name?.toLowerCase().includes(keyword) ||
           record.mood?.toLowerCase().includes(keyword) ||
-          record.content?.toLowerCase().includes(keyword)
+          record.content?.toLowerCase().includes(keyword) ||
+          record.tags?.some((tag) => tag.toLowerCase().includes(keyword))
         )
       })
     }
@@ -181,11 +198,11 @@ const MoodDiaries: React.FC = () => {
     }
 
     // 日期范围筛选
-    if (filterValues.dateRange && Array.isArray(filterValues.dateRange)) {
-      const [startDate, endDate] = filterValues.dateRange as [string, string]
+    if (filterValues.entryDateRange && Array.isArray(filterValues.entryDateRange)) {
+      const [startDate, endDate] = filterValues.entryDateRange as [string, string]
       if (startDate && endDate) {
         result = result.filter((record) => {
-          return record.date >= startDate && record.date <= endDate
+          return record.entry_date >= startDate && record.entry_date <= endDate
         })
       }
     }
@@ -273,9 +290,10 @@ const MoodDiaries: React.FC = () => {
         if (modalMode === 'create') {
           const { error } = await supabase.from('mood_diaries').insert({
             mood: values.mood as string,
-            mood_label: MOOD_OPTIONS.find((opt) => opt.value === values.mood)?.label || '',
+            mood_score: (values.mood_score as number) || 5,
             content: (values.content as string) || '',
-            date: values.date as string,
+            tags: (values.tags as string[]) || [],
+            entry_date: values.entry_date as string,
           })
           if (error) throw error
           message.success('新增成功')
@@ -284,9 +302,10 @@ const MoodDiaries: React.FC = () => {
             .from('mood_diaries')
             .update({
               mood: values.mood as string,
-              mood_label: MOOD_OPTIONS.find((opt) => opt.value === values.mood)?.label || '',
+              mood_score: (values.mood_score as number) || 5,
               content: (values.content as string) || '',
-              date: values.date as string,
+              tags: (values.tags as string[]) || [],
+              entry_date: values.entry_date as string,
             })
             .eq('id', editingRecord?.id)
           if (error) throw error
@@ -312,10 +331,11 @@ const MoodDiaries: React.FC = () => {
     }
     const columns = [
       { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
       { title: '心情', dataIndex: 'mood' },
+      { title: '心情评分', dataIndex: 'mood_score' },
       { title: '内容', dataIndex: 'content' },
-      { title: '日期', dataIndex: 'date' },
+      { title: '标签', dataIndex: 'tags', render: (val: unknown) => Array.isArray(val) ? val.join(', ') : '' },
+      { title: '日期', dataIndex: 'entry_date' },
     ]
     exportToCSV<MoodDiaryRecord>(filteredData, columns, '心情日记')
     message.success('CSV 导出成功')
@@ -328,10 +348,11 @@ const MoodDiaries: React.FC = () => {
     }
     const columns = [
       { title: '用户ID', dataIndex: 'user_id' },
-      { title: '用户名', dataIndex: 'user_name' },
       { title: '心情', dataIndex: 'mood' },
+      { title: '心情评分', dataIndex: 'mood_score' },
       { title: '内容', dataIndex: 'content' },
-      { title: '日期', dataIndex: 'date' },
+      { title: '标签', dataIndex: 'tags', render: (val: unknown) => Array.isArray(val) ? val.join(', ') : '' },
+      { title: '日期', dataIndex: 'entry_date' },
     ]
     exportToExcel<MoodDiaryRecord>(filteredData, columns, '心情日记')
     message.success('Excel 导出成功')
@@ -357,12 +378,6 @@ const MoodDiaries: React.FC = () => {
       sorter: (a, b) => a.user_id.localeCompare(b.user_id),
     },
     {
-      title: '用户名',
-      dataIndex: 'user_name',
-      key: 'user_name',
-      width: 100,
-    },
-    {
       title: '心情',
       dataIndex: 'mood',
       key: 'mood',
@@ -378,11 +393,19 @@ const MoodDiaries: React.FC = () => {
       ),
     },
     {
+      title: '心情评分',
+      dataIndex: 'mood_score',
+      key: 'mood_score',
+      width: 100,
+      sorter: (a, b) => a.mood_score - b.mood_score,
+      render: (score: number) => `${score}分`,
+    },
+    {
       title: '内容',
       dataIndex: 'content',
       key: 'content',
       ellipsis: true,
-      width: 300,
+      width: 250,
       render: (content: string) => (
         <Tooltip title={content}>
           <span>{content || '-'}</span>
@@ -390,11 +413,29 @@ const MoodDiaries: React.FC = () => {
       ),
     },
     {
+      title: '标签',
+      dataIndex: 'tags',
+      key: 'tags',
+      width: 150,
+      render: (tags: string[]) => (
+        <Space size={[0, 4]} wrap>
+          {tags?.slice(0, 2).map((tag) => (
+            <Tag key={tag} color="cyan">
+              {tag}
+            </Tag>
+          ))}
+          {tags && tags.length > 2 && (
+            <Tag>+{tags.length - 2}</Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
       title: '日期',
-      dataIndex: 'date',
-      key: 'date',
+      dataIndex: 'entry_date',
+      key: 'entry_date',
       width: 120,
-      sorter: (a, b) => a.date.localeCompare(b.date),
+      sorter: (a, b) => a.entry_date.localeCompare(b.entry_date),
       render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
     },
     {
