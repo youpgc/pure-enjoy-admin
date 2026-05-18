@@ -963,13 +963,15 @@ export const NOTE_CATEGORY_OPTIONS = [
 // 小说分类选项
 export const NOVEL_CATEGORY_OPTIONS = [
   { label: '玄幻', value: '玄幻' },
-  { label: '都市', value: '都市' },
-  { label: '科幻', value: '科幻' },
-  { label: '历史', value: '历史' },
   { label: '仙侠', value: '仙侠' },
+  { label: '都市', value: '都市' },
+  { label: '历史', value: '历史' },
+  { label: '武侠', value: '武侠' },
+  { label: '科幻', value: '科幻' },
   { label: '游戏', value: '游戏' },
   { label: '悬疑', value: '悬疑' },
-  { label: '奇幻', value: '奇幻' },
+  { label: '灵异', value: '灵异' },
+  { label: '言情', value: '言情' },
 ]
 
 // 小说状态选项
