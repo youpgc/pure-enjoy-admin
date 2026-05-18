@@ -57,16 +57,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    // 1. 查询用户
-    const { data: dbUser, error } = await supabase
+    // 1. 查询用户（不使用 single，避免 PGRST116 错误）
+    const { data: dbUsers, error } = await supabase
       .from('users')
       .select('*')
       .eq('email', email)
-      .single()
 
-    if (error || !dbUser) {
+    if (error) {
+      console.error('查询用户失败:', error)
+      throw new Error('登录失败，请稍后重试')
+    }
+
+    if (!dbUsers || dbUsers.length === 0) {
       throw new Error('用户不存在')
     }
+
+    const dbUser = dbUsers[0]
 
     const user = dbUser as DbUser
 
