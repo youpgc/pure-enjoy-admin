@@ -241,6 +241,26 @@ const VersionManagement: React.FC = () => {
     }
   }
 
+  const handleToggleForceUpdate = async (record: AppVersion) => {
+    try {
+      const newForceStatus = !record.is_force_update
+      const { error } = await supabase
+        .from('app_versions')
+        .update({
+          is_force_update: newForceStatus,
+          release_type: newForceStatus ? 'force' : 'feature',
+        })
+        .eq('id', record.id)
+
+      if (error) throw error
+      message.success(`v${record.version} 已${newForceStatus ? '设为' : '取消'}强制更新`)
+      fetchVersions()
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误'
+      message.error(`设置失败: ${msg}`)
+    }
+  }
+
   const showQrCode = (record: AppVersion) => {
     setSelectedVersion(record)
     setQrModalOpen(true)
@@ -384,6 +404,18 @@ const VersionManagement: React.FC = () => {
                   回滚
                 </Button>
               </Popconfirm>
+            </Tooltip>
+          )}
+          {record.status === 'released' && (
+            <Tooltip title={record.is_force_update ? '取消强制更新' : '设为强制更新'}>
+              <Button
+                size="small"
+                type={record.is_force_update ? 'primary' : 'default'}
+                danger={record.is_force_update}
+                onClick={() => handleToggleForceUpdate(record)}
+              >
+                {record.is_force_update ? '取消强制' : '设为强制'}
+              </Button>
             </Tooltip>
           )}
         </Space>
