@@ -22,8 +22,14 @@ import {
   DeleteOutlined,
   ImportOutlined,
 } from '@ant-design/icons'
-import type { NovelRecord } from '../pages/NovelManagement'
 import { supabase } from '../utils/supabase'
+
+// 本地定义 NovelRecord 类型（不再从 NovelManagement 导入）
+interface NovelRecord {
+  id: string
+  title: string
+  [key: string]: any
+}
 
 const { Title, Text } = Typography
 const { TextArea } = Input

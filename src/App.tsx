@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout, Menu, theme } from 'antd'
 import type { MenuProps } from 'antd'
@@ -47,13 +47,41 @@ import Habits from './pages/Habits'
 
 const { Header, Sider, Content } = Layout
 
-type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' | 
-  'novels' | 'novel_library' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
+type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
+  'novels' | 'novel_chapters' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits'
+
+// 章节导航状态
+export interface NovelChapterNavState {
+  novelId: string
+  novelTitle: string
+}
+
+// 创建导航上下文
+import { createContext, useContext } from 'react'
+
+interface NavigationContextType {
+  currentPage: PageKey
+  setCurrentPage: (page: PageKey) => void
+  novelChapterNav: NovelChapterNavState | null
+  setNovelChapterNav: (state: NovelChapterNavState | null) => void
+  navigateToChapters: (novelId: string, novelTitle: string) => void
+}
+
+export const NavigationContext = createContext<NavigationContextType>({
+  currentPage: 'dashboard',
+  setCurrentPage: () => {},
+  novelChapterNav: null,
+  setNovelChapterNav: () => {},
+  navigateToChapters: () => {},
+})
+
+export const useNavigation = () => useContext(NavigationContext)
 
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
+  const [novelChapterNav, setNovelChapterNav] = useState<NovelChapterNavState | null>(null)
   const { user, logout } = useAuth()
   const { canManageVersions } = usePermission()
   const {
@@ -63,6 +91,12 @@ const MainLayout: React.FC = () => {
   const handleLogout = () => {
     logout()
   }
+
+  // 导航到章节管理页面
+  const navigateToChapters = useCallback((novelId: string, novelTitle: string) => {
+    setNovelChapterNav({ novelId, novelTitle })
+    setCurrentPage('novel_chapters')
+  }, [])
 
   // 定义菜单项
   const menuItems: MenuProps['items'] = [
@@ -102,8 +136,8 @@ const MainLayout: React.FC = () => {
       icon: <ReadOutlined />,
       label: '小说管理',
       children: [
-        { key: 'novels', icon: <BookOutlined />, label: '用户书架' },
-        { key: 'novel_library', icon: <DatabaseOutlined />, label: '小说库管理' },
+        { key: 'novels', icon: <BookOutlined />, label: '小说管理' },
+        { key: 'novel_chapters', icon: <DatabaseOutlined />, label: '章节管理' },
       ],
     },
     ...(canManageVersions ? [
@@ -140,7 +174,7 @@ const MainLayout: React.FC = () => {
         return <Notes />
       case 'novels':
         return <Novels />
-      case 'novel_library':
+      case 'novel_chapters':
         return <NovelManagement />
       case 'versions':
         return <VersionManagement />
@@ -170,8 +204,8 @@ const MainLayout: React.FC = () => {
       mood: '心情日记',
       weight: '体重记录',
       notes: '笔记本',
-      novels: '用户书架',
-      novel_library: '小说库管理',
+      novels: '小说管理',
+      novel_chapters: '章节管理',
       versions: '版本管理',
       analytics: '数据分析',
       operation_logs: '操作日志',
@@ -225,7 +259,15 @@ const MainLayout: React.FC = () => {
           </div>
         </Header>
         <Content style={{ margin: 24, padding: 24, background: colorBgContainer, borderRadius: 8 }}>
-          {renderPage()}
+          <NavigationContext.Provider value={{
+            currentPage,
+            setCurrentPage,
+            novelChapterNav,
+            setNovelChapterNav,
+            navigateToChapters,
+          }}>
+            {renderPage()}
+          </NavigationContext.Provider>
         </Content>
       </Layout>
     </Layout>
