@@ -26,11 +26,6 @@ const { Title, Text } = Typography
 export interface UserSummary {
   user_id: string
   user_nickname?: string
-  user_info?: {
-    username?: string
-    nickname?: string
-    email?: string
-  }
   total_count: number
   latest_date?: string
   latest_data?: Record<string, unknown>
@@ -131,33 +126,6 @@ const UserDimensionList: React.FC<{
         }
       }
 
-      // 收集所有用户ID
-      const userIds = [...new Set(allItems.map(item => item.user_id as string).filter(Boolean))]
-
-      // 批量查询用户信息
-      const userInfoMap = new Map<string, { username?: string; nickname?: string; email?: string }>()
-      if (userIds.length > 0) {
-        // 分批查询用户信息（每批100个避免URL过长）
-        const batchSize = 100
-        for (let i = 0; i < userIds.length; i += batchSize) {
-          const batchIds = userIds.slice(i, i + batchSize)
-          const { data: users, error: userError } = await supabase
-            .from('users')
-            .select('id, username, nickname, email')
-            .in('id', batchIds)
-
-          if (!userError && users) {
-            users.forEach(user => {
-              userInfoMap.set(user.id, {
-                username: user.username,
-                nickname: user.nickname,
-                email: user.email,
-              })
-            })
-          }
-        }
-      }
-
       // 按用户聚合
       const userMap = new Map<string, UserSummary>()
 
@@ -166,14 +134,12 @@ const UserDimensionList: React.FC<{
         if (!uid) continue
 
         if (!userMap.has(uid)) {
-          const userInfo = userInfoMap.get(uid)
-          // 优先使用昵称，其次是用户名，最后是邮箱前缀或ID截取
-          const displayName = userInfo?.nickname || userInfo?.username || (userInfo?.email ? userInfo.email.split('@')[0] : null) || `用户${uid.substring(0, 6)}`
+          // 直接使用表中存储的user_nickname，无需关联查询
+          const displayName = (item.user_nickname as string) || `用户${uid.substring(0, 6)}`
 
           userMap.set(uid, {
             user_id: uid,
             user_nickname: displayName,
-            user_info: userInfo,
             total_count: 0,
             latest_date: (item.created_at as string) || (item.updated_at as string),
             categories: [],
