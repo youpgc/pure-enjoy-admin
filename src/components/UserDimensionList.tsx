@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Card,
   Table,
@@ -22,7 +22,6 @@ const { Title, Text } = Typography
 
 // ==================== 类型定义 ====================
 
-// 用户维度聚合数据（列表展示用）
 export interface UserSummary {
   user_id: string
   user_nickname?: string
@@ -33,7 +32,6 @@ export interface UserSummary {
   stats?: Record<string, number | string>
 }
 
-// 原始记录类型（详情展示用）
 export interface RecordItem {
   id: string
   user_id: string
@@ -42,17 +40,11 @@ export interface RecordItem {
   [key: string]: unknown
 }
 
-// 模块配置接口
 export interface ModuleConfig {
-  // 模块标识
   key: string
-  // 显示名称
   title: string
-  // 数据表名
   tableName: string
-  // 详情列表列配置
   detailColumns: ColumnsType<RecordItem>
-  // 详情弹窗标题
   detailTitle?: string
 }
 
@@ -95,42 +87,57 @@ const UserDimensionList: React.FC<{
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailData, setDetailData] = useState<RecordItem[]>([])
-  const [detailPagination, setDetailPagination] = useState<TablePaginationConfig>({
-    current: 1,
-    pageSize: defaultPageSize,
-    showSizeChanger: true,
-    showQuickJumper: true,
-    pageSizeOptions,
-    showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条记录`,
-  })
+  const [detailTotal, setDetailTotal] = useState(0)
+  const [detailPage, setDetailPage] = useState(1)
+  const [detailPageSize, setDetailPageSize] = useState(defaultPageSize)
   const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null)
 
-  // ==================== 数据加载 ====================
+  // 用 ref 防止重复请求
+  const detailFetchingRef = useRef(false)
+
+  // ==================== 数据加载（全量拉取，避免旧数据丢失） ====================
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      // 使用聚合查询获取用户维度数据
-      const { data: summaryData, error } = await supabase
-        .from(tableName)
-        .select('*')
-        .order('user_id')
+      // 分批拉取全部数据，避免 Supabase 默认 1000 条限制
+      const allItems: Record<string, unknown>[] = []
+      let offset = 0
+      const batchSize = 1000
+      let hasMore = true
 
-      if (error) throw error
+      while (hasMore) {
+        const { data: batch, error } = await supabase
+          .from(tableName)
+          .select('*')
+          .order('user_id')
+          .range(offset, offset + batchSize - 1)
+
+        if (error) throw error
+        if (!batch || batch.length === 0) {
+          hasMore = false
+        } else {
+          allItems.push(...batch)
+          if (batch.length < batchSize) {
+            hasMore = false
+          }
+          offset += batchSize
+        }
+      }
 
       // 按用户聚合
       const userMap = new Map<string, UserSummary>()
-      
-      for (const item of summaryData || []) {
-        const uid = item.user_id
+
+      for (const item of allItems) {
+        const uid = item.user_id as string
         if (!uid) continue
 
         if (!userMap.has(uid)) {
           userMap.set(uid, {
             user_id: uid,
-            user_nickname: item.user_nickname || uid.substring(0, 8) + '...',
+            user_nickname: (item.user_nickname as string) || uid.substring(0, 8) + '...',
             total_count: 0,
-            latest_date: item.created_at || item.updated_at,
+            latest_date: (item.created_at as string) || (item.updated_at as string),
             categories: [],
             stats: {},
           })
@@ -138,17 +145,18 @@ const UserDimensionList: React.FC<{
 
         const summary = userMap.get(uid)!
         summary.total_count++
-        
+
         // 更新最新日期
-        const itemDate = item.created_at || item.updated_at
+        const itemDate = (item.created_at as string) || (item.updated_at as string)
         if (itemDate && (!summary.latest_date || itemDate > summary.latest_date)) {
           summary.latest_date = itemDate
           summary.latest_data = item
         }
 
         // 收集分类
-        if (item.category && !summary.categories?.includes(item.category)) {
-          summary.categories = [...(summary.categories || []), item.category]
+        const cat = item.category as string
+        if (cat && !summary.categories?.includes(cat)) {
+          summary.categories = [...(summary.categories || []), cat]
         }
       }
 
@@ -169,54 +177,51 @@ const UserDimensionList: React.FC<{
     fetchData()
   }, [fetchData])
 
-  // ==================== 详情弹窗数据加载 ====================
+  // ==================== 详情弹窗数据加载（手动触发，避免循环） ====================
 
-  const fetchDetailData = useCallback(async () => {
-    if (!selectedUser || !detailModalOpen) return
+  const fetchDetailData = useCallback(async (userId: string, page: number, pageSize: number) => {
+    if (!userId || detailFetchingRef.current) return
 
+    detailFetchingRef.current = true
     setDetailLoading(true)
     try {
-      const current = detailPagination.current || 1
-      const pageSize = detailPagination.pageSize || 10
-      const from = (current - 1) * pageSize
-      const to = current * pageSize - 1
+      const from = (page - 1) * pageSize
+      const to = page * pageSize - 1
 
-      // 分页查询用户数据
       const { data: records, error, count } = await supabase
         .from(tableName)
         .select('*', { count: 'exact' })
-        .eq('user_id', selectedUser.user_id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .range(from, to)
 
       if (error) throw error
 
       setDetailData((records || []) as RecordItem[])
-      setDetailPagination(prev => ({
-        ...prev,
-        current,
-        pageSize,
-        total: count || 0,
-      }))
+      setDetailTotal(count || 0)
     } catch (error) {
       console.error('获取详情数据失败:', error)
       message.error('获取详情数据失败')
     } finally {
       setDetailLoading(false)
+      detailFetchingRef.current = false
     }
-  }, [selectedUser, detailModalOpen, detailPagination, tableName])
+  }, [tableName])
 
+  // 打开弹窗时加载第一页
   useEffect(() => {
     if (detailModalOpen && selectedUser) {
-      fetchDetailData()
+      setDetailPage(1)
+      setDetailPageSize(defaultPageSize)
+      fetchDetailData(selectedUser.user_id, 1, defaultPageSize)
     }
-  }, [detailModalOpen, selectedUser, fetchDetailData])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailModalOpen, selectedUser])
 
   // ==================== 操作处理 ====================
 
   const handleViewDetail = useCallback((record: UserSummary) => {
     setSelectedUser(record)
-    setDetailPagination(prev => ({ ...prev, current: 1 }))
     setDetailModalOpen(true)
   }, [])
 
@@ -224,7 +229,17 @@ const UserDimensionList: React.FC<{
     setDetailModalOpen(false)
     setSelectedUser(null)
     setDetailData([])
+    setDetailTotal(0)
   }, [])
+
+  // 详情分页变化时手动触发请求
+  const handleDetailPageChange = useCallback((page: number, pageSize: number) => {
+    setDetailPage(page)
+    setDetailPageSize(pageSize)
+    if (selectedUser) {
+      fetchDetailData(selectedUser.user_id, page, pageSize)
+    }
+  }, [selectedUser, fetchDetailData])
 
   // ==================== 表格列配置 ====================
 
@@ -387,10 +402,14 @@ const UserDimensionList: React.FC<{
               rowKey="id"
               loading={detailLoading}
               pagination={{
-                ...detailPagination,
-                onChange: (page, pageSize) => {
-                  setDetailPagination(prev => ({ ...prev, current: page, pageSize }))
-                },
+                current: detailPage,
+                pageSize: detailPageSize,
+                total: detailTotal,
+                showSizeChanger: true,
+                showQuickJumper: true,
+                pageSizeOptions,
+                showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条记录`,
+                onChange: handleDetailPageChange,
               }}
               scroll={{ x: 800, y: 400 }}
               size="small"
