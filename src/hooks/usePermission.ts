@@ -8,6 +8,9 @@ export type PermissionModule =
   | 'moods' 
   | 'weights' 
   | 'notes' 
+  | 'favorites'
+  | 'reminders' 
+  | 'habits'
   | 'novels' 
   | 'versions' 
   | 'system'
@@ -31,6 +34,12 @@ const ROLE_PERMISSIONS_MAP: Record<string, PermissionString[]> = {
     'weights:read', 'weights:write', 'weights:delete', 'weights:export',
     // 笔记
     'notes:read', 'notes:write', 'notes:delete', 'notes:export',
+    // 收藏
+    'favorites:read', 'favorites:write', 'favorites:delete', 'favorites:export',
+    // 提醒
+    'reminders:read', 'reminders:write', 'reminders:delete', 'reminders:export',
+    // 习惯
+    'habits:read', 'habits:write', 'habits:delete', 'habits:export',
     // 小说
     'novels:read', 'novels:write', 'novels:delete', 'novels:export',
     // 版本管理
@@ -49,6 +58,12 @@ const ROLE_PERMISSIONS_MAP: Record<string, PermissionString[]> = {
     'weights:read', 'weights:write', 'weights:delete', 'weights:export',
     // 笔记
     'notes:read', 'notes:write', 'notes:delete', 'notes:export',
+    // 收藏
+    'favorites:read', 'favorites:write', 'favorites:delete', 'favorites:export',
+    // 提醒
+    'reminders:read', 'reminders:write', 'reminders:delete', 'reminders:export',
+    // 习惯
+    'habits:read', 'habits:write', 'habits:delete', 'habits:export',
     // 小说
     'novels:read', 'novels:write', 'novels:delete', 'novels:export',
     // 版本管理
@@ -58,7 +73,9 @@ const ROLE_PERMISSIONS_MAP: Record<string, PermissionString[]> = {
   ],
   viewer: [
     // 只读权限
-    'expenses:read', 'moods:read', 'weights:read', 'notes:read', 'novels:read',
+    'expenses:read', 'moods:read', 'weights:read', 'notes:read', 
+    'favorites:read', 'reminders:read', 'habits:read',
+    'novels:read',
   ],
 }
 
@@ -132,6 +149,27 @@ export const usePermission = () => {
   const canDeleteNotes = hasModulePermission('notes', 'delete')
   const canExportNotes = hasModulePermission('notes', 'export')
   const canManageNotes = canReadNotes && canWriteNotes
+
+  // 收藏权限
+  const canReadFavorites = hasModulePermission('favorites', 'read')
+  const canWriteFavorites = hasModulePermission('favorites', 'write')
+  const canDeleteFavorites = hasModulePermission('favorites', 'delete')
+  const canExportFavorites = hasModulePermission('favorites', 'export')
+  const canManageFavorites = canReadFavorites && canWriteFavorites
+
+  // 提醒权限
+  const canReadReminders = hasModulePermission('reminders', 'read')
+  const canWriteReminders = hasModulePermission('reminders', 'write')
+  const canDeleteReminders = hasModulePermission('reminders', 'delete')
+  const canExportReminders = hasModulePermission('reminders', 'export')
+  const canManageReminders = canReadReminders && canWriteReminders
+
+  // 习惯权限
+  const canReadHabits = hasModulePermission('habits', 'read')
+  const canWriteHabits = hasModulePermission('habits', 'write')
+  const canDeleteHabits = hasModulePermission('habits', 'delete')
+  const canExportHabits = hasModulePermission('habits', 'export')
+  const canManageHabits = canReadHabits && canWriteHabits
 
   // 小说权限
   const canReadNovels = hasModulePermission('novels', 'read')
@@ -209,6 +247,27 @@ export const usePermission = () => {
     canDeleteNotes,
     canExportNotes,
     canManageNotes,
+
+    // 收藏权限
+    canReadFavorites,
+    canWriteFavorites,
+    canDeleteFavorites,
+    canExportFavorites,
+    canManageFavorites,
+
+    // 提醒权限
+    canReadReminders,
+    canWriteReminders,
+    canDeleteReminders,
+    canExportReminders,
+    canManageReminders,
+
+    // 习惯权限
+    canReadHabits,
+    canWriteHabits,
+    canDeleteHabits,
+    canExportHabits,
+    canManageHabits,
 
     // 小说权限
     canReadNovels,

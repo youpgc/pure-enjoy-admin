@@ -1,403 +1,160 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  Table,
-  Button,
-  Input,
-  Tag,
-  Space,
-  Modal,
-  Form,
-  Select,
-  DatePicker,
-  Switch,
-  message,
-  Popconfirm,
-  Row,
-  Col,
-  Statistic,
-  Calendar,
-  Badge,
-} from 'antd';
-import {
-  PlusOutlined,
-  SearchOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  CheckCircleOutlined,
-  CalendarOutlined,
-  UnorderedListOutlined,
-} from '@ant-design/icons';
-import { supabase } from '../utils/supabase';
-import dayjs from 'dayjs';
+import React, { useMemo } from 'react'
+import { Tag, Button, Space, Popconfirm, message } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import { DeleteOutlined, EditOutlined, BellOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
+import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
+import { supabase } from '../utils/supabase'
+import { usePermission } from '../hooks/usePermission'
 
-interface Reminder {
-  id: string;
-  user_id: string;
-  title: string;
-  description: string | null;
-  remind_at: string;
-  is_completed: boolean;
-  is_repeated: boolean;
-  repeat_type: string | null;
-  created_at: string;
-  updated_at: string;
-}
+// ==================== 常量定义 ====================
 
-const Reminders: React.FC = () => {
-  const [reminders, setReminders] = useState<Reminder[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-  const [searchText, setSearchText] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>();
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
-  const [form] = Form.useForm();
-  const [stats, setStats] = useState({
-    total: 0,
-    pending: 0,
-    completed: 0,
-    repeated: 0,
-  });
+// ==================== 详情列表列配置 ====================
 
-  useEffect(() => {
-    fetchReminders();
-  }, []);
-
-  const fetchReminders = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('user_reminders')
-        .select('*')
-        .order('remind_at', { ascending: true });
-
-      if (error) throw error;
-
-      setReminders(data || []);
-      calculateStats(data || []);
-    } catch (error) {
-      message.error('获取提醒列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateStats = (data: Reminder[]) => {
-    setStats({
-      total: data.length,
-      pending: data.filter((i) => !i.is_completed).length,
-      completed: data.filter((i) => i.is_completed).length,
-      repeated: data.filter((i) => i.is_repeated).length,
-    });
-  };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      const payload = {
-        ...values,
-        remind_at: values.remind_at.toISOString(),
-      };
-
-      if (editingReminder) {
-        const { error } = await supabase
-          .from('user_reminders')
-          .update(payload)
-          .eq('id', editingReminder.id);
-        if (error) throw error;
-        message.success('更新成功');
-      } else {
-        const { error } = await supabase.from('user_reminders').insert([payload]);
-        if (error) throw error;
-        message.success('创建成功');
-      }
-
-      setModalVisible(false);
-      form.resetFields();
-      setEditingReminder(null);
-      fetchReminders();
-    } catch (error) {
-      message.error('操作失败');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      const { error } = await supabase.from('user_reminders').delete().eq('id', id);
-      if (error) throw error;
-      message.success('删除成功');
-      fetchReminders();
-    } catch (error) {
-      message.error('删除失败');
-    }
-  };
-
-  const toggleComplete = async (record: Reminder) => {
-    try {
-      const { error } = await supabase
-        .from('user_reminders')
-        .update({ is_completed: !record.is_completed })
-        .eq('id', record.id);
-      if (error) throw error;
-      message.success(record.is_completed ? '标记为未完成' : '标记为已完成');
-      fetchReminders();
-    } catch (error) {
-      message.error('操作失败');
-    }
-  };
-
-  const openModal = (record?: Reminder) => {
-    if (record) {
-      setEditingReminder(record);
-      form.setFieldsValue({
-        ...record,
-        remind_at: dayjs(record.remind_at),
-      });
-    } else {
-      setEditingReminder(null);
-      form.resetFields();
-      form.setFieldsValue({ is_completed: false, is_repeated: false, remind_at: dayjs() });
-    }
-    setModalVisible(true);
-  };
-
-  const filteredReminders = reminders.filter((item) => {
-    const matchSearch =
-      !searchText ||
-      item.title.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.description?.toLowerCase().includes(searchText.toLowerCase());
-    const matchStatus =
-      !statusFilter ||
-      (statusFilter === 'completed' && item.is_completed) ||
-      (statusFilter === 'pending' && !item.is_completed);
-    return matchSearch && matchStatus;
-  });
-
-  const getCalendarData = (value: dayjs.Dayjs) => {
-    const dateStr = value.format('YYYY-MM-DD');
-    return reminders.filter((r) => dayjs(r.remind_at).format('YYYY-MM-DD') === dateStr);
-  };
-
-  const dateCellRender = (value: dayjs.Dayjs) => {
-    const listData = getCalendarData(value);
-    return (
-      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-        {listData.map((item) => (
-          <li key={item.id}>
-            <Badge
-              status={item.is_completed ? 'default' : 'warning'}
-              text={item.title}
-            />
-          </li>
-        ))}
-      </ul>
-    );
-  };
-
-  const columns = [
-    {
-      title: '状态',
-      dataIndex: 'is_completed',
-      key: 'is_completed',
-      width: 80,
-      render: (completed: boolean, record: Reminder) => (
+const getDetailColumns = (
+  canDelete: boolean,
+  onDelete: (id: string) => void,
+  onEdit: (record: RecordItem) => void
+): ColumnsType<RecordItem> => [
+  {
+    title: '状态',
+    dataIndex: 'is_completed',
+    key: 'is_completed',
+    width: 80,
+    render: (isCompleted: boolean) => (
+      isCompleted ? (
+        <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 18 }} />
+      ) : (
+        <BellOutlined style={{ color: '#faad14', fontSize: 18 }} />
+      )
+    ),
+  },
+  {
+    title: '标题',
+    dataIndex: 'title',
+    key: 'title',
+    ellipsis: true,
+    width: 200,
+    render: (title: string, record: RecordItem) => (
+      <Space>
+        {record.is_completed ? (
+          <span style={{ textDecoration: 'line-through', color: '#999' }}>{title}</span>
+        ) : (
+          title || '-'
+        )}
+      </Space>
+    ),
+  },
+  {
+    title: '提醒时间',
+    dataIndex: 'remind_at',
+    key: 'remind_at',
+    width: 160,
+    sorter: (a, b) => {
+      const dateA = (a.remind_at as string) || ''
+      const dateB = (b.remind_at as string) || ''
+      return dateA.localeCompare(dateB)
+    },
+    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+  },
+  {
+    title: '备注',
+    dataIndex: 'note',
+    key: 'note',
+    ellipsis: true,
+    width: 200,
+    render: (note: string) => note || '-',
+  },
+  {
+    title: '创建时间',
+    dataIndex: 'created_at',
+    key: 'created_at',
+    width: 160,
+    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+  },
+  {
+    title: '操作',
+    key: 'action',
+    fixed: 'right',
+    width: 120,
+    render: (_, record) => (
+      <Space size="small">
         <Button
-          type={completed ? 'primary' : 'default'}
-          icon={<CheckCircleOutlined />}
-          onClick={() => toggleComplete(record)}
+          type="link"
           size="small"
+          icon={<EditOutlined />}
+          onClick={() => onEdit(record)}
         >
-          {completed ? '已完成' : '完成'}
+          编辑
         </Button>
-      ),
-    },
-    {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      render: (text: string, record: Reminder) => (
-        <span style={{ textDecoration: record.is_completed ? 'line-through' : 'none' }}>
-          {text}
-        </span>
-      ),
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
-      title: '提醒时间',
-      dataIndex: 'remind_at',
-      key: 'remind_at',
-      render: (date: string) => {
-        const d = dayjs(date);
-        const isOverdue = d.isBefore(dayjs()) && !d.isSame(dayjs(), 'day');
-        return (
-          <span style={{ color: isOverdue ? 'red' : 'inherit' }}>
-            {d.format('YYYY-MM-DD HH:mm')}
-          </span>
-        );
-      },
-    },
-    {
-      title: '重复',
-      dataIndex: 'is_repeated',
-      key: 'is_repeated',
-      render: (repeated: boolean) => (
-        <Tag color={repeated ? 'blue' : 'default'}>
-          {repeated ? '是' : '否'}
-        </Tag>
-      ),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: any, record: Reminder) => (
-        <Space>
-          <Button icon={<EditOutlined />} onClick={() => openModal(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确认删除" onConfirm={() => handleDelete(record.id)}>
-            <Button icon={<DeleteOutlined />} danger>
+        {canDelete && (
+          <Popconfirm
+            title="确认删除"
+            description="删除后无法恢复，是否继续？"
+            onConfirm={() => onDelete(record.id as string)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
               删除
             </Button>
           </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
-  return (
-    <div>
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
-          <Card>
-            <Statistic title="总提醒数" value={stats.total} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="待办" value={stats.pending} valueStyle={{ color: '#cf1322' }} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="已完成" value={stats.completed} valueStyle={{ color: '#3f8600' }} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="循环提醒" value={stats.repeated} valueStyle={{ color: '#1890ff' }} />
-          </Card>
-        </Col>
-      </Row>
-
-      <Card
-        title="提醒事项管理"
-        extra={
-          <Space>
-            <Button
-              icon={viewMode === 'list' ? <CalendarOutlined /> : <UnorderedListOutlined />}
-              onClick={() => setViewMode(viewMode === 'list' ? 'calendar' : 'list')}
-            >
-              {viewMode === 'list' ? '日历视图' : '列表视图'}
-            </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>
-              添加提醒
-            </Button>
-          </Space>
-        }
-      >
-        {viewMode === 'list' ? (
-          <>
-            <Space style={{ marginBottom: 16 }}>
-              <Input
-                placeholder="搜索标题或描述"
-                prefix={<SearchOutlined />}
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                style={{ width: 200 }}
-              />
-              <Select
-                placeholder="筛选状态"
-                allowClear
-                style={{ width: 120 }}
-                value={statusFilter}
-                onChange={setStatusFilter}
-                options={[
-                  { label: '待办', value: 'pending' },
-                  { label: '已完成', value: 'completed' },
-                ]}
-              />
-            </Space>
-
-            <Table
-              columns={columns}
-              dataSource={filteredReminders}
-              loading={loading}
-              rowKey="id"
-            />
-          </>
-        ) : (
-          <Calendar dateCellRender={dateCellRender} />
         )}
-      </Card>
+      </Space>
+    ),
+  },
+]
 
-      <Modal
-        title={editingReminder ? '编辑提醒' : '添加提醒'}
-        open={modalVisible}
-        onOk={form.submit}
-        onCancel={() => setModalVisible(false)}
-        width={600}
-      >
-        <Form form={form} onFinish={handleSubmit} layout="vertical">
-          <Form.Item
-            name="user_id"
-            label="用户ID"
-            rules={[{ required: true, message: '请输入用户ID' }]}
-          >
-            <Input placeholder="请输入用户ID" />
-          </Form.Item>
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入标题' }]}
-          >
-            <Input placeholder="请输入提醒标题" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={3} placeholder="请输入描述" />
-          </Form.Item>
-          <Form.Item
-            name="remind_at"
-            label="提醒时间"
-            rules={[{ required: true, message: '请选择提醒时间' }]}
-          >
-            <DatePicker showTime style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="is_repeated" label="是否循环" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-          <Form.Item name="repeat_type" label="循环类型">
-            <Select
-              allowClear
-              placeholder="请选择循环类型"
-              options={[
-                { label: '每天', value: 'daily' },
-                { label: '每周', value: 'weekly' },
-                { label: '每月', value: 'monthly' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="is_completed" label="已完成" valuePropName="checked">
-            <Switch />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
-  );
-};
+// ==================== 主组件 ====================
 
-export default Reminders;
+const Reminders: React.FC = () => {
+  const { canReadReminders, canWriteReminders, canDeleteReminders } = usePermission()
+
+  // 删除记录
+  const handleDelete = async (id: string) => {
+    if (!canDeleteReminders) {
+      message.warning('您没有删除提醒的权限')
+      return
+    }
+    try {
+      const { error } = await supabase.from('user_reminders').delete().eq('id', id)
+      if (error) throw error
+      message.success('删除成功')
+    } catch (error) {
+      console.error('删除失败:', error)
+      message.error('删除失败')
+    }
+  }
+
+  // 编辑记录
+  const handleEdit = (_record: RecordItem) => {
+    if (!canWriteReminders) {
+      message.warning('您没有编辑提醒的权限')
+      return
+    }
+    message.info('编辑功能开发中')
+  }
+
+  // 模块配置
+  const moduleConfig: ModuleConfig = useMemo(() => ({
+    key: 'reminders',
+    title: '提醒管理',
+    tableName: 'user_reminders',
+    detailTitle: '提醒详情',
+    detailColumns: getDetailColumns(canDeleteReminders || false, handleDelete, handleEdit),
+  }), [canDeleteReminders, canWriteReminders])
+
+  // 权限检查
+  if (!canReadReminders) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px 0' }}>
+        <Tag color="warning">您没有查看提醒的权限</Tag>
+      </div>
+    )
+  }
+
+  return <UserDimensionList moduleConfig={moduleConfig} />
+}
+
+export default Reminders

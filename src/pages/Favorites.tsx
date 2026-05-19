@@ -1,315 +1,169 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Card,
-  Table,
-  Button,
-  Input,
-  Tag,
-  Space,
-  Modal,
-  Form,
-  Select,
-  message,
-  Popconfirm,
-  Row,
-  Col,
-  Statistic,
-} from 'antd';
-import {
-  PlusOutlined,
-  SearchOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  LinkOutlined,
-} from '@ant-design/icons';
-import { supabase } from '../utils/supabase';
+import React, { useMemo } from 'react'
+import { Tag, Button, Space, Popconfirm, message } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import { DeleteOutlined, EditOutlined, StarOutlined, LinkOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
+import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
+import { supabase } from '../utils/supabase'
+import { usePermission } from '../hooks/usePermission'
 
-interface Favorite {
-  id: string;
-  user_id: string;
-  title: string;
-  url: string | null;
-  description: string | null;
-  category: string;
-  created_at: string;
-  updated_at: string;
+// ==================== 常量定义 ====================
+
+const CATEGORY_COLORS: Record<string, string> = {
+  '小说': 'purple',
+  '文章': 'blue',
+  '视频': 'red',
+  '音频': 'cyan',
+  '图片': 'green',
+  '链接': 'orange',
+  '其他': 'default',
 }
 
-const categories = [
-  { label: '文章', value: 'article' },
-  { label: '视频', value: 'video' },
-  { label: '音乐', value: 'music' },
-  { label: '图片', value: 'image' },
-  { label: '工具', value: 'tool' },
-  { label: '其他', value: 'other' },
-];
+// ==================== 详情列表列配置 ====================
 
-const Favorites: React.FC = () => {
-  const [favorites, setFavorites] = useState<Favorite[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingFavorite, setEditingFavorite] = useState<Favorite | null>(null);
-  const [searchText, setSearchText] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>();
-  const [form] = Form.useForm();
-  const [stats, setStats] = useState({
-    total: 0,
-    byCategory: {} as Record<string, number>,
-  });
-
-  useEffect(() => {
-    fetchFavorites();
-  }, []);
-
-  const fetchFavorites = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('user_favorites')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setFavorites(data || []);
-      calculateStats(data || []);
-    } catch (error) {
-      message.error('获取收藏列表失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateStats = (data: Favorite[]) => {
-    const byCategory: Record<string, number> = {};
-    data.forEach((item) => {
-      byCategory[item.category] = (byCategory[item.category] || 0) + 1;
-    });
-
-    setStats({
-      total: data.length,
-      byCategory,
-    });
-  };
-
-  const handleSubmit = async (values: any) => {
-    try {
-      if (editingFavorite) {
-        const { error } = await supabase
-          .from('user_favorites')
-          .update(values)
-          .eq('id', editingFavorite.id);
-        if (error) throw error;
-        message.success('更新成功');
-      } else {
-        const { error } = await supabase.from('user_favorites').insert([values]);
-        if (error) throw error;
-        message.success('创建成功');
-      }
-
-      setModalVisible(false);
-      form.resetFields();
-      setEditingFavorite(null);
-      fetchFavorites();
-    } catch (error) {
-      message.error('操作失败');
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      const { error } = await supabase.from('user_favorites').delete().eq('id', id);
-      if (error) throw error;
-      message.success('删除成功');
-      fetchFavorites();
-    } catch (error) {
-      message.error('删除失败');
-    }
-  };
-
-  const openModal = (record?: Favorite) => {
-    if (record) {
-      setEditingFavorite(record);
-      form.setFieldsValue(record);
-    } else {
-      setEditingFavorite(null);
-      form.resetFields();
-      form.setFieldsValue({ category: 'other' });
-    }
-    setModalVisible(true);
-  };
-
-  const filteredFavorites = favorites.filter((item) => {
-    const matchSearch =
-      !searchText ||
-      item.title.toLowerCase().includes(searchText.toLowerCase()) ||
-      item.description?.toLowerCase().includes(searchText.toLowerCase());
-    const matchCategory = !categoryFilter || item.category === categoryFilter;
-    return matchSearch && matchCategory;
-  });
-
-  const columns = [
-    {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      render: (text: string, record: Favorite) => (
-        <Space>
-          <span>{text}</span>
-          {record.url && <LinkOutlined style={{ color: '#52c41a' }} />}
-        </Space>
-      ),
+const getDetailColumns = (
+  canDelete: boolean,
+  onDelete: (id: string) => void,
+  onEdit: (record: RecordItem) => void
+): ColumnsType<RecordItem> => [
+  {
+    title: '标题',
+    dataIndex: 'title',
+    key: 'title',
+    ellipsis: true,
+    width: 200,
+    render: (title: string) => (
+      <Space>
+        <StarOutlined style={{ color: '#faad14' }} />
+        {title || '-'}
+      </Space>
+    ),
+  },
+  {
+    title: '分类',
+    dataIndex: 'category',
+    key: 'category',
+    width: 100,
+    render: (category: string) => (
+      <Tag color={CATEGORY_COLORS[category || ''] || 'default'}>{category || '-'}</Tag>
+    ),
+  },
+  {
+    title: '链接',
+    dataIndex: 'url',
+    key: 'url',
+    ellipsis: true,
+    width: 200,
+    render: (url: string) => url ? (
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        <LinkOutlined /> 访问链接
+      </a>
+    ) : '-',
+  },
+  {
+    title: '备注',
+    dataIndex: 'note',
+    key: 'note',
+    ellipsis: true,
+    width: 200,
+    render: (note: string) => note || '-',
+  },
+  {
+    title: '创建时间',
+    dataIndex: 'created_at',
+    key: 'created_at',
+    width: 160,
+    sorter: (a, b) => {
+      const dateA = (a.created_at as string) || ''
+      const dateB = (b.created_at as string) || ''
+      return dateA.localeCompare(dateB)
     },
-    {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-      render: (category: string) => {
-        const cat = categories.find((c) => c.value === category);
-        return <Tag>{cat?.label || category}</Tag>;
-      },
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
-      title: '链接',
-      dataIndex: 'url',
-      key: 'url',
-      render: (url: string | null) =>
-        url ? (
-          <a href={url} target="_blank" rel="noopener noreferrer">
-            访问链接
-          </a>
-        ) : (
-          '-'
-        ),
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      render: (date: string) => new Date(date).toLocaleString(),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: any, record: Favorite) => (
-        <Space>
-          <Button icon={<EditOutlined />} onClick={() => openModal(record)}>
-            编辑
-          </Button>
+    defaultSortOrder: 'descend',
+    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+  },
+  {
+    title: '操作',
+    key: 'action',
+    fixed: 'right',
+    width: 120,
+    render: (_, record) => (
+      <Space size="small">
+        <Button
+          type="link"
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => onEdit(record)}
+        >
+          编辑
+        </Button>
+        {canDelete && (
           <Popconfirm
             title="确认删除"
-            onConfirm={() => handleDelete(record.id)}
+            description="删除后无法恢复，是否继续？"
+            onConfirm={() => onDelete(record.id as string)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
           >
-            <Button icon={<DeleteOutlined />} danger>
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
               删除
             </Button>
           </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+        )}
+      </Space>
+    ),
+  },
+]
 
-  return (
-    <div>
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
-          <Card>
-            <Statistic title="总收藏数" value={stats.total} />
-          </Card>
-        </Col>
-        <Col span={18}>
-          <Card title="分类统计">
-            <Space>
-              {Object.entries(stats.byCategory).map(([cat, count]) => (
-                <Tag key={cat} color="green">
-                  {categories.find((c) => c.value === cat)?.label || cat}: {count}
-                </Tag>
-              ))}
-            </Space>
-          </Card>
-        </Col>
-      </Row>
+// ==================== 主组件 ====================
 
-      <Card
-        title="收藏管理"
-        extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()}>
-            添加收藏
-          </Button>
-        }
-      >
-        <Space style={{ marginBottom: 16 }}>
-          <Input
-            placeholder="搜索标题或描述"
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 200 }}
-          />
-          <Select
-            placeholder="筛选分类"
-            allowClear
-            style={{ width: 120 }}
-            value={categoryFilter}
-            onChange={setCategoryFilter}
-            options={categories}
-          />
-        </Space>
+const Favorites: React.FC = () => {
+  const { canReadFavorites, canWriteFavorites, canDeleteFavorites } = usePermission()
 
-        <Table
-          columns={columns}
-          dataSource={filteredFavorites}
-          loading={loading}
-          rowKey="id"
-        />
-      </Card>
+  // 删除记录
+  const handleDelete = async (id: string) => {
+    if (!canDeleteFavorites) {
+      message.warning('您没有删除收藏的权限')
+      return
+    }
+    try {
+      const { error } = await supabase.from('user_favorites').delete().eq('id', id)
+      if (error) throw error
+      message.success('删除成功')
+    } catch (error) {
+      console.error('删除失败:', error)
+      message.error('删除失败')
+    }
+  }
 
-      <Modal
-        title={editingFavorite ? '编辑收藏' : '添加收藏'}
-        open={modalVisible}
-        onOk={form.submit}
-        onCancel={() => setModalVisible(false)}
-        width={600}
-      >
-        <Form form={form} onFinish={handleSubmit} layout="vertical">
-          <Form.Item
-            name="user_id"
-            label="用户ID"
-            rules={[{ required: true, message: '请输入用户ID' }]}
-          >
-            <Input placeholder="请输入用户ID" />
-          </Form.Item>
-          <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入标题' }]}
-          >
-            <Input placeholder="请输入收藏标题" />
-          </Form.Item>
-          <Form.Item name="url" label="链接">
-            <Input placeholder="https://..." />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} placeholder="请输入描述" />
-          </Form.Item>
-          <Form.Item
-            name="category"
-            label="分类"
-            rules={[{ required: true }]}
-            initialValue="other"
-          >
-            <Select options={categories} />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
-  );
-};
+  // 编辑记录
+  const handleEdit = (_record: RecordItem) => {
+    if (!canWriteFavorites) {
+      message.warning('您没有编辑收藏的权限')
+      return
+    }
+    message.info('编辑功能开发中')
+  }
 
-export default Favorites;
+  // 模块配置
+  const moduleConfig: ModuleConfig = useMemo(() => ({
+    key: 'favorites',
+    title: '收藏管理',
+    tableName: 'user_favorites',
+    detailTitle: '收藏详情',
+    detailColumns: getDetailColumns(canDeleteFavorites || false, handleDelete, handleEdit),
+  }), [canDeleteFavorites, canWriteFavorites])
+
+  // 权限检查
+  if (!canReadFavorites) {
+    return (
+      <div style={{ textAlign: 'center', padding: '50px 0' }}>
+        <Tag color="warning">您没有查看收藏的权限</Tag>
+      </div>
+    )
+  }
+
+  return <UserDimensionList moduleConfig={moduleConfig} />
+}
+
+export default Favorites

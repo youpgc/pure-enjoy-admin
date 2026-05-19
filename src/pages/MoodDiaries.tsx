@@ -1,605 +1,146 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
-import {
-  Button,
-  Space,
-  Popconfirm,
-  message,
-  Dropdown,
-  Table,
-  Card,
-  Typography,
-  Tooltip,
-  Tag,
-} from 'antd'
-import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
-import type { Key } from 'react'
-import {
-  PlusOutlined,
-  ExportOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  DownOutlined,
-} from '@ant-design/icons'
+import React, { useMemo } from 'react'
+import { Tag, Button, Space, Popconfirm, message } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import { DeleteOutlined, EditOutlined, HeartFilled } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import DataFormModal, { FormField } from '../components/DataFormModal'
-import FilterBar, { FilterField } from '../components/FilterBar'
-import { MOOD_OPTIONS } from '../utils/mockData'
-import { exportToCSV, exportToExcel } from '../utils/export'
+import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
-const { Title } = Typography
-
-// ==================== 类型定义 ====================
-
-interface MoodDiaryRecord {
-  id: string
-  key: string
-  user_id: string
-  mood: string
-  mood_score: number
-  content: string
-  tags: string[]
-  entry_date: string
-  created_at: string
-  updated_at: string
-}
-
 // ==================== 常量定义 ====================
 
-const MOOD_EMOJI_MAP: Record<string, string> = {
-  '开心': '😊',
-  '平静': '😌',
-  '一般': '😐',
-  '难过': '😢',
-  '焦虑': '😰',
+const MOOD_COLORS: Record<string, string> = {
+  '开心': 'gold',
+  '愉快': 'lime',
+  '平静': 'cyan',
+  '一般': 'default',
+  '低落': 'orange',
+  '难过': 'red',
+  '焦虑': 'purple',
+  '愤怒': 'red',
 }
+
+// ==================== 详情列表列配置 ====================
+
+const getDetailColumns = (
+  canDelete: boolean,
+  onDelete: (id: string) => void,
+  onEdit: (record: RecordItem) => void
+): ColumnsType<RecordItem> => [
+  {
+    title: '心情',
+    dataIndex: 'mood',
+    key: 'mood',
+    width: 100,
+    render: (mood: string) => (
+      <Tag color={MOOD_COLORS[mood || ''] || 'default'} icon={<HeartFilled />}>
+        {mood || '-'}
+      </Tag>
+    ),
+  },
+  {
+    title: '内容',
+    dataIndex: 'content',
+    key: 'content',
+    ellipsis: true,
+    width: 250,
+    render: (text: string) => text || '-',
+  },
+  {
+    title: '创建时间',
+    dataIndex: 'created_at',
+    key: 'created_at',
+    width: 160,
+    sorter: (a, b) => {
+      const dateA = (a.created_at as string) || ''
+      const dateB = (b.created_at as string) || ''
+      return dateA.localeCompare(dateB)
+    },
+    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+  },
+  {
+    title: '操作',
+    key: 'action',
+    fixed: 'right',
+    width: 120,
+    render: (_, record) => (
+      <Space size="small">
+        <Button
+          type="link"
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => onEdit(record)}
+        >
+          编辑
+        </Button>
+        {canDelete && (
+          <Popconfirm
+            title="确认删除"
+            description="删除后无法恢复，是否继续？"
+            onConfirm={() => onDelete(record.id as string)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        )}
+      </Space>
+    ),
+  },
+]
 
 // ==================== 主组件 ====================
 
 const MoodDiaries: React.FC = () => {
-  const {
-    canReadMoods,
-    canWriteMoods,
-    canDeleteMoods,
-    canExportMoods,
-  } = usePermission()
+  const { canReadMoods, canWriteMoods, canDeleteMoods } = usePermission()
 
-  // 状态
-  const [data, setData] = useState<MoodDiaryRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchText, setSearchText] = useState('')
-  const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
-  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
-    current: 1,
-    pageSize: 10,
-    showSizeChanger: true,
-    showQuickJumper: true,
-    pageSizeOptions: ['10', '20', '50', '100'],
-    showTotal: (total) => `共 ${total} 条`,
-  })
-
-  // 弹窗状态
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
-  const [editingRecord, setEditingRecord] = useState<MoodDiaryRecord | null>(null)
-  const [confirmLoading, setConfirmLoading] = useState(false)
-
-  // 加载数据
-  const fetchMoodDiaries = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: diaries, error } = await supabase
-        .from('mood_diaries')
-        .select('*')
-        .order('entry_date', { ascending: false })
-
-      if (error) throw error
-
-      const records: MoodDiaryRecord[] = (diaries || []).map((item: any) => ({
-        ...item,
-        key: item.id,
-        tags: item.tags || [],
-      }))
-
-      setData(records)
-    } catch (error) {
-      console.error('获取心情日记失败:', error)
-      message.error('获取心情日记失败')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchMoodDiaries()
-  }, [fetchMoodDiaries])
-
-  // ==================== 筛选配置 ====================
-
-  const filterFields: FilterField[] = [
-    {
-      name: 'mood',
-      label: '心情',
-      type: 'select',
-      options: MOOD_OPTIONS,
-      placeholder: '选择心情',
-    },
-    {
-      name: 'entryDateRange',
-      label: '日期范围',
-      type: 'dateRange',
-      placeholder: '选择日期范围',
-    },
-  ]
-
-  // ==================== 表单配置 ====================
-
-  const formFields: FormField[] = [
-    {
-      name: 'mood',
-      label: '心情',
-      type: 'emoji',
-      required: true,
-    },
-    {
-      name: 'mood_score',
-      label: '心情评分',
-      type: 'number',
-      required: true,
-      min: 1,
-      max: 10,
-      precision: 0,
-      placeholder: '1-10分',
-    },
-    {
-      name: 'content',
-      label: '内容',
-      type: 'textarea',
-      rows: 4,
-      placeholder: '记录今天的心情...',
-    },
-    {
-      name: 'tags',
-      label: '标签',
-      type: 'tags',
-      placeholder: '输入标签后按回车添加',
-    },
-    {
-      name: 'entry_date',
-      label: '日期',
-      type: 'date',
-      required: true,
-      defaultValue: dayjs().format('YYYY-MM-DD'),
-    },
-  ]
-
-  // ==================== 数据处理 ====================
-
-  const filteredData = useMemo(() => {
-    let result = [...data]
-
-    // 关键词搜索
-    if (searchText.trim()) {
-      const keyword = searchText.trim().toLowerCase()
-      result = result.filter((record) => {
-        return (
-          record.mood?.toLowerCase().includes(keyword) ||
-          record.content?.toLowerCase().includes(keyword) ||
-          record.tags?.some((tag) => tag.toLowerCase().includes(keyword))
-        )
-      })
-    }
-
-    // 心情筛选
-    if (filterValues.mood) {
-      result = result.filter((record) => record.mood === filterValues.mood)
-    }
-
-    // 日期范围筛选
-    if (filterValues.entryDateRange && Array.isArray(filterValues.entryDateRange)) {
-      const [startDate, endDate] = filterValues.entryDateRange as [string, string]
-      if (startDate && endDate) {
-        result = result.filter((record) => {
-          return record.entry_date >= startDate && record.entry_date <= endDate
-        })
-      }
-    }
-
-    return result
-  }, [data, searchText, filterValues])
-
-  // ==================== 操作处理 ====================
-
-  // 新增
-  const handleCreate = useCallback(() => {
-    if (!canWriteMoods) {
-      message.warning('您没有新增心情日记的权限')
-      return
-    }
-    setModalMode('create')
-    setEditingRecord(null)
-    setModalOpen(true)
-  }, [canWriteMoods])
-
-  // 编辑
-  const handleEdit = useCallback(
-    (record: MoodDiaryRecord) => {
-      if (!canWriteMoods) {
-        message.warning('您没有编辑心情日记的权限')
-        return
-      }
-      setModalMode('edit')
-      setEditingRecord(record)
-      setModalOpen(true)
-    },
-    [canWriteMoods]
-  )
-
-  // 删除单条
-  const handleDelete = useCallback(
-    async (id: string) => {
-      if (!canDeleteMoods) {
-        message.warning('您没有删除心情日记的权限')
-        return
-      }
-      try {
-        const { error } = await supabase.from('mood_diaries').delete().eq('id', id)
-        if (error) throw error
-        setData((prev) => prev.filter((item) => item.id !== id))
-        message.success('删除成功')
-      } catch (error) {
-        console.error('删除失败:', error)
-        message.error('删除失败')
-      }
-    },
-    [canDeleteMoods]
-  )
-
-  // 批量删除
-  const handleBatchDelete = useCallback(async () => {
+  // 删除记录
+  const handleDelete = async (id: string) => {
     if (!canDeleteMoods) {
       message.warning('您没有删除心情日记的权限')
       return
     }
-    if (selectedRowKeys.length === 0) {
-      message.warning('请先选择要删除的数据')
-      return
-    }
     try {
-      const { error } = await supabase
-        .from('mood_diaries')
-        .delete()
-        .in('id', selectedRowKeys as string[])
+      const { error } = await supabase.from('mood_diaries').delete().eq('id', id)
       if (error) throw error
-      setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
-      setSelectedRowKeys([])
-      message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+      message.success('删除成功')
     } catch (error) {
-      console.error('批量删除失败:', error)
-      message.error('批量删除失败')
+      console.error('删除失败:', error)
+      message.error('删除失败')
     }
-  }, [selectedRowKeys, canDeleteMoods])
+  }
 
-  // 表单提交
-  const handleFormSubmit = useCallback(
-    async (values: Record<string, unknown>) => {
-      setConfirmLoading(true)
-      try {
-        if (modalMode === 'create') {
-          const { error } = await supabase.from('mood_diaries').insert({
-            mood: values.mood as string,
-            mood_score: (values.mood_score as number) || 5,
-            content: (values.content as string) || '',
-            tags: (values.tags as string[]) || [],
-            entry_date: values.entry_date as string,
-          })
-          if (error) throw error
-          message.success('新增成功')
-        } else {
-          const { error } = await supabase
-            .from('mood_diaries')
-            .update({
-              mood: values.mood as string,
-              mood_score: (values.mood_score as number) || 5,
-              content: (values.content as string) || '',
-              tags: (values.tags as string[]) || [],
-              entry_date: values.entry_date as string,
-            })
-            .eq('id', editingRecord?.id)
-          if (error) throw error
-          message.success('更新成功')
-        }
-        setModalOpen(false)
-        fetchMoodDiaries()
-      } catch (error) {
-        console.error('操作失败:', error)
-        message.error('操作失败，请重试')
-      } finally {
-        setConfirmLoading(false)
-      }
-    },
-    [modalMode, editingRecord, fetchMoodDiaries]
-  )
-
-  // 导出
-  const handleExportCSV = useCallback(() => {
-    if (!canExportMoods) {
-      message.warning('您没有导出心情日记的权限')
+  // 编辑记录
+  const handleEdit = (_record: RecordItem) => {
+    if (!canWriteMoods) {
+      message.warning('您没有编辑心情日记的权限')
       return
     }
-    const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '心情', dataIndex: 'mood' },
-      { title: '心情评分', dataIndex: 'mood_score' },
-      { title: '内容', dataIndex: 'content' },
-      { title: '标签', dataIndex: 'tags', render: (val: unknown) => Array.isArray(val) ? val.join(', ') : '' },
-      { title: '日期', dataIndex: 'entry_date' },
-    ]
-    exportToCSV<MoodDiaryRecord>(filteredData, columns, '心情日记')
-    message.success('CSV 导出成功')
-  }, [filteredData, canExportMoods])
+    message.info('编辑功能开发中')
+  }
 
-  const handleExportExcel = useCallback(() => {
-    if (!canExportMoods) {
-      message.warning('您没有导出心情日记的权限')
-      return
-    }
-    const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '心情', dataIndex: 'mood' },
-      { title: '心情评分', dataIndex: 'mood_score' },
-      { title: '内容', dataIndex: 'content' },
-      { title: '标签', dataIndex: 'tags', render: (val: unknown) => Array.isArray(val) ? val.join(', ') : '' },
-      { title: '日期', dataIndex: 'entry_date' },
-    ]
-    exportToExcel<MoodDiaryRecord>(filteredData, columns, '心情日记')
-    message.success('Excel 导出成功')
-  }, [filteredData, canExportMoods])
+  // 模块配置
+  const moduleConfig: ModuleConfig = useMemo(() => ({
+    key: 'mood_diaries',
+    title: '心情日记管理',
+    tableName: 'mood_diaries',
+    detailTitle: '心情日记详情',
+    detailColumns: getDetailColumns(canDeleteMoods || false, handleDelete, handleEdit),
+  }), [canDeleteMoods, canWriteMoods])
 
-  // 重置
-  const handleReset = useCallback(() => {
-    setSearchText('')
-    setFilterValues({})
-    setSelectedRowKeys([])
-    setPagination((prev) => ({ ...prev, current: 1 }))
-  }, [])
-
-  // ==================== 表格列配置 ====================
-
-  const columns: ColumnsType<MoodDiaryRecord> = [
-    {
-      title: '用户ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
-      width: 180,
-      ellipsis: true,
-      sorter: (a, b) => a.user_id.localeCompare(b.user_id),
-    },
-    {
-      title: '心情',
-      dataIndex: 'mood',
-      key: 'mood',
-      width: 100,
-      filters: MOOD_OPTIONS.map((opt) => ({ text: opt.label, value: opt.value })),
-      onFilter: (value, record) => record.mood === value,
-      render: (mood: string) => (
-        <Tooltip title={mood}>
-          <span style={{ fontSize: 24, cursor: 'pointer' }}>
-            {MOOD_EMOJI_MAP[mood] || '😐'}
-          </span>
-        </Tooltip>
-      ),
-    },
-    {
-      title: '心情评分',
-      dataIndex: 'mood_score',
-      key: 'mood_score',
-      width: 100,
-      sorter: (a, b) => a.mood_score - b.mood_score,
-      render: (score: number) => `${score}分`,
-    },
-    {
-      title: '内容',
-      dataIndex: 'content',
-      key: 'content',
-      ellipsis: true,
-      width: 250,
-      render: (content: string) => (
-        <Tooltip title={content}>
-          <span>{content || '-'}</span>
-        </Tooltip>
-      ),
-    },
-    {
-      title: '标签',
-      dataIndex: 'tags',
-      key: 'tags',
-      width: 150,
-      render: (tags: string[]) => (
-        <Space size={[0, 4]} wrap>
-          {tags?.slice(0, 2).map((tag) => (
-            <Tag key={tag} color="cyan">
-              {tag}
-            </Tag>
-          ))}
-          {tags && tags.length > 2 && (
-            <Tag>+{tags.length - 2}</Tag>
-          )}
-        </Space>
-      ),
-    },
-    {
-      title: '日期',
-      dataIndex: 'entry_date',
-      key: 'entry_date',
-      width: 120,
-      sorter: (a, b) => a.entry_date.localeCompare(b.entry_date),
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      fixed: 'right',
-      width: 150,
-      render: (_, record) => (
-        <Space size="small">
-          {canWriteMoods && (
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            >
-              编辑
-            </Button>
-          )}
-          {canDeleteMoods && (
-            <Popconfirm
-              title="确认删除"
-              description="删除后无法恢复，是否继续？"
-              onConfirm={() => handleDelete(record.id)}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
-  ]
-
-  // ==================== 导出菜单 ====================
-
-  const exportMenuItems = [
-    { key: 'csv', label: '导出 CSV', icon: <ExportOutlined /> },
-    { key: 'excel', label: '导出 Excel', icon: <ExportOutlined /> },
-  ]
-
-  const handleExportMenuClick = useCallback(
-    ({ key }: { key: string }) => {
-      if (key === 'csv') handleExportCSV()
-      else if (key === 'excel') handleExportExcel()
-    },
-    [handleExportCSV, handleExportExcel]
-  )
-
-  // ==================== 渲染 ====================
-
+  // 权限检查
   if (!canReadMoods) {
     return (
-      <Card>
-        <div style={{ textAlign: 'center', padding: '50px 0' }}>
-          <Title level={4} type="secondary">
-            您没有查看心情日记的权限
-          </Title>
-        </div>
-      </Card>
+      <div style={{ textAlign: 'center', padding: '50px 0' }}>
+        <Tag color="warning">您没有查看心情日记的权限</Tag>
+      </div>
     )
   }
 
-  return (
-    <div>
-      {/* 页面标题 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={4} style={{ margin: 0 }}>
-          心情日记管理
-        </Title>
-        <Space>
-          {canWriteMoods && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              新增日记
-            </Button>
-          )}
-          {canExportMoods && (
-            <Dropdown menu={{ items: exportMenuItems, onClick: handleExportMenuClick }}>
-              <Button icon={<ExportOutlined />}>
-                导出 <DownOutlined />
-              </Button>
-            </Dropdown>
-          )}
-        </Space>
-      </div>
-
-      {/* 筛选栏 */}
-      <FilterBar
-        fields={filterFields}
-        values={filterValues}
-        onChange={setFilterValues}
-        onReset={handleReset}
-        searchPlaceholder="搜索用户名、心情、内容或标签"
-        searchText={searchText}
-        onSearchTextChange={setSearchText}
-        loading={loading}
-      />
-
-      {/* 批量操作栏 */}
-      {selectedRowKeys.length > 0 && canDeleteMoods && (
-        <div style={{ marginBottom: 16 }}>
-          <Space>
-            <span>已选择 {selectedRowKeys.length} 条数据</span>
-            <Popconfirm
-              title="批量删除"
-              description={`确认删除选中的 ${selectedRowKeys.length} 条数据？`}
-              onConfirm={handleBatchDelete}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button danger icon={<DeleteOutlined />}>
-                批量删除
-              </Button>
-            </Popconfirm>
-            <Button onClick={() => setSelectedRowKeys([])}>取消选择</Button>
-          </Space>
-        </div>
-      )}
-
-      {/* 数据表格 */}
-      <Card>
-        <Table<MoodDiaryRecord>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            ...pagination,
-            total: filteredData.length,
-          }}
-          onChange={(pag) => setPagination(pag)}
-          scroll={{ x: 1100 }}
-          rowSelection={
-            canDeleteMoods
-              ? {
-                  selectedRowKeys,
-                  onChange: (keys) => setSelectedRowKeys(keys),
-                }
-              : undefined
-          }
-          size="middle"
-          bordered
-        />
-      </Card>
-
-      {/* 表单弹窗 */}
-      <DataFormModal
-        open={modalOpen}
-        title={modalMode === 'create' ? '新增心情日记' : '编辑心情日记'}
-        mode={modalMode}
-        fields={formFields}
-        initialValues={editingRecord ? { ...editingRecord } : undefined}
-        onOk={handleFormSubmit}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={confirmLoading}
-        width={550}
-      />
-    </div>
-  )
+  return <UserDimensionList moduleConfig={moduleConfig} />
 }
 
 export default MoodDiaries

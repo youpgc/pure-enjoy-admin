@@ -1,618 +1,155 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
-import {
-  Tag,
-  Button,
-  Space,
-  Popconfirm,
-  message,
-  Dropdown,
-  Table,
-  Card,
-  Typography,
-  Statistic,
-  Row,
-  Col,
-} from 'antd'
-import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
-import type { Key } from 'react'
-import {
-  PlusOutlined,
-  ExportOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  DownOutlined,
-} from '@ant-design/icons'
+import React, { useMemo } from 'react'
+import { Tag, Button, Space, Popconfirm, message } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import { DeleteOutlined, EditOutlined } from '@ant-design/icons'
+import { LineChartOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import DataFormModal, { FormField } from '../components/DataFormModal'
-import FilterBar, { FilterField } from '../components/FilterBar'
-import { exportToCSV, exportToExcel } from '../utils/export'
+import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
-const { Title } = Typography
+// ==================== 常量定义 ====================
 
-// ==================== 类型定义 ====================
-
-interface WeightRecord {
-  id: string
-  key: string
-  user_id: string
-  weight: number
-  body_fat: number | null
-  record_date: string
-  created_at: string
-  updated_at: string
+const getWeightColor = (weight: number): string => {
+  if (weight < 50) return 'cyan'
+  if (weight < 70) return 'green'
+  if (weight < 90) return 'gold'
+  return 'orange'
 }
+
+// ==================== 详情列表列配置 ====================
+
+const getDetailColumns = (
+  canDelete: boolean,
+  onDelete: (id: string) => void,
+  onEdit: (record: RecordItem) => void
+): ColumnsType<RecordItem> => [
+  {
+    title: '体重(kg)',
+    dataIndex: 'weight',
+    key: 'weight',
+    width: 120,
+    sorter: (a, b) => {
+      const wA = (a.weight as number) || 0
+      const wB = (b.weight as number) || 0
+      return wB - wA
+    },
+    render: (weight: number) => (
+      <Tag color={getWeightColor(typeof weight === 'number' ? weight : 0)} icon={<LineChartOutlined />}>
+        {typeof weight === 'number' ? weight.toFixed(1) : weight} kg
+      </Tag>
+    ),
+  },
+  {
+    title: '记录日期',
+    dataIndex: 'record_date',
+    key: 'record_date',
+    width: 120,
+    sorter: (a, b) => {
+      const dateA = (a.record_date as string) || ''
+      const dateB = (b.record_date as string) || ''
+      return dateA.localeCompare(dateB)
+    },
+    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD') : '-',
+  },
+  {
+    title: '备注',
+    dataIndex: 'note',
+    key: 'note',
+    ellipsis: true,
+    width: 200,
+    render: (note: string) => note || '-',
+  },
+  {
+    title: '创建时间',
+    dataIndex: 'created_at',
+    key: 'created_at',
+    width: 160,
+    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+  },
+  {
+    title: '操作',
+    key: 'action',
+    fixed: 'right',
+    width: 120,
+    render: (_, record) => (
+      <Space size="small">
+        <Button
+          type="link"
+          size="small"
+          icon={<EditOutlined />}
+          onClick={() => onEdit(record)}
+        >
+          编辑
+        </Button>
+        {canDelete && (
+          <Popconfirm
+            title="确认删除"
+            description="删除后无法恢复，是否继续？"
+            onConfirm={() => onDelete(record.id as string)}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        )}
+      </Space>
+    ),
+  },
+]
 
 // ==================== 主组件 ====================
 
 const WeightRecords: React.FC = () => {
-  const {
-    canReadWeights,
-    canWriteWeights,
-    canDeleteWeights,
-    canExportWeights,
-  } = usePermission()
+  const { canReadWeights, canWriteWeights, canDeleteWeights } = usePermission()
 
-  // 状态
-  const [data, setData] = useState<WeightRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchText, setSearchText] = useState('')
-  const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
-  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
-    current: 1,
-    pageSize: 10,
-    showSizeChanger: true,
-    showQuickJumper: true,
-    pageSizeOptions: ['10', '20', '50', '100'],
-    showTotal: (total) => `共 ${total} 条`,
-  })
-
-  // 弹窗状态
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
-  const [editingRecord, setEditingRecord] = useState<WeightRecord | null>(null)
-  const [confirmLoading, setConfirmLoading] = useState(false)
-
-  // 加载数据
-  const fetchWeightRecords = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data: records, error } = await supabase
-        .from('weight_records')
-        .select('*')
-        .order('record_date', { ascending: false })
-
-      if (error) throw error
-
-      const formatted: WeightRecord[] = (records || []).map((item: any) => ({
-        ...item,
-        key: item.id,
-      }))
-
-      setData(formatted)
-    } catch (error) {
-      console.error('获取体重记录失败:', error)
-      message.error('获取体重记录失败')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchWeightRecords()
-  }, [fetchWeightRecords])
-
-  // ==================== 统计数据 ====================
-
-  const stats = useMemo(() => {
-    if (data.length === 0) return null
-
-    const sortedData = [...data].sort((a, b) =>
-      new Date(b.record_date).getTime() - new Date(a.record_date).getTime()
-    )
-
-    const latest = sortedData[0]
-    const previous = sortedData[1]
-
-    const avgWeight = data.reduce((sum, item) => sum + item.weight, 0) / data.length
-
-    let weightChange = 0
-    if (previous && latest) {
-      weightChange = latest.weight - previous.weight
-    }
-
-    return {
-      latestWeight: latest?.weight || 0,
-      avgWeight: parseFloat(avgWeight.toFixed(1)),
-      weightChange: parseFloat(weightChange.toFixed(1)),
-      avgBodyFat: data.filter(item => item.body_fat !== null).length > 0
-        ? parseFloat((data.filter(item => item.body_fat !== null).reduce((sum, item) => sum + (item.body_fat || 0), 0) / data.filter(item => item.body_fat !== null).length).toFixed(1))
-        : null,
-      totalRecords: data.length,
-    }
-  }, [data])
-
-  // ==================== 筛选配置 ====================
-
-  const filterFields: FilterField[] = [
-    {
-      name: 'weightRange',
-      label: '体重范围',
-      type: 'numberRange',
-      placeholder: '体重范围 (kg)',
-    },
-    {
-      name: 'recordDateRange',
-      label: '日期范围',
-      type: 'dateRange',
-      placeholder: '选择日期范围',
-    },
-  ]
-
-  // ==================== 表单配置 ====================
-
-  const formFields: FormField[] = [
-    {
-      name: 'weight',
-      label: '体重 (kg)',
-      type: 'number',
-      required: true,
-      min: 20,
-      max: 300,
-      precision: 1,
-      placeholder: '请输入体重',
-    },
-    {
-      name: 'body_fat',
-      label: '体脂率 (%)',
-      type: 'number',
-      required: false,
-      min: 3,
-      max: 60,
-      precision: 1,
-      placeholder: '可选',
-    },
-    {
-      name: 'record_date',
-      label: '日期',
-      type: 'date',
-      required: true,
-      defaultValue: dayjs().format('YYYY-MM-DD'),
-    },
-  ]
-
-  // ==================== 数据处理 ====================
-
-  const filteredData = useMemo(() => {
-    let result = [...data]
-
-    // 关键词搜索（搜索用户ID）
-    if (searchText.trim()) {
-      const keyword = searchText.trim().toLowerCase()
-      result = result.filter((record) => {
-        return record.user_id?.toLowerCase().includes(keyword)
-      })
-    }
-
-    // 体重范围筛选
-    if (filterValues.weightRange && Array.isArray(filterValues.weightRange)) {
-      const [min, max] = filterValues.weightRange as [number | null, number | null]
-      result = result.filter((record) => {
-        if (min !== null && record.weight < min) return false
-        if (max !== null && record.weight > max) return false
-        return true
-      })
-    }
-
-    // 日期范围筛选
-    if (filterValues.recordDateRange && Array.isArray(filterValues.recordDateRange)) {
-      const [startDate, endDate] = filterValues.recordDateRange as [string, string]
-      if (startDate && endDate) {
-        result = result.filter((record) => {
-          return record.record_date >= startDate && record.record_date <= endDate
-        })
-      }
-    }
-
-    return result
-  }, [data, searchText, filterValues])
-
-  // ==================== 操作处理 ====================
-
-  // 新增
-  const handleCreate = useCallback(() => {
-    if (!canWriteWeights) {
-      message.warning('您没有新增体重记录的权限')
-      return
-    }
-    setModalMode('create')
-    setEditingRecord(null)
-    setModalOpen(true)
-  }, [canWriteWeights])
-
-  // 编辑
-  const handleEdit = useCallback(
-    (record: WeightRecord) => {
-      if (!canWriteWeights) {
-        message.warning('您没有编辑体重记录的权限')
-        return
-      }
-      setModalMode('edit')
-      setEditingRecord(record)
-      setModalOpen(true)
-    },
-    [canWriteWeights]
-  )
-
-  // 删除单条
-  const handleDelete = useCallback(
-    async (id: string) => {
-      if (!canDeleteWeights) {
-        message.warning('您没有删除体重记录的权限')
-        return
-      }
-      try {
-        const { error } = await supabase.from('weight_records').delete().eq('id', id)
-        if (error) throw error
-        setData((prev) => prev.filter((item) => item.id !== id))
-        message.success('删除成功')
-      } catch (error) {
-        console.error('删除失败:', error)
-        message.error('删除失败')
-      }
-    },
-    [canDeleteWeights]
-  )
-
-  // 批量删除
-  const handleBatchDelete = useCallback(async () => {
+  // 删除记录
+  const handleDelete = async (id: string) => {
     if (!canDeleteWeights) {
       message.warning('您没有删除体重记录的权限')
       return
     }
-    if (selectedRowKeys.length === 0) {
-      message.warning('请先选择要删除的数据')
-      return
-    }
     try {
-      const { error } = await supabase
-        .from('weight_records')
-        .delete()
-        .in('id', selectedRowKeys as string[])
+      const { error } = await supabase.from('weight_records').delete().eq('id', id)
       if (error) throw error
-      setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
-      setSelectedRowKeys([])
-      message.success(`成功删除 ${selectedRowKeys.length} 条数据`)
+      message.success('删除成功')
     } catch (error) {
-      console.error('批量删除失败:', error)
-      message.error('批量删除失败')
+      console.error('删除失败:', error)
+      message.error('删除失败')
     }
-  }, [selectedRowKeys, canDeleteWeights])
+  }
 
-  // 表单提交
-  const handleFormSubmit = useCallback(
-    async (values: Record<string, unknown>) => {
-      setConfirmLoading(true)
-      try {
-        const weight = values.weight as number
-
-        if (modalMode === 'create') {
-          const { error } = await supabase.from('weight_records').insert({
-            weight,
-            body_fat: (values.body_fat as number) || null,
-            record_date: values.record_date as string,
-          })
-          if (error) throw error
-          message.success('新增成功')
-        } else {
-          const { error } = await supabase
-            .from('weight_records')
-            .update({
-              weight,
-              body_fat: (values.body_fat as number) || null,
-              record_date: values.record_date as string,
-            })
-            .eq('id', editingRecord?.id)
-          if (error) throw error
-          message.success('更新成功')
-        }
-        setModalOpen(false)
-        fetchWeightRecords()
-      } catch (error) {
-        console.error('操作失败:', error)
-        message.error('操作失败，请重试')
-      } finally {
-        setConfirmLoading(false)
-      }
-    },
-    [modalMode, editingRecord, fetchWeightRecords]
-  )
-
-  // 导出
-  const handleExportCSV = useCallback(() => {
-    if (!canExportWeights) {
-      message.warning('您没有导出体重记录的权限')
+  // 编辑记录
+  const handleEdit = (_record: RecordItem) => {
+    if (!canWriteWeights) {
+      message.warning('您没有编辑体重记录的权限')
       return
     }
-    const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '体重(kg)', dataIndex: 'weight' },
-      { title: '体脂率(%)', dataIndex: 'body_fat' },
-      { title: '日期', dataIndex: 'record_date' },
-    ]
-    exportToCSV<WeightRecord>(filteredData, columns, '体重记录')
-    message.success('CSV 导出成功')
-  }, [filteredData, canExportWeights])
+    message.info('编辑功能开发中')
+  }
 
-  const handleExportExcel = useCallback(() => {
-    if (!canExportWeights) {
-      message.warning('您没有导出体重记录的权限')
-      return
-    }
-    const columns = [
-      { title: '用户ID', dataIndex: 'user_id' },
-      { title: '体重(kg)', dataIndex: 'weight' },
-      { title: '体脂率(%)', dataIndex: 'body_fat' },
-      { title: '日期', dataIndex: 'record_date' },
-    ]
-    exportToExcel<WeightRecord>(filteredData, columns, '体重记录')
-    message.success('Excel 导出成功')
-  }, [filteredData, canExportWeights])
+  // 模块配置
+  const moduleConfig: ModuleConfig = useMemo(() => ({
+    key: 'weight_records',
+    title: '体重记录管理',
+    tableName: 'weight_records',
+    detailTitle: '体重记录详情',
+    detailColumns: getDetailColumns(canDeleteWeights || false, handleDelete, handleEdit),
+  }), [canDeleteWeights, canWriteWeights])
 
-  // 重置
-  const handleReset = useCallback(() => {
-    setSearchText('')
-    setFilterValues({})
-    setSelectedRowKeys([])
-    setPagination((prev) => ({ ...prev, current: 1 }))
-  }, [])
-
-  // ==================== 表格列配置 ====================
-
-  const columns: ColumnsType<WeightRecord> = [
-    {
-      title: '用户ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
-      width: 180,
-      ellipsis: true,
-      sorter: (a, b) => a.user_id.localeCompare(b.user_id),
-    },
-    {
-      title: '体重',
-      dataIndex: 'weight',
-      key: 'weight',
-      width: 100,
-      sorter: (a, b) => a.weight - b.weight,
-      render: (weight: number) => (
-        <Tag color="blue">{weight} kg</Tag>
-      ),
-    },
-    {
-      title: '体脂率',
-      dataIndex: 'body_fat',
-      key: 'body_fat',
-      width: 100,
-      render: (body_fat: number | null) => (
-        body_fat ? <Tag color="cyan">{body_fat}%</Tag> : '-'
-      ),
-    },
-    {
-      title: '日期',
-      dataIndex: 'record_date',
-      key: 'record_date',
-      width: 120,
-      sorter: (a, b) => a.record_date.localeCompare(b.record_date),
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
-    },
-    {
-      title: '操作',
-      key: 'action',
-      fixed: 'right',
-      width: 150,
-      render: (_, record) => (
-        <Space size="small">
-          {canWriteWeights && (
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            >
-              编辑
-            </Button>
-          )}
-          {canDeleteWeights && (
-            <Popconfirm
-              title="确认删除"
-              description="删除后无法恢复，是否继续？"
-              onConfirm={() => handleDelete(record.id)}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
-  ]
-
-  // ==================== 导出菜单 ====================
-
-  const exportMenuItems = [
-    { key: 'csv', label: '导出 CSV', icon: <ExportOutlined /> },
-    { key: 'excel', label: '导出 Excel', icon: <ExportOutlined /> },
-  ]
-
-  const handleExportMenuClick = useCallback(
-    ({ key }: { key: string }) => {
-      if (key === 'csv') handleExportCSV()
-      else if (key === 'excel') handleExportExcel()
-    },
-    [handleExportCSV, handleExportExcel]
-  )
-
-  // ==================== 渲染 ====================
-
+  // 权限检查
   if (!canReadWeights) {
     return (
-      <Card>
-        <div style={{ textAlign: 'center', padding: '50px 0' }}>
-          <Title level={4} type="secondary">
-            您没有查看体重记录的权限
-          </Title>
-        </div>
-      </Card>
+      <div style={{ textAlign: 'center', padding: '50px 0' }}>
+        <Tag color="warning">您没有查看体重记录的权限</Tag>
+      </div>
     )
   }
 
-  return (
-    <div>
-      {/* 页面标题 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={4} style={{ margin: 0 }}>
-          体重记录管理
-        </Title>
-        <Space>
-          {canWriteWeights && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              新增记录
-            </Button>
-          )}
-          {canExportWeights && (
-            <Dropdown menu={{ items: exportMenuItems, onClick: handleExportMenuClick }}>
-              <Button icon={<ExportOutlined />}>
-                导出 <DownOutlined />
-              </Button>
-            </Dropdown>
-          )}
-        </Space>
-      </div>
-
-      {/* 统计卡片 */}
-      {stats && (
-        <Card style={{ marginBottom: 16 }}>
-          <Row gutter={24}>
-            <Col xs={12} sm={6}>
-              <Statistic
-                title="最新体重"
-                value={stats.latestWeight}
-                suffix="kg"
-                valueStyle={{ color: '#1890ff' }}
-              />
-            </Col>
-            <Col xs={12} sm={6}>
-              <Statistic
-                title="体重变化"
-                value={stats.weightChange}
-                precision={1}
-                suffix="kg"
-                valueStyle={{
-                  color: stats.weightChange > 0 ? '#ff4d4f' : stats.weightChange < 0 ? '#52c41a' : '#8c8c8c'
-                }}
-              />
-            </Col>
-            <Col xs={12} sm={6}>
-              <Statistic
-                title="平均体重"
-                value={stats.avgWeight}
-                suffix="kg"
-              />
-            </Col>
-            {stats.avgBodyFat !== null && (
-              <Col xs={12} sm={6}>
-                <Statistic
-                  title="平均体脂率"
-                  value={stats.avgBodyFat}
-                  suffix="%"
-                  valueStyle={{ color: '#13c2c2' }}
-                />
-              </Col>
-            )}
-          </Row>
-        </Card>
-      )}
-
-      {/* 筛选栏 */}
-      <FilterBar
-        fields={filterFields}
-        values={filterValues}
-        onChange={setFilterValues}
-        onReset={handleReset}
-        searchPlaceholder="搜索用户ID"
-        searchText={searchText}
-        onSearchTextChange={setSearchText}
-        loading={loading}
-      />
-
-      {/* 批量操作栏 */}
-      {selectedRowKeys.length > 0 && canDeleteWeights && (
-        <div style={{ marginBottom: 16 }}>
-          <Space>
-            <span>已选择 {selectedRowKeys.length} 条数据</span>
-            <Popconfirm
-              title="批量删除"
-              description={`确认删除选中的 ${selectedRowKeys.length} 条数据？`}
-              onConfirm={handleBatchDelete}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button danger icon={<DeleteOutlined />}>
-                批量删除
-              </Button>
-            </Popconfirm>
-            <Button onClick={() => setSelectedRowKeys([])}>取消选择</Button>
-          </Space>
-        </div>
-      )}
-
-      {/* 数据表格 */}
-      <Card>
-        <Table<WeightRecord>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            ...pagination,
-            total: filteredData.length,
-          }}
-          onChange={(pag) => setPagination(pag)}
-          scroll={{ x: 1100 }}
-          rowSelection={
-            canDeleteWeights
-              ? {
-                  selectedRowKeys,
-                  onChange: (keys) => setSelectedRowKeys(keys),
-                }
-              : undefined
-          }
-          size="middle"
-          bordered
-        />
-      </Card>
-
-      {/* 表单弹窗 */}
-      <DataFormModal
-        open={modalOpen}
-        title={modalMode === 'create' ? '新增体重记录' : '编辑体重记录'}
-        mode={modalMode}
-        fields={formFields}
-        initialValues={editingRecord ? { ...editingRecord } : undefined}
-        onOk={handleFormSubmit}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={confirmLoading}
-        width={500}
-      />
-    </div>
-  )
+  return <UserDimensionList moduleConfig={moduleConfig} />
 }
 
 export default WeightRecords
