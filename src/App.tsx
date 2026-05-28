@@ -45,11 +45,12 @@ import Favorites from './pages/Favorites'
 import Reminders from './pages/Reminders'
 import Habits from './pages/Habits'
 import AppConfigs from './pages/AppConfigs'
+import NovelBookshelves from './pages/NovelBookshelves'
 
 const { Header, Sider, Content } = Layout
 
 type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
-  'novels' | 'novel_chapters' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
+  'novels' | 'novel_chapters' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs'
 
 // 章节导航状态
@@ -139,6 +140,7 @@ const MainLayout: React.FC = () => {
       children: [
         { key: 'novels', icon: <BookOutlined />, label: '小说管理' },
         { key: 'novel_chapters', icon: <DatabaseOutlined />, label: '章节管理' },
+        { key: 'novel_bookshelves', icon: <BookOutlined />, label: '书架列表' },
       ],
     },
     ...(canManageVersions ? [
@@ -178,6 +180,8 @@ const MainLayout: React.FC = () => {
         return <Novels />
       case 'novel_chapters':
         return <NovelManagement />
+      case 'novel_bookshelves':
+        return <NovelBookshelves />
       case 'versions':
         return <VersionManagement />
       case 'analytics':
@@ -210,6 +214,7 @@ const MainLayout: React.FC = () => {
       notes: '笔记本',
       novels: '小说管理',
       novel_chapters: '章节管理',
+      novel_bookshelves: '书架列表',
       versions: '版本管理',
       analytics: '数据分析',
       operation_logs: '操作日志',
