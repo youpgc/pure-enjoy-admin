@@ -44,12 +44,13 @@ import SystemMonitor from './pages/SystemMonitor'
 import Favorites from './pages/Favorites'
 import Reminders from './pages/Reminders'
 import Habits from './pages/Habits'
+import AppConfigs from './pages/AppConfigs'
 
 const { Header, Sider, Content } = Layout
 
 type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
   'novels' | 'novel_chapters' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
-  'favorites' | 'reminders' | 'habits'
+  'favorites' | 'reminders' | 'habits' | 'app_configs'
 
 // 章节导航状态
 export interface NovelChapterNavState {
@@ -151,6 +152,7 @@ const MainLayout: React.FC = () => {
           { key: 'operation_logs', icon: <FileTextOutlined />, label: '操作日志' },
           { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控' },
           { key: 'roles', icon: <SafetyOutlined />, label: '角色权限' },
+          { key: 'app_configs', icon: <FileTextOutlined />, label: '内容管理' },
         ],
       },
     ] : []),
@@ -190,6 +192,8 @@ const MainLayout: React.FC = () => {
         return <Reminders />
       case 'habits':
         return <Habits />
+      case 'app_configs':
+        return <AppConfigs />
       default:
         return <Dashboard />
     }
@@ -213,6 +217,7 @@ const MainLayout: React.FC = () => {
       favorites: '收藏夹',
       reminders: '提醒事项',
       habits: '习惯打卡',
+      app_configs: '内容管理',
     }
     return titles[currentPage] || '数据概览'
   }
