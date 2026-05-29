@@ -42,10 +42,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       // 1. 查询 admin_users 表（使用 email 字段登录）
       console.log(`[Auth] 查询 admin_users 表，条件: email=${username}`)
+      console.log(`[Auth] Supabase URL: ${(supabase as any).supabaseUrl}`)
+      
       const { data: dbUsers, error } = await supabase
         .from('admin_users')
         .select('*')
         .eq('email', username)
+      
+      console.log(`[Auth] 查询结果:`, { dbUsers, error })
 
       if (error) {
         console.error('[Auth] 查询 admin_users 表失败:', error)
