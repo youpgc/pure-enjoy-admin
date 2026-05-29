@@ -78,6 +78,7 @@ const NovelBookshelves: React.FC = () => {
     
     try {
       // 获取所有用户书架数据，联合查询 novels 表
+      // 注意: PostgREST 关联查询语法是 table!foreign_key_column
       const { data: userNovels, error } = await supabase
         .from('user_novels')
         .select(`
@@ -88,7 +89,7 @@ const NovelBookshelves: React.FC = () => {
           last_chapter,
           last_read_at,
           created_at,
-          novels:novel_id (title, author, cover_url, category, chapter_count)
+          novels!novel_id (title, author, cover_url, category, chapter_count)
         `)
         .order('created_at', { ascending: false })
 
@@ -187,7 +188,7 @@ const NovelBookshelves: React.FC = () => {
           last_chapter,
           last_read_at,
           created_at,
-          novels:novel_id (title, author, cover_url, category, chapter_count)
+          novels!novel_id (title, author, cover_url, category, chapter_count)
         `)
         .eq('user_id', userId)
         .order('last_read_at', { ascending: false })

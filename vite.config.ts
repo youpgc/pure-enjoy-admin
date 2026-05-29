@@ -4,13 +4,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: './',
+  esbuild: {
+    keepNames: true,
+  },
   build: {
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: false,
-        drop_debugger: false,
-      },
+    minify: false, // 禁用压缩
+    sourcemap: true, // 生成 source map 方便调试
+    rollupOptions: {
+      treeshake: false, // 禁用 tree-shaking
     },
   },
 })
