@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { createContext, useContext, useState, useCallback } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout, Menu, theme } from 'antd'
 import type { MenuProps } from 'antd'
@@ -23,8 +23,8 @@ import {
   MenuUnfoldOutlined,
   MenuFoldOutlined,
 } from '@ant-design/icons'
+import type { AdminUser } from './types/auth'
 import AuthGuard from './components/AuthGuard'
-import { useAuth } from './context/auth'
 import { usePermission } from './hooks/usePermission'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
@@ -44,16 +44,66 @@ import Reminders from './pages/Reminders'
 import Habits from './pages/Habits'
 import AppConfigs from './pages/AppConfigs'
 import NovelBookshelves from './pages/NovelBookshelves'
-import ContentManagement from './pages/ContentManagement'
+
 
 const { Header, Sider, Content } = Layout
 
+// ========== AuthContext (内联定义，避免Vite缓存问题) ==========
+interface AuthContextType {
+  user: AdminUser | null
+  login: (username: string, password: string) => Promise<void>
+  logout: () => void
+  hasPermission: (permission: string) => boolean
+}
+
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  login: async () => {},
+  logout: () => {},
+  hasPermission: () => false,
+})
+
+export const useAuth = () => useContext(AuthContext)
+
+const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<AdminUser | null>(() => {
+    try {
+      const stored = localStorage.getItem('admin_user')
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
+    }
+  })
+
+  const login = useCallback(async (_username: string, _password: string) => {
+    throw new Error('请使用 Login.tsx 中的登录逻辑')
+  }, [])
+
+  const logout = useCallback(() => {
+    setUser(null)
+    localStorage.removeItem('admin_user')
+  }, [])
+
+  const hasPermission = useCallback((permission: string) => {
+    if (!user) return false
+    if (user.role === 'super_admin') return true
+    if (user.role === 'admin') {
+      return ['users:read', 'users:write', 'users:delete', 'users:export'].includes(permission)
+    }
+    return false
+  }, [user])
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout, hasPermission }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+// ========== Navigation Context ==========
 type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
   'novels' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
-  'favorites' | 'reminders' | 'habits' | 'app_configs' | 'content_management'
-
-// 创建导航上下文
-import { createContext, useContext } from 'react'
+  'favorites' | 'reminders' | 'habits' | 'app_configs'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -67,6 +117,7 @@ export const NavigationContext = createContext<NavigationContextType>({
 
 export const useNavigation = () => useContext(NavigationContext)
 
+// ========== MainLayout ==========
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
@@ -134,7 +185,6 @@ const MainLayout: React.FC = () => {
           { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控' },
           { key: 'roles', icon: <SafetyOutlined />, label: '角色权限' },
           { key: 'app_configs', icon: <FileTextOutlined />, label: '配置管理' },
-          { key: 'content_management', icon: <FileTextOutlined />, label: '内容管理' },
         ],
       },
     ] : []),
@@ -176,8 +226,6 @@ const MainLayout: React.FC = () => {
         return <Habits />
       case 'app_configs':
         return <AppConfigs />
-      case 'content_management':
-        return <ContentManagement />
       default:
         return <Dashboard />
     }
@@ -202,7 +250,6 @@ const MainLayout: React.FC = () => {
       reminders: '提醒事项',
       habits: '习惯打卡',
       app_configs: '配置管理',
-      content_management: '内容管理',
     }
     return titles[currentPage] || '数据概览'
   }
@@ -261,20 +308,23 @@ const MainLayout: React.FC = () => {
   )
 }
 
+// ========== App (最外层用 InlineAuthProvider 包裹) ==========
 const App: React.FC = () => {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/"
-        element={
-          <AuthGuard>
-            <MainLayout />
-          </AuthGuard>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <InlineAuthProvider>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route
+          path="/"
+          element={
+            <AuthGuard>
+              <MainLayout />
+            </AuthGuard>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </InlineAuthProvider>
   )
 }
 

@@ -42,12 +42,12 @@ const getDetailColumns = (
   },
   {
     title: '记录日期',
-    dataIndex: 'record_date',
-    key: 'record_date',
+    dataIndex: 'date',
+    key: 'date',
     width: 120,
     sorter: (a, b) => {
-      const dateA = (a.record_date as string) || ''
-      const dateB = (b.record_date as string) || ''
+      const dateA = (a.date as string) || ''
+      const dateB = (b.date as string) || ''
       return dateA.localeCompare(dateB)
     },
     render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD') : '-',

@@ -108,8 +108,8 @@ const Analytics: React.FC = () => {
           supabase.from('expenses').select('amount, date').gte('date', thirtyDaysAgo),
           // 心情趋势（14天）
           supabase.from('mood_diaries').select('mood, date').gte('date', fourteenDaysAgo),
-          // 体重分析（30天）
-          supabase.from('weight_records').select('weight, height, date').gte('date', thirtyDaysAgo),
+          // 体重分析（30天，使用数据库已有的 bmi 字段）
+          supabase.from('weight_records').select('weight, bmi, date').gte('date', thirtyDaysAgo),
           // 笔记活跃度（30天）
           supabase.from('notes').select('created_at').gte('created_at', thirtyDaysAgo),
           // 消费分类
@@ -276,15 +276,16 @@ const Analytics: React.FC = () => {
         setMoodTrend(moodItems)
 
         // ==================== 体重趋势分析 ====================
+        // weight_records 表已有 bmi 字段，直接使用
         const weightData = weightAnalyticsRes.data || []
         const weightDateMap: Record<string, { weights: number[]; bmis: number[] }> = {}
         weightData.forEach(w => {
           const dateKey = dayjs(w.date).format('MM-DD')
           if (!weightDateMap[dateKey]) weightDateMap[dateKey] = { weights: [], bmis: [] }
           weightDateMap[dateKey].weights.push(w.weight)
-          if (w.weight && w.height) {
-            const bmi = parseFloat((w.weight / Math.pow(w.height / 100, 2)).toFixed(1))
-            weightDateMap[dateKey].bmis.push(bmi)
+          // 直接使用数据库中的 bmi 值
+          if (w.bmi) {
+            weightDateMap[dateKey].bmis.push(w.bmi)
           }
         })
         const weightItems: WeightAnalyticsItem[] = []

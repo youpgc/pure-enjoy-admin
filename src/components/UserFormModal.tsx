@@ -36,7 +36,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
       if (mode === 'edit' && user) {
         form.setFieldsValue({
           email: user.email,
-          username: user.username || '',
           phone: user.phone || '',
           nickname: user.nickname || '',
           role: user.role,
@@ -110,16 +109,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
             placeholder="请输入邮箱"
             disabled={mode === 'edit'}
           />
-        </Form.Item>
-
-        <Form.Item
-          name="username"
-          label="用户名"
-          rules={[
-            { pattern: /^[a-zA-Z0-9_]{2,20}$/, message: '用户名只能包含字母、数字和下划线，2-20位' },
-          ]}
-        >
-          <Input placeholder="请输入用户名" />
         </Form.Item>
 
         {mode === 'create' && (

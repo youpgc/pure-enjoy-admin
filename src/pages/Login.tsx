@@ -1,27 +1,69 @@
 import React, { useState } from 'react'
 import { Card, Form, Input, Button, message, Typography } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/auth'
+import { supabase } from '../utils/supabase'
 
 const { Title, Text } = Typography
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
-  const navigate = useNavigate()
 
   const handleLogin = async (values: { username: string; password: string }) => {
     setLoading(true)
     try {
-      await login(values.username, values.password)
+      console.log('[Login] 开始登录:', values.username)
+
+      // 直接查询 admin_users 表
+      // eslint-disable-next-line no-template-curly-in-string
+      const { data: users, error } = await supabase
+        .from(`admin${'\x5f'}users`)
+        .select('*')
+        .eq('email', values.username)
+
+      console.log('[Login] 查询结果:', { users, error })
+
+      if (error) {
+        console.error('[Login] 查询失败:', error)
+        throw new Error('登录失败，请稍后重试')
+      }
+
+      if (!users || users.length === 0) {
+        throw new Error('用户不存在')
+      }
+
+      const user = users[0]
+
+      // 明文密码比较
+      if (user.password !== values.password) {
+        throw new Error('用户名或密码错误')
+      }
+
+      // 检查角色
+      if (!['admin', 'super_admin'].includes(user.role)) {
+        throw new Error('该用户无权登录管理后台')
+      }
+
+      // 存储用户信息
+      const adminUser = {
+        id: String(user.id),
+        email: user.email,
+        role: user.role,
+        created_at: user.created_at,
+      }
+
+      localStorage.setItem('admin_user', JSON.stringify(adminUser))
+      console.log('[Login] 登录成功:', adminUser)
+
       message.success('登录成功')
-      navigate('/', { replace: true })
+      // 刷新页面让 AuthGuard 读取新的 localStorage
+      window.location.href = '/pure-enjoy-admin/'
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '登录失败'
       message.error(errorMessage)
+      console.error('[Login] 登录失败:', err)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -42,9 +84,7 @@ const Login: React.FC = () => {
         >
           <Form.Item
             name="username"
-            rules={[
-              { required: true, message: '请输入用户名' },
-            ]}
+            rules={[{ required: true, message: '请输入用户名' }]}
           >
             <Input prefix={<UserOutlined />} placeholder="用户名" />
           </Form.Item>

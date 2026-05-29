@@ -16,7 +16,6 @@ export type UserStatus = 'active' | 'abnormal' | 'disabled' | 'banned'
 export interface User {
   id: string // U + 时间戳(10位) + 随机码(6位) + 校验码(2位)
   email: string
-  username: string | null
   phone: string | null
   password_hash: string | null
   nickname: string | null
@@ -36,7 +35,6 @@ export interface User {
 // 用户表单数据
 export interface UserFormData {
   email: string
-  username?: string
   phone?: string
   password?: string
   nickname?: string

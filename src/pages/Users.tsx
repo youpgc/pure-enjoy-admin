@@ -49,7 +49,7 @@ import {
 import { generateUserId } from '../utils/userId'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { supabase } from '../utils/supabase'
-import { useAuth } from '../context/auth'
+import { useAuth } from '../App'
 import { usePermission } from '../hooks/usePermission'
 import UserFormModal from '../components/UserFormModal'
 import UserDetailDrawer from '../components/UserDetailDrawer'
@@ -208,7 +208,6 @@ const Users: React.FC = () => {
     const newUser: User = {
       id: generateUserId(),
       email: formData.email,
-      username: formData.username || null,
       phone: formData.phone || null,
       password_hash: passwordHash,
       nickname: formData.nickname || null,
@@ -246,7 +245,6 @@ const Users: React.FC = () => {
 
     try {
       const updateData: Record<string, any> = {
-        username: formData.username || null,
         phone: formData.phone || null,
         nickname: formData.nickname || null,
         role: formData.role,
@@ -272,7 +270,6 @@ const Users: React.FC = () => {
           user.id === currentUser.id
             ? {
                 ...user,
-                username: formData.username || null,
                 phone: formData.phone || null,
                 nickname: formData.nickname || null,
                 role: formData.role,
@@ -293,7 +290,6 @@ const Users: React.FC = () => {
         user.id === currentUser.id
           ? {
               ...user,
-              username: formData.username || null,
               phone: formData.phone || null,
               nickname: formData.nickname || null,
               role: formData.role,
@@ -486,13 +482,6 @@ const Users: React.FC = () => {
       key: 'email',
       width: 200,
       ellipsis: true,
-    },
-    {
-      title: '用户名',
-      dataIndex: 'username',
-      key: 'username',
-      width: 120,
-      render: (username: string | null) => username || <Text type="secondary">未设置</Text>,
     },
     {
       title: '昵称',

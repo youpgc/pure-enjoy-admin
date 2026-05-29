@@ -33,7 +33,6 @@ interface AppVersion {
   file_size?: number
   file_name?: string
   checksum?: string
-  is_force_update?: boolean
   platform?: string
 }
 
@@ -86,9 +85,6 @@ const VersionManagement: React.FC = () => {
         // 处理版本状态
         const status = item.status || (item.is_active ? 'released' : 'draft')
         
-        // 处理更新类型
-        const releaseType = item.release_type || (item.is_force_update ? 'force' : 'feature')
-        
         // 处理 APK 大小（确保是数字，且大于0）
         let apkSize = Number(item.apk_size || item.file_size || 0)
         // 如果 file_size 是字符串，尝试转换
@@ -100,7 +96,6 @@ const VersionManagement: React.FC = () => {
           ...item,
           apk_url: item.apk_url || item.download_url || null,
           apk_size: apkSize,
-          release_type: releaseType,
           status: status,
           released_at: releasedAt,
           // 确保其他字段也有默认值
@@ -243,17 +238,18 @@ const VersionManagement: React.FC = () => {
 
   const handleToggleForceUpdate = async (record: AppVersion) => {
     try {
-      const newForceStatus = !record.is_force_update
+      // release_type 为 'force' 时表示强制更新，切换为 'feature'
+      // 否则切换为 'force'
+      const newReleaseType = record.release_type === 'force' ? 'feature' : 'force'
       const { error } = await supabase
         .from('app_versions')
         .update({
-          is_force_update: newForceStatus,
-          release_type: newForceStatus ? 'force' : 'feature',
+          release_type: newReleaseType,
         })
         .eq('id', record.id)
 
       if (error) throw error
-      message.success(`v${record.version} 已${newForceStatus ? '设为' : '取消'}强制更新`)
+      message.success(`v${record.version} 已${newReleaseType === 'force' ? '设为' : '取消'}强制更新`)
       fetchVersions()
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '未知错误'
@@ -407,14 +403,14 @@ const VersionManagement: React.FC = () => {
             </Tooltip>
           )}
           {record.status === 'released' && (
-            <Tooltip title={record.is_force_update ? '取消强制更新' : '设为强制更新'}>
+            <Tooltip title={record.release_type === 'force' ? '取消强制更新' : '设为强制更新'}>
               <Button
                 size="small"
-                type={record.is_force_update ? 'primary' : 'default'}
-                danger={record.is_force_update}
+                type={record.release_type === 'force' ? 'primary' : 'default'}
+                danger={record.release_type === 'force'}
                 onClick={() => handleToggleForceUpdate(record)}
               >
-                {record.is_force_update ? '取消强制' : '设为强制'}
+                {record.release_type === 'force' ? '取消强制' : '设为强制'}
               </Button>
             </Tooltip>
           )}

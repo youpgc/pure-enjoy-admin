@@ -77,10 +77,10 @@ const OperationLogs: React.FC = () => {
   const fetchLogs = useCallback(async () => {
     setLoading(true)
     try {
-      // 同时查询 admin_users 和 users 表来获取用户名
+      // 查询 users 表来获取用户昵称
       const { data, error } = await supabase
         .from('operation_logs')
-        .select('*, admin_users:user_id(username)')
+        .select('*, users:user_id(nickname)')
         .order('created_at', { ascending: false })
         .limit(100)
 
@@ -91,11 +91,11 @@ const OperationLogs: React.FC = () => {
         return
       }
 
-      // 映射数据，优先使用 admin_users 的 username
+      // 映射数据，优先使用 users 的 nickname
       const items: OperationLogItem[] = (data as any[] || []).map((row: any) => ({
         id: row.id,
         time: dayjs(row.created_at).format('YYYY-MM-DD HH:mm:ss'),
-        user_name: row.admin_users?.username || '系统',
+        user_name: row.users?.nickname || '系统',
         action: row.action,
         module: row.module,
         target: row.target_id || '',

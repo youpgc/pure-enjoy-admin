@@ -44,20 +44,20 @@ const getDetailColumns = (
   },
   {
     title: '备注',
-    dataIndex: 'description',
-    key: 'description',
+    dataIndex: 'note',
+    key: 'note',
     ellipsis: true,
     width: 200,
-    render: (desc: string) => desc || '-',
+    render: (note: string) => note || '-',
   },
   {
     title: '日期',
-    dataIndex: 'expense_date',
-    key: 'expense_date',
+    dataIndex: 'date',
+    key: 'date',
     width: 120,
     sorter: (a, b) => {
-      const dateA = (a.expense_date as string) || ''
-      const dateB = (b.expense_date as string) || ''
+      const dateA = (a.date as string) || ''
+      const dateB = (b.date as string) || ''
       return dateA.localeCompare(dateB)
     },
     render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD') : '-',

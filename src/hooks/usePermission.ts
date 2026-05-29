@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useAuth } from '../context/auth'
+import { useAuth } from '../App'
 
 // 权限模块定义
 export type PermissionModule = 

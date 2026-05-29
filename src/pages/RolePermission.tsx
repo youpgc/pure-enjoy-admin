@@ -12,7 +12,7 @@ import type { RoleWithPermissions, Permission } from '../types/permission'
 import { MODULE_DISPLAY_NAMES, MODULE_COLORS } from '../types/permission'
 import { mockPermissions, getRolesWithPermissions } from '../utils/mockData'
 import PermissionConfigModal from '../components/PermissionConfigModal'
-import { useAuth } from '../context/auth'
+import { useAuth } from '../App'
 import { supabase } from '../utils/supabase'
 
 const { Title, Text } = Typography
