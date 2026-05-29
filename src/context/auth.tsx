@@ -87,29 +87,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
     } catch (err) {
       console.error('[Auth] 登录过程发生错误:', err)
-        username,
-        time: new Date().toISOString()
-      })
       throw err
     }
   }, [])
 
-  const logout = useCallback(async () => {
-    const currentUser = user
+  const logout = useCallback(() => {
     setUser(null)
     localStorage.removeItem('admin_user')
-    console.log('[Auth] 用户登出:', {
-      userId: currentUser?.id,
-      time: new Date().toISOString()
-    })
-    // 记录登出日志
-    await logOperation({
-      action: '登出',
-      module: '系统',
-      detail: `管理员登出: ${currentUser?.email || 'unknown'}`,
-      target_id: currentUser?.id || 'unknown',
-    })
-  }, [user])
+    console.log('[Auth] 用户登出')
+  }, [])
 
   const checkPermission = useCallback((permission: string): boolean => {
     if (!user) return false
