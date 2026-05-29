@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { AdminUser, Role } from '../types/auth'
-import { supabase, logOperation } from '../utils/supabase'
-import sha256 from 'crypto-js/sha256'
+import { supabase } from '../utils/supabase'
 
 interface AuthContextType {
   user: AdminUser | null
@@ -41,19 +40,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log(`[Auth] 尝试登录: username=${username}, time=${new Date().toISOString()}`)
     
     try {
-      // 1. 查询 users 表（支持 username 或 email 登录）
-      console.log(`[Auth] 查询 users 表，条件: username=${username}`)
+      // 1. 查询 admin_users 表（使用 email 字段登录）
+      console.log(`[Auth] 查询 admin_users 表，条件: email=${username}`)
       const { data: dbUsers, error } = await supabase
-        .from('users')
+        .from('admin_users')
         .select('*')
-        .or(`username.eq.${username},email.eq.${username}`)
+        .eq('email', username)
 
       if (error) {
-        console.error('[Auth] 查询 users 表失败:', {
-          error,
-          username,
-          time: new Date().toISOString()
-        })
+        console.error('[Auth] 查询 admin_users 表失败:', error)
         throw new Error('登录失败，请稍后重试')
       }
 
@@ -63,14 +58,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const dbUser = dbUsers[0]
+      console.log(`[Auth] 找到用户: id=${dbUser.id}, email=${dbUser.email}, role=${dbUser.role}`)
 
-      console.log(`[Auth] 找到用户: id=${dbUser.id}, username=${dbUser.username}, role=${dbUser.role}`)
-
-      // 2. 验证密码（使用 SHA-256 哈希比较）
-      const hashedPassword = sha256(password).toString()
-      console.log(`[Auth] 验证密码: username=${username}, hash_match=${dbUser.password_hash === hashedPassword}`)
-      
-      if (dbUser.password_hash !== hashedPassword) {
+      // 2. 验证密码（明文比较）
+      if (dbUser.password !== password) {
         console.warn('[Auth] 密码错误:', username)
         throw new Error('用户名或密码错误')
       }
@@ -82,36 +73,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('该用户无权登录管理后台')
       }
 
-      // 4. 更新登录时间
-      console.log(`[Auth] 更新登录时间: id=${dbUser.id}`)
-      await supabase
-        .from('users')
-        .update({ 
-          last_login_at: new Date().toISOString(),
-          login_count: (dbUser.login_count || 0) + 1
-        })
-        .eq('id', dbUser.id)
-
-      // 5. 存储用户信息
+      // 4. 存储用户信息
       const adminUser: AdminUser = {
-        id: dbUser.id,
-        email: dbUser.email || dbUser.username,
+        id: String(dbUser.id),
+        email: dbUser.email,
         role: dbUser.role as Role,
         created_at: dbUser.created_at,
       }
 
       setUser(adminUser)
       localStorage.setItem('admin_user', JSON.stringify(adminUser))
-      console.log('[Auth] 登录成功:', {
-        username,
-        userId: dbUser.id,
-        role: dbUser.role,
-        time: new Date().toISOString()
-      })
+      console.log('[Auth] 登录成功:', { username, userId: dbUser.id, role: dbUser.role })
       
     } catch (err) {
-      console.error('[Auth] 登录过程发生错误:', {
-        error: err,
+      console.error('[Auth] 登录过程发生错误:', err)
         username,
         time: new Date().toISOString()
       })
