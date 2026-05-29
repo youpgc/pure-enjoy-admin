@@ -150,6 +150,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       }
       
       console.log(`[Supabase] ${method} ${tableName} - 请求开始`)
+      console.log(`[Supabase] URL: ${url}`)
+      console.log(`[Supabase] Headers:`, options.headers)
       
       return fetch(url, options).then(async (response) => {
         const duration = Date.now() - startTime
@@ -180,6 +182,11 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           })
         } else {
           console.log(`[Supabase] ${method} ${tableName} - 请求成功 (${duration}ms)`)
+          // 打印响应内容用于调试
+          const cloneResponse = response.clone()
+          cloneResponse.text().then(text => {
+            console.log(`[Supabase] ${method} ${tableName} - 响应内容:`, text.substring(0, 500))
+          })
         }
         
         return response
