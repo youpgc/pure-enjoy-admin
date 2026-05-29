@@ -58,30 +58,9 @@ const ACTION_COLOR_MAP: Record<string, string> = {
   '上传': 'geekblue',
 }
 
-// Supabase operation_logs 表返回的原始数据类型
-interface OperationLogRow {
-  id: string
-  user_id: string
-  action: string
-  module: string
-  target_id: string | null
-  ip: string | null
-  details: Record<string, unknown> | string | null
-  created_at: string
-  users?: { nickname: string | null } | null
-}
 
-/** 将 Supabase 原始行映射为前端 OperationLogItem */
-const mapRowToLogItem = (row: OperationLogRow): OperationLogItem => ({
-  id: row.id,
-  time: dayjs(row.created_at).format('YYYY-MM-DD HH:mm:ss'),
-  user_name: row.users?.nickname || '未知用户',
-  action: row.action,
-  module: row.module,
-  target: row.target_id || '',
-  ip: row.ip || '',
-  detail: typeof row.details === 'object' && row.details !== null ? JSON.stringify(row.details) : (row.details as string) || '',
-})
+
+
 
 const OperationLogs: React.FC = () => {
   const { isAdmin } = usePermission()
@@ -98,9 +77,10 @@ const OperationLogs: React.FC = () => {
   const fetchLogs = useCallback(async () => {
     setLoading(true)
     try {
+      // 同时查询 admin_users 和 users 表来获取用户名
       const { data, error } = await supabase
         .from('operation_logs')
-        .select('*, users:user_id(nickname)')
+        .select('*, admin_users:user_id(username)')
         .order('created_at', { ascending: false })
         .limit(100)
 
@@ -111,7 +91,17 @@ const OperationLogs: React.FC = () => {
         return
       }
 
-      const items: OperationLogItem[] = (data as OperationLogRow[] || []).map(mapRowToLogItem)
+      // 映射数据，优先使用 admin_users 的 username
+      const items: OperationLogItem[] = (data as any[] || []).map((row: any) => ({
+        id: row.id,
+        time: dayjs(row.created_at).format('YYYY-MM-DD HH:mm:ss'),
+        user_name: row.admin_users?.username || '系统',
+        action: row.action,
+        module: row.module,
+        target: row.target_id || '',
+        ip: row.ip || '',
+        detail: typeof row.details === 'object' && row.details !== null ? JSON.stringify(row.details) : (row.details as string) || '',
+      }))
       setLogs(items)
     } catch (err) {
       console.error('加载操作日志异常:', err)

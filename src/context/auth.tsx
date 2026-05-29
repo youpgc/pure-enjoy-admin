@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { AdminUser, Role } from '../types/auth'
-import { supabase } from '../utils/supabase'
+import { supabase, logOperation } from '../utils/supabase'
 import sha256 from 'crypto-js/sha256'
 
 interface AuthContextType {
   user: AdminUser | null
   loading: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (username: string, password: string) => Promise<void>
   logout: () => void
   checkPermission: (permission: string) => boolean
 }
@@ -21,21 +21,12 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext)
 
-// 数据库用户类型
-interface DbUser {
+// admin_users 表字段定义
+interface DbAdminUser {
   id: string
-  email: string
+  username: string
   password_hash: string
-  nickname: string | null
-  avatar_url: string | null
   role: string
-  member_level: string
-  points: number
-  status: string
-  register_ip: string | null
-  last_login_ip: string | null
-  last_login_at: string | null
-  login_count: number
   created_at: string
   updated_at: string
 }
@@ -56,69 +47,149 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false)
   }, [])
 
-  const login = useCallback(async (email: string, password: string) => {
-    // 1. 查询用户（不使用 single，避免 PGRST116 错误）
-    const { data: dbUsers, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
+  const login = useCallback(async (username: string, password: string) => {
+    console.log(`[Auth] 尝试登录: username=${username}, time=${new Date().toISOString()}`)
+    
+    try {
+      // 1. 查询 admin_users 表（不使用 single，避免 PGRST116 错误）
+      console.log(`[Auth] 查询 admin_users 表，条件: username=${username}`)
+      const { data: dbUsers, error } = await supabase
+        .from('admin_users')
+        .select('*')
+        .eq('username', username)
 
-    if (error) {
-      console.error('查询用户失败:', error)
-      throw new Error('登录失败，请稍后重试')
-    }
+      if (error) {
+        console.error('[Auth] 查询 admin_users 表失败:', {
+          error,
+          username,
+          time: new Date().toISOString()
+        })
+        // 记录登录失败日志
+        await logOperation({
+          action: '登录失败',
+          module: '系统',
+          detail: `查询用户失败: ${error.message}`,
+          target_id: username,
+        })
+        throw new Error('登录失败，请稍后重试')
+      }
 
-    if (!dbUsers || dbUsers.length === 0) {
-      throw new Error('用户不存在')
-    }
+      if (!dbUsers || dbUsers.length === 0) {
+        console.warn('[Auth] 管理员用户不存在:', username)
+        // 记录登录失败日志
+        await logOperation({
+          action: '登录失败',
+          module: '系统',
+          detail: `用户不存在: ${username}`,
+          target_id: username,
+        })
+        throw new Error('用户名或密码错误')
+      }
 
-    const dbUser = dbUsers[0]
+      const dbUser = dbUsers[0]
+      const user = dbUser as DbAdminUser
 
-    const user = dbUser as DbUser
+      console.log(`[Auth] 找到管理员用户: id=${user.id}, username=${user.username}, role=${user.role}`)
 
-    // 2. 验证密码（使用 SHA-256 哈希比较）
-    if (user.password_hash !== sha256(password).toString()) {
-      throw new Error('密码错误')
-    }
+      // 2. 验证密码（使用 SHA-256 哈希比较）
+      const hashedPassword = sha256(password).toString()
+      console.log(`[Auth] 验证密码: username=${username}, hash_match=${user.password_hash === hashedPassword}`)
+      
+      if (user.password_hash !== hashedPassword) {
+        console.warn('[Auth] 密码错误:', username)
+        // 记录登录失败日志
+        await logOperation({
+          action: '登录失败',
+          module: '系统',
+          detail: `密码错误: ${username}`,
+          target_id: username,
+        })
+        throw new Error('用户名或密码错误')
+      }
 
-    // 3. 检查状态
-    if (user.status !== 'active') {
-      throw new Error('账号已被禁用')
-    }
+      // 3. 检查角色 - 只允许 admin 和 super_admin 登录后台
+      const allowedRoles = ['admin', 'super_admin']
+      if (!allowedRoles.includes(user.role)) {
+        console.warn('[Auth] 用户角色无权登录后台:', username, '角色:', user.role)
+        // 记录登录失败日志
+        await logOperation({
+          action: '登录失败',
+          module: '系统',
+          detail: `角色无权登录: ${username}, role=${user.role}`,
+          target_id: username,
+        })
+        throw new Error('该用户无权登录管理后台')
+      }
 
-    // 4. 检查角色
-    if (user.role === 'user') {
-      throw new Error('普通用户无法登录后台')
-    }
+      // 4. 更新登录时间
+      console.log(`[Auth] 更新登录时间: id=${user.id}`)
+      const { error: updateError } = await supabase
+        .from('admin_users')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', user.id)
 
-    // 5. 更新登录信息
-    await supabase
-      .from('users')
-      .update({
-        last_login_at: new Date().toISOString(),
-        last_login_ip: '127.0.0.1', // 实际应该获取真实IP
-        login_count: user.login_count + 1
+      if (updateError) {
+        console.error('[Auth] 更新登录时间失败:', {
+          error: updateError,
+          userId: user.id,
+          time: new Date().toISOString()
+        })
+        // 登录信息更新失败不影响登录流程，继续执行
+      } else {
+        console.log('[Auth] 登录时间更新成功')
+      }
+
+      // 5. 存储用户信息
+      const adminUser: AdminUser = {
+        id: user.id,
+        email: user.username, // 使用 username 作为 email 字段（兼容现有接口）
+        role: user.role as Role,
+        created_at: user.created_at,
+      }
+
+      setUser(adminUser)
+      localStorage.setItem('admin_user', JSON.stringify(adminUser))
+      console.log('[Auth] 登录成功:', {
+        username,
+        userId: user.id,
+        role: user.role,
+        time: new Date().toISOString()
       })
-      .eq('id', user.id)
-
-    // 6. 存储用户信息
-    const adminUser: AdminUser = {
-      id: user.id,
-      email: user.email,
-      role: user.role as Role,
-      nickname: user.nickname || undefined,
-      avatar_url: user.avatar_url || undefined,
-      created_at: user.created_at,
+      
+      // 记录登录成功日志
+      await logOperation({
+        action: '登录',
+        module: '系统',
+        detail: `管理员登录成功: ${username}, role=${user.role}`,
+        target_id: user.id,
+      })
+      
+    } catch (err) {
+      console.error('[Auth] 登录过程发生错误:', {
+        error: err,
+        username,
+        time: new Date().toISOString()
+      })
+      throw err
     }
-
-    setUser(adminUser)
-    localStorage.setItem('admin_user', JSON.stringify(adminUser))
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const currentUser = user
     setUser(null)
     localStorage.removeItem('admin_user')
-  }, [])
+    console.log('[Auth] 用户登出:', {
+      userId: currentUser?.id,
+      time: new Date().toISOString()
+    })
+    // 记录登出日志
+    await logOperation({
+      action: '登出',
+      module: '系统',
+      detail: `管理员登出: ${currentUser?.email || 'unknown'}`,
+      target_id: currentUser?.id || 'unknown',
+    })
+  }, [user])
 
   const checkPermission = useCallback((permission: string): boolean => {
     if (!user) return false

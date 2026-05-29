@@ -11,10 +11,10 @@ const Login: React.FC = () => {
   const { login } = useAuth()
   const navigate = useNavigate()
 
-  const handleLogin = async (values: { email: string; password: string }) => {
+  const handleLogin = async (values: { username: string; password: string }) => {
     setLoading(true)
     try {
-      await login(values.email, values.password)
+      await login(values.username, values.password)
       message.success('登录成功')
       navigate('/', { replace: true })
     } catch (err: unknown) {
@@ -41,13 +41,12 @@ const Login: React.FC = () => {
           size="large"
         >
           <Form.Item
-            name="email"
+            name="username"
             rules={[
-              { required: true, message: '请输入邮箱' },
-              { type: 'email', message: '请输入有效的邮箱地址' }
+              { required: true, message: '请输入用户名' },
             ]}
           >
-            <Input prefix={<UserOutlined />} placeholder="邮箱" />
+            <Input prefix={<UserOutlined />} placeholder="用户名" />
           </Form.Item>
 
           <Form.Item

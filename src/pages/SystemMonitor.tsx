@@ -15,8 +15,19 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { usePermission } from '../hooks/usePermission'
-import { supabase } from '../utils/supabase'
+import { supabase, reportError } from '../utils/supabase'
 import type { DbTableStat, AlertItem } from '../utils/mockData'
+
+// 错误日志类型
+interface ErrorLog {
+  id: string
+  level: 'error' | 'warning' | 'info'
+  module: string
+  message: string
+  detail?: string
+  created_at: string
+  user_id?: string
+}
 
 // ==================== 系统概览统计 ====================
 interface SystemStats {
@@ -45,6 +56,7 @@ const SystemMonitor: React.FC = () => {
   const [dbTableStats, setDbTableStats] = useState<DbTableStat[]>([])
   const [hourlyApiStats, setHourlyApiStats] = useState<HourlyApiStat[]>([])
   const [alerts, setAlerts] = useState<AlertItem[]>([])
+  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([])
 
   useEffect(() => {
     const fetchSystemData = async () => {
@@ -119,28 +131,55 @@ const SystemMonitor: React.FC = () => {
         }
         setHourlyApiStats(hourlyStats)
 
-        // 错误日志（检查最近是否有错误操作日志）
-        const errorLogsRes = await supabase
+        // 查询真实的错误日志表
+        const { data: errorLogsData, error: errorLogsError } = await supabase
+          .from('error_logs')
+          .select('id, level, module, message, detail, created_at, user_id')
+          .gte('created_at', twentyFourHoursAgo)
+          .order('created_at', { ascending: false })
+          .limit(100)
+
+        if (errorLogsError) {
+          console.error('[SystemMonitor] 查询错误日志失败:', errorLogsError)
+          reportError('error', 'SystemMonitor', '查询错误日志失败', errorLogsError.message)
+        } else {
+          setErrorLogs(errorLogsData || [])
+        }
+
+        // 构建告警信息（基于真实的错误日志）
+        const alertItems: AlertItem[] = []
+        
+        // 从 error_logs 表构建告警
+        ;(errorLogsData || []).forEach((log: ErrorLog) => {
+          alertItems.push({
+            id: log.id,
+            time: dayjs(log.created_at).format('YYYY-MM-DD HH:mm:ss'),
+            level: log.level,
+            type: log.level === 'error' ? '系统错误' : log.level === 'warning' ? '警告' : '信息',
+            message: log.message,
+            module: log.module,
+            resolved: log.level !== 'error', // 错误未处理，警告和信息视为已处理
+          })
+        })
+
+        // 查询最近的操作日志中的删除操作作为额外告警
+        const opLogsRes = await supabase
           .from('operation_logs')
           .select('id, created_at, action, module, detail, user_id')
-          .gte('created_at', now.subtract(24, 'hour').format('YYYY-MM-DD HH:mm:ss'))
-          .limit(50)
+          .eq('action', '删除')
+          .gte('created_at', twentyFourHoursAgo)
+          .limit(20)
 
-        // 构建告警信息（基于错误操作日志）
-        const alertItems: AlertItem[] = []
-        ;(errorLogsRes.data || []).forEach((log, i) => {
-          const isDelete = log.action === '删除'
-          if (isDelete) {
-            alertItems.push({
-              id: log.id || `alert_${i}`,
-              time: dayjs(log.created_at).format('YYYY-MM-DD HH:mm:ss'),
-              level: 'warning',
-              type: '操作告警',
-              message: `${log.detail || `执行了${log.action}操作`}`,
-              module: log.module || '未知',
-              resolved: true,
-            })
-          }
+        ;(opLogsRes.data || []).forEach((log, i) => {
+          alertItems.push({
+            id: `op_${log.id || i}`,
+            time: dayjs(log.created_at).format('YYYY-MM-DD HH:mm:ss'),
+            level: 'warning',
+            type: '删除操作',
+            message: log.detail || `执行了${log.action}操作`,
+            module: log.module || '未知',
+            resolved: true,
+          })
         })
 
         // 如果没有告警，添加一条系统正常的信息
@@ -422,6 +461,52 @@ const SystemMonitor: React.FC = () => {
   // 未处理告警数
   const unresolvedCount = alerts.filter(a => !a.resolved).length
 
+  // 错误日志表格列定义
+  const errorLogColumns = [
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 170,
+      render: (time: string) => dayjs(time).format('YYYY-MM-DD HH:mm:ss'),
+    },
+    {
+      title: '级别',
+      dataIndex: 'level',
+      key: 'level',
+      width: 80,
+      render: (level: string) => {
+        const config: Record<string, { color: string; icon: React.ReactNode }> = {
+          error: { color: 'red', icon: <CloseCircleOutlined /> },
+          warning: { color: 'orange', icon: <ExclamationCircleOutlined /> },
+          info: { color: 'blue', icon: <InfoCircleOutlined /> },
+        }
+        const c = config[level] ?? config['info']!
+        return <Tag color={c.color} icon={c.icon}>{level === 'error' ? '错误' : level === 'warning' ? '警告' : '信息'}</Tag>
+      },
+    },
+    {
+      title: '模块',
+      dataIndex: 'module',
+      key: 'module',
+      width: 120,
+      render: (module: string) => <Tag color="blue">{module}</Tag>,
+    },
+    {
+      title: '消息',
+      dataIndex: 'message',
+      key: 'message',
+      ellipsis: true,
+    },
+    {
+      title: '详情',
+      dataIndex: 'detail',
+      key: 'detail',
+      ellipsis: true,
+      render: (detail: string) => detail || '-',
+    },
+  ]
+
   return (
     <div>
       {/* 系统概览卡片 */}
@@ -524,6 +609,28 @@ const SystemMonitor: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* 错误日志详情 */}
+      <Card
+        title={
+          <span>
+            <CloseCircleOutlined style={{ marginRight: 8, color: '#ff4d4f' }} />
+            错误日志详情
+          </span>
+        }
+        extra={<Tag color="red">最近24小时</Tag>}
+        style={{ borderRadius: 8, marginTop: 16 }}
+      >
+        <Table
+          dataSource={errorLogs}
+          columns={errorLogColumns}
+          rowKey="id"
+          pagination={{ pageSize: 10, size: 'small', showTotal: (total) => `共 ${total} 条` }}
+          size="small"
+          scroll={{ x: 800 }}
+          locale={{ emptyText: '暂无错误日志' }}
+        />
+      </Card>
     </div>
   )
 }

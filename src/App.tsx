@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout, Menu, theme } from 'antd'
 import type { MenuProps } from 'antd'
@@ -13,7 +13,6 @@ import {
   MobileOutlined,
   LogoutOutlined,
   SafetyOutlined,
-  DatabaseOutlined,
   BarChartOutlined,
   FileTextOutlined,
   MonitorOutlined,
@@ -34,7 +33,6 @@ import MoodDiaries from './pages/MoodDiaries'
 import WeightRecords from './pages/WeightRecords'
 import Notes from './pages/Notes'
 import Novels from './pages/Novels'
-import NovelManagement from './pages/NovelManagement'
 import VersionManagement from './pages/VersionManagement'
 import RolePermission from './pages/RolePermission'
 import Login from './pages/Login'
@@ -46,18 +44,13 @@ import Reminders from './pages/Reminders'
 import Habits from './pages/Habits'
 import AppConfigs from './pages/AppConfigs'
 import NovelBookshelves from './pages/NovelBookshelves'
+import ContentManagement from './pages/ContentManagement'
 
 const { Header, Sider, Content } = Layout
 
 type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
-  'novels' | 'novel_chapters' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
-  'favorites' | 'reminders' | 'habits' | 'app_configs'
-
-// 章节导航状态
-export interface NovelChapterNavState {
-  novelId: string
-  novelTitle: string
-}
+  'novels' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
+  'favorites' | 'reminders' | 'habits' | 'app_configs' | 'content_management'
 
 // 创建导航上下文
 import { createContext, useContext } from 'react'
@@ -65,17 +58,11 @@ import { createContext, useContext } from 'react'
 interface NavigationContextType {
   currentPage: PageKey
   setCurrentPage: (page: PageKey) => void
-  novelChapterNav: NovelChapterNavState | null
-  setNovelChapterNav: (state: NovelChapterNavState | null) => void
-  navigateToChapters: (novelId: string, novelTitle: string) => void
 }
 
 export const NavigationContext = createContext<NavigationContextType>({
   currentPage: 'dashboard',
   setCurrentPage: () => {},
-  novelChapterNav: null,
-  setNovelChapterNav: () => {},
-  navigateToChapters: () => {},
 })
 
 export const useNavigation = () => useContext(NavigationContext)
@@ -83,7 +70,6 @@ export const useNavigation = () => useContext(NavigationContext)
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
-  const [novelChapterNav, setNovelChapterNav] = useState<NovelChapterNavState | null>(null)
   const { user, logout } = useAuth()
   const { canManageVersions } = usePermission()
   const {
@@ -93,12 +79,6 @@ const MainLayout: React.FC = () => {
   const handleLogout = () => {
     logout()
   }
-
-  // 导航到章节管理页面
-  const navigateToChapters = useCallback((novelId: string, novelTitle: string) => {
-    setNovelChapterNav({ novelId, novelTitle })
-    setCurrentPage('novel_chapters')
-  }, [])
 
   // 定义菜单项
   const menuItems: MenuProps['items'] = [
@@ -139,8 +119,7 @@ const MainLayout: React.FC = () => {
       label: '小说管理',
       children: [
         { key: 'novels', icon: <BookOutlined />, label: '小说管理' },
-        { key: 'novel_chapters', icon: <DatabaseOutlined />, label: '章节管理' },
-        { key: 'novel_bookshelves', icon: <BookOutlined />, label: '书架列表' },
+        { key: 'novel_bookshelves', icon: <BookOutlined />, label: '书架管理' },
       ],
     },
     ...(canManageVersions ? [
@@ -154,7 +133,8 @@ const MainLayout: React.FC = () => {
           { key: 'operation_logs', icon: <FileTextOutlined />, label: '操作日志' },
           { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控' },
           { key: 'roles', icon: <SafetyOutlined />, label: '角色权限' },
-          { key: 'app_configs', icon: <FileTextOutlined />, label: '内容管理' },
+          { key: 'app_configs', icon: <FileTextOutlined />, label: '配置管理' },
+          { key: 'content_management', icon: <FileTextOutlined />, label: '内容管理' },
         ],
       },
     ] : []),
@@ -178,8 +158,6 @@ const MainLayout: React.FC = () => {
         return <Notes />
       case 'novels':
         return <Novels />
-      case 'novel_chapters':
-        return <NovelManagement />
       case 'novel_bookshelves':
         return <NovelBookshelves />
       case 'versions':
@@ -198,6 +176,8 @@ const MainLayout: React.FC = () => {
         return <Habits />
       case 'app_configs':
         return <AppConfigs />
+      case 'content_management':
+        return <ContentManagement />
       default:
         return <Dashboard />
     }
@@ -213,8 +193,7 @@ const MainLayout: React.FC = () => {
       weight: '体重记录',
       notes: '笔记本',
       novels: '小说管理',
-      novel_chapters: '章节管理',
-      novel_bookshelves: '书架列表',
+      novel_bookshelves: '书架管理',
       versions: '版本管理',
       analytics: '数据分析',
       operation_logs: '操作日志',
@@ -222,7 +201,8 @@ const MainLayout: React.FC = () => {
       favorites: '收藏夹',
       reminders: '提醒事项',
       habits: '习惯打卡',
-      app_configs: '内容管理',
+      app_configs: '配置管理',
+      content_management: '内容管理',
     }
     return titles[currentPage] || '数据概览'
   }
@@ -272,9 +252,6 @@ const MainLayout: React.FC = () => {
           <NavigationContext.Provider value={{
             currentPage,
             setCurrentPage,
-            novelChapterNav,
-            setNovelChapterNav,
-            navigateToChapters,
           }}>
             {renderPage()}
           </NavigationContext.Provider>

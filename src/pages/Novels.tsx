@@ -28,6 +28,7 @@ import {
 import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
+import NovelChapterModal from '../components/NovelChapterModal'
 import {
   NOVEL_CATEGORY_OPTIONS,
   NOVEL_STATUS_OPTIONS,
@@ -35,7 +36,6 @@ import {
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
-import { useNavigation } from '../App'
 
 const { Title } = Typography
 
@@ -95,7 +95,6 @@ const Novels: React.FC = () => {
     canDeleteNovels,
     canExportNovels,
   } = usePermission()
-  const { navigateToChapters } = useNavigation()
 
   // 状态
   const [data, setData] = useState<NovelRecord[]>([])
@@ -118,16 +117,25 @@ const Novels: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<NovelRecord | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
 
+  // 章节管理弹窗状态
+  const [chapterModalOpen, setChapterModalOpen] = useState(false)
+  const [selectedNovel, setSelectedNovel] = useState<NovelRecord | null>(null)
+
   // 加载数据
   const fetchNovels = useCallback(async () => {
     setLoading(true)
+    console.log('[Novels] 开始加载小说列表')
+    
     try {
       const { data: novels, error } = await supabase
         .from('novels')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('[Novels] 获取小说列表失败:', error)
+        throw error
+      }
 
       const records: NovelRecord[] = (novels || []).map((novel: any) => ({
         ...novel,
@@ -136,9 +144,10 @@ const Novels: React.FC = () => {
         is_published: novel.is_published !== false,
       }))
 
+      console.log(`[Novels] 成功加载 ${records.length} 本小说`)
       setData(records)
     } catch (error) {
-      console.error('获取小说列表失败:', error)
+      console.error('[Novels] 获取小说列表失败:', error)
       message.error('获取小说列表失败')
     } finally {
       setLoading(false)
@@ -483,13 +492,21 @@ const Novels: React.FC = () => {
     [modalMode, editingRecord]
   )
 
-  // 查看章节 - 跳转到章节管理页面
+  // 查看章节 - 打开章节管理弹窗
   const handleViewChapters = useCallback(
     (record: NovelRecord) => {
-      navigateToChapters(record.id, record.title)
+      console.log(`[Novels] 打开章节管理弹窗: ${record.title} (${record.id})`)
+      setSelectedNovel(record)
+      setChapterModalOpen(true)
     },
-    [navigateToChapters]
+    []
   )
+
+  // 关闭章节管理弹窗
+  const handleCloseChapterModal = useCallback(() => {
+    setChapterModalOpen(false)
+    setSelectedNovel(null)
+  }, [])
 
   // 导出
   const handleExportCSV = useCallback(() => {
@@ -837,6 +854,14 @@ const Novels: React.FC = () => {
         onCancel={() => setModalOpen(false)}
         confirmLoading={confirmLoading}
         width={600}
+      />
+
+      {/* 章节管理弹窗 */}
+      <NovelChapterModal
+        open={chapterModalOpen}
+        novelId={selectedNovel?.id || ''}
+        novelTitle={selectedNovel?.title || ''}
+        onClose={handleCloseChapterModal}
       />
     </div>
   )

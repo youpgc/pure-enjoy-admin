@@ -14,6 +14,10 @@ import {
   Spin,
   Empty,
   Badge,
+  Input,
+  Row,
+  Col,
+  Statistic,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -23,6 +27,7 @@ import {
   ClockCircleOutlined,
   CalendarOutlined,
   ReadOutlined,
+  SearchOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
@@ -59,16 +64,20 @@ interface BookshelfDetail {
 const NovelBookshelves: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [bookshelves, setBookshelves] = useState<UserBookshelf[]>([])
+  const [filteredBookshelves, setFilteredBookshelves] = useState<UserBookshelf[]>([])
+  const [searchText, setSearchText] = useState('')
   const [detailVisible, setDetailVisible] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserBookshelf | null>(null)
   const [detailList, setDetailList] = useState<BookshelfDetail[]>([])
 
-  // 加载书架列表
+  // 加载书架列表 - 联合 user_novels + novels + users 表查询
   const loadBookshelves = useCallback(async () => {
     setLoading(true)
+    console.log('[NovelBookshelves] 开始加载书架列表')
+    
     try {
-      // 获取所有用户书架数据，按用户分组
+      // 获取所有用户书架数据，联合查询 novels 表
       const { data: userNovels, error } = await supabase
         .from('user_novels')
         .select(`
@@ -83,14 +92,24 @@ const NovelBookshelves: React.FC = () => {
         `)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('[NovelBookshelves] 查询 user_novels 失败:', error)
+        throw error
+      }
 
-      // 获取用户信息
+      console.log(`[NovelBookshelves] 获取到 ${userNovels?.length || 0} 条用户小说记录`)
+
+      // 获取用户信息 - 从 users 表查询
       const { data: users, error: userError } = await supabase
         .from('users')
-        .select('id, username, nickname, email')
+        .select('id, nickname, email')
 
-      if (userError) throw userError
+      if (userError) {
+        console.error('[NovelBookshelves] 查询 users 失败:', userError)
+        throw userError
+      }
+
+      console.log(`[NovelBookshelves] 获取到 ${users?.length || 0} 个用户信息`)
 
       // 按用户分组统计
       const userMap = new Map<string, UserBookshelf>()
@@ -102,7 +121,7 @@ const NovelBookshelves: React.FC = () => {
         if (!userMap.has(userId)) {
           userMap.set(userId, {
             user_id: userId,
-            user_name: user?.nickname || user?.username || '未知用户',
+            user_name: user?.nickname || '未知用户',
             user_email: user?.email || '-',
             total_books: 0,
             last_read_at: null,
@@ -123,17 +142,41 @@ const NovelBookshelves: React.FC = () => {
         }
       })
 
-      setBookshelves(Array.from(userMap.values()))
+      const result = Array.from(userMap.values())
+      console.log(`[NovelBookshelves] 成功处理 ${result.length} 个用户书架`)
+      
+      setBookshelves(result)
+      setFilteredBookshelves(result)
     } catch (error: any) {
+      console.error('[NovelBookshelves] 加载书架列表失败:', error)
       message.error('加载书架列表失败：' + error.message)
     } finally {
       setLoading(false)
     }
   }, [])
 
-  // 加载详情
+  // 搜索过滤
+  useEffect(() => {
+    if (!searchText.trim()) {
+      setFilteredBookshelves(bookshelves)
+      return
+    }
+    
+    const keyword = searchText.toLowerCase()
+    const filtered = bookshelves.filter(
+      (item) =>
+        item.user_name.toLowerCase().includes(keyword) ||
+        item.user_email.toLowerCase().includes(keyword) ||
+        item.user_id.toLowerCase().includes(keyword)
+    )
+    setFilteredBookshelves(filtered)
+  }, [searchText, bookshelves])
+
+  // 加载详情 - 联合查询展示书名、作者、阅读进度、最后阅读时间
   const loadDetail = useCallback(async (userId: string) => {
     setDetailLoading(true)
+    console.log(`[NovelBookshelves] 加载用户书架详情: ${userId}`)
+    
     try {
       const { data, error } = await supabase
         .from('user_novels')
@@ -149,7 +192,10 @@ const NovelBookshelves: React.FC = () => {
         .eq('user_id', userId)
         .order('last_read_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('[NovelBookshelves] 加载详情失败:', error)
+        throw error
+      }
 
       const details: BookshelfDetail[] = data?.map((item: any) => ({
         id: item.id,
@@ -165,8 +211,10 @@ const NovelBookshelves: React.FC = () => {
         chapter_count: item.novels?.chapter_count || 0,
       })) || []
 
+      console.log(`[NovelBookshelves] 成功加载 ${details.length} 条详情记录`)
       setDetailList(details)
     } catch (error: any) {
+      console.error('[NovelBookshelves] 加载详情失败:', error)
       message.error('加载详情失败：' + error.message)
     } finally {
       setDetailLoading(false)
@@ -175,6 +223,7 @@ const NovelBookshelves: React.FC = () => {
 
   // 查看详情
   const handleViewDetail = (record: UserBookshelf) => {
+    console.log(`[NovelBookshelves] 查看用户详情: ${record.user_name} (${record.user_id})`)
     setSelectedUser(record)
     setDetailVisible(true)
     loadDetail(record.user_id)
@@ -190,11 +239,11 @@ const NovelBookshelves: React.FC = () => {
       title: '用户ID',
       dataIndex: 'user_id',
       key: 'user_id',
-      width: 200,
+      width: 220,
       ellipsis: true,
       render: (text) => (
         <Tooltip title={text}>
-          <Text code copyable={{ text }}>{text.slice(0, 12)}...</Text>
+          <Text code copyable={{ text }}>{text.slice(0, 16)}...</Text>
         </Tooltip>
       ),
     },
@@ -214,7 +263,7 @@ const NovelBookshelves: React.FC = () => {
       title: '用户邮箱',
       dataIndex: 'user_email',
       key: 'user_email',
-      width: 200,
+      width: 220,
       ellipsis: true,
     },
     {
@@ -223,6 +272,7 @@ const NovelBookshelves: React.FC = () => {
       key: 'total_books',
       width: 120,
       align: 'center',
+      sorter: (a, b) => a.total_books - b.total_books,
       render: (count) => (
         <Badge
           count={count}
@@ -236,6 +286,11 @@ const NovelBookshelves: React.FC = () => {
       dataIndex: 'last_read_at',
       key: 'last_read_at',
       width: 180,
+      sorter: (a, b) => {
+        if (!a.last_read_at) return 1
+        if (!b.last_read_at) return -1
+        return new Date(b.last_read_at).getTime() - new Date(a.last_read_at).getTime()
+      },
       render: (date) => date ? (
         <Space>
           <ClockCircleOutlined />
@@ -263,22 +318,75 @@ const NovelBookshelves: React.FC = () => {
     },
   ]
 
+  // 统计信息
+  const stats = {
+    totalUsers: bookshelves.length,
+    totalBooks: bookshelves.reduce((sum, item) => sum + item.total_books, 0),
+    activeReaders: bookshelves.filter(item => item.last_read_at).length,
+  }
+
   return (
     <div style={{ padding: 24 }}>
       <Card>
         <div style={{ marginBottom: 24 }}>
           <Title level={4}>
             <BookOutlined style={{ marginRight: 8 }} />
-            用户书架列表
+            书架管理
           </Title>
           <Text type="secondary">
-            展示所有用户的书架统计信息，点击"查看详情"可查看具体书架内容
+            展示所有用户的书架统计信息，联合 user_novels + novels + users 表查询
           </Text>
+        </div>
+
+        {/* 统计信息 */}
+        <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Col span={8}>
+            <Card size="small" style={{ background: '#e6f7ff' }}>
+              <Statistic
+                title="总用户数"
+                value={stats.totalUsers}
+                suffix="人"
+                valueStyle={{ color: '#1890ff' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card size="small" style={{ background: '#f6ffed' }}>
+              <Statistic
+                title="书架总藏书"
+                value={stats.totalBooks}
+                suffix="本"
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+          </Col>
+          <Col span={8}>
+            <Card size="small" style={{ background: '#fff7e6' }}>
+              <Statistic
+                title="活跃读者"
+                value={stats.activeReaders}
+                suffix="人"
+                valueStyle={{ color: '#fa8c16' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+
+        {/* 搜索栏 */}
+        <div style={{ marginBottom: 16 }}>
+          <Input
+            placeholder="搜索用户ID、用户名或邮箱"
+            prefix={<SearchOutlined />}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            allowClear
+            style={{ maxWidth: 400 }}
+          />
         </div>
 
         <Table
           columns={columns}
-          dataSource={bookshelves}
+          dataSource={filteredBookshelves}
           rowKey="user_id"
           loading={loading}
           scroll={{ x: 1000 }}
@@ -290,7 +398,7 @@ const NovelBookshelves: React.FC = () => {
         />
       </Card>
 
-      {/* 详情弹窗 */}
+      {/* 详情弹窗 - 展示：书名、作者、阅读进度、最后阅读时间 */}
       <Modal
         title={
           <Space>
@@ -302,7 +410,7 @@ const NovelBookshelves: React.FC = () => {
         open={detailVisible}
         onCancel={() => setDetailVisible(false)}
         footer={null}
-        width={800}
+        width={900}
       >
         <Spin spinning={detailLoading}>
           {detailList.length === 0 ? (
@@ -364,11 +472,11 @@ const NovelBookshelves: React.FC = () => {
                             percent={Math.round(item.progress * 100)}
                             size="small"
                             status={item.progress >= 1 ? 'success' : 'active'}
-                            format={(percent) => `${percent}%`}
+                            format={(percent) => `阅读进度 ${percent}%`}
                           />
                         </div>
 
-                        <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
+                        <div style={{ display: 'flex', gap: 24, fontSize: 12 }}>
                           <Tooltip title="最新阅读章节">
                             <Space>
                               <ClockCircleOutlined />
@@ -378,7 +486,7 @@ const NovelBookshelves: React.FC = () => {
                             </Space>
                           </Tooltip>
 
-                          <Tooltip title="最新阅读时间">
+                          <Tooltip title="最后阅读时间">
                             <Space>
                               <CalendarOutlined />
                               <Text type="secondary">

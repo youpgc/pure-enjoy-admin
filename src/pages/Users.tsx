@@ -99,6 +99,8 @@ const Users: React.FC = () => {
   // ==================== 数据加载 ====================
   const fetchUsers = useCallback(async () => {
     setLoading(true)
+    console.log('[Users] 开始加载用户列表')
+    
     try {
       // 尝试从 Supabase 获取数据
       const { data: users, error } = await supabase
@@ -107,15 +109,19 @@ const Users: React.FC = () => {
         .order('created_at', { ascending: false })
 
       if (error) {
+        console.error('[Users] Supabase 查询失败:', error)
+        message.error('获取用户列表失败: ' + error.message)
         // 如果数据库查询失败，使用本地数据
-        console.log('Supabase query failed, using local data:', error)
         const { mockUsers } = await import('../utils/mockData')
         setData(mockUsers as User[])
+        console.log('[Users] 使用本地模拟数据')
       } else {
+        console.log(`[Users] 成功加载 ${users?.length || 0} 个用户`)
         setData(users || [])
       }
     } catch (err) {
-      console.error('Failed to fetch users:', err)
+      console.error('[Users] 获取用户列表失败:', err)
+      message.error('获取用户列表失败')
       // 使用本地数据
       const { mockUsers } = await import('../utils/mockData')
       setData(mockUsers as User[])
