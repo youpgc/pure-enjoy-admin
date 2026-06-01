@@ -5,6 +5,7 @@ import { DeleteOutlined, EditOutlined, FireOutlined, CheckCircleOutlined, Calend
 import dayjs from 'dayjs'
 import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { getActionColumn } from '../components/ActionColumn'
+import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
@@ -38,6 +39,49 @@ const getFrequencyLabel = (freq: string): string => {
   }
   return labels[freq] || freq || '-'
 }
+
+const FREQUENCY_OPTIONS = [
+  { value: 'daily', label: '每天' },
+  { value: 'weekly', label: '每周' },
+  { value: 'monthly', label: '每月' },
+  { value: 'custom', label: '自定义' },
+]
+
+// ==================== 编辑字段配置 ====================
+
+const EDIT_FIELDS: EditFieldConfig[] = [
+  {
+    name: 'name',
+    label: '习惯名称',
+    type: 'text',
+    required: true,
+    placeholder: '请输入习惯名称',
+  },
+  {
+    name: 'description',
+    label: '描述',
+    type: 'textarea',
+    placeholder: '请输入习惯描述',
+  },
+  {
+    name: 'frequency',
+    label: '频率',
+    type: 'select',
+    options: FREQUENCY_OPTIONS,
+  },
+  {
+    name: 'target_days',
+    label: '目标天数',
+    type: 'number',
+    min: 1,
+    placeholder: '请输入目标天数',
+  },
+  {
+    name: 'is_active',
+    label: '启用',
+    type: 'switch',
+  },
+]
 
 // ==================== 详情列表列配置 ====================
 
@@ -435,6 +479,8 @@ const Habits: React.FC = () => {
   const { canReadHabits, canWriteHabits, canDeleteHabits } = usePermission()
   const [checkinModalOpen, setCheckinModalOpen] = useState(false)
   const [selectedHabit, setSelectedHabit] = useState<RecordItem | null>(null)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -453,12 +499,13 @@ const Habits: React.FC = () => {
   }
 
   // 编辑记录
-  const handleEdit = (_record: RecordItem) => {
+  const handleEdit = (record: RecordItem) => {
     if (!canWriteHabits) {
       message.warning('您没有编辑习惯的权限')
       return
     }
-    message.info('编辑功能开发中')
+    setEditingRecord(record)
+    setEditModalOpen(true)
   }
 
   // 查看打卡记录
@@ -499,6 +546,19 @@ const Habits: React.FC = () => {
         onClose={() => {
           setCheckinModalOpen(false)
           setSelectedHabit(null)
+        }}
+      />
+      <EditRecordModal
+        open={editModalOpen}
+        record={editingRecord}
+        tableName="user_habits"
+        fields={EDIT_FIELDS}
+        onClose={() => {
+          setEditModalOpen(false)
+          setEditingRecord(null)
+        }}
+        onSuccess={() => {
+          window.location.reload()
         }}
       />
     </>

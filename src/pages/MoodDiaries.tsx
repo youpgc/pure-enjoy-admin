@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, EditOutlined, HeartFilled } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { getActionColumn } from '../components/ActionColumn'
+import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
@@ -20,6 +21,48 @@ const MOOD_COLORS: Record<string, string> = {
   '焦虑': 'purple',
   '愤怒': 'red',
 }
+
+const MOOD_OPTIONS = [
+  { value: '开心', label: '开心' },
+  { value: '愉快', label: '愉快' },
+  { value: '平静', label: '平静' },
+  { value: '一般', label: '一般' },
+  { value: '低落', label: '低落' },
+  { value: '难过', label: '难过' },
+  { value: '焦虑', label: '焦虑' },
+  { value: '愤怒', label: '愤怒' },
+]
+
+// ==================== 编辑字段配置 ====================
+
+const EDIT_FIELDS: EditFieldConfig[] = [
+  {
+    name: 'mood',
+    label: '心情',
+    type: 'select',
+    required: true,
+    options: MOOD_OPTIONS,
+  },
+  {
+    name: 'content',
+    label: '内容',
+    type: 'textarea',
+    required: true,
+    placeholder: '请输入日记内容',
+  },
+  {
+    name: 'date',
+    label: '日期',
+    type: 'date',
+    required: true,
+  },
+  {
+    name: 'tags',
+    label: '标签',
+    type: 'tags',
+    placeholder: '输入标签后按回车添加',
+  },
+]
 
 // ==================== 详情列表列配置 ====================
 
@@ -88,6 +131,8 @@ const getDetailColumns = (
 
 const MoodDiaries: React.FC = () => {
   const { canReadMoods, canWriteMoods, canDeleteMoods } = usePermission()
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -106,12 +151,13 @@ const MoodDiaries: React.FC = () => {
   }
 
   // 编辑记录
-  const handleEdit = (_record: RecordItem) => {
+  const handleEdit = (record: RecordItem) => {
     if (!canWriteMoods) {
       message.warning('您没有编辑心情日记的权限')
       return
     }
-    message.info('编辑功能开发中')
+    setEditingRecord(record)
+    setEditModalOpen(true)
   }
 
   // 模块配置
@@ -132,7 +178,24 @@ const MoodDiaries: React.FC = () => {
     )
   }
 
-  return <UserDimensionList moduleConfig={moduleConfig} />
+  return (
+    <>
+      <UserDimensionList moduleConfig={moduleConfig} />
+      <EditRecordModal
+        open={editModalOpen}
+        record={editingRecord}
+        tableName="mood_diaries"
+        fields={EDIT_FIELDS}
+        onClose={() => {
+          setEditModalOpen(false)
+          setEditingRecord(null)
+        }}
+        onSuccess={() => {
+          window.location.reload()
+        }}
+      />
+    </>
+  )
 }
 
 export default MoodDiaries

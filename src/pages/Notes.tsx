@@ -1,14 +1,58 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, EditOutlined, PushpinOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { getActionColumn } from '../components/ActionColumn'
+import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
 // ==================== 常量定义 ====================
+
+const CATEGORY_OPTIONS = [
+  { value: '工作', label: '工作' },
+  { value: '生活', label: '生活' },
+  { value: '学习', label: '学习' },
+  { value: '其他', label: '其他' },
+]
+
+// ==================== 编辑字段配置 ====================
+
+const EDIT_FIELDS: EditFieldConfig[] = [
+  {
+    name: 'title',
+    label: '标题',
+    type: 'text',
+    required: true,
+    placeholder: '请输入笔记标题',
+  },
+  {
+    name: 'content',
+    label: '内容',
+    type: 'textarea',
+    required: true,
+    placeholder: '请输入笔记内容',
+  },
+  {
+    name: 'category',
+    label: '分类',
+    type: 'select',
+    options: CATEGORY_OPTIONS,
+  },
+  {
+    name: 'tags',
+    label: '标签',
+    type: 'tags',
+    placeholder: '输入标签后按回车添加',
+  },
+  {
+    name: 'is_pinned',
+    label: '置顶',
+    type: 'switch',
+  },
+]
 
 // ==================== 详情列表列配置 ====================
 
@@ -84,6 +128,8 @@ const getDetailColumns = (
 
 const Notes: React.FC = () => {
   const { canReadNotes, canWriteNotes, canDeleteNotes } = usePermission()
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -102,12 +148,13 @@ const Notes: React.FC = () => {
   }
 
   // 编辑记录
-  const handleEdit = (_record: RecordItem) => {
+  const handleEdit = (record: RecordItem) => {
     if (!canWriteNotes) {
       message.warning('您没有编辑笔记的权限')
       return
     }
-    message.info('编辑功能开发中')
+    setEditingRecord(record)
+    setEditModalOpen(true)
   }
 
   // 模块配置
@@ -128,7 +175,24 @@ const Notes: React.FC = () => {
     )
   }
 
-  return <UserDimensionList moduleConfig={moduleConfig} />
+  return (
+    <>
+      <UserDimensionList moduleConfig={moduleConfig} />
+      <EditRecordModal
+        open={editModalOpen}
+        record={editingRecord}
+        tableName="notes"
+        fields={EDIT_FIELDS}
+        onClose={() => {
+          setEditModalOpen(false)
+          setEditingRecord(null)
+        }}
+        onSuccess={() => {
+          window.location.reload()
+        }}
+      />
+    </>
+  )
 }
 
 export default Notes

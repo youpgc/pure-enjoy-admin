@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Tag, Space, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, EditOutlined, StarOutlined, LinkOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { getActionColumn } from '../components/ActionColumn'
+import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
@@ -19,6 +20,50 @@ const CATEGORY_COLORS: Record<string, string> = {
   '链接': 'orange',
   '其他': 'default',
 }
+
+const CATEGORY_OPTIONS = [
+  { value: '文章', label: '文章' },
+  { value: '视频', label: '视频' },
+  { value: '工具', label: '工具' },
+  { value: '网站', label: '网站' },
+  { value: '其他', label: '其他' },
+]
+
+// ==================== 编辑字段配置 ====================
+
+const EDIT_FIELDS: EditFieldConfig[] = [
+  {
+    name: 'title',
+    label: '标题',
+    type: 'text',
+    required: true,
+    placeholder: '请输入收藏标题',
+  },
+  {
+    name: 'url',
+    label: '链接',
+    type: 'text',
+    placeholder: '请输入链接地址',
+  },
+  {
+    name: 'description',
+    label: '描述',
+    type: 'textarea',
+    placeholder: '请输入描述信息',
+  },
+  {
+    name: 'category',
+    label: '分类',
+    type: 'select',
+    options: CATEGORY_OPTIONS,
+  },
+  {
+    name: 'tags',
+    label: '标签',
+    type: 'tags',
+    placeholder: '输入标签后按回车添加',
+  },
+]
 
 // ==================== 详情列表列配置 ====================
 
@@ -111,6 +156,8 @@ const getDetailColumns = (
 
 const Favorites: React.FC = () => {
   const { canReadFavorites, canWriteFavorites, canDeleteFavorites } = usePermission()
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -129,12 +176,13 @@ const Favorites: React.FC = () => {
   }
 
   // 编辑记录
-  const handleEdit = (_record: RecordItem) => {
+  const handleEdit = (record: RecordItem) => {
     if (!canWriteFavorites) {
       message.warning('您没有编辑收藏的权限')
       return
     }
-    message.info('编辑功能开发中')
+    setEditingRecord(record)
+    setEditModalOpen(true)
   }
 
   // 模块配置
@@ -155,7 +203,24 @@ const Favorites: React.FC = () => {
     )
   }
 
-  return <UserDimensionList moduleConfig={moduleConfig} />
+  return (
+    <>
+      <UserDimensionList moduleConfig={moduleConfig} />
+      <EditRecordModal
+        open={editModalOpen}
+        record={editingRecord}
+        tableName="user_favorites"
+        fields={EDIT_FIELDS}
+        onClose={() => {
+          setEditModalOpen(false)
+          setEditingRecord(null)
+        }}
+        onSuccess={() => {
+          window.location.reload()
+        }}
+      />
+    </>
+  )
 }
 
 export default Favorites

@@ -1,14 +1,57 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Tag, Space, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, EditOutlined, BellOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { getActionColumn } from '../components/ActionColumn'
+import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
 // ==================== 常量定义 ====================
+
+const PRIORITY_OPTIONS = [
+  { value: '高', label: '高' },
+  { value: '中', label: '中' },
+  { value: '低', label: '低' },
+]
+
+// ==================== 编辑字段配置 ====================
+
+const EDIT_FIELDS: EditFieldConfig[] = [
+  {
+    name: 'title',
+    label: '标题',
+    type: 'text',
+    required: true,
+    placeholder: '请输入提醒标题',
+  },
+  {
+    name: 'description',
+    label: '描述',
+    type: 'textarea',
+    placeholder: '请输入描述信息',
+  },
+  {
+    name: 'remind_at',
+    label: '提醒时间',
+    type: 'datetime',
+    required: true,
+    showTime: true,
+  },
+  {
+    name: 'is_completed',
+    label: '已完成',
+    type: 'switch',
+  },
+  {
+    name: 'priority',
+    label: '优先级',
+    type: 'select',
+    options: PRIORITY_OPTIONS,
+  },
+]
 
 // ==================== 详情列表列配置 ====================
 
@@ -102,6 +145,8 @@ const getDetailColumns = (
 
 const Reminders: React.FC = () => {
   const { canReadReminders, canWriteReminders, canDeleteReminders } = usePermission()
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -120,12 +165,13 @@ const Reminders: React.FC = () => {
   }
 
   // 编辑记录
-  const handleEdit = (_record: RecordItem) => {
+  const handleEdit = (record: RecordItem) => {
     if (!canWriteReminders) {
       message.warning('您没有编辑提醒的权限')
       return
     }
-    message.info('编辑功能开发中')
+    setEditingRecord(record)
+    setEditModalOpen(true)
   }
 
   // 模块配置
@@ -146,7 +192,24 @@ const Reminders: React.FC = () => {
     )
   }
 
-  return <UserDimensionList moduleConfig={moduleConfig} />
+  return (
+    <>
+      <UserDimensionList moduleConfig={moduleConfig} />
+      <EditRecordModal
+        open={editModalOpen}
+        record={editingRecord}
+        tableName="user_reminders"
+        fields={EDIT_FIELDS}
+        onClose={() => {
+          setEditModalOpen(false)
+          setEditingRecord(null)
+        }}
+        onSuccess={() => {
+          window.location.reload()
+        }}
+      />
+    </>
+  )
 }
 
 export default Reminders

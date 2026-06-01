@@ -1,11 +1,11 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { DeleteOutlined, EditOutlined } from '@ant-design/icons'
-import { LineChartOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, LineChartOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { getActionColumn } from '../components/ActionColumn'
+import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
@@ -17,6 +17,49 @@ const getWeightColor = (weight: number): string => {
   if (weight < 90) return 'gold'
   return 'orange'
 }
+
+// ==================== 编辑字段配置 ====================
+
+const EDIT_FIELDS: EditFieldConfig[] = [
+  {
+    name: 'weight',
+    label: '体重(kg)',
+    type: 'number',
+    required: true,
+    min: 0,
+    step: 0.1,
+    placeholder: '请输入体重',
+  },
+  {
+    name: 'body_fat',
+    label: '体脂率(%)',
+    type: 'number',
+    min: 0,
+    max: 100,
+    step: 0.1,
+    placeholder: '请输入体脂率',
+  },
+  {
+    name: 'bmi',
+    label: 'BMI',
+    type: 'number',
+    min: 0,
+    step: 0.1,
+    placeholder: '请输入BMI',
+  },
+  {
+    name: 'date',
+    label: '日期',
+    type: 'date',
+    required: true,
+  },
+  {
+    name: 'note',
+    label: '备注',
+    type: 'textarea',
+    placeholder: '请输入备注信息',
+  },
+]
 
 // ==================== 详情列表列配置 ====================
 
@@ -97,6 +140,8 @@ const getDetailColumns = (
 
 const WeightRecords: React.FC = () => {
   const { canReadWeights, canWriteWeights, canDeleteWeights } = usePermission()
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -115,12 +160,13 @@ const WeightRecords: React.FC = () => {
   }
 
   // 编辑记录
-  const handleEdit = (_record: RecordItem) => {
+  const handleEdit = (record: RecordItem) => {
     if (!canWriteWeights) {
       message.warning('您没有编辑体重记录的权限')
       return
     }
-    message.info('编辑功能开发中')
+    setEditingRecord(record)
+    setEditModalOpen(true)
   }
 
   // 模块配置
@@ -141,7 +187,24 @@ const WeightRecords: React.FC = () => {
     )
   }
 
-  return <UserDimensionList moduleConfig={moduleConfig} />
+  return (
+    <>
+      <UserDimensionList moduleConfig={moduleConfig} />
+      <EditRecordModal
+        open={editModalOpen}
+        record={editingRecord}
+        tableName="weight_records"
+        fields={EDIT_FIELDS}
+        onClose={() => {
+          setEditModalOpen(false)
+          setEditingRecord(null)
+        }}
+        onSuccess={() => {
+          window.location.reload()
+        }}
+      />
+    </>
+  )
 }
 
 export default WeightRecords
