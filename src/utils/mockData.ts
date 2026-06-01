@@ -26,6 +26,7 @@ const mockUsers: User[] = userNames.map((name, i) => {
   const roles: UserRole[] = ['user', 'user', 'user', 'admin', 'super_admin']
   const memberLevels: MemberLevel[] = ['normal', 'normal', 'member', 'member', 'super_member']
   const statuses: UserStatus[] = ['active', 'active', 'active', 'abnormal', 'disabled', 'banned']
+  const genderOptions: (string | null)[] = ['男', '女', '保密']
   
   return {
     id: generateUserId(),
@@ -34,10 +35,19 @@ const mockUsers: User[] = userNames.map((name, i) => {
     password_hash: null,
     nickname: name,
     avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
-    role: roles[i % roles.length]!,
-    member_level: memberLevels[i % memberLevels.length]!,
+    // 扩展资料字段
+    username: name,
+    bio: i % 3 === 0 ? `我是${name}，很高兴认识大家！` : null,
+    gender: genderOptions[i % genderOptions.length] ?? '保密',
+    birthday: i % 2 === 0 ? '1990-01-01' : null,
+    location: i % 2 === 0 ? '北京市' : null,
+    occupation: i % 3 === 0 ? '软件工程师' : null,
+    company: i % 4 === 0 ? '某科技有限公司' : null,
+    website: null,
+    role: roles[i % roles.length] ?? 'user',
+    member_level: memberLevels[i % memberLevels.length] ?? 'normal',
     points: Math.floor(Math.random() * 10000),
-    status: statuses[i % statuses.length]!,
+    status: statuses[i % statuses.length] ?? 'active',
     register_ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
     last_login_ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
     last_login_at: dayjs().subtract(Math.floor(Math.random() * 7), 'day').format('YYYY-MM-DDTHH:mm:ss'),

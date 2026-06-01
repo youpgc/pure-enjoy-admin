@@ -26,7 +26,7 @@ interface DictItem {
   code: string
   label: string
   value?: string
-  extra?: Record<string, any>
+  extra_data?: Record<string, any>
   sort_order: number
   is_default: boolean
   status: string
@@ -111,7 +111,7 @@ const DictManagement: React.FC = () => {
     if (item) {
       itemForm.setFieldsValue({
         ...item,
-        extra: item.extra ? JSON.stringify(item.extra, null, 2) : ''
+        extra: item.extra_data ? JSON.stringify(item.extra_data, null, 2) : ''
       })
     } else {
       itemForm.resetFields()
@@ -157,12 +157,13 @@ const DictManagement: React.FC = () => {
   // 保存字典项
   const saveItem = async (values: any) => {
     try {
-      const data = { ...values }
+      const data: any = { ...values }
       
-      // 解析 extra JSON
+      // 解析 extra_data JSON
       if (data.extra) {
         try {
-          data.extra = JSON.parse(data.extra)
+          data.extra_data = JSON.parse(data.extra)
+          delete data.extra
         } catch {
           message.error('扩展字段 JSON 格式错误')
           return

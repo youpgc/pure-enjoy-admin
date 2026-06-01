@@ -22,8 +22,6 @@ import {
   DownOutlined,
   BookOutlined,
   EyeOutlined,
-  VerticalAlignTopOutlined,
-  VerticalAlignBottomOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
@@ -45,14 +43,14 @@ interface NovelRecord {
   id: string
   key: string
   title: string
-  author: string
+  author: string | null
   cover_url: string | null
   category: string | null
   description: string | null
-  status: '连载' | '完结'
+  status: string
   word_count: number
   chapter_count: number
-  is_published: boolean
+  is_free: boolean
   created_at: string
   updated_at: string
 }
@@ -175,16 +173,7 @@ const Novels: React.FC = () => {
       options: NOVEL_STATUS_OPTIONS,
       placeholder: '选择状态',
     },
-    {
-      name: 'is_published',
-      label: '上架状态',
-      type: 'select',
-      options: [
-        { label: '已上架', value: 'true' },
-        { label: '已下架', value: 'false' },
-      ],
-      placeholder: '选择上架状态',
-    },
+    // is_published 筛选已移除
   ]
 
   // ==================== 表单配置 ====================
@@ -285,11 +274,7 @@ const Novels: React.FC = () => {
       result = result.filter((record) => record.status === filterValues.status)
     }
 
-    // 上架状态筛选
-    if (filterValues.is_published !== undefined && filterValues.is_published !== '') {
-      const isPublished = filterValues.is_published === 'true'
-      result = result.filter((record) => record.is_published === isPublished)
-    }
+    // is_published 筛选已移除
 
     return result
   }, [data, searchText, filterValues])
@@ -317,41 +302,6 @@ const Novels: React.FC = () => {
       setModalMode('edit')
       setEditingRecord(record)
       setModalOpen(true)
-    },
-    [canWriteNovels]
-  )
-
-  // 上架/下架
-  const handleTogglePublish = useCallback(
-    async (record: NovelRecord) => {
-      if (!canWriteNovels) {
-        message.warning('您没有操作权限')
-        return
-      }
-      try {
-        const newStatus = !record.is_published
-        const { error } = await supabase
-          .from('novels')
-          .update({
-            is_published: newStatus,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', record.id)
-
-        if (error) throw error
-
-        setData((prev) =>
-          prev.map((item) =>
-            item.id === record.id
-              ? { ...item, is_published: newStatus, updated_at: new Date().toISOString() }
-              : item
-          )
-        )
-        message.success(newStatus ? '上架成功' : '下架成功')
-      } catch (error) {
-        console.error('操作失败:', error)
-        message.error('操作失败')
-      }
     },
     [canWriteNovels]
   )
@@ -426,16 +376,25 @@ const Novels: React.FC = () => {
     async (values: Record<string, unknown>) => {
       setConfirmLoading(true)
       try {
+        // 映射中文状态到数据库英文值
+        const statusMap: Record<string, string> = {
+          '连载': 'ongoing',
+          '完结': 'completed',
+        }
+        const dbStatus = statusMap[values.status as string] || 'ongoing'
+
         const novelData = {
           title: values.title as string,
-          author: values.author as string,
+          author: (values.author as string) || null,
           category: (values.category as string) || null,
           cover_url: (values.cover_url as string) || null,
           description: (values.description as string) || null,
-          status: (values.status as string) || '连载',
+          status: dbStatus,
           word_count: (values.word_count as number) || 0,
           chapter_count: (values.chapter_count as number) || 0,
-          is_published: values.is_published !== false,
+          is_free: true, // 默认免费
+          read_count: 0,
+          collect_count: 0,
         }
 
         if (modalMode === 'create') {
@@ -447,11 +406,15 @@ const Novels: React.FC = () => {
 
           if (error) throw error
 
+          // 映射数据库英文状态到中文显示
+          const displayStatusMap: Record<string, string> = {
+            'ongoing': '连载',
+            'completed': '完结',
+          }
           const newRecord: NovelRecord = {
             ...newNovel,
             key: newNovel.id,
-            status: newNovel.status || '连载',
-            is_published: newNovel.is_published !== false,
+            status: displayStatusMap[newNovel.status] || '连载',
           } as NovelRecord
 
           setData((prev) => [newRecord, ...prev])
@@ -467,13 +430,18 @@ const Novels: React.FC = () => {
 
           if (error) throw error
 
+          // 映射数据库英文状态到中文显示
+          const displayStatusMap: Record<string, string> = {
+            'ongoing': '连载',
+            'completed': '完结',
+          }
           setData((prev) =>
             prev.map((item) =>
               item.id === editingRecord?.id
                 ? {
                     ...item,
                     ...novelData,
-                    status: (novelData.status || '连载') as '连载' | '完结',
+                    status: (displayStatusMap[novelData.status] || '连载') as '连载' | '完结',
                     updated_at: new Date().toISOString(),
                   }
                 : item
@@ -521,7 +489,6 @@ const Novels: React.FC = () => {
       { title: '字数', dataIndex: 'word_count', render: (val: unknown) => formatWordCount(val as number) },
       { title: '章节数', dataIndex: 'chapter_count' },
       { title: '状态', dataIndex: 'status' },
-      { title: '上架状态', dataIndex: 'is_published', render: (val: unknown) => val ? '已上架' : '已下架' },
       { title: '创建时间', dataIndex: 'created_at', render: (val: unknown) => dayjs(val as string).format('YYYY-MM-DD HH:mm') },
     ]
     exportToCSV<NovelRecord>(filteredData, columns, '小说管理')
@@ -651,47 +618,14 @@ const Novels: React.FC = () => {
         </Tag>
       ),
     },
-    {
-      title: '上架状态',
-      dataIndex: 'is_published',
-      key: 'is_published',
-      width: 90,
-      filters: [
-        { text: '已上架', value: true },
-        { text: '已下架', value: false },
-      ],
-      onFilter: (value, record) => record.is_published === value,
-      render: (isPublished: boolean) => (
-        <Tag color={isPublished ? 'green' : 'red'}>
-          {isPublished ? '上架' : '下架'}
-        </Tag>
-      ),
-    },
+    // is_published 列已移除，所有公开小说都对用户可见
     {
       title: '操作',
       key: 'action',
       fixed: 'right',
-      width: 280,
+      width: 180,
       render: (_, record) => (
         <Space size="small">
-          <Popconfirm
-            title={record.is_published ? '确认下架' : '确认上架'}
-            description={record.is_published ? '下架后用户将无法看到该小说，是否继续？' : '上架后用户即可看到该小说，是否继续？'}
-            onConfirm={() => handleTogglePublish(record)}
-            okText="确认"
-            cancelText="取消"
-          >
-            <Tooltip title={record.is_published ? '点击下架' : '点击上架'}>
-              <Button
-                type="link"
-                size="small"
-                icon={record.is_published ? <VerticalAlignBottomOutlined /> : <VerticalAlignTopOutlined />}
-                style={{ color: record.is_published ? '#faad14' : '#52c41a' }}
-              >
-                {record.is_published ? '下架' : '上架'}
-              </Button>
-            </Tooltip>
-          </Popconfirm>
           <Tooltip title="查看章节">
             <Button
               type="link"

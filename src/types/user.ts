@@ -20,6 +20,15 @@ export interface User {
   password_hash: string | null
   nickname: string | null
   avatar_url: string | null
+  // 扩展资料字段 (V1.9.2)
+  username: string | null
+  bio: string | null
+  gender: string | null // 男/女/保密
+  birthday: string | null
+  location: string | null
+  occupation: string | null
+  company: string | null
+  website: string | null
   role: UserRole
   member_level: MemberLevel
   points: number
@@ -32,12 +41,21 @@ export interface User {
   updated_at: string
 }
 
-// 用户表单数据
+// 用户表单数据 (表单使用 dayjs 作为日期类型)
 export interface UserFormData {
   email: string
   phone?: string
   password?: string
   nickname?: string
+  // 扩展资料字段
+  username?: string
+  bio?: string
+  gender?: string
+  birthday?: string | null // 表单可能返回 dayjs 对象，需在提交时转换
+  location?: string
+  occupation?: string
+  company?: string
+  website?: string
   role: UserRole
   member_level: MemberLevel
   status: UserStatus

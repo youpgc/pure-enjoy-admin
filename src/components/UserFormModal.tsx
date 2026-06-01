@@ -5,8 +5,11 @@ import {
   Input,
   Select,
   InputNumber,
+  DatePicker,
   message,
+  Divider,
 } from 'antd'
+import type { Dayjs } from 'dayjs'
 import type { User, UserFormData, UserRole, MemberLevel, UserStatus } from '../types/user'
 import { USER_ROLE_OPTIONS, MEMBER_LEVEL_OPTIONS, USER_STATUS_OPTIONS } from '../types/user'
 
@@ -38,6 +41,15 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           email: user.email,
           phone: user.phone || '',
           nickname: user.nickname || '',
+          // 扩展资料字段
+          username: user.username || '',
+          bio: user.bio || '',
+          gender: user.gender || '保密',
+          birthday: user.birthday ? user.birthday : undefined,
+          location: user.location || '',
+          occupation: user.occupation || '',
+          company: user.company || '',
+          website: user.website || '',
           role: user.role,
           member_level: user.member_level,
           status: user.status,
@@ -46,6 +58,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
       } else {
         form.resetFields()
         form.setFieldsValue({
+          gender: '保密',
           role: 'user',
           member_level: 'normal',
           status: 'active',
@@ -58,8 +71,17 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
+      // 处理日期字段 - DatePicker 返回 dayjs 对象
+      const birthdayValue = values.birthday 
+        ? String((values.birthday as unknown as Dayjs).format('YYYY-MM-DD'))
+        : null
+      
+      const submitData = {
+        ...values,
+        birthday: birthdayValue,
+      }
       setSubmitting(true)
-      await onSubmit(values)
+      await onSubmit(submitData)
       message.success(mode === 'create' ? '用户创建成功' : '用户更新成功')
       form.resetFields()
       onCancel()
@@ -84,19 +106,22 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
       onOk={handleSubmit}
       onCancel={handleCancel}
       confirmLoading={submitting || loading}
-      width={520}
+      width={600}
       destroyOnClose
     >
       <Form
         form={form}
         layout="vertical"
         initialValues={{
+          gender: '保密',
           role: 'user' as UserRole,
           member_level: 'normal' as MemberLevel,
           status: 'active' as UserStatus,
           points: 0,
         }}
       >
+        <Divider orientation="left">基本信息</Divider>
+
         <Form.Item
           name="email"
           label="邮箱"
@@ -154,6 +179,74 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
         >
           <Input placeholder="请输入昵称" />
         </Form.Item>
+
+        <Divider orientation="left">扩展资料</Divider>
+
+        <Form.Item
+          name="username"
+          label="用户名"
+        >
+          <Input placeholder="请输入用户名" />
+        </Form.Item>
+
+        <Form.Item
+          name="bio"
+          label="个性签名"
+        >
+          <Input.TextArea rows={2} placeholder="介绍一下自己" />
+        </Form.Item>
+
+        <Form.Item
+          name="gender"
+          label="性别"
+        >
+          <Select placeholder="请选择性别">
+            <Select.Option value="男">男</Select.Option>
+            <Select.Option value="女">女</Select.Option>
+            <Select.Option value="保密">保密</Select.Option>
+          </Select>
+        </Form.Item>
+
+        <Form.Item
+          name="birthday"
+          label="生日"
+        >
+          <DatePicker
+            style={{ width: '100%' }}
+            placeholder="选择生日"
+            format="YYYY-MM-DD"
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="location"
+          label="所在地"
+        >
+          <Input placeholder="请输入所在城市" />
+        </Form.Item>
+
+        <Form.Item
+          name="occupation"
+          label="职业"
+        >
+          <Input placeholder="请输入职业" />
+        </Form.Item>
+
+        <Form.Item
+          name="company"
+          label="公司/组织"
+        >
+          <Input placeholder="请输入公司或组织名称" />
+        </Form.Item>
+
+        <Form.Item
+          name="website"
+          label="个人网站"
+        >
+          <Input placeholder="https://example.com" />
+        </Form.Item>
+
+        <Divider orientation="left">账户设置</Divider>
 
         <Form.Item
           name="role"
