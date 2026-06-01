@@ -219,7 +219,7 @@ const Users: React.FC = () => {
       phone: formData.phone || null,
       password_hash: passwordHash,
       nickname: formData.nickname || null,
-      avatar_url: null,
+      avatar_url: formData.avatar_url || null,
       // 扩展资料字段
       username: formData.username || null,
       bio: formData.bio || null,
@@ -271,6 +271,7 @@ const Users: React.FC = () => {
       const updateData: Record<string, any> = {
         phone: formData.phone || null,
         nickname: formData.nickname || null,
+        avatar_url: formData.avatar_url || null,
         // 扩展资料字段
         username: formData.username || null,
         bio: formData.bio || null,
@@ -305,6 +306,7 @@ const Users: React.FC = () => {
                 ...user,
                 phone: formData.phone || null,
                 nickname: formData.nickname || null,
+                avatar_url: formData.avatar_url || null,
                 // 扩展资料字段
                 username: formData.username || null,
                 bio: formData.bio || null,

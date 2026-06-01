@@ -8,11 +8,17 @@ import {
   DatePicker,
   message,
   Divider,
+  Upload,
+  Avatar,
+  Space,
+  Button,
 } from 'antd'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
+import { UploadOutlined, UserOutlined } from '@ant-design/icons'
 import type { User, UserFormData, UserRole, MemberLevel, UserStatus } from '../types/user'
 import { USER_ROLE_OPTIONS, MEMBER_LEVEL_OPTIONS, USER_STATUS_OPTIONS } from '../types/user'
+import { supabase } from '../utils/supabase'
 
 interface UserFormModalProps {
   open: boolean
@@ -33,6 +39,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
 }) => {
   const [form] = Form.useForm<UserFormData>()
   const [submitting, setSubmitting] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string>('')
+  const [uploading, setUploading] = useState(false)
 
   // 初始化表单值
   useEffect(() => {
@@ -42,6 +50,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           email: user.email,
           phone: user.phone || '',
           nickname: user.nickname || '',
+          avatar_url: user.avatar_url || '',
           // 扩展资料字段
           username: user.username || '',
           bio: user.bio || '',
@@ -56,6 +65,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           status: user.status,
           points: user.points,
         })
+        setAvatarUrl(user.avatar_url || '')
       } else {
         form.resetFields()
         form.setFieldsValue({
@@ -65,9 +75,58 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           status: 'active',
           points: 0,
         })
+        setAvatarUrl('')
       }
     }
   }, [open, mode, user, form])
+
+  // 上传头像到 Supabase Storage
+  const handleAvatarUpload = async (file: File) => {
+    try {
+      setUploading(true)
+      
+      // 验证文件类型
+      if (!file.type.startsWith('image/')) {
+        message.error('请上传图片文件')
+        return false
+      }
+      
+      // 验证文件大小 (2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        message.error('图片大小不能超过 2MB')
+        return false
+      }
+
+      // 生成唯一文件名
+      const fileExt = file.name.split('.').pop()
+      const fileName = `avatars/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
+
+      // 上传到 Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('public')
+        .upload(fileName, file)
+
+      if (uploadError) {
+        throw uploadError
+      }
+
+      // 获取公开 URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('public')
+        .getPublicUrl(fileName)
+
+      setAvatarUrl(publicUrl)
+      form.setFieldsValue({ avatar_url: publicUrl })
+      message.success('头像上传成功')
+      return false // 阻止默认上传行为
+    } catch (error) {
+      console.error('头像上传失败:', error)
+      message.error('头像上传失败')
+      return false
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const handleSubmit = async () => {
     try {
@@ -179,6 +238,30 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           label="昵称"
         >
           <Input placeholder="请输入昵称" />
+        </Form.Item>
+
+        <Form.Item
+          name="avatar_url"
+          label="头像"
+        >
+          <Space direction="vertical" align="center">
+            <Avatar
+              size={100}
+              src={avatarUrl}
+              icon={!avatarUrl && <UserOutlined />}
+              style={{ backgroundColor: avatarUrl ? 'transparent' : '#1890ff' }}
+            />
+            <Upload
+              beforeUpload={handleAvatarUpload}
+              showUploadList={false}
+              accept="image/*"
+            >
+              <Button icon={<UploadOutlined />} loading={uploading}>
+                {avatarUrl ? '更换头像' : '上传头像'}
+              </Button>
+            </Upload>
+            <Input type="hidden" />
+          </Space>
         </Form.Item>
 
         <Divider orientation="left">扩展资料</Divider>

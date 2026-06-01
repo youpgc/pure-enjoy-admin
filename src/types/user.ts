@@ -49,6 +49,7 @@ export interface UserFormData {
   phone?: string
   password?: string
   nickname?: string
+  avatar_url?: string
   // 扩展资料字段
   username?: string
   bio?: string
