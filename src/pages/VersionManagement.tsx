@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Modal, Form, Input, Select, Upload, Tag, Space,
-  message, Popconfirm, QRCode, Tooltip, Card, Descriptions, Typography
+  message, QRCode, Card, Descriptions, Typography
 } from 'antd'
 import {
   UploadOutlined, DownloadOutlined, RollbackOutlined,
@@ -11,6 +11,7 @@ import {
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import dayjs from 'dayjs'
+import { getActionColumn } from '../components/ActionColumn'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -326,97 +327,70 @@ const VersionManagement: React.FC = () => {
       key: 'created_at',
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
-    {
-      title: '通用操作',
-      key: 'common-action',
-      render: (_: unknown, record: AppVersion) => (
-        <Space size="small">
-          {record.apk_url && (
-            <Tooltip title="下载二维码">
-              <Button
-                size="small"
-                icon={<QrcodeOutlined />}
-                onClick={() => showQrCode(record)}
-              />
-            </Tooltip>
-          )}
-          {record.apk_url && (
-            <Tooltip title="下载APK">
-              <Button
-                size="small"
-                type="link"
-                icon={<DownloadOutlined />}
-                href={record.apk_url!}
-                target="_blank"
-              />
-            </Tooltip>
-          )}
-        </Space>
-      ),
-    },
-    ...(canManageVersions ? [{
-      title: '管理操作',
-      key: 'manage-action',
-      render: (_: unknown, record: AppVersion) => (
-        <Space size="small">
-          {record.status === 'draft' && record.apk_url && (
-            <Tooltip title="发布此版本">
-              <Button
-                type="primary"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                onClick={() => handleRelease(record)}
-              >
-                发布
-              </Button>
-            </Tooltip>
-          )}
-          {record.status === 'released' && (
-            <Tooltip title="撤回此版本">
-              <Popconfirm
-                title="确认撤回"
-                description="撤回后用户将不再收到此版本更新"
-                onConfirm={() => handleRevoke(record)}
-                okText="撤回"
-                cancelText="取消"
-                okButtonProps={{ danger: true }}
-              >
-                <Button size="small" danger icon={<CloseCircleOutlined />}>
-                  撤回
-                </Button>
-              </Popconfirm>
-            </Tooltip>
-          )}
-          {(record.status === 'released' || record.status === 'revoked') && record.apk_url && (
-            <Tooltip title="回滚到此版本">
-              <Popconfirm
-                title="确认回滚"
-                description={`将撤回当前版本并重新发布 v${record.version}，确定吗？`}
-                onConfirm={() => handleRollback(record)}
-                okText="回滚"
-                cancelText="取消"
-              >
-                <Button size="small" icon={<RollbackOutlined />}>
-                  回滚
-                </Button>
-              </Popconfirm>
-            </Tooltip>
-          )}
-          {record.status === 'released' && (
-            <Tooltip title={record.release_type === 'force' ? '取消强制更新' : '设为强制更新'}>
-              <Button
-                size="small"
-                type={record.release_type === 'force' ? 'primary' : 'default'}
-                danger={record.release_type === 'force'}
-                onClick={() => handleToggleForceUpdate(record)}
-              >
-                {record.release_type === 'force' ? '取消强制' : '设为强制'}
-              </Button>
-            </Tooltip>
-          )}
-        </Space>
-      ),
-    }] : []),
+    getActionColumn<AppVersion>(
+      (record) => {
+        const actions: import('../components/ActionColumn').ActionButton[] = []
+        
+        // 通用操作
+        if (record.apk_url) {
+          actions.push(
+            {
+              key: 'qr',
+              label: '二维码',
+              icon: <QrcodeOutlined />,
+              onClick: () => showQrCode(record),
+            },
+            {
+              key: 'download',
+              label: '下载',
+              icon: <DownloadOutlined />,
+              onClick: () => window.open(record.apk_url!, '_blank'),
+            }
+          )
+        }
+        
+        // 管理操作（需要权限）
+        if (canManageVersions) {
+          if (record.status === 'draft' && record.apk_url) {
+            actions.push({
+              key: 'release',
+              label: '发布',
+              icon: <CheckCircleOutlined />,
+              type: 'primary',
+              onClick: () => handleRelease(record),
+            })
+          }
+          if (record.status === 'released') {
+            actions.push({
+              key: 'revoke',
+              label: '撤回',
+              icon: <CloseCircleOutlined />,
+              danger: true,
+              onClick: () => handleRevoke(record),
+            })
+          }
+          if ((record.status === 'released' || record.status === 'revoked') && record.apk_url) {
+            actions.push({
+              key: 'rollback',
+              label: '回滚',
+              icon: <RollbackOutlined />,
+              onClick: () => handleRollback(record),
+            })
+          }
+          if (record.status === 'released') {
+            actions.push({
+              key: 'force',
+              label: record.release_type === 'force' ? '取消强制' : '设为强制',
+              danger: record.release_type === 'force',
+              onClick: () => handleToggleForceUpdate(record),
+            })
+          }
+        }
+        
+        return actions
+      },
+      { width: 240, maxVisible: 2 }
+    ),
   ]
 
   return (
