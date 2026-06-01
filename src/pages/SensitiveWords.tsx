@@ -170,15 +170,14 @@ const SensitiveWords: React.FC = () => {
   const fetchSwitches = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('app_configs')
-        .select('key, value')
-        .in('key', ['sensitive_word_novel_enabled', 'sensitive_word_system_enabled'])
+        .from('sensitive_word_configs')
+        .select('config_key, config_value')
 
       if (error) throw error
 
       setSwitches(prev => prev.map(sw => {
-        const config = data?.find(d => d.key === sw.key)
-        return { ...sw, enabled: config?.value === 'true' }
+        const config = data?.find((d: any) => d.config_key === sw.key)
+        return { ...sw, enabled: config?.config_value === 'true' }
       }))
     } catch (error: any) {
       console.error('加载开关状态失败:', error)
@@ -304,9 +303,9 @@ const SensitiveWords: React.FC = () => {
     try {
       const newValue = !sw.enabled
       const { error } = await supabase
-        .from('app_configs')
-        .update({ value: String(newValue), updated_at: new Date().toISOString() })
-        .eq('key', sw.key)
+        .from('sensitive_word_configs')
+        .update({ config_value: String(newValue), updated_at: new Date().toISOString() })
+        .eq('config_key', sw.key)
       if (error) throw error
 
       setSwitches(prev => prev.map(s => s.key === sw.key ? { ...s, enabled: newValue } : s))
