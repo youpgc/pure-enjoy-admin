@@ -279,28 +279,60 @@ const MainLayout: React.FC = () => {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      {/* 固定左侧菜单栏 */}
       <Sider
         trigger={null}
         collapsible
         collapsed={collapsed}
         theme="light"
-        style={{ boxShadow: '2px 0 8px rgba(0,0,0,0.05)' }}
+        style={{
+          boxShadow: '2px 0 8px rgba(0,0,0,0.05)',
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          zIndex: 100,
+          height: '100vh',
+          overflow: 'hidden',
+        }}
       >
         <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <h2 style={{ margin: 0, color: '#6C63FF', fontSize: collapsed ? 14 : 20 }}>
             {collapsed ? '纯' : '纯享管理'}
           </h2>
         </div>
-        <Menu
-          mode="inline"
-          selectedKeys={[currentPage]}
-          items={menuItems}
-          onClick={({ key }) => setCurrentPage(key as PageKey)}
-          style={{ borderRight: 0 }}
-        />
+        {/* 菜单区域 - 可滚动 */}
+        <div style={{ height: 'calc(100vh - 64px)', overflow: 'auto' }}>
+          <Menu
+            mode="inline"
+            selectedKeys={[currentPage]}
+            items={menuItems}
+            onClick={({ key }) => setCurrentPage(key as PageKey)}
+            style={{ borderRight: 0 }}
+            inlineCollapsed={collapsed}
+          />
+        </div>
       </Sider>
-      <Layout>
-        <Header style={{ padding: '0 24px', background: colorBgContainer, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      
+      {/* 主内容区域 */}
+      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
+        {/* 固定顶部信息栏 */}
+        <Header 
+          style={{ 
+            padding: '0 24px', 
+            background: colorBgContainer, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            position: 'fixed',
+            top: 0,
+            left: collapsed ? 80 : 200,
+            right: 0,
+            zIndex: 99,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+            transition: 'left 0.2s',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
               style: { fontSize: 18, cursor: 'pointer', color: '#999' },
@@ -318,13 +350,24 @@ const MainLayout: React.FC = () => {
             </a>
           </div>
         </Header>
-        <Content style={{ margin: 24, padding: 24, background: colorBgContainer, borderRadius: 8 }}>
-          <NavigationContext.Provider value={{
-            currentPage,
-            setCurrentPage,
-          }}>
-            {renderPage()}
-          </NavigationContext.Provider>
+        
+        {/* 内容区域 - 带顶部偏移 */}
+        <Content 
+          style={{ 
+            marginTop: 64,
+            padding: 24, 
+            minHeight: 'calc(100vh - 64px)',
+            overflow: 'auto',
+          }}
+        >
+          <div style={{ background: colorBgContainer, borderRadius: 8, padding: 24 }}>
+            <NavigationContext.Provider value={{
+              currentPage,
+              setCurrentPage,
+            }}>
+              {renderPage()}
+            </NavigationContext.Provider>
+          </div>
         </Content>
       </Layout>
     </Layout>
