@@ -560,7 +560,7 @@ const SensitiveWords: React.FC = () => {
           onClick: () => handleDelete([record.id]),
         },
       ],
-      { width: 180, maxVisible: 3 }
+      { width: 240, maxVisible: 2 }
     ),
   ]
 

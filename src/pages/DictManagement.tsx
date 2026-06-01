@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Card, Table, Button, Modal, Form, Input, Select, Switch, Space, message, Popconfirm, Tabs, Badge, Tag } from 'antd'
+import { Card, Table, Button, Modal, Form, Input, Select, Switch, Space, message, Tabs, Badge, Tag } from 'antd'
 import { PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons'
 import { supabase, logOperation } from '../utils/supabase'
+import { getActionColumn } from '../components/ActionColumn'
 
 const { TabPane } = Tabs
 const { Option } = Select
@@ -252,31 +253,29 @@ const DictManagement: React.FC = () => {
       )
     },
     { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 80 },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_: any, record: DictType) => (
-        <Space>
-          <Button type="text" icon={<EditOutlined />} onClick={() => openTypeModal(record)}>
-            编辑
-          </Button>
-          {!record.is_system && (
-            <Popconfirm
-              title="确定删除此字典类型吗？"
-              description="删除后关联的字典项也会被删除"
-              onConfirm={() => deleteType(record.id, record.name)}
-              okText="确定"
-              cancelText="取消"
-            >
-              <Button type="text" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
+    getActionColumn<any>(
+      (record) => {
+        const actions: import('../components/ActionColumn').ActionButton[] = [
+          {
+            key: 'edit',
+            label: '编辑',
+            icon: <EditOutlined />,
+            onClick: () => openTypeModal(record),
+          },
+        ]
+        if (!record.is_system) {
+          actions.push({
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => deleteType(record.id, record.name),
+          })
+        }
+        return actions
+      },
+      { width: 240, maxVisible: 2 }
+    ),
   ]
 
   // 字典项表格列
@@ -315,28 +314,24 @@ const DictManagement: React.FC = () => {
       )
     },
     { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 80 },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_: any, record: DictItem) => (
-        <Space>
-          <Button type="text" icon={<EditOutlined />} onClick={() => openItemModal(record)}>
-            编辑
-          </Button>
-          <Popconfirm
-            title="确定删除此字典项吗？"
-            onConfirm={() => deleteItem(record.id, record.label)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Button type="text" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    getActionColumn<any>(
+      (record) => [
+        {
+          key: 'edit',
+          label: '编辑',
+          icon: <EditOutlined />,
+          onClick: () => openItemModal(record),
+        },
+        {
+          key: 'delete',
+          label: '删除',
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => deleteItem(record.id, record.label),
+        },
+      ],
+      { width: 240, maxVisible: 2 }
+    ),
   ]
 
   return (

@@ -329,7 +329,7 @@ const NovelBookshelves: React.FC = () => {
           onClick: () => handleViewDetail(record),
         },
       ],
-      { width: 180, maxVisible: 3 }
+      { width: 240, maxVisible: 2 }
     ),
   ]
 

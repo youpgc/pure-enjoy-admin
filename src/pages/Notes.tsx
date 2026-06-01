@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react'
-import { Tag, Button, Space, Popconfirm, message } from 'antd'
+import { Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, EditOutlined, PushpinOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
+import { getActionColumn } from '../components/ActionColumn'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
@@ -54,38 +55,29 @@ const getDetailColumns = (
     defaultSortOrder: 'descend',
     render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
   },
-  {
-    title: '操作',
-    key: 'action',
-    fixed: 'right',
-    width: 120,
-    render: (_, record) => (
-      <Space size="small">
-        <Button
-          type="link"
-          size="small"
-          icon={<EditOutlined />}
-          onClick={() => onEdit(record)}
-        >
-          编辑
-        </Button>
-        {canDelete && (
-          <Popconfirm
-            title="确认删除"
-            description="删除后无法恢复，是否继续？"
-            onConfirm={() => onDelete(record.id as string)}
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        )}
-      </Space>
+    getActionColumn<any>(
+      (record) => {
+        const actions: import('../components/ActionColumn').ActionButton[] = [
+          {
+            key: 'edit',
+            label: '编辑',
+            icon: <EditOutlined />,
+            onClick: () => onEdit(record),
+          },
+        ]
+        if (canDelete) {
+          actions.push({
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => onDelete(record.id as string),
+          })
+        }
+        return actions
+      },
+      { width: 240, maxVisible: 2 }
     ),
-  },
 ]
 
 // ==================== 主组件 ====================

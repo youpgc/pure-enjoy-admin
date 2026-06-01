@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Modal, Form, Input, InputNumber, Select, Tag, Space,
-  message, Switch, Popconfirm, Tooltip
+  message, Switch
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, ReloadOutlined, StopOutlined
 } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
+import { getActionColumn } from '../components/ActionColumn'
 import dayjs from 'dayjs'
 
 const { TextArea } = Input
@@ -228,35 +229,25 @@ const AppConfigs: React.FC = () => {
       width: 170,
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_: unknown, record: AppConfig) => (
-        <Space size="small">
-          <Tooltip title="编辑">
-            <Button
-              size="small"
-              type="primary"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="确认删除"
-            description={`确定要删除「${record.title}」吗？`}
-            onConfirm={() => handleDelete(record)}
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Tooltip title="删除">
-              <Button size="small" danger icon={<StopOutlined />} />
-            </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    getActionColumn<any>(
+      (record: any) => [
+        {
+          key: 'edit',
+          label: '编辑',
+          icon: <EditOutlined />,
+          type: 'primary' as const,
+          onClick: () => handleEdit(record),
+        },
+        {
+          key: 'delete',
+          label: '删除',
+          icon: <StopOutlined />,
+          danger: true,
+          onClick: () => handleDelete(record),
+        },
+      ],
+      { width: 240, maxVisible: 2 }
+    ),
   ]
 
   return (

@@ -648,7 +648,7 @@ const Novels: React.FC = () => {
         }
         return actions
       },
-      { width: 180, maxVisible: 3 }
+      { width: 240, maxVisible: 2 }
     ),
   ]
 
