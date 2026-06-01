@@ -9,10 +9,8 @@ interface ErrorLog {
   level: 'error' | 'warning' | 'info'
   module: string
   message: string
-  detail?: string
-  stack_trace?: string
+  detail?: Record<string, unknown> // JSONB 类型，存储任意结构化数据
   user_id?: string
-  ip?: string
   created_at?: string
 }
 
@@ -69,8 +67,10 @@ export function reportError(
     level,
     module,
     message,
-    detail: detail || message,
-    stack_trace: error?.stack,
+    detail: {
+      description: detail || message,
+      stack_trace: error?.stack,
+    },
   }
   
   // 添加到队列
