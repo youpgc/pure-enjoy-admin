@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Tag, message } from 'antd'
+import { Tag, Space, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, EditOutlined, PushpinOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -77,6 +77,31 @@ const getDetailColumns = (
     ellipsis: true,
     width: 200,
     render: (title: string) => title || '-',
+  },
+  {
+    title: '分类',
+    dataIndex: 'category',
+    key: 'category',
+    width: 100,
+    render: (category: string) => category ? <Tag color="blue">{category}</Tag> : '-',
+  },
+  {
+    title: '标签',
+    dataIndex: 'tags',
+    key: 'tags',
+    width: 150,
+    render: (tags: string[] | string) => {
+      if (!tags) return '-'
+      const tagList = Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').filter(Boolean) : [])
+      return (
+        <Space size={4} wrap>
+          {tagList.slice(0, 3).map((tag, index) => (
+            <Tag key={index} color="cyan" style={{ margin: 0 }}>{tag.trim()}</Tag>
+          ))}
+          {tagList.length > 3 && <Tag style={{ margin: 0 }}>+{tagList.length - 3}</Tag>}
+        </Space>
+      )
+    },
   },
   {
     title: '内容预览',

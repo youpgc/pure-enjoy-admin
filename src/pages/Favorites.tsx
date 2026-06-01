@@ -107,6 +107,24 @@ const getDetailColumns = (
     ) : '-',
   },
   {
+    title: '标签',
+    dataIndex: 'tags',
+    key: 'tags',
+    width: 150,
+    render: (tags: string[] | string) => {
+      if (!tags) return '-'
+      const tagList = Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').filter(Boolean) : [])
+      return (
+        <Space size={4} wrap>
+          {tagList.slice(0, 3).map((tag, index) => (
+            <Tag key={index} color="blue" style={{ margin: 0 }}>{tag.trim()}</Tag>
+          ))}
+          {tagList.length > 3 && <Tag style={{ margin: 0 }}>+{tagList.length - 3}</Tag>}
+        </Space>
+      )
+    },
+  },
+  {
     title: '备注',
     dataIndex: 'note',
     key: 'note',

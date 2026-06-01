@@ -85,6 +85,38 @@ const getDetailColumns = (
     ),
   },
   {
+    title: 'BMI',
+    dataIndex: 'bmi',
+    key: 'bmi',
+    width: 100,
+    sorter: (a, b) => {
+      const bA = (a.bmi as number) || 0
+      const bB = (b.bmi as number) || 0
+      return bB - bA
+    },
+    render: (bmi: number) => {
+      if (!bmi) return '-'
+      const color = bmi < 18.5 ? 'cyan' : bmi < 24 ? 'green' : bmi < 28 ? 'gold' : 'red'
+      return <Tag color={color}>{bmi.toFixed(1)}</Tag>
+    },
+  },
+  {
+    title: '体脂率(%)',
+    dataIndex: 'body_fat',
+    key: 'body_fat',
+    width: 100,
+    sorter: (a, b) => {
+      const fA = (a.body_fat as number) || 0
+      const fB = (b.body_fat as number) || 0
+      return fB - fA
+    },
+    render: (bodyFat: number) => {
+      if (!bodyFat) return '-'
+      const color = bodyFat < 15 ? 'cyan' : bodyFat < 25 ? 'green' : 'orange'
+      return <Tag color={color}>{bodyFat.toFixed(1)}%</Tag>
+    },
+  },
+  {
     title: '记录日期',
     dataIndex: 'date',
     key: 'date',

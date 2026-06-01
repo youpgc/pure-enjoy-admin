@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { Tag, message } from 'antd'
+import { Tag, Space, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, EditOutlined, HeartFilled } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -89,6 +89,36 @@ const getDetailColumns = (
     ellipsis: true,
     width: 250,
     render: (text: string) => text || '-',
+  },
+  {
+    title: '标签',
+    dataIndex: 'tags',
+    key: 'tags',
+    width: 150,
+    render: (tags: string[] | string) => {
+      if (!tags) return '-'
+      const tagList = Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').filter(Boolean) : [])
+      return (
+        <Space size={4} wrap>
+          {tagList.slice(0, 3).map((tag, index) => (
+            <Tag key={index} color="purple" style={{ margin: 0 }}>{tag.trim()}</Tag>
+          ))}
+          {tagList.length > 3 && <Tag style={{ margin: 0 }}>+{tagList.length - 3}</Tag>}
+        </Space>
+      )
+    },
+  },
+  {
+    title: '日期',
+    dataIndex: 'date',
+    key: 'date',
+    width: 120,
+    sorter: (a, b) => {
+      const dateA = (a.date as string) || ''
+      const dateB = (b.date as string) || ''
+      return dateA.localeCompare(dateB)
+    },
+    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD') : '-',
   },
   {
     title: '创建时间',
