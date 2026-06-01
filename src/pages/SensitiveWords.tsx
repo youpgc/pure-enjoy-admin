@@ -130,6 +130,11 @@ const SensitiveWords: React.FC = () => {
   // 统计数据
   const [stats, setStats] = useState({ total: 0, novelCount: 0, systemCount: 0, activeCount: 0 })
 
+  // 测试功能状态
+  const [testText, setTestText] = useState('')
+  const [testResults, setTestResults] = useState<{ word: string; level: string; matchType: string }[]>([])
+  const [testLoading, setTestLoading] = useState(false)
+
   // ==================== 数据加载 ====================
 
   const fetchData = useCallback(async () => {
@@ -218,6 +223,72 @@ const SensitiveWords: React.FC = () => {
 
     return result
   })()
+
+  // ==================== 敏感词测试 ====================
+
+  const handleTestWords = useCallback(() => {
+    if (!testText.trim()) {
+      message.warning('请输入测试文本')
+      return
+    }
+
+    setTestLoading(true)
+    const results: { word: string; level: string; matchType: string }[] = []
+
+    // 只测试已启用的敏感词
+    const activeWords = data.filter(w => w.is_active)
+
+    activeWords.forEach(word => {
+      let matched = false
+      let matchType = ''
+
+      switch (word.match_mode) {
+        case 'exact':
+          // 精确匹配：文本中完全包含敏感词
+          if (testText === word.word || testText.split(/\s+/).includes(word.word)) {
+            matched = true
+            matchType = '精确匹配'
+          }
+          break
+        case 'contains':
+          // 包含匹配：文本中包含敏感词
+          if (testText.includes(word.word)) {
+            matched = true
+            matchType = '包含匹配'
+          }
+          break
+        case 'regex':
+          // 正则匹配
+          try {
+            const regex = new RegExp(word.word, 'gi')
+            if (regex.test(testText)) {
+              matched = true
+              matchType = '正则匹配'
+            }
+          } catch (e) {
+            // 正则表达式无效，跳过
+          }
+          break
+      }
+
+      if (matched) {
+        results.push({
+          word: word.word,
+          level: LEVEL_LABELS[word.level] || word.level,
+          matchType,
+        })
+      }
+    })
+
+    setTestResults(results)
+    setTestLoading(false)
+
+    if (results.length === 0) {
+      message.success('测试通过，未命中任何敏感词')
+    } else {
+      message.warning(`命中 ${results.length} 个敏感词`)
+    }
+  }, [testText, data])
 
   // ==================== CRUD 操作 ====================
 
@@ -640,6 +711,64 @@ const SensitiveWords: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* 敏感词测试面板 */}
+      <Card
+        style={{ marginBottom: 16 }}
+        title={
+          <Space>
+            <SafetyCertificateOutlined />
+            <span>敏感词测试</span>
+          </Space>
+        }
+        size="small"
+      >
+        <Row gutter={16}>
+          <Col span={16}>
+            <TextArea
+              placeholder="输入要测试的文本内容..."
+              rows={4}
+              value={testText}
+              onChange={(e) => setTestText(e.target.value)}
+            />
+          </Col>
+          <Col span={8}>
+            <Button
+              type="primary"
+              onClick={handleTestWords}
+              loading={testLoading}
+              style={{ marginBottom: 12 }}
+            >
+              开始测试
+            </Button>
+            <Button
+              onClick={() => {
+                setTestText('')
+                setTestResults([])
+              }}
+            >
+              清空
+            </Button>
+          </Col>
+        </Row>
+        {testResults.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <Divider style={{ margin: '8px 0' }} />
+            <Text strong>命中结果：</Text>
+            <div style={{ marginTop: 8 }}>
+              {testResults.map((result, index) => (
+                <Tag
+                  key={index}
+                  color={result.level === '屏蔽' ? 'red' : result.level === '替换' ? 'orange' : 'blue'}
+                  style={{ marginBottom: 4 }}
+                >
+                  {result.word} ({result.matchType} - {result.level})
+                </Tag>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* 主内容区 */}
       <Card>
