@@ -45,6 +45,8 @@ import Habits from './pages/Habits'
 import AppConfigs from './pages/AppConfigs'
 import NovelBookshelves from './pages/NovelBookshelves'
 import DictManagement from './pages/DictManagement'
+import SensitiveWords from './pages/SensitiveWords'
+import SensitiveWordAnalytics from './pages/SensitiveWordAnalytics'
 
 
 const { Header, Sider, Content } = Layout
@@ -104,7 +106,8 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 // ========== Navigation Context ==========
 type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
   'novels' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
-  'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management'
+  'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
+  'sensitive_words' | 'sensitive_word_analytics'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -174,6 +177,15 @@ const MainLayout: React.FC = () => {
         { key: 'novel_bookshelves', icon: <BookOutlined />, label: '书架管理' },
       ],
     },
+    {
+      key: 'sensitive',
+      icon: <SafetyOutlined />,
+      label: '敏感词管理',
+      children: [
+        { key: 'sensitive_words', icon: <SafetyOutlined />, label: '敏感词列表' },
+        { key: 'sensitive_word_analytics', icon: <BarChartOutlined />, label: '数据统计' },
+      ],
+    },
     ...(canManageVersions ? [
       {
         key: 'operation',
@@ -230,6 +242,10 @@ const MainLayout: React.FC = () => {
         return <AppConfigs />
       case 'dict_management':
         return <DictManagement />
+      case 'sensitive_words':
+        return <SensitiveWords />
+      case 'sensitive_word_analytics':
+        return <SensitiveWordAnalytics />
       default:
         return <Dashboard />
     }
@@ -255,6 +271,8 @@ const MainLayout: React.FC = () => {
       habits: '习惯打卡',
       app_configs: '配置管理',
       dict_management: '字典管理',
+      sensitive_words: '敏感词管理',
+      sensitive_word_analytics: '敏感词数据统计',
     }
     return titles[currentPage] || '数据概览'
   }
