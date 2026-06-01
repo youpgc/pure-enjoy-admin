@@ -12,12 +12,12 @@ import {
   Empty,
   Descriptions,
   Divider,
-  Dropdown,
 } from 'antd'
 import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
-import { EyeOutlined, ReloadOutlined, MoreOutlined } from '@ant-design/icons'
+import { EyeOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
+import { getActionColumn } from './ActionColumn'
 
 const { Title, Text } = Typography
 
@@ -291,31 +291,18 @@ const UserDimensionList: React.FC<{
         date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-'
       ),
     },
-    {
-      title: '操作',
-      key: 'action',
-      fixed: 'right',
-      width: 80,
-      align: 'center',
-      render: (_, record) => (
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'view',
-                icon: <EyeOutlined />,
-                label: '查看详情',
-                onClick: () => handleViewDetail(record),
-              },
-            ],
-          }}
-          placement="bottomRight"
-          trigger={['click']}
-        >
-          <Button type="text" icon={<MoreOutlined />} size="small" />
-        </Dropdown>
-      ),
-    },
+    getActionColumn<UserSummary>(
+      (record) => [
+        {
+          key: 'view',
+          label: '查看详情',
+          icon: <EyeOutlined />,
+          type: 'primary',
+          onClick: () => handleViewDetail(record),
+        },
+      ],
+      { width: 240, maxVisible: 2 }
+    ),
   ]
 
   // ==================== 渲染 ====================
