@@ -41,6 +41,8 @@ export interface User {
   updated_at: string
 }
 
+import type { Dayjs } from 'dayjs'
+
 // 用户表单数据 (表单使用 dayjs 作为日期类型)
 export interface UserFormData {
   email: string
@@ -51,7 +53,7 @@ export interface UserFormData {
   username?: string
   bio?: string
   gender?: string
-  birthday?: string | null // 表单可能返回 dayjs 对象，需在提交时转换
+  birthday?: Dayjs | string | null // 表单使用 Dayjs，提交时转换为 string
   location?: string
   occupation?: string
   company?: string

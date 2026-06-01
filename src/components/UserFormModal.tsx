@@ -10,6 +10,7 @@ import {
   Divider,
 } from 'antd'
 import type { Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 import type { User, UserFormData, UserRole, MemberLevel, UserStatus } from '../types/user'
 import { USER_ROLE_OPTIONS, MEMBER_LEVEL_OPTIONS, USER_STATUS_OPTIONS } from '../types/user'
 
@@ -45,7 +46,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           username: user.username || '',
           bio: user.bio || '',
           gender: user.gender || '保密',
-          birthday: user.birthday ? user.birthday : undefined,
+          birthday: user.birthday ? dayjs(user.birthday) : undefined,
           location: user.location || '',
           occupation: user.occupation || '',
           company: user.company || '',

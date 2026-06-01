@@ -206,6 +206,13 @@ const Users: React.FC = () => {
       ? sha256(formData.password).toString()
       : sha256('123456').toString() // 默认密码
 
+    // 处理 birthday 字段
+    const birthdayValue = formData.birthday
+      ? (typeof formData.birthday === 'string'
+          ? formData.birthday
+          : (formData.birthday as dayjs.Dayjs).format('YYYY-MM-DD'))
+      : null
+
     const newUser: User = {
       id: generateUserId(),
       email: formData.email,
@@ -217,7 +224,7 @@ const Users: React.FC = () => {
       username: formData.username || null,
       bio: formData.bio || null,
       gender: formData.gender || null,
-      birthday: formData.birthday || null,
+      birthday: birthdayValue,
       location: formData.location || null,
       occupation: formData.occupation || null,
       company: formData.company || null,
@@ -253,6 +260,13 @@ const Users: React.FC = () => {
   const handleEdit = useCallback(async (formData: UserFormData) => {
     if (!currentUser) return
 
+    // 处理 birthday 字段：如果是 Dayjs 对象，转换为字符串
+    const birthdayValue = formData.birthday
+      ? (typeof formData.birthday === 'string'
+          ? formData.birthday
+          : (formData.birthday as dayjs.Dayjs).format('YYYY-MM-DD'))
+      : null
+
     try {
       const updateData: Record<string, any> = {
         phone: formData.phone || null,
@@ -261,7 +275,7 @@ const Users: React.FC = () => {
         username: formData.username || null,
         bio: formData.bio || null,
         gender: formData.gender || null,
-        birthday: formData.birthday || null,
+        birthday: birthdayValue,
         location: formData.location || null,
         occupation: formData.occupation || null,
         company: formData.company || null,
@@ -295,7 +309,7 @@ const Users: React.FC = () => {
                 username: formData.username || null,
                 bio: formData.bio || null,
                 gender: formData.gender || null,
-                birthday: formData.birthday || null,
+                birthday: birthdayValue,
                 location: formData.location || null,
                 occupation: formData.occupation || null,
                 company: formData.company || null,
@@ -324,7 +338,7 @@ const Users: React.FC = () => {
               username: formData.username || null,
               bio: formData.bio || null,
               gender: formData.gender || null,
-              birthday: formData.birthday || null,
+              birthday: birthdayValue,
               location: formData.location || null,
               occupation: formData.occupation || null,
               company: formData.company || null,
