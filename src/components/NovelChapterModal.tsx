@@ -12,6 +12,9 @@ import {
   Row,
   Col,
   Tooltip,
+  Form,
+  Switch,
+  InputNumber,
 } from 'antd'
 import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
 import type { Key } from 'react'
@@ -19,12 +22,15 @@ import {
   DeleteOutlined,
   EyeOutlined,
   SearchOutlined,
+  EditOutlined,
+  PlusOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 
 const { Title, Text, Paragraph } = Typography
+const { TextArea } = Input
 
 // ==================== 类型定义 ====================
 
@@ -56,7 +62,7 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
   novelTitle,
   onClose,
 }) => {
-  const { canDeleteNovels } = usePermission()
+  const { canDeleteNovels, canWriteNovels } = usePermission()
 
   // 状态
   const [data, setData] = useState<ChapterRecord[]>([])
@@ -75,6 +81,17 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
   // 章节内容查看弹窗
   const [contentModalOpen, setContentModalOpen] = useState(false)
   const [viewingChapter, setViewingChapter] = useState<ChapterRecord | null>(null)
+
+  // 章节编辑弹窗
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingChapter, setEditingChapter] = useState<ChapterRecord | null>(null)
+  const [editForm] = Form.useForm()
+  const [editLoading, setEditLoading] = useState(false)
+
+  // 章节新增弹窗
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [createForm] = Form.useForm()
+  const [createLoading, setCreateLoading] = useState(false)
 
   // 加载章节数据
   const fetchChapters = useCallback(async () => {
@@ -145,7 +162,8 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
   const stats = useMemo(() => {
     const totalChapters = data.length
     const totalWords = data.reduce((sum, c) => sum + (c.word_count || 0), 0)
-    return { totalChapters, totalWords }
+    const maxChapterNum = data.length > 0 ? Math.max(...data.map(c => c.chapter_num)) : 0
+    return { totalChapters, totalWords, maxChapterNum }
   }, [data])
 
   // ==================== 操作处理 ====================
@@ -155,6 +173,130 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
     setViewingChapter(record)
     setContentModalOpen(true)
   }, [])
+
+  // 打开编辑弹窗
+  const handleEdit = useCallback((record: ChapterRecord) => {
+    if (!canWriteNovels) {
+      message.warning('您没有编辑章节的权限')
+      return
+    }
+    setEditingChapter(record)
+    editForm.setFieldsValue({
+      title: record.title,
+      content: record.content,
+      is_free: record.is_free,
+      price: record.price || 0,
+    })
+    setEditModalOpen(true)
+  }, [canWriteNovels, editForm])
+
+  // 保存编辑
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingChapter) return
+    
+    try {
+      const values = await editForm.validateFields()
+      setEditLoading(true)
+
+      const content = values.content || ''
+      const wordCount = content.length
+
+      const { error } = await supabase
+        .from('novel_chapters')
+        .update({
+          title: values.title,
+          content: content,
+          word_count: wordCount,
+          is_free: values.is_free,
+          price: values.is_free ? 0 : (values.price || 0),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editingChapter.id)
+
+      if (error) throw error
+
+      // 更新本地数据
+      setData(prev => prev.map(item => 
+        item.id === editingChapter.id
+          ? {
+              ...item,
+              title: values.title,
+              content: content,
+              word_count: wordCount,
+              is_free: values.is_free,
+              price: values.is_free ? 0 : (values.price || 0),
+            }
+          : item
+      ))
+
+      message.success('章节更新成功')
+      setEditModalOpen(false)
+      setEditingChapter(null)
+      editForm.resetFields()
+    } catch (error) {
+      console.error('保存章节失败:', error)
+      message.error('保存章节失败')
+    } finally {
+      setEditLoading(false)
+    }
+  }, [editingChapter, editForm])
+
+  // 打开新增弹窗
+  const handleCreate = useCallback(() => {
+    if (!canWriteNovels) {
+      message.warning('您没有新增章节的权限')
+      return
+    }
+    createForm.setFieldsValue({
+      chapter_num: stats.maxChapterNum + 1,
+      title: '',
+      content: '',
+      is_free: true,
+      price: 0,
+    })
+    setCreateModalOpen(true)
+  }, [canWriteNovels, createForm, stats.maxChapterNum])
+
+  // 保存新增
+  const handleSaveCreate = useCallback(async () => {
+    try {
+      const values = await createForm.validateFields()
+      setCreateLoading(true)
+
+      const content = values.content || ''
+      const wordCount = content.length
+
+      const { data: newChapter, error } = await supabase
+        .from('novel_chapters')
+        .insert({
+          novel_id: novelId,
+          chapter_num: values.chapter_num,
+          title: values.title,
+          content: content,
+          word_count: wordCount,
+          is_free: values.is_free,
+          price: values.is_free ? 0 : (values.price || 0),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // 添加到本地数据
+      setData(prev => [...prev, { ...newChapter, key: newChapter.id }])
+
+      message.success('章节新增成功')
+      setCreateModalOpen(false)
+      createForm.resetFields()
+    } catch (error) {
+      console.error('新增章节失败:', error)
+      message.error('新增章节失败')
+    } finally {
+      setCreateLoading(false)
+    }
+  }, [createForm, novelId])
 
   // 删除单条章节
   const handleDelete = useCallback(
@@ -282,7 +424,7 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
       title: '操作',
       key: 'action',
       fixed: 'right',
-      width: 150,
+      width: 200,
       render: (_, record) => (
         <Space size="small">
           <Tooltip title="查看内容">
@@ -295,6 +437,18 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
               查看
             </Button>
           </Tooltip>
+          {canWriteNovels && (
+            <Tooltip title="编辑章节">
+              <Button
+                type="link"
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => handleEdit(record)}
+              >
+                编辑
+              </Button>
+            </Tooltip>
+          )}
           {canDeleteNovels && (
             <Popconfirm
               title="确认删除"
@@ -368,8 +522,8 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
             </Col>
           </Row>
 
-          {/* 搜索栏 */}
-          <div style={{ marginBottom: 16 }}>
+          {/* 操作栏 */}
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Input
               placeholder="搜索章节标题"
               prefix={<SearchOutlined />}
@@ -378,6 +532,11 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
               allowClear
               style={{ maxWidth: 300 }}
             />
+            {canWriteNovels && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                新增章节
+              </Button>
+            )}
           </div>
 
           {/* 批量操作栏 */}
@@ -479,6 +638,172 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
             </Paragraph>
           </div>
         )}
+      </Modal>
+
+      {/* 章节编辑弹窗 */}
+      <Modal
+        open={editModalOpen}
+        title={editingChapter ? `编辑章节 - ${editingChapter.title}` : '编辑章节'}
+        onCancel={() => {
+          setEditModalOpen(false)
+          setEditingChapter(null)
+          editForm.resetFields()
+        }}
+        onOk={handleSaveEdit}
+        confirmLoading={editLoading}
+        width={800}
+        destroyOnClose
+      >
+        <Form
+          form={editForm}
+          layout="vertical"
+          preserve={false}
+        >
+          <Form.Item
+            name="title"
+            label="章节标题"
+            rules={[{ required: true, message: '请输入章节标题' }]}
+          >
+            <Input placeholder="请输入章节标题" />
+          </Form.Item>
+          <Form.Item
+            name="content"
+            label="章节内容"
+            rules={[{ required: true, message: '请输入章节内容' }]}
+          >
+            <TextArea
+              placeholder="请输入章节内容"
+              rows={15}
+              showCount
+              maxLength={50000}
+            />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="is_free"
+                label="是否免费"
+                valuePropName="checked"
+              >
+                <Switch checkedChildren="免费" unCheckedChildren="付费" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                noStyle
+                shouldUpdate={(prev, curr) => prev.is_free !== curr.is_free}
+              >
+                {({ getFieldValue }) => (
+                  !getFieldValue('is_free') && (
+                    <Form.Item
+                      name="price"
+                      label="价格(元)"
+                      rules={[{ required: true, message: '请输入价格' }]}
+                    >
+                      <InputNumber
+                        min={0}
+                        max={9999}
+                        step={0.1}
+                        precision={2}
+                        style={{ width: '100%' }}
+                        placeholder="请输入价格"
+                      />
+                    </Form.Item>
+                  )
+                )}
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
+
+      {/* 章节新增弹窗 */}
+      <Modal
+        open={createModalOpen}
+        title="新增章节"
+        onCancel={() => {
+          setCreateModalOpen(false)
+          createForm.resetFields()
+        }}
+        onOk={handleSaveCreate}
+        confirmLoading={createLoading}
+        width={800}
+        destroyOnClose
+      >
+        <Form
+          form={createForm}
+          layout="vertical"
+          preserve={false}
+        >
+          <Form.Item
+            name="chapter_num"
+            label="章节号"
+            rules={[{ required: true, message: '请输入章节号' }]}
+          >
+            <InputNumber
+              min={1}
+              style={{ width: '100%' }}
+              placeholder="请输入章节号"
+            />
+          </Form.Item>
+          <Form.Item
+            name="title"
+            label="章节标题"
+            rules={[{ required: true, message: '请输入章节标题' }]}
+          >
+            <Input placeholder="请输入章节标题" />
+          </Form.Item>
+          <Form.Item
+            name="content"
+            label="章节内容"
+            rules={[{ required: true, message: '请输入章节内容' }]}
+          >
+            <TextArea
+              placeholder="请输入章节内容"
+              rows={15}
+              showCount
+              maxLength={50000}
+            />
+          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="is_free"
+                label="是否免费"
+                valuePropName="checked"
+                initialValue={true}
+              >
+                <Switch checkedChildren="免费" unCheckedChildren="付费" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                noStyle
+                shouldUpdate={(prev, curr) => prev.is_free !== curr.is_free}
+              >
+                {({ getFieldValue }) => (
+                  !getFieldValue('is_free') && (
+                    <Form.Item
+                      name="price"
+                      label="价格(元)"
+                      rules={[{ required: true, message: '请输入价格' }]}
+                      initialValue={0}
+                    >
+                      <InputNumber
+                        min={0}
+                        max={9999}
+                        step={0.1}
+                        precision={2}
+                        style={{ width: '100%' }}
+                        placeholder="请输入价格"
+                      />
+                    </Form.Item>
+                  )
+                )}
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
       </Modal>
     </>
   )
