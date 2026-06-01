@@ -1,8 +1,18 @@
-import React, { useMemo, useState } from 'react'
-import { Tag, message } from 'antd'
+import React, { useMemo, useState, useEffect } from 'react'
+import { Tag, message, Card, Row, Col, Statistic, DatePicker } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { DeleteOutlined, EditOutlined, LineChartOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, LineChartOutlined, DashboardOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from 'recharts'
 import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { getActionColumn } from '../components/ActionColumn'
 import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
@@ -17,6 +27,15 @@ const getWeightColor = (weight: number): string => {
   if (weight < 90) return 'gold'
   return 'orange'
 }
+
+const getBMIColor = (bmi: number): string => {
+  if (bmi < 18.5) return 'cyan'
+  if (bmi < 24) return 'green'
+  if (bmi < 28) return 'gold'
+  return 'red'
+}
+
+const { RangePicker } = DatePicker
 
 // ==================== 编辑字段配置 ====================
 
@@ -96,7 +115,7 @@ const getDetailColumns = (
     },
     render: (bmi: number) => {
       if (!bmi) return '-'
-      const color = bmi < 18.5 ? 'cyan' : bmi < 24 ? 'green' : bmi < 28 ? 'gold' : 'red'
+      const color = getBMIColor(bmi)
       return <Tag color={color}>{bmi.toFixed(1)}</Tag>
     },
   },
@@ -168,12 +187,220 @@ const getDetailColumns = (
     ),
 ]
 
+// ==================== 统计图表组件 ====================
+
+interface WeightStatsProps {
+  userId?: string
+  dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null]
+}
+
+const WeightStats: React.FC<WeightStatsProps> = ({ userId, dateRange }) => {
+  const [stats, setStats] = useState({
+    currentWeight: 0,
+    minWeight: 0,
+    maxWeight: 0,
+    avgWeight: 0,
+    avgBMI: 0,
+    avgBodyFat: 0,
+    trendData: [] as { date: string; weight: number; bmi: number; bodyFat: number }[],
+  })
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!userId) return
+    loadStats()
+  }, [userId, dateRange])
+
+  const loadStats = async () => {
+    setLoading(true)
+    try {
+      let query = supabase
+        .from('weight_records')
+        .select('*')
+        .eq('user_id', userId)
+
+      // 日期范围筛选
+      if (dateRange[0] && dateRange[1]) {
+        query = query
+          .gte('date', dateRange[0].format('YYYY-MM-DD'))
+          .lte('date', dateRange[1].format('YYYY-MM-DD'))
+      }
+
+      const { data, error } = await query.order('date', { ascending: true })
+
+      if (error) throw error
+
+      const records = data || []
+      
+      if (records.length === 0) {
+        setStats({
+          currentWeight: 0,
+          minWeight: 0,
+          maxWeight: 0,
+          avgWeight: 0,
+          avgBMI: 0,
+          avgBodyFat: 0,
+          trendData: [],
+        })
+        return
+      }
+
+      const weights = records.map(r => r.weight || 0)
+      const bmis = records.map(r => r.bmi || 0).filter(b => b > 0)
+      const bodyFats = records.map(r => r.body_fat || 0).filter(f => f > 0)
+
+      const currentWeight = weights[weights.length - 1] || 0
+      const minWeight = Math.min(...weights)
+      const maxWeight = Math.max(...weights)
+      const avgWeight = weights.reduce((a, b) => a + b, 0) / weights.length
+      const avgBMI = bmis.length > 0 ? bmis.reduce((a, b) => a + b, 0) / bmis.length : 0
+      const avgBodyFat = bodyFats.length > 0 ? bodyFats.reduce((a, b) => a + b, 0) / bodyFats.length : 0
+
+      const trendData = records.map(r => ({
+        date: dayjs(r.date).format('MM-DD'),
+        weight: r.weight || 0,
+        bmi: r.bmi || 0,
+        bodyFat: r.body_fat || 0,
+      }))
+
+      setStats({
+        currentWeight,
+        minWeight,
+        maxWeight,
+        avgWeight,
+        avgBMI,
+        avgBodyFat,
+        trendData,
+      })
+    } catch (error) {
+      console.error('加载统计数据失败:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={4}>
+          <Card size="small" loading={loading}>
+            <Statistic
+              title="当前体重"
+              value={stats.currentWeight}
+              precision={1}
+              suffix="kg"
+              valueStyle={{ color: getWeightColor(stats.currentWeight) }}
+            />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small" loading={loading}>
+            <Statistic
+              title="最低体重"
+              value={stats.minWeight}
+              precision={1}
+              suffix="kg"
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small" loading={loading}>
+            <Statistic
+              title="最高体重"
+              value={stats.maxWeight}
+              precision={1}
+              suffix="kg"
+              valueStyle={{ color: '#ff4d4f' }}
+            />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small" loading={loading}>
+            <Statistic
+              title="平均体重"
+              value={stats.avgWeight}
+              precision={1}
+              suffix="kg"
+            />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small" loading={loading}>
+            <Statistic
+              title="平均BMI"
+              value={stats.avgBMI}
+              precision={1}
+              valueStyle={{ color: getBMIColor(stats.avgBMI) }}
+              prefix={<DashboardOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small" loading={loading}>
+            <Statistic
+              title="平均体脂"
+              value={stats.avgBodyFat}
+              precision={1}
+              suffix="%"
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Card
+        size="small"
+        title={<><LineChartOutlined /> 体重变化趋势</>}
+        loading={loading}
+      >
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={stats.trendData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis yAxisId="left" domain={['dataMin - 2', 'dataMax + 2']} />
+            <YAxis yAxisId="right" orientation="right" domain={[0, 50]} hide />
+            <RechartsTooltip
+              formatter={(value: number, name: string) => {
+                if (name === 'weight') return [`${value.toFixed(1)} kg`, '体重']
+                if (name === 'bmi') return [`${value.toFixed(1)}`, 'BMI']
+                if (name === 'bodyFat') return [`${value.toFixed(1)}%`, '体脂率']
+                return [value, name]
+              }}
+            />
+            <ReferenceLine yAxisId="left" y={stats.avgWeight} stroke="#999" strokeDasharray="3 3" label="平均" />
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="weight"
+              stroke="#1890ff"
+              strokeWidth={2}
+              dot={{ fill: '#1890ff' }}
+              activeDot={{ r: 6 }}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="bmi"
+              stroke="#52c41a"
+              strokeWidth={2}
+              dot={false}
+              strokeDasharray="5 5"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </Card>
+    </div>
+  )
+}
+
 // ==================== 主组件 ====================
 
 const WeightRecords: React.FC = () => {
   const { canReadWeights, canWriteWeights, canDeleteWeights } = usePermission()
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string>()
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null])
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -201,6 +428,11 @@ const WeightRecords: React.FC = () => {
     setEditModalOpen(true)
   }
 
+  // 处理用户选择变化
+  const handleUserSelect = (userId: string) => {
+    setSelectedUserId(userId)
+  }
+
   // 模块配置
   const moduleConfig: ModuleConfig = useMemo(() => ({
     key: 'weight_records',
@@ -208,6 +440,7 @@ const WeightRecords: React.FC = () => {
     tableName: 'weight_records',
     detailTitle: '体重记录详情',
     detailColumns: getDetailColumns(canDeleteWeights || false, handleDelete, handleEdit),
+    onUserSelect: handleUserSelect,
   }), [canDeleteWeights, canWriteWeights])
 
   // 权限检查
@@ -221,6 +454,23 @@ const WeightRecords: React.FC = () => {
 
   return (
     <>
+      {/* 筛选栏 */}
+      <Card size="small" style={{ marginBottom: 16 }}>
+        <RangePicker
+          placeholder={['开始日期', '结束日期']}
+          value={dateRange}
+          onChange={(dates) => setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null])}
+        />
+      </Card>
+
+      {/* 统计图表 */}
+      {selectedUserId && (
+        <WeightStats
+          userId={selectedUserId}
+          dateRange={dateRange}
+        />
+      )}
+
       <UserDimensionList moduleConfig={moduleConfig} />
       <EditRecordModal
         open={editModalOpen}

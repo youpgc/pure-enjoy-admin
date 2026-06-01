@@ -47,6 +47,7 @@ export interface ModuleConfig {
   tableName: string
   detailColumns: ColumnsType<RecordItem>
   detailTitle?: string
+  onUserSelect?: (userId: string) => void
 }
 
 // ==================== 常量定义 ====================
@@ -227,7 +228,9 @@ const UserDimensionList: React.FC<{
   const handleViewDetail = useCallback((record: UserSummary) => {
     setSelectedUser(record)
     setDetailModalOpen(true)
-  }, [])
+    // 通知父组件用户选择变化
+    moduleConfig.onUserSelect?.(record.user_id)
+  }, [moduleConfig])
 
   const handleDetailModalClose = useCallback(() => {
     setDetailModalOpen(false)
