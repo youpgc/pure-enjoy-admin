@@ -70,6 +70,8 @@ const NovelBookshelves: React.FC = () => {
   const [detailLoading, setDetailLoading] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserBookshelf | null>(null)
   const [detailList, setDetailList] = useState<BookshelfDetail[]>([])
+  // 小说信息缓存，用于详情页
+  const [novelsCache, setNovelsCache] = useState<Map<string, any>>(new Map())
 
   // 加载书架列表 - 联合 user_novels + novels + users 表查询
   const loadBookshelves = useCallback(async () => {
@@ -77,47 +79,66 @@ const NovelBookshelves: React.FC = () => {
     console.log('[NovelBookshelves] 开始加载书架列表')
     
     try {
-      // 获取所有用户书架数据，联合查询 novels 表
-      // 注意: PostgREST 关联查询语法是 table!foreign_key_column
-      const { data: userNovels, error } = await supabase
+      // 分别查询三个表，然后在客户端合并数据
+      // 这样避免依赖外键关系定义
+
+      // 1. 查询 user_novels
+      const { data: userNovels, error: unError } = await supabase
         .from('user_novels')
-        .select(`
-          id,
-          user_id,
-          novel_id,
-          progress,
-          last_chapter,
-          last_read_at,
-          created_at,
-          novels!novel_id (title, author, cover_url, category, chapter_count)
-        `)
+        .select('id, user_id, novel_id, progress, last_chapter, last_read_at, created_at')
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('[NovelBookshelves] 查询 user_novels 失败:', error)
-        throw error
+      if (unError) {
+        console.error('[NovelBookshelves] 查询 user_novels 失败:', unError)
+        throw unError
       }
 
       console.log(`[NovelBookshelves] 获取到 ${userNovels?.length || 0} 条用户小说记录`)
 
-      // 获取用户信息 - 从 users 表查询
-      const { data: users, error: userError } = await supabase
-        .from('users')
-        .select('id, nickname, email')
+      // 2. 查询 novels 表获取书名和作者
+      const novelIds = [...new Set(userNovels?.map((item: any) => item.novel_id) || [])]
+      let novelsMap = new Map<string, any>()
+      
+      if (novelIds.length > 0) {
+        const { data: novels, error: nError } = await supabase
+          .from('novels')
+          .select('id, title, author, cover_url, category, chapter_count')
+          .in('id', novelIds)
 
-      if (userError) {
-        console.error('[NovelBookshelves] 查询 users 失败:', userError)
-        throw userError
+        if (nError) {
+          console.error('[NovelBookshelves] 查询 novels 失败:', nError)
+          throw nError
+        }
+
+        novelsMap = new Map(novels?.map((n: any) => [n.id, n]) || [])
+        setNovelsCache(novelsMap) // 缓存起来供详情页使用
+        console.log(`[NovelBookshelves] 获取到 ${novels?.length || 0} 本小说信息`)
       }
 
-      console.log(`[NovelBookshelves] 获取到 ${users?.length || 0} 个用户信息`)
+      // 3. 查询 users 表获取用户信息
+      const userIds = [...new Set(userNovels?.map((item: any) => item.user_id) || [])]
+      let usersMap = new Map<string, any>()
+      
+      if (userIds.length > 0) {
+        const { data: users, error: uError } = await supabase
+          .from('users')
+          .select('id, nickname, email')
+
+        if (uError) {
+          console.error('[NovelBookshelves] 查询 users 失败:', uError)
+          throw uError
+        }
+
+        usersMap = new Map(users?.map((u: any) => [u.id, u]) || [])
+        console.log(`[NovelBookshelves] 获取到 ${users?.length || 0} 个用户信息`)
+      }
 
       // 按用户分组统计
       const userMap = new Map<string, UserBookshelf>()
       
       userNovels?.forEach((item: any) => {
         const userId = item.user_id
-        const user = users?.find((u: any) => u.id === userId)
+        const user = usersMap.get(userId)
         
         if (!userMap.has(userId)) {
           userMap.set(userId, {
@@ -173,23 +194,15 @@ const NovelBookshelves: React.FC = () => {
     setFilteredBookshelves(filtered)
   }, [searchText, bookshelves])
 
-  // 加载详情 - 联合查询展示书名、作者、阅读进度、最后阅读时间
+  // 加载详情 - 使用缓存的小说信息展示书名、作者、阅读进度、最后阅读时间
   const loadDetail = useCallback(async (userId: string) => {
     setDetailLoading(true)
     console.log(`[NovelBookshelves] 加载用户书架详情: ${userId}`)
     
     try {
-      const { data, error } = await supabase
+      const { data: userNovels, error } = await supabase
         .from('user_novels')
-        .select(`
-          id,
-          novel_id,
-          progress,
-          last_chapter,
-          last_read_at,
-          created_at,
-          novels!novel_id (title, author, cover_url, category, chapter_count)
-        `)
+        .select('id, novel_id, progress, last_chapter, last_read_at, created_at')
         .eq('user_id', userId)
         .order('last_read_at', { ascending: false })
 
@@ -198,19 +211,23 @@ const NovelBookshelves: React.FC = () => {
         throw error
       }
 
-      const details: BookshelfDetail[] = data?.map((item: any) => ({
-        id: item.id,
-        novel_id: item.novel_id,
-        title: item.novels?.title || '未知书名',
-        author: item.novels?.author || '未知作者',
-        cover_url: item.novels?.cover_url,
-        progress: item.progress || 0,
-        last_chapter: item.last_chapter || 0,
-        last_read_at: item.last_read_at,
-        created_at: item.created_at,
-        category: item.novels?.category,
-        chapter_count: item.novels?.chapter_count || 0,
-      })) || []
+      // 使用缓存的小说信息（loadBookshelves 已加载）
+      const details: BookshelfDetail[] = userNovels?.map((item: any) => {
+        const novel = novelsCache.get(item.novel_id)
+        return {
+          id: item.id,
+          novel_id: item.novel_id,
+          title: novel?.title || '未知书名',
+          author: novel?.author || '未知作者',
+          cover_url: novel?.cover_url,
+          progress: item.progress || 0,
+          last_chapter: item.last_chapter || 0,
+          last_read_at: item.last_read_at,
+          created_at: item.created_at,
+          category: novel?.category,
+          chapter_count: novel?.chapter_count || 0,
+        }
+      }) || []
 
       console.log(`[NovelBookshelves] 成功加载 ${details.length} 条详情记录`)
       setDetailList(details)
@@ -220,7 +237,7 @@ const NovelBookshelves: React.FC = () => {
     } finally {
       setDetailLoading(false)
     }
-  }, [])
+  }, [novelsCache])
 
   // 查看详情
   const handleViewDetail = (record: UserBookshelf) => {
