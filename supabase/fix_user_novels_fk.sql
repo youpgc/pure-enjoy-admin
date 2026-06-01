@@ -1,27 +1,31 @@
 -- ============================================================
 -- 修复 user_novels 表外键约束
--- 问题: PostgREST 关联查询需要外键才能工作
--- 错误: Could not find a relationship between 'user_novels' and 'novel_id'
+-- 解决: Could not find a relationship between 'user_novels' and 'novel_id'
 -- ============================================================
 
--- 1. 添加 user_novels -> novels 的外键约束
-ALTER TABLE user_novels
-DROP CONSTRAINT IF EXISTS user_novels_novel_id_fkey;
+-- 第一步：查看孤立数据情况（可选，确认问题范围）
+-- SELECT COUNT(*) as orphan_novels FROM user_novels WHERE novel_id NOT IN (SELECT id FROM novels);
+-- SELECT COUNT(*) as orphan_users FROM user_novels WHERE user_id NOT IN (SELECT id FROM users);
 
+-- 第二步：删除引用不存在小说的孤立记录
+DELETE FROM user_novels
+WHERE novel_id NOT IN (SELECT id FROM novels);
+
+-- 第三步：删除引用不存在用户的孤立记录
+DELETE FROM user_novels
+WHERE user_id NOT IN (SELECT id FROM users);
+
+-- 第四步：添加外键约束 - user_novels -> novels
 ALTER TABLE user_novels
 ADD CONSTRAINT user_novels_novel_id_fkey
 FOREIGN KEY (novel_id) REFERENCES novels(id) ON DELETE CASCADE;
 
--- 2. 添加 user_novels -> users 的外键约束（可选，用于关联用户信息）
--- 注意: users 表的 id 是 VARCHAR(32)，不是 UUID
-ALTER TABLE user_novels
-DROP CONSTRAINT IF EXISTS user_novels_user_id_fkey;
-
+-- 第五步：添加外键约束 - user_novels -> users
 ALTER TABLE user_novels
 ADD CONSTRAINT user_novels_user_id_fkey
 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 
--- 3. 验证外键
+-- 第六步：验证外键添加成功
 SELECT
     tc.constraint_name,
     tc.table_name,
@@ -35,6 +39,3 @@ JOIN information_schema.constraint_column_usage AS ccu
     ON ccu.constraint_name = tc.constraint_name
 WHERE tc.constraint_type = 'FOREIGN KEY'
     AND tc.table_name = 'user_novels';
-
--- 4. 刷新 schema cache（Supabase 会自动刷新，但可以手动触发）
--- NOTIFY pgrst, 'reload schema';

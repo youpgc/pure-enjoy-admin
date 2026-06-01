@@ -44,6 +44,7 @@ import Reminders from './pages/Reminders'
 import Habits from './pages/Habits'
 import AppConfigs from './pages/AppConfigs'
 import NovelBookshelves from './pages/NovelBookshelves'
+import DictManagement from './pages/DictManagement'
 
 
 const { Header, Sider, Content } = Layout
@@ -103,7 +104,7 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 // ========== Navigation Context ==========
 type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
   'novels' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
-  'favorites' | 'reminders' | 'habits' | 'app_configs'
+  'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -185,6 +186,7 @@ const MainLayout: React.FC = () => {
           { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控' },
           { key: 'roles', icon: <SafetyOutlined />, label: '角色权限' },
           { key: 'app_configs', icon: <FileTextOutlined />, label: '配置管理' },
+          { key: 'dict_management', icon: <FileTextOutlined />, label: '字典管理' },
         ],
       },
     ] : []),
@@ -226,6 +228,8 @@ const MainLayout: React.FC = () => {
         return <Habits />
       case 'app_configs':
         return <AppConfigs />
+      case 'dict_management':
+        return <DictManagement />
       default:
         return <Dashboard />
     }
@@ -250,6 +254,7 @@ const MainLayout: React.FC = () => {
       reminders: '提醒事项',
       habits: '习惯打卡',
       app_configs: '配置管理',
+      dict_management: '字典管理',
     }
     return titles[currentPage] || '数据概览'
   }
