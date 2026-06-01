@@ -36,6 +36,7 @@ import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
 import { supabase, logOperation } from '../utils/supabase'
+import { getActionColumn } from '../components/ActionColumn'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -540,35 +541,27 @@ const SensitiveWords: React.FC = () => {
       sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
-    {
-      title: '操作',
-      key: 'action',
-      fixed: 'right',
-      width: 120,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => {
-              setEditingRecord(record)
-              setModalOpen(true)
-            }}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确定删除此敏感词？"
-            onConfirm={() => handleDelete([record.id])}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    getActionColumn<SensitiveWord>(
+      (record) => [
+        {
+          key: 'edit',
+          label: '编辑',
+          icon: <EditOutlined />,
+          onClick: () => {
+            setEditingRecord(record)
+            setModalOpen(true)
+          },
+        },
+        {
+          key: 'delete',
+          label: '删除',
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => handleDelete([record.id]),
+        },
+      ],
+      { width: 180, maxVisible: 3 }
+    ),
   ]
 
   // ==================== 筛选字段 ====================

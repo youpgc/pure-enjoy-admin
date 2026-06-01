@@ -48,6 +48,7 @@ import {
 } from '../types/user'
 import { generateUserId } from '../utils/userId'
 import { exportToCSV, exportToExcel } from '../utils/export'
+import { getActionColumn } from '../components/ActionColumn'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../App'
 import { usePermission } from '../hooks/usePermission'
@@ -614,57 +615,44 @@ const Users: React.FC = () => {
       },
       render: (date: string | null) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : <Text type="secondary">从未登录</Text>,
     },
-    {
-      title: '操作',
-      key: 'action',
-      fixed: 'right',
-      width: 200,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewUser(record)}
-          >
-            查看
-          </Button>
-          {canManageUsers && (
-            <>
-              <Button
-                type="link"
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => handleOpenEdit(record)}
-              >
-                编辑
-              </Button>
-              <Button
-                type="link"
-                size="small"
-                icon={record.status === 'active' ? <StopOutlined /> : <CheckCircleOutlined />}
-                onClick={() => handleToggleStatus(record)}
-                danger={record.status === 'active'}
-              >
-                {record.status === 'active' ? '禁用' : '启用'}
-              </Button>
-              <Popconfirm
-                title="确认删除"
-                description="删除后用户将无法恢复，是否继续？"
-                onConfirm={() => handleDelete([record.id])}
-                okText="删除"
-                cancelText="取消"
-                okButtonProps={{ danger: true }}
-              >
-                <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                  删除
-                </Button>
-              </Popconfirm>
-            </>
-          )}
-        </Space>
-      ),
-    },
+    getActionColumn<User>(
+      (record) => {
+        const actions: import('../components/ActionColumn').ActionButton[] = [
+          {
+            key: 'view',
+            label: '查看',
+            icon: <EyeOutlined />,
+            onClick: () => handleViewUser(record),
+          },
+        ]
+        if (canManageUsers) {
+          actions.push(
+            {
+              key: 'edit',
+              label: '编辑',
+              icon: <EditOutlined />,
+              onClick: () => handleOpenEdit(record),
+            },
+            {
+              key: 'toggle',
+              label: record.status === 'active' ? '禁用' : '启用',
+              icon: record.status === 'active' ? <StopOutlined /> : <CheckCircleOutlined />,
+              danger: record.status === 'active',
+              onClick: () => handleToggleStatus(record),
+            },
+            {
+              key: 'delete',
+              label: '删除',
+              icon: <DeleteOutlined />,
+              danger: true,
+              onClick: () => handleDelete([record.id]),
+            }
+          )
+        }
+        return actions
+      },
+      { width: 180, maxVisible: 3 }
+    ),
   ]
 
   // ==================== 渲染 ====================

@@ -4,7 +4,6 @@ import {
   Table,
   Typography,
   Space,
-  Button,
   Modal,
   List,
   Tag,
@@ -31,6 +30,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
+import { getActionColumn } from '../components/ActionColumn'
 
 const { Title, Text } = Typography
 
@@ -318,22 +318,19 @@ const NovelBookshelves: React.FC = () => {
         <Text type="secondary">未阅读</Text>
       ),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 120,
-      fixed: 'right',
-      render: (_, record) => (
-        <Button
-          type="primary"
-          icon={<EyeOutlined />}
-          onClick={() => handleViewDetail(record)}
-          disabled={record.total_books === 0}
-        >
-          查看详情
-        </Button>
-      ),
-    },
+    getActionColumn<UserBookshelf>(
+      (record) => [
+        {
+          key: 'view',
+          label: '查看详情',
+          icon: <EyeOutlined />,
+          type: 'primary',
+          disabled: record.total_books === 0,
+          onClick: () => handleViewDetail(record),
+        },
+      ],
+      { width: 180, maxVisible: 3 }
+    ),
   ]
 
   // 统计信息

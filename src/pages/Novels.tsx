@@ -10,7 +10,6 @@ import {
   Card,
   Typography,
   Image,
-  Tooltip,
 } from 'antd'
 import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
 import type { Key } from 'react'
@@ -34,6 +33,7 @@ import {
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
+import { getActionColumn } from '../components/ActionColumn'
 
 const { Title } = Typography
 
@@ -619,50 +619,37 @@ const Novels: React.FC = () => {
       ),
     },
     // is_published 列已移除，所有公开小说都对用户可见
-    {
-      title: '操作',
-      key: 'action',
-      fixed: 'right',
-      width: 180,
-      render: (_, record) => (
-        <Space size="small">
-          <Tooltip title="查看章节">
-            <Button
-              type="link"
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => handleViewChapters(record)}
-            >
-              章节
-            </Button>
-          </Tooltip>
-          {canWriteNovels && (
-            <Button
-              type="link"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => handleEdit(record)}
-            >
-              编辑
-            </Button>
-          )}
-          {canDeleteNovels && (
-            <Popconfirm
-              title="确认删除"
-              description="删除后将同时删除所有关联章节，此操作不可恢复！"
-              onConfirm={() => handleDelete(record.id)}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
+    getActionColumn<NovelRecord>(
+      (record) => {
+        const actions: import('../components/ActionColumn').ActionButton[] = [
+          {
+            key: 'chapters',
+            label: '章节',
+            icon: <EyeOutlined />,
+            onClick: () => handleViewChapters(record),
+          },
+        ]
+        if (canWriteNovels) {
+          actions.push({
+            key: 'edit',
+            label: '编辑',
+            icon: <EditOutlined />,
+            onClick: () => handleEdit(record),
+          })
+        }
+        if (canDeleteNovels) {
+          actions.push({
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => handleDelete(record.id),
+          })
+        }
+        return actions
+      },
+      { width: 180, maxVisible: 3 }
+    ),
   ]
 
   // ==================== 导出菜单 ====================
