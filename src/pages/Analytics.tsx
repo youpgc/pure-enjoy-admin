@@ -56,6 +56,14 @@ const Analytics: React.FC = () => {
   const [userByMemberLevel, setUserByMemberLevel] = useState<UserDistribution[]>([])
   const [userByStatus, setUserByStatus] = useState<UserDistribution[]>([])
   const [expenseByCategory, setExpenseByCategory] = useState<ExpenseCategoryItem[]>([])
+  // 小说阅读统计
+  const [novelStats, setNovelStats] = useState({
+    totalNovels: 0,
+    totalChapters: 0,
+    totalReadCount: 0,
+    categoryDistribution: [] as { name: string; value: number; color: string }[],
+    topNovels: [] as { title: string; readCount: number; author: string }[],
+  })
 
   useEffect(() => {
     const fetchAnalyticsData = async () => {
@@ -83,6 +91,8 @@ const Analytics: React.FC = () => {
           weightAnalyticsRes,
           noteActivityRes,
           expenseCategoryRes,
+          novelStatsRes,
+          chapterCountRes,
         ] = await Promise.all([
           // 总用户数
           supabase.from('users').select('*', { count: 'exact', head: true }),
@@ -114,6 +124,10 @@ const Analytics: React.FC = () => {
           supabase.from('notes').select('created_at').gte('created_at', thirtyDaysAgo),
           // 消费分类
           supabase.from('expenses').select('category, amount'),
+          // 小说统计
+          supabase.from('novels').select('id, category, read_count, title, author'),
+          // 章节统计
+          supabase.from('novel_chapters').select('id', { count: 'exact', head: true }),
         ])
 
         // ==================== 核心指标 ====================
@@ -374,6 +388,47 @@ const Analytics: React.FC = () => {
         })).filter(item => item.value > 0)
         setExpenseByCategory(expCategoryItems)
 
+        // ==================== 小说阅读统计 ====================
+        const novelsData = novelStatsRes.data || []
+        const totalNovels = novelsData.length
+        const totalChapters = chapterCountRes.count || 0
+        const totalReadCount = novelsData.reduce((sum, n) => sum + (n.read_count || 0), 0)
+
+        // 小说分类分布
+        const novelCategoryMap: Record<string, number> = {}
+        const novelCategoryColors: Record<string, string> = {
+          '玄幻': '#ff6b6b', '仙侠': '#4ecdc4', '都市': '#45b7d1', '历史': '#f9ca24',
+          '武侠': '#6c5ce7', '科幻': '#a29bfe', '游戏': '#fd79a8', '悬疑': '#636e72',
+          '灵异': '#2d3436', '言情': '#e17055', '其他': '#b2bec3',
+        }
+        novelsData.forEach(n => {
+          const category = n.category || '其他'
+          novelCategoryMap[category] = (novelCategoryMap[category] || 0) + 1
+        })
+        const categoryDistribution = Object.entries(novelCategoryMap).map(([name, value]) => ({
+          name,
+          value,
+          color: novelCategoryColors[name] || '#999',
+        }))
+
+        // 热门小说 Top 10
+        const topNovels = novelsData
+          .sort((a, b) => (b.read_count || 0) - (a.read_count || 0))
+          .slice(0, 10)
+          .map(n => ({
+            title: n.title,
+            readCount: n.read_count || 0,
+            author: n.author || '未知',
+          }))
+
+        setNovelStats({
+          totalNovels,
+          totalChapters,
+          totalReadCount,
+          categoryDistribution,
+          topNovels,
+        })
+
       } catch (err) {
         console.error('Analytics 数据加载失败:', err)
       } finally {
@@ -410,6 +465,14 @@ const Analytics: React.FC = () => {
     { title: '总笔记数', value: metrics.totalNotes, icon: <BookOutlined />, color: '#9254de' },
     { title: '总日记数', value: metrics.totalDiaries, icon: <SmileOutlined />, color: '#52c41a' },
     { title: '小说阅读量', value: metrics.novelReadCount, icon: <ReadOutlined />, color: '#ff7a45' },
+  ]
+
+  // ==================== 小说统计指标卡片 ====================
+  const novelMetricCards = [
+    { title: '小说总数', value: novelStats.totalNovels, icon: <BookOutlined />, color: '#1890ff' },
+    { title: '章节总数', value: novelStats.totalChapters, icon: <ReadOutlined />, color: '#36cfc9' },
+    { title: '总阅读量', value: novelStats.totalReadCount, icon: <FireOutlined />, color: '#ff7a45' },
+    { title: '平均每本阅读', value: novelStats.totalNovels > 0 ? Math.round(novelStats.totalReadCount / novelStats.totalNovels) : 0, icon: <DollarOutlined />, color: '#9254de' },
   ]
 
   // ==================== 留存率表格列 ====================
@@ -712,6 +775,75 @@ const Analytics: React.FC = () => {
                           <Bar dataKey="count" name="新增笔记数" fill="#597ef7" radius={[4, 4, 0, 0]} barSize={16} />
                         </BarChart>
                       </ResponsiveContainer>
+                    </Card>
+                  </Col>
+                </Row>
+              </div>
+            ),
+          },
+          {
+            key: 'novel',
+            label: '小说阅读分析',
+            children: (
+              <div>
+                {/* 小说统计指标卡片 */}
+                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                  {novelMetricCards.map((card, index) => (
+                    <Col xs={12} sm={6} key={index}>
+                      <Card hoverable style={{ borderRadius: 8 }} bodyStyle={{ padding: '16px 20px' }}>
+                        <Statistic
+                          title={<span style={{ fontSize: 13, color: '#8c8c8c' }}>{card.title}</span>}
+                          value={card.value}
+                          prefix={
+                            <span style={{ color: card.color, marginRight: 6, fontSize: 16 }}>{card.icon}</span>
+                          }
+                          valueStyle={{ color: card.color, fontWeight: 600, fontSize: 20 }}
+                        />
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+
+                {/* 小说分类分布 + 热门小说 */}
+                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                  <Col xs={24} lg={12}>
+                    <Card title="小说分类分布" extra={<Tag color="purple">按分类统计</Tag>} style={{ borderRadius: 8 }}>
+                      <ResponsiveContainer width="100%" height={320}>
+                        <PieChart>
+                          <Pie
+                            data={novelStats.categoryDistribution}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={65}
+                            outerRadius={100}
+                            paddingAngle={3}
+                            dataKey="value"
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            labelLine={{ stroke: '#999' }}
+                          >
+                            {novelStats.categoryDistribution.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={tooltipStyle} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </Card>
+                  </Col>
+                  <Col xs={24} lg={12}>
+                    <Card title="热门小说 Top 10" extra={<Tag color="orange">按阅读量排序</Tag>} style={{ borderRadius: 8 }}>
+                      <Table
+                        dataSource={novelStats.topNovels}
+                        pagination={false}
+                        size="small"
+                        rowKey="title"
+                        columns={[
+                          { title: '排名', key: 'rank', width: 60, render: (_, __, index) => <Tag color={index < 3 ? 'gold' : 'default'}>{index + 1}</Tag> },
+                          { title: '书名', dataIndex: 'title', ellipsis: true },
+                          { title: '作者', dataIndex: 'author', width: 100 },
+                          { title: '阅读量', dataIndex: 'readCount', width: 100, render: (v) => v.toLocaleString() },
+                        ]}
+                      />
                     </Card>
                   </Col>
                 </Row>
