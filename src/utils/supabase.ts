@@ -150,55 +150,48 @@ async function flushOperationLogs() {
 // 定期刷新日志（每30秒）
 setInterval(flushOperationLogs, 30000)
 
-// 操作日志记录函数（支持立即写入和队列批量写入）
+// 操作日志记录函数（直接写入，不使用队列）
 export async function logOperation(params: {
   action: string
   module: string
-  detail?: string
+  detail?: string | object
   target_id?: string
   ip?: string
-  immediate?: boolean // 是否立即写入（默认false，使用队列）
+  immediate?: boolean // 保留参数但忽略，始终立即写入
 }) {
   try {
     const adminUserStr = localStorage.getItem('admin_user')
     const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
     
-    const logData: OperationLogItem = {
+    // 将 detail 转换为对象格式（数据库期望 JSON）
+    let details: object | null = null
+    if (params.detail) {
+      if (typeof params.detail === 'string') {
+        details = { message: params.detail }
+      } else {
+        details = params.detail
+      }
+    }
+    
+    const logData = {
       user_id: adminUser?.id || null,
       action: params.action,
       module: params.module,
       target_id: params.target_id || null,
       ip: params.ip || '127.0.0.1',
-      details: params.detail || null,
+      details: details,
       created_at: new Date().toISOString(),
-      retryCount: 0,
     }
     
     console.log('[OperationLog] 记录操作日志:', logData)
     
-    if (params.immediate) {
-      // 立即写入
-      const { error } = await supabase.from('operation_logs').insert({
-        user_id: logData.user_id,
-        action: logData.action,
-        module: logData.module,
-        target_id: logData.target_id,
-        ip: logData.ip,
-        details: logData.details,
-        created_at: logData.created_at,
-      })
-      if (error) {
-        console.error('[OperationLog] 立即写入失败:', error)
-        // 失败时加入队列重试
-        operationLogQueue.push({ ...logData, retryCount: 1 })
-      }
+    // 直接写入数据库
+    const { error } = await supabase.from('operation_logs').insert(logData)
+    
+    if (error) {
+      console.error('[OperationLog] 写入失败:', error)
     } else {
-      // 加入队列批量写入
-      operationLogQueue.push(logData)
-      // 如果队列积累到一定数量，立即刷新
-      if (operationLogQueue.length >= 10) {
-        flushOperationLogs()
-      }
+      console.log('[OperationLog] 写入成功')
     }
   } catch (err) {
     console.error('[OperationLog] 记录操作日志异常:', err)
