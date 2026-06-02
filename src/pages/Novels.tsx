@@ -28,7 +28,6 @@ import FilterBar, { FilterField } from '../components/FilterBar'
 import NovelChapterModal from '../components/NovelChapterModal'
 import {
   NOVEL_CATEGORY_OPTIONS,
-  NOVEL_STATUS_OPTIONS,
 } from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { supabase } from '../utils/supabase'
@@ -61,6 +60,12 @@ const STATUS_COLORS: Record<string, string> = {
   '连载': 'processing',
   '完结': 'success',
 }
+
+// 本地状态选项（中文值，与 fetchNovels 映射后的 status 一致）
+const NOVEL_STATUS_FILTER_OPTIONS = [
+  { label: '连载中', value: '连载' },
+  { label: '已完结', value: '完结' },
+]
 
 // 分类颜色映射
 const CATEGORY_COLORS: Record<string, string> = {
@@ -138,7 +143,7 @@ const Novels: React.FC = () => {
       const records: NovelRecord[] = (novels || []).map((novel: any) => ({
         ...novel,
         key: novel.id,
-        status: novel.status || '连载',
+        status: novel.status === 'completed' ? '完结' : novel.status === 'ongoing' ? '连载' : (novel.status || '连载'),
         is_published: novel.is_published !== false,
       }))
 
@@ -170,7 +175,7 @@ const Novels: React.FC = () => {
       name: 'status',
       label: '状态',
       type: 'select',
-      options: NOVEL_STATUS_OPTIONS,
+      options: NOVEL_STATUS_FILTER_OPTIONS,
       placeholder: '选择状态',
     },
     // is_published 筛选已移除
@@ -610,7 +615,7 @@ const Novels: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 80,
-      filters: NOVEL_STATUS_OPTIONS.map((opt) => ({ text: opt.label, value: opt.value })),
+      filters: NOVEL_STATUS_FILTER_OPTIONS.map((opt) => ({ text: opt.label, value: opt.value })),
       onFilter: (value, record) => record.status === value,
       render: (status: string) => (
         <Tag color={STATUS_COLORS[status] || 'default'}>
