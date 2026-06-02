@@ -188,21 +188,23 @@ const FileManagement: React.FC = () => {
   }, [filterType, searchText])
 
   // 检查文件关联
-  const checkFileAssociations = async (fileId: string): Promise<FileAssociation[]> => {
+  const checkFileAssociations = async (file: FileRecord): Promise<FileAssociation[]> => {
     try {
-      // 查询小说封面关联
+      const fileUrl = file.url
+
+      // 查询小说封面关联（匹配完整URL）
       const { data: novels, error: novelError } = await supabase
         .from('novels')
         .select('id, title, cover_url')
-        .eq('cover_url', fileId)
+        .eq('cover_url', fileUrl)
 
       if (novelError) throw novelError
 
-      // 查询用户头像关联
+      // 查询用户头像关联（匹配完整URL）
       const { data: users, error: userError } = await supabase
         .from('users')
         .select('id, nickname, avatar_url')
-        .eq('avatar_url', fileId)
+        .eq('avatar_url', fileUrl)
 
       if (userError) throw userError
 
@@ -211,7 +213,7 @@ const FileManagement: React.FC = () => {
       novels?.forEach((novel: any) => {
         associations.push({
           id: `novel_${novel.id}`,
-          file_id: fileId,
+          file_id: file.id,
           entity_type: 'novel',
           entity_id: novel.id,
           entity_title: novel.title,
@@ -222,7 +224,7 @@ const FileManagement: React.FC = () => {
       users?.forEach((user: any) => {
         associations.push({
           id: `user_${user.id}`,
-          file_id: fileId,
+          file_id: file.id,
           entity_type: 'user',
           entity_id: user.id,
           entity_title: user.nickname || user.id,
@@ -327,7 +329,7 @@ const FileManagement: React.FC = () => {
     setCheckingAssociations(true)
     setDeleteModalVisible(true)
 
-    const assocs = await checkFileAssociations(file.id)
+    const assocs = await checkFileAssociations(file)
     setAssociations(assocs)
     setCheckingAssociations(false)
   }
@@ -423,8 +425,8 @@ const FileManagement: React.FC = () => {
     },
     {
       title: '预览',
-      dataIndex: 'thumbnail_url',
-      key: 'thumbnail_url',
+      dataIndex: 'url',
+      key: 'preview',
       width: 80,
       render: (url: string, record: FileRecord) => {
         if (record.mime_type?.startsWith('image/') && url) {
@@ -435,7 +437,6 @@ const FileManagement: React.FC = () => {
               width={50}
               height={50}
               style={{ objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
-              preview={{ src: record.url }}
             />
           )
         }
@@ -444,15 +445,14 @@ const FileManagement: React.FC = () => {
     },
     {
       title: '关联',
-      dataIndex: 'id',
       key: 'associations',
       width: 100,
-      render: (id: string) => (
+      render: (_: any, record: FileRecord) => (
         <Button
           type="link"
           icon={<LinkOutlined />}
           onClick={async () => {
-            const assocs = await checkFileAssociations(id)
+            const assocs = await checkFileAssociations(record)
             if (assocs.length > 0) {
               Modal.info({
                 title: '文件关联',
