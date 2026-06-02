@@ -241,9 +241,13 @@ const SystemMonitor: React.FC = () => {
           // 计算相邻日志的平均间隔时间作为响应时间参考
           let totalInterval = 0
           for (let i = 1; i < recentLogs.length; i++) {
-            const current = new Date(recentLogs[i - 1].created_at).getTime()
-            const prev = new Date(recentLogs[i].created_at).getTime()
-            totalInterval += (current - prev)
+            const currentLog = recentLogs[i - 1]
+            const prevLog = recentLogs[i]
+            if (currentLog?.created_at && prevLog?.created_at) {
+              const current = new Date(currentLog.created_at).getTime()
+              const prev = new Date(prevLog.created_at).getTime()
+              totalInterval += (current - prev)
+            }
           }
           avgResponseTime = Math.round(totalInterval / (recentLogs.length - 1) / 1000)
           // 限制在合理范围内 (50ms - 500ms)
