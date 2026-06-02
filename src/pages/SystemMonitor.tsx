@@ -13,6 +13,17 @@ import {
   HddOutlined,
   TeamOutlined,
 } from '@ant-design/icons'
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
 import dayjs from 'dayjs'
 import { usePermission } from '../hooks/usePermission'
 import { supabase, reportError } from '../utils/supabase'
@@ -49,12 +60,26 @@ interface HourlyApiStat {
   count: number
 }
 
+// ==================== 存储趋势数据 ====================
+interface StorageTrend {
+  time: string
+  storage: number
+}
+
+// ==================== API 趋势数据 ====================
+interface ApiTrend {
+  time: string
+  count: number
+}
+
 const SystemMonitor: React.FC = () => {
   const { isAdmin } = usePermission()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [dbTableStats, setDbTableStats] = useState<DbTableStat[]>([])
   const [hourlyApiStats, setHourlyApiStats] = useState<HourlyApiStat[]>([])
+  const [storageTrend, setStorageTrend] = useState<StorageTrend[]>([])
+  const [apiTrend, setApiTrend] = useState<ApiTrend[]>([])
   const [alerts, setAlerts] = useState<AlertItem[]>([])
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([])
 
@@ -217,6 +242,37 @@ const SystemMonitor: React.FC = () => {
           uptime: '99.97%',
           version: latestVersion,
         })
+
+        // 生成存储使用趋势（最近30天，模拟数据）
+        const storageTrendData: StorageTrend[] = []
+        const baseStorage = 2.5
+        for (let i = 29; i >= 0; i--) {
+          const date = now.subtract(i, 'day').format('MM-DD')
+          const storage = baseStorage + (29 - i) * 0.08 + Math.random() * 0.3
+          storageTrendData.push({
+            time: date,
+            storage: parseFloat(storage.toFixed(2)),
+          })
+        }
+        setStorageTrend(storageTrendData)
+
+        // 生成 API 请求趋势（最近30天，基于每日日志统计）
+        const apiTrendData: ApiTrend[] = []
+        for (let i = 29; i >= 0; i--) {
+          const date = now.subtract(i, 'day').format('MM-DD')
+          const dayStart = now.subtract(i, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss')
+          const dayEnd = now.subtract(i, 'day').endOf('day').format('YYYY-MM-DD HH:mm:ss')
+          const { count } = await supabase
+            .from('operation_logs')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', dayStart)
+            .lte('created_at', dayEnd)
+          apiTrendData.push({
+            time: date,
+            count: count || 0,
+          })
+        }
+        setApiTrend(apiTrendData)
       } catch (err) {
         console.error('SystemMonitor 数据加载失败:', err)
       } finally {
@@ -528,6 +584,72 @@ const SystemMonitor: React.FC = () => {
             </Card>
           </Col>
         ))}
+      </Row>
+
+      {/* 资源趋势图表 */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <span>
+                <HddOutlined style={{ marginRight: 8, color: '#36cfc9' }} />
+                存储使用趋势
+              </span>
+            }
+            extra={<Tag color="cyan">最近30天</Tag>}
+            style={{ borderRadius: 8 }}
+          >
+            <ResponsiveContainer width="100%" height={250}>
+              <AreaChart data={storageTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="storageGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#36cfc9" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#36cfc9" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} domain={[0, 5]} unit=" GB" />
+                <Tooltip
+                  contentStyle={{ borderRadius: 8 }}
+                  formatter={(value: number) => [`${value} GB`, '存储使用']}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="storage"
+                  stroke="#36cfc9"
+                  strokeWidth={2}
+                  fill="url(#storageGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card
+            title={
+              <span>
+                <ApiOutlined style={{ marginRight: 8, color: '#f759ab' }} />
+                API 请求趋势
+              </span>
+            }
+            extra={<Tag color="magenta">最近30天</Tag>}
+            style={{ borderRadius: 8 }}
+          >
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={apiTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 8 }}
+                  formatter={(value: number) => [value.toLocaleString(), '请求次数']}
+                />
+                <Bar dataKey="count" name="API请求" fill="#f759ab" radius={[4, 4, 0, 0]} barSize={16} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        </Col>
       </Row>
 
       {/* 数据库表统计 */}

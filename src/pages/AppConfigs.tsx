@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react'
 import {
   Table, Button, Modal, Form, Input, InputNumber, Select, Tag, Space,
-  message, Switch
+  message, Switch, Divider, Typography
 } from 'antd'
 import {
-  PlusOutlined, EditOutlined, ReloadOutlined, StopOutlined
+  PlusOutlined, EditOutlined, ReloadOutlined, StopOutlined, EyeOutlined
 } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
 import { getActionColumn } from '../components/ActionColumn'
 import dayjs from 'dayjs'
+
+const { Title, Text, Paragraph } = Typography
 
 const { TextArea } = Input
 
@@ -38,6 +40,8 @@ const AppConfigs: React.FC = () => {
   const [editingRecord, setEditingRecord] = useState<AppConfig | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
+  const [previewModalOpen, setPreviewModalOpen] = useState(false)
+  const [previewConfig, setPreviewConfig] = useState<AppConfig | null>(null)
 
   useEffect(() => {
     fetchConfigs()
@@ -85,6 +89,82 @@ const AppConfigs: React.FC = () => {
       is_active: record.is_active,
     })
     setModalOpen(true)
+  }
+
+  // 预览配置
+  const handlePreview = (record: AppConfig) => {
+    setPreviewConfig(record)
+    setPreviewModalOpen(true)
+  }
+
+  // 渲染预览内容
+  const renderPreviewContent = () => {
+    if (!previewConfig?.content) {
+      return <Text type="secondary">暂无内容</Text>
+    }
+
+    switch (previewConfig.config_type) {
+      case 'rich_text':
+        return (
+          <div
+            style={{
+              padding: 16,
+              background: '#fff',
+              borderRadius: 8,
+              lineHeight: 1.8,
+              maxHeight: 500,
+              overflow: 'auto',
+            }}
+            dangerouslySetInnerHTML={{ __html: previewConfig.content }}
+          />
+        )
+      case 'html':
+        return (
+          <iframe
+            srcDoc={previewConfig.content}
+            style={{
+              width: '100%',
+              height: 500,
+              border: '1px solid #d9d9d9',
+              borderRadius: 8,
+            }}
+            title="HTML Preview"
+          />
+        )
+      case 'json':
+        return (
+          <pre
+            style={{
+              padding: 16,
+              background: '#f5f5f5',
+              borderRadius: 8,
+              maxHeight: 500,
+              overflow: 'auto',
+              fontFamily: 'monospace',
+              fontSize: 13,
+            }}
+          >
+            {JSON.stringify(JSON.parse(previewConfig.content), null, 2)}
+          </pre>
+        )
+      case 'text':
+      default:
+        return (
+          <Paragraph
+            style={{
+              padding: 16,
+              background: '#fafafa',
+              borderRadius: 8,
+              maxHeight: 500,
+              overflow: 'auto',
+              whiteSpace: 'pre-wrap',
+              fontFamily: 'monospace',
+            }}
+          >
+            {previewConfig.content}
+          </Paragraph>
+        )
+    }
   }
 
   const handleAdd = () => {
@@ -232,6 +312,13 @@ const AppConfigs: React.FC = () => {
     getActionColumn<any>(
       (record: any) => [
         {
+          key: 'preview',
+          label: '预览',
+          icon: <EyeOutlined />,
+          type: 'default' as const,
+          onClick: () => handlePreview(record),
+        },
+        {
           key: 'edit',
           label: '编辑',
           icon: <EditOutlined />,
@@ -246,7 +333,7 @@ const AppConfigs: React.FC = () => {
           onClick: () => handleDelete(record),
         },
       ],
-      { width: 240, maxVisible: 2 }
+      { width: 280, maxVisible: 2 }
     ),
   ]
 
@@ -348,6 +435,41 @@ const AppConfigs: React.FC = () => {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 配置预览弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <EyeOutlined />
+            <span>配置预览</span>
+            {previewConfig && (
+              <Tag color={configTypeMap[previewConfig.config_type || '']?.color || 'default'}>
+                {configTypeMap[previewConfig.config_type || '']?.label || '纯文本'}
+              </Tag>
+            )}
+          </Space>
+        }
+        open={previewModalOpen}
+        onCancel={() => {
+          setPreviewModalOpen(false)
+          setPreviewConfig(null)
+        }}
+        footer={null}
+        width={800}
+      >
+        {previewConfig && (
+          <div>
+            <Title level={5}>{previewConfig.title}</Title>
+            <Text type="secondary" style={{ marginBottom: 16, display: 'block' }}>
+              配置键: <code>{previewConfig.config_key}</code>
+            </Text>
+            <Divider style={{ margin: '12px 0' }} />
+            <div style={{ marginTop: 16 }}>
+              {renderPreviewContent()}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

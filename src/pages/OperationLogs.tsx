@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
-import { Card, Table, Input, Select, DatePicker, Button, Tag, Space, Spin, Empty, Tooltip, message } from 'antd'
-import { SearchOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Card, Table, Input, Select, DatePicker, Button, Tag, Space, Spin, Empty, Tooltip, message, Modal, Popconfirm, Row, Col, Statistic } from 'antd'
+import { SearchOutlined, ExportOutlined, ReloadOutlined, DeleteOutlined, WarningOutlined } from '@ant-design/icons'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import { usePermission } from '../hooks/usePermission'
@@ -72,6 +72,12 @@ const OperationLogs: React.FC = () => {
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
+
+  // 日志清理功能
+  const [cleanModalOpen, setCleanModalOpen] = useState(false)
+  const [cleanDays, setCleanDays] = useState<number>(30)
+  const [cleanLoading, setCleanLoading] = useState(false)
+  const [cleanStats, setCleanStats] = useState({ total: 0, toDelete: 0 })
 
   // 从 Supabase 加载操作日志
   const fetchLogs = useCallback(async () => {
@@ -147,6 +153,53 @@ const OperationLogs: React.FC = () => {
     setFilterAction(undefined)
     setDateRange(null)
     setCurrentPage(1)
+  }
+
+  // 计算清理预览
+  const handlePreviewClean = useCallback(async () => {
+    try {
+      const beforeDate = dayjs().subtract(cleanDays, 'day').format('YYYY-MM-DD')
+
+      // 查询将要删除的日志数量
+      const { count, error } = await supabase
+        .from('operation_logs')
+        .select('*', { count: 'exact', head: true })
+        .lt('created_at', beforeDate)
+
+      if (error) throw error
+
+      setCleanStats({
+        total: logs.length,
+        toDelete: count || 0,
+      })
+    } catch (err) {
+      console.error('计算清理数量失败:', err)
+      message.error('计算清理数量失败')
+    }
+  }, [cleanDays, logs.length])
+
+  // 执行清理
+  const handleCleanLogs = async () => {
+    setCleanLoading(true)
+    try {
+      const beforeDate = dayjs().subtract(cleanDays, 'day').format('YYYY-MM-DD')
+
+      const { error } = await supabase
+        .from('operation_logs')
+        .delete()
+        .lt('created_at', beforeDate)
+
+      if (error) throw error
+
+      message.success(`成功清理 ${cleanStats.toDelete} 条历史日志`)
+      setCleanModalOpen(false)
+      fetchLogs() // 刷新列表
+    } catch (err) {
+      console.error('清理日志失败:', err)
+      message.error('清理日志失败')
+    } finally {
+      setCleanLoading(false)
+    }
   }
 
   // 导出 CSV
@@ -293,6 +346,16 @@ const OperationLogs: React.FC = () => {
           >
             导出
           </Button>
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => {
+              setCleanModalOpen(true)
+              handlePreviewClean()
+            }}
+          >
+            清理历史
+          </Button>
         </Space>
         <div style={{ marginTop: 8, color: '#8c8c8c', fontSize: 13 }}>
           共 {filteredLogs.length} 条记录
@@ -321,6 +384,72 @@ const OperationLogs: React.FC = () => {
           size="middle"
         />
       </Card>
+
+      {/* 日志清理弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <WarningOutlined style={{ color: '#faad14' }} />
+            <span>清理历史日志</span>
+          </Space>
+        }
+        open={cleanModalOpen}
+        onCancel={() => setCleanModalOpen(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setCleanModalOpen(false)}>
+            取消
+          </Button>,
+          <Popconfirm
+            key="confirm"
+            title="确认清理"
+            description={`确定要删除 ${cleanDays} 天前的所有历史日志吗？此操作不可恢复！`}
+            onConfirm={handleCleanLogs}
+            okText="确认清理"
+            cancelText="取消"
+            okButtonProps={{ danger: true, loading: cleanLoading }}
+          >
+            <Button type="primary" danger loading={cleanLoading}>
+              确认清理
+            </Button>
+          </Popconfirm>,
+        ]}
+        width={500}
+      >
+        <div style={{ padding: '16px 0' }}>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Statistic title="当前日志总数" value={cleanStats.total} />
+            </Col>
+            <Col span={12}>
+              <Statistic
+                title={`${cleanDays} 天前日志数`}
+                value={cleanStats.toDelete}
+                valueStyle={{ color: '#ff4d4f' }}
+              />
+            </Col>
+          </Row>
+          <div style={{ marginTop: 24 }}>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <span>清理策略：删除指定天数之前的所有操作日志</span>
+              <Select
+                value={cleanDays}
+                onChange={setCleanDays}
+                style={{ width: '100%' }}
+                options={[
+                  { label: '7 天前的日志', value: 7 },
+                  { label: '30 天前的日志', value: 30 },
+                  { label: '90 天前的日志', value: 90 },
+                  { label: '180 天前的日志', value: 180 },
+                  { label: '365 天前的日志', value: 365 },
+                ]}
+              />
+              <Button block onClick={handlePreviewClean}>
+                刷新预览
+              </Button>
+            </Space>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
