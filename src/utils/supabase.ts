@@ -86,19 +86,84 @@ export function reportError(
   }
 }
 
-// 操作日志记录函数
+// 操作日志队列（用于批量写入和失败重试）
+interface OperationLogItem {
+  user_id: string | null
+  action: string
+  module: string
+  target_id: string | null
+  ip: string
+  details: string | null
+  created_at: string
+  retryCount: number
+}
+
+const operationLogQueue: OperationLogItem[] = []
+let isFlushingLogs = false
+
+// 批量写入操作日志
+async function flushOperationLogs() {
+  if (isFlushingLogs || operationLogQueue.length === 0) return
+  
+  isFlushingLogs = true
+  const logsToFlush = operationLogQueue.splice(0, 50) // 每次最多处理50条
+  
+  try {
+    const { error } = await supabase.from('operation_logs').insert(
+      logsToFlush.map(log => ({
+        user_id: log.user_id,
+        action: log.action,
+        module: log.module,
+        target_id: log.target_id,
+        ip: log.ip,
+        details: log.details,
+        created_at: log.created_at,
+      }))
+    )
+    
+    if (error) {
+      console.error('[OperationLog] 批量写入失败:', error)
+      // 将失败的日志重新加入队列（限制重试次数）
+      const failedLogs = logsToFlush
+        .filter(log => log.retryCount < 3)
+        .map(log => ({ ...log, retryCount: log.retryCount + 1 }))
+      operationLogQueue.unshift(...failedLogs)
+    } else {
+      console.log(`[OperationLog] 成功写入 ${logsToFlush.length} 条日志`)
+    }
+  } catch (err) {
+    console.error('[OperationLog] 批量写入异常:', err)
+    // 将失败的日志重新加入队列
+    const failedLogs = logsToFlush
+      .filter(log => log.retryCount < 3)
+      .map(log => ({ ...log, retryCount: log.retryCount + 1 }))
+    operationLogQueue.unshift(...failedLogs)
+  } finally {
+    isFlushingLogs = false
+    // 如果队列中还有日志，继续处理
+    if (operationLogQueue.length > 0) {
+      setTimeout(flushOperationLogs, 1000)
+    }
+  }
+}
+
+// 定期刷新日志（每30秒）
+setInterval(flushOperationLogs, 30000)
+
+// 操作日志记录函数（支持立即写入和队列批量写入）
 export async function logOperation(params: {
   action: string
   module: string
   detail?: string
   target_id?: string
   ip?: string
+  immediate?: boolean // 是否立即写入（默认false，使用队列）
 }) {
   try {
     const adminUserStr = localStorage.getItem('admin_user')
     const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
     
-    const logData = {
+    const logData: OperationLogItem = {
       user_id: adminUser?.id || null,
       action: params.action,
       module: params.module,
@@ -106,13 +171,34 @@ export async function logOperation(params: {
       ip: params.ip || '127.0.0.1',
       details: params.detail || null,
       created_at: new Date().toISOString(),
+      retryCount: 0,
     }
     
     console.log('[OperationLog] 记录操作日志:', logData)
     
-    const { error } = await supabase.from('operation_logs').insert(logData)
-    if (error) {
-      console.error('[OperationLog] 记录操作日志失败:', error)
+    if (params.immediate) {
+      // 立即写入
+      const { error } = await supabase.from('operation_logs').insert({
+        user_id: logData.user_id,
+        action: logData.action,
+        module: logData.module,
+        target_id: logData.target_id,
+        ip: logData.ip,
+        details: logData.details,
+        created_at: logData.created_at,
+      })
+      if (error) {
+        console.error('[OperationLog] 立即写入失败:', error)
+        // 失败时加入队列重试
+        operationLogQueue.push({ ...logData, retryCount: 1 })
+      }
+    } else {
+      // 加入队列批量写入
+      operationLogQueue.push(logData)
+      // 如果队列积累到一定数量，立即刷新
+      if (operationLogQueue.length >= 10) {
+        flushOperationLogs()
+      }
     }
   } catch (err) {
     console.error('[OperationLog] 记录操作日志异常:', err)
