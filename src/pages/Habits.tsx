@@ -14,7 +14,7 @@ import { usePermission } from '../hooks/usePermission'
 interface HabitCheckin {
   id: string
   habit_id: string
-  checkin_date: string
+  checkin_at: string  // 表字段名是 checkin_at，不是 checkin_date
   note: string | null
   created_at: string
 }
@@ -228,7 +228,7 @@ const CheckinModal: React.FC<{
         .from('habit_checkins')
         .select('*')
         .eq('habit_id', habit.id)
-        .order('checkin_date', { ascending: false })
+        .order('checkin_at', { ascending: false })
 
       if (error) throw error
       setCheckins(data || [])
@@ -250,14 +250,14 @@ const CheckinModal: React.FC<{
     const weekAgo = now.subtract(7, 'day')
     const monthAgo = now.subtract(30, 'day')
 
-    const weekly = checkinList.filter(c => dayjs(c.checkin_date).isAfter(weekAgo)).length
-    const monthly = checkinList.filter(c => dayjs(c.checkin_date).isAfter(monthAgo)).length
+    const weekly = checkinList.filter(c => dayjs(c.checkin_at).isAfter(weekAgo)).length
+    const monthly = checkinList.filter(c => dayjs(c.checkin_at).isAfter(monthAgo)).length
 
     // 计算最大连续天数
     let maxStreak = 0
     let currentStreak = 0
     if (checkinList.length > 0) {
-      const sortedDates = checkinList.map(c => dayjs(c.checkin_date)).sort((a, b) => a.diff(b))
+      const sortedDates = checkinList.map(c => dayjs(c.checkin_at)).sort((a, b) => a.diff(b))
       let streak = 1
       maxStreak = 1
       for (let i = 1; i < sortedDates.length; i++) {
@@ -317,8 +317,8 @@ const CheckinModal: React.FC<{
   const columns: ColumnsType<HabitCheckin> = [
     {
       title: '打卡日期',
-      dataIndex: 'checkin_date',
-      key: 'checkin_date',
+      dataIndex: 'checkin_at',
+      key: 'checkin_at',
       width: 150,
       render: (date: string) => (
         <Space>
@@ -459,7 +459,7 @@ const CheckinModal: React.FC<{
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
                       {checkins.slice(0, 30).map((checkin) => (
                         <Tag key={checkin.id} color="success" style={{ margin: 4 }}>
-                          {dayjs(checkin.checkin_date).format('MM-DD')}
+                          {dayjs(checkin.checkin_at).format('MM-DD')}
                         </Tag>
                       ))}
                     </div>
