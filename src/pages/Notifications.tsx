@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
-import { Card, Table, Select, Button, Tag, Space, Spin, Empty, Tooltip, message, Modal, Form, Input, Popconfirm } from 'antd'
-import { ReloadOutlined, DeleteOutlined, PlusOutlined, BellOutlined, CheckCircleOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
+import { Card, Table, Select, Button, Tag, Space, Spin, Empty, Tooltip, message, Modal, Form, Input, Popconfirm, Radio } from 'antd'
+import { ReloadOutlined, DeleteOutlined, PlusOutlined, BellOutlined, CheckCircleOutlined, EyeOutlined, EyeInvisibleOutlined, SoundOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 
@@ -64,6 +64,7 @@ const Notifications: React.FC = () => {
   const [sendModalOpen, setSendModalOpen] = useState(false)
   const [sendLoading, setSendLoading] = useState(false)
   const [userOptions, setUserOptions] = useState<UserOption[]>([])
+  const [sendMode, setSendMode] = useState<'notification' | 'announcement'>('notification')
   const [form] = Form.useForm()
 
   // ==================== 数据加载 ====================
@@ -200,48 +201,66 @@ const Notifications: React.FC = () => {
     }
   }
 
-  // 发送通知
+  // 发送通知/公告
   const handleSendNotification = async () => {
     try {
       const values = await form.validateFields()
       setSendLoading(true)
 
-      const insertData: any = {
-        title: values.title,
-        body: values.body,
-        type: values.type,
-        is_read: false,
-      }
-
-      if (values.user_id === 'all') {
-        // 发送给所有用户：先查询所有用户，然后逐个插入
-        const { data: users, error: usersError } = await supabase
-          .from('users')
-          .select('id')
-
-        if (usersError) throw usersError
-
-        const records = (users || []).map((u: any) => ({
-          ...insertData,
-          user_id: u.id,
-        }))
-
+      if (sendMode === 'announcement') {
+        // 发送公告：插入 announcements 表，user_id 为 null 表示所有用户
         const { error } = await supabase
-          .from('notifications')
-          .insert(records)
+          .from('announcements')
+          .insert({
+            title: values.title,
+            content: values.body,
+            type: '系统公告',
+            priority: '高',
+            is_published: true,
+            publish_at: new Date().toISOString(),
+          })
 
         if (error) throw error
-
-        message.success(`已向 ${records.length} 位用户发送通知`)
+        message.success('公告发送成功，所有用户可见')
       } else {
-        insertData.user_id = values.user_id
-        const { error } = await supabase
-          .from('notifications')
-          .insert(insertData)
+        // 发送普通通知
+        const insertData: any = {
+          title: values.title,
+          body: values.body,
+          type: values.type,
+          is_read: false,
+        }
 
-        if (error) throw error
+        if (values.user_id === 'all') {
+          // 发送给所有用户：先查询所有用户，然后逐个插入
+          const { data: users, error: usersError } = await supabase
+            .from('users')
+            .select('id')
 
-        message.success('通知发送成功')
+          if (usersError) throw usersError
+
+          const records = (users || []).map((u: any) => ({
+            ...insertData,
+            user_id: u.id,
+          }))
+
+          const { error } = await supabase
+            .from('notifications')
+            .insert(records)
+
+          if (error) throw error
+
+          message.success(`已向 ${records.length} 位用户发送通知`)
+        } else {
+          insertData.user_id = values.user_id
+          const { error } = await supabase
+            .from('notifications')
+            .insert(insertData)
+
+          if (error) throw error
+
+          message.success('通知发送成功')
+        }
       }
 
       setSendModalOpen(false)
@@ -249,8 +268,8 @@ const Notifications: React.FC = () => {
       fetchNotifications()
     } catch (err: any) {
       if (err.errorFields) return // 表单校验失败，不提示
-      console.error('发送通知失败:', err)
-      message.error('发送通知失败')
+      console.error('发送失败:', err)
+      message.error('发送失败')
     } finally {
       setSendLoading(false)
     }
@@ -268,6 +287,8 @@ const Notifications: React.FC = () => {
     if (userOptions.length === 0) {
       fetchUsers()
     }
+    setSendMode('notification')
+    form.resetFields()
     setSendModalOpen(true)
   }
 
@@ -429,6 +450,14 @@ const Notifications: React.FC = () => {
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenSendModal}>
             发送通知
           </Button>
+          <Button type="primary" icon={<SoundOutlined />} onClick={() => {
+            if (userOptions.length === 0) fetchUsers()
+            setSendMode('announcement')
+            form.resetFields()
+            setSendModalOpen(true)
+          }}>
+            发送公告
+          </Button>
         </Space>
         <div style={{ marginTop: 8, color: '#8c8c8c', fontSize: 13 }}>
           共 {filteredNotifications.length} 条通知
@@ -466,9 +495,9 @@ const Notifications: React.FC = () => {
         />
       </Card>
 
-      {/* 发送通知弹窗 */}
+      {/* 发送通知/公告弹窗 */}
       <Modal
-        title="发送新通知"
+        title={sendMode === 'announcement' ? '发送公告' : '发送新通知'}
         open={sendModalOpen}
         onCancel={() => {
           setSendModalOpen(false)
@@ -486,50 +515,76 @@ const Notifications: React.FC = () => {
           layout="vertical"
           style={{ marginTop: 16 }}
         >
+          <Form.Item label="发送模式" style={{ marginBottom: 16 }}>
+            <Radio.Group
+              value={sendMode}
+              onChange={(e) => {
+                setSendMode(e.target.value)
+                form.resetFields()
+              }}
+            >
+              <Radio.Button value="notification">普通通知</Radio.Button>
+              <Radio.Button value="announcement">公告</Radio.Button>
+            </Radio.Group>
+          </Form.Item>
+
           <Form.Item
             name="title"
             label="标题"
-            rules={[{ required: true, message: '请输入通知标题' }]}
+            rules={[{ required: true, message: '请输入标题' }]}
           >
-            <Input placeholder="请输入通知标题" maxLength={100} />
+            <Input placeholder="请输入标题" maxLength={100} />
           </Form.Item>
           <Form.Item
             name="body"
             label="内容"
-            rules={[{ required: true, message: '请输入通知内容' }]}
+            rules={[{ required: true, message: '请输入内容' }]}
           >
             <Input.TextArea
-              placeholder="请输入通知内容"
+              placeholder="请输入内容"
               rows={4}
               maxLength={1000}
               showCount
             />
           </Form.Item>
-          <Form.Item
-            name="type"
-            label="类型"
-            rules={[{ required: true, message: '请选择通知类型' }]}
-          >
-            <Select placeholder="请选择通知类型" options={TYPE_OPTIONS} />
-          </Form.Item>
-          <Form.Item
-            name="user_id"
-            label="目标用户"
-            rules={[{ required: true, message: '请选择目标用户' }]}
-          >
-            <Select
-              placeholder="请选择目标用户"
-              showSearch
-              optionFilterProp="label"
-              options={[
-                { value: 'all', label: '所有用户' },
-                ...userOptions,
-              ]}
-              filterOption={(input, option) =>
-                (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
-              }
-            />
-          </Form.Item>
+
+          {sendMode === 'notification' && (
+            <>
+              <Form.Item
+                name="type"
+                label="类型"
+                rules={[{ required: true, message: '请选择通知类型' }]}
+              >
+                <Select placeholder="请选择通知类型" options={TYPE_OPTIONS} />
+              </Form.Item>
+              <Form.Item
+                name="user_id"
+                label="目标用户"
+                rules={[{ required: true, message: '请选择目标用户' }]}
+              >
+                <Select
+                  placeholder="请选择目标用户"
+                  showSearch
+                  optionFilterProp="label"
+                  options={[
+                    { value: 'all', label: '所有用户' },
+                    ...userOptions,
+                  ]}
+                  filterOption={(input, option) =>
+                    (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
+                  }
+                />
+              </Form.Item>
+            </>
+          )}
+
+          {sendMode === 'announcement' && (
+            <Form.Item>
+              <div style={{ color: '#8c8c8c', fontSize: 13 }}>
+                公告将发送给所有用户，并在公告管理页面中显示。
+              </div>
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>

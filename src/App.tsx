@@ -22,6 +22,7 @@ import {
   CheckCircleOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
+  SoundOutlined,
 } from '@ant-design/icons'
 import type { AdminUser } from './types/auth'
 import AuthGuard from './components/AuthGuard'
@@ -49,6 +50,7 @@ import SensitiveWords from './pages/SensitiveWords'
 import SensitiveWordAnalytics from './pages/SensitiveWordAnalytics'
 import FileManagement from './pages/FileManagement'
 import Notifications from './pages/Notifications'
+import Announcements from './pages/Announcements'
 
 
 const { Header, Sider, Content } = Layout
@@ -109,7 +111,7 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
   'novels' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
-  'sensitive_words' | 'sensitive_word_analytics' | 'file_management'
+  'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -203,6 +205,7 @@ const MainLayout: React.FC = () => {
           { key: 'app_configs', icon: <FileTextOutlined />, label: '配置管理' },
           { key: 'dict_management', icon: <FileTextOutlined />, label: '字典管理' },
           { key: 'file_management', icon: <FileTextOutlined />, label: '文件管理' },
+          { key: 'announcements', icon: <SoundOutlined />, label: '公告管理' },
         ],
       },
     ] : []),
@@ -254,6 +257,8 @@ const MainLayout: React.FC = () => {
         return <SensitiveWordAnalytics />
       case 'file_management':
         return <FileManagement />
+      case 'announcements':
+        return <Announcements />
       default:
         return <Dashboard />
     }
@@ -282,6 +287,7 @@ const MainLayout: React.FC = () => {
       sensitive_words: '敏感词管理',
       sensitive_word_analytics: '敏感词数据统计',
       file_management: '文件管理',
+      announcements: '公告管理',
     }
     return titles[currentPage] || '数据概览'
   }
