@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Row, Col, Card, Statistic, Spin, Table, Tag, Empty, Tabs, Space, Button } from 'antd'
+import { Row, Col, Card, Statistic, Table, Tag, Empty, Tabs, Space, Button } from 'antd'
 import {
   DatabaseOutlined,
   ApiOutlined,
@@ -115,14 +115,6 @@ const SystemMonitor: React.FC = () => {
   const handleRefresh = () => {
     setRefreshKey(k => k + 1)
   }
-
-  // 加载指示器
-  const LoadingIndicator = () => (
-    <div style={{ textAlign: 'center', padding: 40 }}>
-      <Spin size="large" />
-      <div style={{ marginTop: 16 }}>加载中...</div>
-    </div>
-  )
 
   // 核心指标卡片
   const OverviewContent = () => (
