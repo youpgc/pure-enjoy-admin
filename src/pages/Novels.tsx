@@ -21,6 +21,7 @@ import {
   DownOutlined,
   BookOutlined,
   EyeOutlined,
+  StarOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
@@ -667,6 +668,31 @@ const Novels: React.FC = () => {
         <Tag color={STATUS_COLORS[status] || 'default'}>
           {status || '连载'}
         </Tag>
+      ),
+    },
+    {
+      title: '收藏量',
+      dataIndex: 'collect_count',
+      key: 'collect_count',
+      width: 90,
+      sorter: (a, b) => a.collect_count - b.collect_count,
+      render: (count: number) => (
+        <Space>
+          <StarOutlined style={{ color: '#faad14' }} />
+          <span>{count.toLocaleString()}</span>
+        </Space>
+      ),
+    },
+    {
+      title: '评分',
+      dataIndex: 'rating',
+      key: 'rating',
+      width: 80,
+      sorter: (a, b) => a.rating - b.rating,
+      render: (rating: number) => (
+        <span style={{ color: rating >= 4 ? '#52c41a' : rating >= 3 ? '#faad14' : '#ff4d4f', fontWeight: 500 }}>
+          {rating > 0 ? rating.toFixed(1) : '-'}
+        </span>
       ),
     },
     // is_published 列已移除，所有公开小说都对用户可见

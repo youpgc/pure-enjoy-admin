@@ -72,6 +72,10 @@ const NovelBookshelves: React.FC = () => {
   const [detailList, setDetailList] = useState<BookshelfDetail[]>([])
   // 小说信息缓存，用于详情页
   const [novelsCache, setNovelsCache] = useState<Map<string, any>>(new Map())
+  // 所有 user_novels 原始数据，用于统计计算
+  const [allUserNovels, setAllUserNovels] = useState<any[]>([])
+  // 热门书架小说 Top 5
+  const [topShelfNovels, setTopShelfNovels] = useState<{ title: string; author: string; count: number }[]>([])
 
   // 加载书架列表 - 联合 user_novels + novels + users 表查询
   const loadBookshelves = useCallback(async () => {
@@ -164,6 +168,25 @@ const NovelBookshelves: React.FC = () => {
       
       setBookshelves(result)
       setFilteredBookshelves(result)
+      setAllUserNovels(userNovels || [])
+
+      // 热门书架小说 Top 5：被最多用户加入书架的小说
+      const novelCountMap: Record<string, number> = {}
+      ;(userNovels || []).forEach((item: any) => {
+        novelCountMap[item.novel_id] = (novelCountMap[item.novel_id] || 0) + 1
+      })
+      const topNovels = Object.entries(novelCountMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([novelId, count]) => {
+          const novel = novelsMap.get(novelId)
+          return {
+            title: novel?.title || '未知书名',
+            author: novel?.author || '未知作者',
+            count,
+          }
+        })
+      setTopShelfNovels(topNovels)
     } catch (error: any) {
       console.error('[NovelBookshelves] 加载书架列表失败:', error)
       message.error('加载书架列表失败：' + error.message)
@@ -326,10 +349,20 @@ const NovelBookshelves: React.FC = () => {
   ]
 
   // 统计信息
+  const totalBooks = bookshelves.reduce((sum, item) => sum + item.total_books, 0)
   const stats = {
     totalUsers: bookshelves.length,
-    totalBooks: bookshelves.reduce((sum, item) => sum + item.total_books, 0),
+    totalBooks,
     activeReaders: bookshelves.filter(item => item.last_read_at).length,
+    avgProgress: allUserNovels.length > 0
+      ? parseFloat((allUserNovels.reduce((sum: number, n: any) => sum + (n.progress || 0), 0) / allUserNovels.length * 100).toFixed(1))
+      : 0,
+    completionRate: allUserNovels.length > 0
+      ? parseFloat((allUserNovels.filter((n: any) => (n.progress || 0) >= 1).length / allUserNovels.length * 100).toFixed(1))
+      : 0,
+    avgBooksPerUser: bookshelves.length > 0
+      ? parseFloat((totalBooks / bookshelves.length).toFixed(1))
+      : 0,
   }
 
   return (
@@ -347,7 +380,7 @@ const NovelBookshelves: React.FC = () => {
 
         {/* 统计信息 */}
         <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col span={8}>
+          <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ background: '#e6f7ff' }}>
               <Statistic
                 title="总用户数"
@@ -357,7 +390,7 @@ const NovelBookshelves: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ background: '#f6ffed' }}>
               <Statistic
                 title="书架总藏书"
@@ -367,7 +400,7 @@ const NovelBookshelves: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col xs={12} sm={8} md={4}>
             <Card size="small" style={{ background: '#fff7e6' }}>
               <Statistic
                 title="活跃读者"
@@ -377,7 +410,65 @@ const NovelBookshelves: React.FC = () => {
               />
             </Card>
           </Col>
+          <Col xs={12} sm={8} md={4}>
+            <Card size="small" style={{ background: '#f9f0ff' }}>
+              <Statistic
+                title="平均阅读进度"
+                value={stats.avgProgress}
+                suffix="%"
+                valueStyle={{ color: '#722ed1' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={4}>
+            <Card size="small" style={{ background: '#e6fffb' }}>
+              <Statistic
+                title="阅读完成率"
+                value={stats.completionRate}
+                suffix="%"
+                valueStyle={{ color: '#13c2c2' }}
+              />
+            </Card>
+          </Col>
+          <Col xs={12} sm={8} md={4}>
+            <Card size="small" style={{ background: '#fff1f0' }}>
+              <Statistic
+                title="人均藏书量"
+                value={stats.avgBooksPerUser}
+                suffix="本"
+                valueStyle={{ color: '#ff4d4f' }}
+              />
+            </Card>
+          </Col>
         </Row>
+
+        {/* 热门书架小说 Top 5 */}
+        {topShelfNovels.length > 0 && (
+          <Row gutter={16} style={{ marginBottom: 24 }}>
+            <Col span={24}>
+              <Card size="small" title="热门书架小说 Top 5" style={{ background: '#fafafa' }}>
+                <Row gutter={16}>
+                  {topShelfNovels.map((novel, index) => (
+                    <Col xs={12} sm={8} md={4} key={index}>
+                      <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                        <div>
+                          <Tag color={index === 0 ? 'gold' : index === 1 ? 'orange' : index === 2 ? 'cyan' : 'default'}>
+                            Top {index + 1}
+                          </Tag>
+                        </div>
+                        <div style={{ marginTop: 4, fontWeight: 500, fontSize: 14 }}>{novel.title}</div>
+                        <div style={{ fontSize: 12, color: '#999' }}>{novel.author}</div>
+                        <div style={{ marginTop: 4, fontSize: 16, fontWeight: 600, color: '#1890ff' }}>
+                          {novel.count} <span style={{ fontSize: 12, color: '#999' }}>人收藏</span>
+                        </div>
+                      </div>
+                    </Col>
+                  ))}
+                </Row>
+              </Card>
+            </Col>
+          </Row>
+        )}
 
         {/* 搜索栏 */}
         <div style={{ marginBottom: 16 }}>

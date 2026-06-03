@@ -66,8 +66,17 @@ const Analytics: React.FC = () => {
     totalChapters: 0,
     totalReadCount: 0,
     totalWordCount: 0,
+    totalCollectCount: 0,
+    avgRating: 0,
     categoryDistribution: [] as { name: string; value: number; color: string }[],
+    statusDistribution: [] as { name: string; value: number; color: string }[],
     topNovels: [] as { title: string; readCount: number; author: string }[],
+  })
+  // user_novels 表统计
+  const [userNovelStats, setUserNovelStats] = useState({
+    totalRecords: 0,
+    avgProgress: 0,
+    activeReaders: 0,
   })
   // 扩展统计
   const [extendedStats, setExtendedStats] = useState({
@@ -106,6 +115,7 @@ const Analytics: React.FC = () => {
           expenseCategoryRes,
           novelStatsRes,
           chapterCountRes,
+          userNovelsRes,
           favoritesCountRes,
           remindersCountRes,
           habitsCountRes,
@@ -142,9 +152,11 @@ const Analytics: React.FC = () => {
           // 消费分类
           supabase.from('expenses').select('category, amount'),
           // 小说统计
-          supabase.from('novels').select('id, category, read_count, title, author, word_count'),
+          supabase.from('novels').select('id, category, read_count, title, author, word_count, collect_count, rating, status'),
           // 章节统计
           supabase.from('novel_chapters').select('id', { count: 'exact', head: true }),
+          // user_novels 统计
+          supabase.from('user_novels').select('progress, last_read_at, user_id'),
           // 收藏总数
           supabase.from('user_favorites').select('id', { count: 'exact', head: true }),
           // 提醒总数
@@ -446,6 +458,10 @@ const Analytics: React.FC = () => {
         const totalChapters = chapterCountRes.count || 0
         const totalReadCount = novelsData.reduce((sum, n) => sum + (n.read_count || 0), 0)
         const totalWordCount = novelsData.reduce((sum, n) => sum + (n.word_count || 0), 0)
+        const totalCollectCount = novelsData.reduce((sum, n) => sum + (n.collect_count || 0), 0)
+        const avgRating = novelsData.length > 0
+          ? parseFloat((novelsData.reduce((sum, n) => sum + (n.rating || 0), 0) / novelsData.length).toFixed(1))
+          : 0
 
         // 小说分类分布
         const novelCategoryMap: Record<string, number> = {}
@@ -464,6 +480,20 @@ const Analytics: React.FC = () => {
           color: novelCategoryColors[name] || '#999',
         }))
 
+        // 小说状态分布
+        const novelStatusMap: Record<string, number> = {}
+        const novelStatusColors: Record<string, string> = { 'ongoing': '#1890ff', 'completed': '#52c41a' }
+        const novelStatusLabels: Record<string, string> = { 'ongoing': '连载中', 'completed': '已完结' }
+        novelsData.forEach(n => {
+          const status = n.status || 'ongoing'
+          novelStatusMap[status] = (novelStatusMap[status] || 0) + 1
+        })
+        const statusDistribution = Object.entries(novelStatusMap).map(([status, value]) => ({
+          name: novelStatusLabels[status] || status,
+          value,
+          color: novelStatusColors[status] || '#999',
+        }))
+
         // 热门小说 Top 10
         const topNovels = novelsData
           .sort((a, b) => (b.read_count || 0) - (a.read_count || 0))
@@ -479,8 +509,29 @@ const Analytics: React.FC = () => {
           totalChapters,
           totalReadCount,
           totalWordCount,
+          totalCollectCount,
+          avgRating,
           categoryDistribution,
+          statusDistribution,
           topNovels,
+        })
+
+        // ==================== user_novels 表统计 ====================
+        const userNovelsData = userNovelsRes.data || []
+        const totalUserNovelRecords = userNovelsData.length
+        const avgProgress = totalUserNovelRecords > 0
+          ? parseFloat((userNovelsData.reduce((sum, n) => sum + (n.progress || 0), 0) / totalUserNovelRecords * 100).toFixed(1))
+          : 0
+        // 去重计算活跃读者数（最近7天有阅读记录的用户）
+        const activeReaderSet = new Set(
+          userNovelsData
+            .filter(n => n.last_read_at && dayjs(n.last_read_at).isAfter(dayjs().subtract(7, 'day')))
+            .map(n => n.user_id)
+        )
+        setUserNovelStats({
+          totalRecords: totalUserNovelRecords,
+          avgProgress,
+          activeReaders: activeReaderSet.size,
         })
 
       } catch (err) {
@@ -543,7 +594,9 @@ const Analytics: React.FC = () => {
     { title: '章节总数', value: novelStats.totalChapters, icon: <ReadOutlined />, color: '#36cfc9' },
     { title: '总阅读量', value: novelStats.totalReadCount, icon: <FireOutlined />, color: '#ff7a45' },
     { title: '总字数', value: novelStats.totalWordCount, icon: <BookOutlined />, color: '#9254de' },
-    { title: '平均每本阅读', value: novelStats.totalNovels > 0 ? Math.round(novelStats.totalReadCount / novelStats.totalNovels) : 0, icon: <DollarOutlined />, color: '#f759ab' },
+    { title: '收藏总量', value: novelStats.totalCollectCount, icon: <StarOutlined />, color: '#faad14' },
+    { title: '平均评分', value: novelStats.avgRating, icon: <StarOutlined />, color: '#f759ab', suffix: ' 分' },
+    { title: '平均每本阅读', value: novelStats.totalNovels > 0 ? Math.round(novelStats.totalReadCount / novelStats.totalNovels) : 0, icon: <DollarOutlined />, color: '#597ef7' },
   ]
 
   // ==================== 留存率表格列 ====================
@@ -915,6 +968,7 @@ const Analytics: React.FC = () => {
                           prefix={
                             <span style={{ color: card.color, marginRight: 6, fontSize: 16 }}>{card.icon}</span>
                           }
+                          suffix={card.suffix}
                           valueStyle={{ color: card.color, fontWeight: 600, fontSize: 20 }}
                         />
                       </Card>
@@ -922,9 +976,45 @@ const Analytics: React.FC = () => {
                   ))}
                 </Row>
 
-                {/* 小说分类分布 + 热门小说 */}
+                {/* user_novels 统计卡片 */}
                 <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                  <Col xs={24} lg={12}>
+                  <Col xs={12} sm={6}>
+                    <Card hoverable style={{ borderRadius: 8 }} bodyStyle={{ padding: '16px 20px' }}>
+                      <Statistic
+                        title={<span style={{ fontSize: 13, color: '#8c8c8c' }}>书架总记录数</span>}
+                        value={userNovelStats.totalRecords}
+                        prefix={<span style={{ color: '#1890ff', marginRight: 6, fontSize: 16 }}><BookOutlined /></span>}
+                        valueStyle={{ color: '#1890ff', fontWeight: 600, fontSize: 20 }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <Card hoverable style={{ borderRadius: 8 }} bodyStyle={{ padding: '16px 20px' }}>
+                      <Statistic
+                        title={<span style={{ fontSize: 13, color: '#8c8c8c' }}>平均阅读进度</span>}
+                        value={userNovelStats.avgProgress}
+                        prefix={<span style={{ color: '#36cfc9', marginRight: 6, fontSize: 16 }}><ReadOutlined /></span>}
+                        suffix="%"
+                        valueStyle={{ color: '#36cfc9', fontWeight: 600, fontSize: 20 }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col xs={12} sm={6}>
+                    <Card hoverable style={{ borderRadius: 8 }} bodyStyle={{ padding: '16px 20px' }}>
+                      <Statistic
+                        title={<span style={{ fontSize: 13, color: '#8c8c8c' }}>活跃读者数</span>}
+                        value={userNovelStats.activeReaders}
+                        prefix={<span style={{ color: '#ff7a45', marginRight: 6, fontSize: 16 }}><FireOutlined /></span>}
+                        suffix="人"
+                        valueStyle={{ color: '#ff7a45', fontWeight: 600, fontSize: 20 }}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
+
+                {/* 小说分类分布 + 状态分布 */}
+                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                  <Col xs={24} lg={8}>
                     <Card title="小说分类分布" extra={<Tag color="purple">按分类统计</Tag>} style={{ borderRadius: 8 }}>
                       <ResponsiveContainer width="100%" height={320}>
                         <PieChart>
@@ -932,8 +1022,8 @@ const Analytics: React.FC = () => {
                             data={novelStats.categoryDistribution}
                             cx="50%"
                             cy="50%"
-                            innerRadius={65}
-                            outerRadius={100}
+                            innerRadius={55}
+                            outerRadius={85}
                             paddingAngle={3}
                             dataKey="value"
                             label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -948,7 +1038,10 @@ const Analytics: React.FC = () => {
                       </ResponsiveContainer>
                     </Card>
                   </Col>
-                  <Col xs={24} lg={12}>
+                  <Col xs={24} lg={8}>
+                    {renderPieChart(novelStats.statusDistribution, '小说状态分布')}
+                  </Col>
+                  <Col xs={24} lg={8}>
                     <Card title="热门小说 Top 10" extra={<Tag color="orange">按阅读量排序</Tag>} style={{ borderRadius: 8 }}>
                       <Table
                         dataSource={novelStats.topNovels}

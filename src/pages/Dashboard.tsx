@@ -11,6 +11,8 @@ import {
   HeartOutlined,
   BookOutlined,
   WalletOutlined,
+  ReadOutlined,
+  FireOutlined,
 } from '@ant-design/icons'
 import {
   AreaChart,
@@ -62,6 +64,12 @@ const Dashboard: React.FC = () => {
   const [userTrend, setUserTrend] = useState<UserTrendItem[]>([])
   const [recentActivities, setRecentActivities] = useState<UserActivityItem[]>([])
   const [moduleUsage, setModuleUsage] = useState<ModuleUsageItem[]>([])
+  // 小说统计
+  const [novelDashboardStats, setNovelDashboardStats] = useState({
+    totalNovels: 0,
+    totalReadCount: 0,
+    activeReaders: 0,
+  })
 
   useEffect(() => {
     fetchDashboardData()
@@ -85,6 +93,9 @@ const Dashboard: React.FC = () => {
         operationLogs14dRes,
         usersTrendRes,
         recentLogsRes,
+        novelsCountRes,
+        novelsReadCountRes,
+        userNovelsActiveRes,
       ] = await Promise.all([
         // 总用户数
         supabase.from('users').select('*', { count: 'exact', head: true }),
@@ -102,6 +113,12 @@ const Dashboard: React.FC = () => {
         supabase.from('users').select('created_at').gte('created_at', thirtyDaysAgo),
         // 最近操作日志
         supabase.from('operation_logs').select('id, user_id, action, module, created_at').order('created_at', { ascending: false }).limit(20),
+        // 小说总数
+        supabase.from('novels').select('id', { count: 'exact', head: true }),
+        // 小说总阅读量
+        supabase.from('novels').select('read_count'),
+        // 活跃读者数（user_novels 最近7天有阅读记录的用户）
+        supabase.from('user_novels').select('user_id, last_read_at').gte('last_read_at', sevenDaysAgo),
       ])
 
       // ==================== 基础统计 ====================
@@ -192,6 +209,16 @@ const Dashboard: React.FC = () => {
         .slice(0, 6)
       setModuleUsage(moduleItems)
 
+      // ==================== 小说统计 ====================
+      const totalNovels = novelsCountRes.count || 0
+      const totalNovelReadCount = novelsReadCountRes.data?.reduce((sum, n) => sum + (n.read_count || 0), 0) || 0
+      const activeReaderIds = new Set(userNovelsActiveRes.data?.map(n => n.user_id).filter(Boolean) || [])
+      setNovelDashboardStats({
+        totalNovels,
+        totalReadCount: totalNovelReadCount,
+        activeReaders: activeReaderIds.size,
+      })
+
     } catch (error) {
       console.error('获取仪表盘数据失败:', error)
     } finally {
@@ -274,6 +301,49 @@ const Dashboard: React.FC = () => {
             />
             <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
               7天内活跃用户占比
+            </div>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* ==================== 小说统计卡片 ==================== */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="小说总数"
+              value={novelDashboardStats.totalNovels}
+              prefix={<BookOutlined style={{ color: '#1890ff' }} />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+            <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+              平台收录小说总量
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总阅读量"
+              value={novelDashboardStats.totalReadCount}
+              prefix={<ReadOutlined style={{ color: '#ff7a45' }} />}
+              valueStyle={{ color: '#ff7a45' }}
+            />
+            <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+              所有小说累计阅读次数
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="活跃读者数"
+              value={novelDashboardStats.activeReaders}
+              prefix={<FireOutlined style={{ color: '#52c41a' }} />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+            <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+              最近7天有阅读记录的用户
             </div>
           </Card>
         </Col>
