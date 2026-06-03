@@ -48,6 +48,7 @@ import DictManagement from './pages/DictManagement'
 import SensitiveWords from './pages/SensitiveWords'
 import SensitiveWordAnalytics from './pages/SensitiveWordAnalytics'
 import FileManagement from './pages/FileManagement'
+import Notifications from './pages/Notifications'
 
 
 const { Header, Sider, Content } = Layout
@@ -194,6 +195,7 @@ const MainLayout: React.FC = () => {
         label: '运营管理',
         children: [
           { key: 'versions', icon: <MobileOutlined />, label: '版本管理' },
+          { key: 'notifications', icon: <BellOutlined />, label: '通知管理' },
           { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析' },
           { key: 'operation_logs', icon: <FileTextOutlined />, label: '操作日志' },
           { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控' },
@@ -228,6 +230,8 @@ const MainLayout: React.FC = () => {
         return <NovelBookshelves />
       case 'versions':
         return <VersionManagement />
+      case 'notifications':
+        return <Notifications />
       case 'analytics':
         return <Analytics />
       case 'operation_logs':

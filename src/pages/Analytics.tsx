@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Row, Col, Card, Statistic, Spin, DatePicker, Table, Tag, Empty, Tabs } from 'antd'
+import { Row, Col, Card, Statistic, Spin, DatePicker, Table, Tag, Empty, Tabs, Alert, message } from 'antd'
 import {
   UserOutlined,
   UserAddOutlined,
@@ -9,6 +9,9 @@ import {
   SmileOutlined,
   ReadOutlined,
   DollarOutlined,
+  StarOutlined,
+  ClockCircleOutlined,
+  HeartOutlined,
 } from '@ant-design/icons'
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
@@ -39,6 +42,7 @@ const { RangePicker } = DatePicker
 const Analytics: React.FC = () => {
   const { isAdmin } = usePermission()
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
     dayjs().subtract(30, 'day'),
     dayjs(),
@@ -61,13 +65,22 @@ const Analytics: React.FC = () => {
     totalNovels: 0,
     totalChapters: 0,
     totalReadCount: 0,
+    totalWordCount: 0,
     categoryDistribution: [] as { name: string; value: number; color: string }[],
     topNovels: [] as { title: string; readCount: number; author: string }[],
+  })
+  // 扩展统计
+  const [extendedStats, setExtendedStats] = useState({
+    favoritesCount: 0,
+    remindersCount: 0,
+    habitsCount: 0,
+    weightRecordsCount: 0,
   })
 
   useEffect(() => {
     const fetchAnalyticsData = async () => {
       try {
+        setError(null)
         const now = dayjs()
         const todayStart = now.startOf('day').format('YYYY-MM-DD')
         const sevenDaysAgo = now.subtract(7, 'day').format('YYYY-MM-DD')
@@ -93,6 +106,10 @@ const Analytics: React.FC = () => {
           expenseCategoryRes,
           novelStatsRes,
           chapterCountRes,
+          favoritesCountRes,
+          remindersCountRes,
+          habitsCountRes,
+          weightRecordsCountRes,
         ] = await Promise.all([
           // 总用户数
           supabase.from('users').select('*', { count: 'exact', head: true }),
@@ -125,10 +142,37 @@ const Analytics: React.FC = () => {
           // 消费分类
           supabase.from('expenses').select('category, amount'),
           // 小说统计
-          supabase.from('novels').select('id, category, read_count, title, author'),
+          supabase.from('novels').select('id, category, read_count, title, author, word_count'),
           // 章节统计
           supabase.from('novel_chapters').select('id', { count: 'exact', head: true }),
+          // 收藏总数
+          supabase.from('user_favorites').select('id', { count: 'exact', head: true }),
+          // 提醒总数
+          supabase.from('user_reminders').select('id', { count: 'exact', head: true }),
+          // 习惯总数
+          supabase.from('user_habits').select('id', { count: 'exact', head: true }),
+          // 体重记录总数
+          supabase.from('weight_records').select('id', { count: 'exact', head: true }),
         ])
+
+        // 检查关键查询是否有错误
+        const criticalErrors: string[] = []
+        if (usersCountRes.error) criticalErrors.push(`用户统计: ${usersCountRes.error.message}`)
+        if (totalExpenseRes.error) criticalErrors.push(`消费统计: ${totalExpenseRes.error.message}`)
+        if (totalDiariesRes.error) criticalErrors.push(`心情统计: ${totalDiariesRes.error.message}`)
+        if (totalNotesRes.error) criticalErrors.push(`笔记统计: ${totalNotesRes.error.message}`)
+        if (novelReadCountRes.error) criticalErrors.push(`小说统计: ${novelReadCountRes.error.message}`)
+        if (favoritesCountRes.error) criticalErrors.push(`收藏统计: ${favoritesCountRes.error.message}`)
+        if (remindersCountRes.error) criticalErrors.push(`提醒统计: ${remindersCountRes.error.message}`)
+        if (habitsCountRes.error) criticalErrors.push(`习惯统计: ${habitsCountRes.error.message}`)
+        if (weightRecordsCountRes.error) criticalErrors.push(`体重统计: ${weightRecordsCountRes.error.message}`)
+
+        if (criticalErrors.length > 0) {
+          const errorMsg = `数据查询失败: ${criticalErrors.join('; ')}`
+          setError(errorMsg)
+          message.error('部分数据加载失败，请检查网络或数据库连接')
+          console.error('Analytics 关键查询错误:', criticalErrors)
+        }
 
         // ==================== 核心指标 ====================
         const totalUsers = usersCountRes.count || 0
@@ -150,6 +194,14 @@ const Analytics: React.FC = () => {
           totalNotes,
           totalDiaries,
           novelReadCount,
+        })
+
+        // ==================== 扩展统计 ====================
+        setExtendedStats({
+          favoritesCount: favoritesCountRes.count || 0,
+          remindersCount: remindersCountRes.count || 0,
+          habitsCount: habitsCountRes.count || 0,
+          weightRecordsCount: weightRecordsCountRes.count || 0,
         })
 
         // ==================== 用户增长趋势（30天） ====================
@@ -393,6 +445,7 @@ const Analytics: React.FC = () => {
         const totalNovels = novelsData.length
         const totalChapters = chapterCountRes.count || 0
         const totalReadCount = novelsData.reduce((sum, n) => sum + (n.read_count || 0), 0)
+        const totalWordCount = novelsData.reduce((sum, n) => sum + (n.word_count || 0), 0)
 
         // 小说分类分布
         const novelCategoryMap: Record<string, number> = {}
@@ -425,12 +478,16 @@ const Analytics: React.FC = () => {
           totalNovels,
           totalChapters,
           totalReadCount,
+          totalWordCount,
           categoryDistribution,
           topNovels,
         })
 
       } catch (err) {
         console.error('Analytics 数据加载失败:', err)
+        const errorMessage = err instanceof Error ? err.message : '未知错误'
+        setError(`数据加载异常: ${errorMessage}`)
+        message.error('数据分析加载失败，请稍后重试')
       } finally {
         setLoading(false)
       }
@@ -455,6 +512,19 @@ const Analytics: React.FC = () => {
     )
   }
 
+  // 错误提示
+  const errorAlert = error ? (
+    <Alert
+      type="error"
+      message="数据加载异常"
+      description={error}
+      showIcon
+      closable
+      onClose={() => setError(null)}
+      style={{ marginBottom: 16 }}
+    />
+  ) : null
+
   // ==================== 关键指标卡片 ====================
   const metricCards = [
     { title: '总用户数', value: metrics.totalUsers, icon: <UserOutlined />, color: '#1890ff' },
@@ -472,7 +542,8 @@ const Analytics: React.FC = () => {
     { title: '小说总数', value: novelStats.totalNovels, icon: <BookOutlined />, color: '#1890ff' },
     { title: '章节总数', value: novelStats.totalChapters, icon: <ReadOutlined />, color: '#36cfc9' },
     { title: '总阅读量', value: novelStats.totalReadCount, icon: <FireOutlined />, color: '#ff7a45' },
-    { title: '平均每本阅读', value: novelStats.totalNovels > 0 ? Math.round(novelStats.totalReadCount / novelStats.totalNovels) : 0, icon: <DollarOutlined />, color: '#9254de' },
+    { title: '总字数', value: novelStats.totalWordCount, icon: <BookOutlined />, color: '#9254de' },
+    { title: '平均每本阅读', value: novelStats.totalNovels > 0 ? Math.round(novelStats.totalReadCount / novelStats.totalNovels) : 0, icon: <DollarOutlined />, color: '#f759ab' },
   ]
 
   // ==================== 留存率表格列 ====================
@@ -571,6 +642,9 @@ const Analytics: React.FC = () => {
         />
       </div>
 
+      {/* 错误提示 */}
+      {errorAlert}
+
       {/* 关键指标卡片 */}
       <Row gutter={[16, 16]}>
         {metricCards.map((card, index) => (
@@ -589,6 +663,50 @@ const Analytics: React.FC = () => {
             </Card>
           </Col>
         ))}
+      </Row>
+
+      {/* 扩展统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={12} sm={6}>
+          <Card hoverable style={{ borderRadius: 8 }} bodyStyle={{ padding: '16px 20px' }}>
+            <Statistic
+              title={<span style={{ fontSize: 13, color: '#8c8c8c' }}>收藏总数</span>}
+              value={extendedStats.favoritesCount}
+              prefix={<StarOutlined style={{ color: '#faad14', marginRight: 6, fontSize: 16 }} />}
+              valueStyle={{ color: '#faad14', fontWeight: 600, fontSize: 20 }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card hoverable style={{ borderRadius: 8 }} bodyStyle={{ padding: '16px 20px' }}>
+            <Statistic
+              title={<span style={{ fontSize: 13, color: '#8c8c8c' }}>提醒总数</span>}
+              value={extendedStats.remindersCount}
+              prefix={<ClockCircleOutlined style={{ color: '#597ef7', marginRight: 6, fontSize: 16 }} />}
+              valueStyle={{ color: '#597ef7', fontWeight: 600, fontSize: 20 }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card hoverable style={{ borderRadius: 8 }} bodyStyle={{ padding: '16px 20px' }}>
+            <Statistic
+              title={<span style={{ fontSize: 13, color: '#8c8c8c' }}>习惯总数</span>}
+              value={extendedStats.habitsCount}
+              prefix={<HeartOutlined style={{ color: '#f759ab', marginRight: 6, fontSize: 16 }} />}
+              valueStyle={{ color: '#f759ab', fontWeight: 600, fontSize: 20 }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card hoverable style={{ borderRadius: 8 }} bodyStyle={{ padding: '16px 20px' }}>
+            <Statistic
+              title={<span style={{ fontSize: 13, color: '#8c8c8c' }}>体重记录总数</span>}
+              value={extendedStats.weightRecordsCount}
+              prefix={<SmileOutlined style={{ color: '#52c41a', marginRight: 6, fontSize: 16 }} />}
+              valueStyle={{ color: '#52c41a', fontWeight: 600, fontSize: 20 }}
+            />
+          </Card>
+        </Col>
       </Row>
 
       {/* 用户行为分析 */}

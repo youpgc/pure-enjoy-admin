@@ -26,11 +26,8 @@ import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
 import NovelChapterModal from '../components/NovelChapterModal'
-import {
-  NOVEL_CATEGORY_OPTIONS,
-} from '../utils/mockData'
 import { exportToCSV, exportToExcel } from '../utils/export'
-import { supabase } from '../utils/supabase'
+import { supabase, handleSupabaseError } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 
@@ -44,13 +41,19 @@ interface NovelRecord {
   title: string
   author: string | null
   cover_url: string | null
-  category: string | null
   description: string | null
-  status: string
-  word_count: number
-  chapter_count: number
-  is_free: boolean
+  category: string | null
   source: string | null
+  source_url: string | null
+  tags: string[] | null
+  chapter_count: number
+  word_count: number
+  status: string
+  is_free: boolean
+  price: number
+  rating: number
+  read_count: number
+  collect_count: number
   created_at: string
   updated_at: string
 }
@@ -66,6 +69,20 @@ const STATUS_COLORS: Record<string, string> = {
 const NOVEL_STATUS_FILTER_OPTIONS = [
   { label: '连载中', value: '连载' },
   { label: '已完结', value: '完结' },
+]
+
+// 小说分类选项
+const NOVEL_CATEGORY_OPTIONS = [
+  { label: '玄幻', value: '玄幻' },
+  { label: '仙侠', value: '仙侠' },
+  { label: '都市', value: '都市' },
+  { label: '历史', value: '历史' },
+  { label: '武侠', value: '武侠' },
+  { label: '科幻', value: '科幻' },
+  { label: '游戏', value: '游戏' },
+  { label: '悬疑', value: '悬疑' },
+  { label: '灵异', value: '灵异' },
+  { label: '言情', value: '言情' },
 ]
 
 // 分类颜色映射
@@ -138,21 +155,53 @@ const Novels: React.FC = () => {
 
       if (error) {
         console.error('[Novels] 获取小说列表失败:', error)
-        throw error
+        const userMessage = handleSupabaseError(error, '获取小说列表')
+        message.error(userMessage)
+        setData([])
+        return
       }
 
-      const records: NovelRecord[] = (novels || []).map((novel: any) => ({
-        ...novel,
+      if (!novels || novels.length === 0) {
+        console.log('[Novels] 暂无小说数据')
+        setData([])
+        return
+      }
+
+      // 映射数据库英文状态到中文显示
+      const displayStatusMap: Record<string, string> = {
+        'ongoing': '连载',
+        'completed': '完结',
+      }
+
+      const records: NovelRecord[] = novels.map((novel: any) => ({
+        id: novel.id,
         key: novel.id,
-        status: novel.status === 'completed' ? '完结' : novel.status === 'ongoing' ? '连载' : (novel.status || '连载'),
-        is_published: novel.is_published !== false,
+        title: novel.title || '',
+        author: novel.author || null,
+        cover_url: novel.cover_url || null,
+        description: novel.description || null,
+        category: novel.category || null,
+        source: novel.source || null,
+        source_url: novel.source_url || null,
+        tags: novel.tags || null,
+        chapter_count: novel.chapter_count || 0,
+        word_count: novel.word_count || 0,
+        status: displayStatusMap[novel.status] || novel.status || '连载',
+        is_free: novel.is_free !== false,
+        price: novel.price || 0,
+        rating: novel.rating || 0,
+        read_count: novel.read_count || 0,
+        collect_count: novel.collect_count || 0,
+        created_at: novel.created_at || '',
+        updated_at: novel.updated_at || '',
       }))
 
       console.log(`[Novels] 成功加载 ${records.length} 本小说`)
       setData(records)
     } catch (error) {
-      console.error('[Novels] 获取小说列表失败:', error)
-      message.error('获取小说列表失败')
+      console.error('[Novels] 获取小说列表异常:', error)
+      message.error('获取小说列表失败，请检查网络连接后重试')
+      setData([])
     } finally {
       setLoading(false)
     }

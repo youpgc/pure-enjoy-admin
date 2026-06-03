@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { Card, Row, Col, Button, Table, Tag, Typography, Tooltip, Spin, message } from 'antd'
+import { Card, Row, Col, Button, Table, Tag, Typography, Tooltip, Spin, Empty, message, Alert } from 'antd'
 import {
   UserOutlined,
   TeamOutlined,
@@ -10,7 +10,6 @@ import {
 } from '@ant-design/icons'
 import type { RoleWithPermissions, Permission } from '../types/permission'
 import { MODULE_DISPLAY_NAMES, MODULE_COLORS } from '../types/permission'
-import { mockPermissions, getRolesWithPermissions } from '../utils/mockData'
 import PermissionConfigModal from '../components/PermissionConfigModal'
 import { useAuth } from '../App'
 import { supabase } from '../utils/supabase'
@@ -36,24 +35,14 @@ const ROLE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bgColo
   },
 }
 
-/**
- * 检查 Supabase 中是否存在指定表。
- * 通过尝试查询表的第一行来判断，如果返回 "does not exist" 错误则说明表不存在。
- */
-async function tableExists(tableName: string): Promise<boolean> {
-  const { error } = await supabase.from(tableName).select('id').limit(1)
-  if (error && (error.message.includes('does not exist') || error.code === '42P01')) {
-    return false
-  }
-  return true
-}
-
 const RolePermission: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [selectedRole, setSelectedRole] = useState<RoleWithPermissions | null>(null)
-  const [rolesWithPerms, setRolesWithPerms] = useState<RoleWithPermissions[]>(() => getRolesWithPermissions())
+  const [rolesWithPerms, setRolesWithPerms] = useState<RoleWithPermissions[]>([])
+  const [permissions, setPermissions] = useState<Permission[]>([])
   const [loading, setLoading] = useState(true)
-  const [hasRolePermissionsTable, setHasRolePermissionsTable] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isEmpty, setIsEmpty] = useState(false)
 
   const { user } = useAuth()
 
@@ -65,47 +54,155 @@ const RolePermission: React.FC = () => {
   // 是否可以编辑权限（只有超级管理员可以）
   const canEdit = isSuperAdmin
 
-  // 从 Supabase 加载角色权限关联数据
+  // 从 Supabase 加载角色权限数据
   const fetchRolePermissions = useCallback(async () => {
     setLoading(true)
+    setError(null)
+    setIsEmpty(false)
     try {
-      // 检查 role_permissions 表是否存在
-      const exists = await tableExists('role_permissions')
-      setHasRolePermissionsTable(exists)
+      // 并行查询 users 表和 system_configs 表
+      const [usersRes, configsRes] = await Promise.all([
+        supabase.from('users').select('id, nickname, role').order('created_at', { ascending: false }),
+        supabase.from('system_configs').select('*').order('created_at', { ascending: true }),
+      ])
 
-      if (exists) {
-        const { data, error } = await supabase
-          .from('role_permissions')
-          .select('role_id, permission_id')
+      if (usersRes.error) {
+        console.error('加载用户列表失败:', usersRes.error)
+        setError(`加载用户列表失败: ${usersRes.error.message}`)
+        return
+      }
 
-        if (error) {
-          console.error('加载角色权限关联失败:', error)
-          message.warning('加载角色权限关联失败，使用默认配置')
-          setRolesWithPerms(getRolesWithPermissions())
-        } else if (data && data.length > 0) {
-          // 根据数据库中的关联数据构建角色权限
-          const defaultRoles = getRolesWithPermissions()
-          const updatedRoles = defaultRoles.map(role => {
-            const permIds = data
-              .filter((rp: { role_id: number; permission_id: number }) => rp.role_id === role.id)
-              .map((rp: { role_id: number; permission_id: number }) => rp.permission_id)
+      if (configsRes.error) {
+        console.error('加载角色配置失败:', configsRes.error)
+        setError(`加载角色配置失败: ${configsRes.error.message}`)
+        return
+      }
+
+      const usersData = usersRes.data || []
+      const configsData = configsRes.data || []
+
+      // 如果 system_configs 表为空，显示空状态提示
+      if (configsData.length === 0) {
+        setIsEmpty(true)
+        setRolesWithPerms([])
+        setPermissions([])
+        return
+      }
+
+      // 从 system_configs 中解析角色配置和权限配置
+      // system_configs 表通常以 key-value 形式存储配置
+      // 尝试解析角色和权限数据
+      const roleConfig = configsData.find((c: any) => c.key === 'roles' || c.key === 'role_config')
+      const permissionConfig = configsData.find((c: any) => c.key === 'permissions' || c.key === 'permission_config')
+      const rolePermConfig = configsData.find((c: any) => c.key === 'role_permissions' || c.key === 'role_permission_config')
+
+      // 解析角色数据
+      let roles: RoleWithPermissions[] = []
+      let perms: Permission[] = []
+
+      if (roleConfig) {
+        try {
+          const parsed = typeof roleConfig.value === 'string'
+            ? JSON.parse(roleConfig.value)
+            : roleConfig.value
+          roles = (Array.isArray(parsed) ? parsed : []).map((r: any, idx: number) => ({
+            id: r.id || idx + 1,
+            name: r.name || r.role || 'unknown',
+            display_name: r.display_name || r.name || '未知角色',
+            description: r.description || null,
+            level: r.level || idx + 1,
+            created_at: r.created_at || new Date().toISOString(),
+            permissions: [],
+          }))
+        } catch {
+          console.error('解析角色配置失败')
+        }
+      }
+
+      if (permissionConfig) {
+        try {
+          const parsed = typeof permissionConfig.value === 'string'
+            ? JSON.parse(permissionConfig.value)
+            : permissionConfig.value
+          perms = (Array.isArray(parsed) ? parsed : []).map((p: any, idx: number) => ({
+            id: p.id || idx + 1,
+            name: p.name || `${p.module}:${p.action}`,
+            display_name: p.display_name || p.name || '未知权限',
+            module: p.module || 'system',
+            action: p.action || 'read',
+            description: p.description || null,
+            created_at: p.created_at || new Date().toISOString(),
+          }))
+        } catch {
+          console.error('解析权限配置失败')
+        }
+      }
+
+      // 如果从 system_configs 解析不到角色数据，尝试从 users 表中提取角色信息
+      if (roles.length === 0) {
+        const roleMap = new Map<string, { count: number }>()
+        usersData.forEach((u: any) => {
+          const role = u.role || 'user'
+          const existing = roleMap.get(role)
+          if (existing) {
+            existing.count++
+          } else {
+            roleMap.set(role, { count: 1 })
+          }
+        })
+
+        const roleNames: Record<string, string> = {
+          user: '普通用户',
+          admin: '管理员',
+          super_admin: '超级管理员',
+        }
+        const roleLevels: Record<string, number> = {
+          user: 1,
+          admin: 2,
+          super_admin: 3,
+        }
+
+        let idx = 1
+        roleMap.forEach((info, roleName) => {
+          roles.push({
+            id: idx,
+            name: roleName,
+            display_name: roleNames[roleName] || roleName,
+            description: `${roleNames[roleName] || roleName}，共 ${info.count} 人`,
+            level: roleLevels[roleName] || idx,
+            created_at: new Date().toISOString(),
+            permissions: [],
+          })
+          idx++
+        })
+      }
+
+      // 如果解析到了角色权限关联数据，为角色分配权限
+      if (rolePermConfig && perms.length > 0) {
+        try {
+          const parsed = typeof rolePermConfig.value === 'string'
+            ? JSON.parse(rolePermConfig.value)
+            : rolePermConfig.value
+          const rpList = Array.isArray(parsed) ? parsed : []
+          roles = roles.map(role => {
+            const permIds = rpList
+              .filter((rp: any) => rp.role_id === role.id || rp.role_name === role.name)
+              .map((rp: any) => rp.permission_id)
             return {
               ...role,
-              permissions: mockPermissions.filter(p => permIds.includes(p.id)),
+              permissions: perms.filter(p => permIds.includes(p.id)),
             }
           })
-          setRolesWithPerms(updatedRoles)
-        } else {
-          // 表存在但没有数据，使用默认配置
-          setRolesWithPerms(getRolesWithPermissions())
+        } catch {
+          console.error('解析角色权限关联失败')
         }
-      } else {
-        // role_permissions 表不存在，使用默认配置
-        setRolesWithPerms(getRolesWithPermissions())
       }
+
+      setRolesWithPerms(roles)
+      setPermissions(perms)
     } catch (err) {
       console.error('加载角色权限异常:', err)
-      setRolesWithPerms(getRolesWithPermissions())
+      setError('加载角色权限数据异常，请稍后重试')
     } finally {
       setLoading(false)
     }
@@ -123,47 +220,72 @@ const RolePermission: React.FC = () => {
 
   // 保存权限配置
   const handleSavePermissions = async (roleId: number, permissionIds: number[]) => {
-    if (hasRolePermissionsTable) {
-      // 使用 Supabase 持久化保存
-      try {
-        // 先删除该角色的所有权限关联
-        const { error: deleteError } = await supabase
-          .from('role_permissions')
-          .delete()
-          .eq('role_id', roleId)
+    try {
+      // 尝试更新 system_configs 中的角色权限关联配置
+      const { data: existingConfigs, error: queryError } = await supabase
+        .from('system_configs')
+        .select('*')
+        .eq('key', 'role_permissions')
 
-        if (deleteError) {
-          console.error('删除角色权限失败:', deleteError)
-          message.error('保存权限配置失败')
-          throw deleteError
-        }
-
-        // 再批量插入新的权限关联
-        if (permissionIds.length > 0) {
-          const inserts = permissionIds.map(permissionId => ({
-            role_id: roleId,
-            permission_id: permissionId,
-          }))
-
-          const { error: insertError } = await supabase
-            .from('role_permissions')
-            .insert(inserts)
-
-          if (insertError) {
-            console.error('插入角色权限失败:', insertError)
-            message.error('保存权限配置失败')
-            throw insertError
-          }
-        }
-
-        message.success('权限配置已保存到数据库')
-      } catch (err) {
-        console.error('保存权限配置异常:', err)
-        // 即使数据库保存失败，仍然更新本地状态
+      if (queryError) {
+        console.error('查询角色权限配置失败:', queryError)
+        message.error('保存权限配置失败')
+        return
       }
-    } else {
-      // role_permissions 表不存在，仅更新本地状态并提示
-      message.info('数据库中未找到 role_permissions 表，权限配置仅保存在本地（刷新后重置）')
+
+      // 构建新的角色权限关联数据
+      const existingConfig = existingConfigs && existingConfigs.length > 0 ? existingConfigs[0] : null
+      let allRolePerms: Array<{ role_id: number; permission_id: number }> = []
+
+      if (existingConfig) {
+        try {
+          const parsed = typeof existingConfig.value === 'string'
+            ? JSON.parse(existingConfig.value)
+            : existingConfig.value
+          allRolePerms = Array.isArray(parsed) ? parsed : []
+        } catch {
+          allRolePerms = []
+        }
+      }
+
+      // 更新当前角色的权限关联
+      allRolePerms = allRolePerms.filter((rp: any) => rp.role_id !== roleId)
+      permissionIds.forEach(pid => {
+        allRolePerms.push({ role_id: roleId, permission_id: pid })
+      })
+
+      if (existingConfig) {
+        // 更新已有配置
+        const { error: updateError } = await supabase
+          .from('system_configs')
+          .update({ value: JSON.stringify(allRolePerms) })
+          .eq('id', existingConfig.id)
+
+        if (updateError) {
+          console.error('更新角色权限配置失败:', updateError)
+          message.error('保存权限配置失败')
+          return
+        }
+      } else {
+        // 插入新配置
+        const { error: insertError } = await supabase
+          .from('system_configs')
+          .insert({
+            key: 'role_permissions',
+            value: JSON.stringify(allRolePerms),
+          })
+
+        if (insertError) {
+          console.error('插入角色权限配置失败:', insertError)
+          message.error('保存权限配置失败')
+          return
+        }
+      }
+
+      message.success('权限配置已保存')
+    } catch (err) {
+      console.error('保存权限配置异常:', err)
+      message.error('保存权限配置失败')
     }
 
     // 更新本地状态
@@ -172,7 +294,7 @@ const RolePermission: React.FC = () => {
         if (role.id === roleId) {
           return {
             ...role,
-            permissions: mockPermissions.filter(p => permissionIds.includes(p.id)),
+            permissions: permissions.filter(p => permissionIds.includes(p.id)),
           }
         }
         return role
@@ -182,9 +304,12 @@ const RolePermission: React.FC = () => {
 
   // 权限矩阵数据
   const matrixData = useMemo(() => {
+    // 如果没有权限数据，返回空数组
+    if (permissions.length === 0) return []
+
     // 按模块分组权限
     const groupedPermissions: Record<string, Permission[]> = {}
-    mockPermissions.forEach(permission => {
+    permissions.forEach(permission => {
       if (!groupedPermissions[permission.module]) {
         groupedPermissions[permission.module] = []
       }
@@ -239,7 +364,7 @@ const RolePermission: React.FC = () => {
     })
 
     return data
-  }, [rolesWithPerms])
+  }, [rolesWithPerms, permissions])
 
   // 权限矩阵表格列
   const matrixColumns = [
@@ -310,6 +435,32 @@ const RolePermission: React.FC = () => {
     return (
       <div style={{ textAlign: 'center', padding: 100 }}>
         <Spin size="large" tip="加载角色权限..." />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: 40 }}>
+        <Alert
+          type="error"
+          message="加载失败"
+          description={error}
+          showIcon
+          action={
+            <Button size="small" type="primary" onClick={fetchRolePermissions}>
+              重试
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
+
+  if (isEmpty) {
+    return (
+      <div style={{ textAlign: 'center', padding: 100 }}>
+        <Empty description="暂无角色配置数据，请在配置管理中添加" />
       </div>
     )
   }

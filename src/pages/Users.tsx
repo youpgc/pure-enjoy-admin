@@ -112,20 +112,15 @@ const Users: React.FC = () => {
       if (error) {
         console.error('[Users] Supabase 查询失败:', error)
         message.error('获取用户列表失败: ' + error.message)
-        // 如果数据库查询失败，使用本地数据
-        const { mockUsers } = await import('../utils/mockData')
-        setData(mockUsers as User[])
-        console.log('[Users] 使用本地模拟数据')
+        setData([])
       } else {
         console.log(`[Users] 成功加载 ${users?.length || 0} 个用户`)
         setData(users || [])
       }
     } catch (err) {
       console.error('[Users] 获取用户列表失败:', err)
-      message.error('获取用户列表失败')
-      // 使用本地数据
-      const { mockUsers } = await import('../utils/mockData')
-      setData(mockUsers as User[])
+      message.error('获取用户列表失败，请检查网络连接后重试')
+      setData([])
     } finally {
       setLoading(false)
     }
@@ -244,15 +239,13 @@ const Users: React.FC = () => {
     try {
       const { error } = await supabase.from('users').insert(newUser)
       if (error) {
-        // 本地添加
-        setData(prev => [newUser, ...prev])
-      } else {
-        await fetchUsers()
+        message.error('创建用户失败: ' + error.message)
+        return
       }
+      await fetchUsers()
       await logOperation('create_user', newUser.id, { email: newUser.email })
     } catch (err) {
-      // 本地添加
-      setData(prev => [newUser, ...prev])
+      message.error('创建用户失败，请检查网络连接后重试')
     }
   }, [supabase, fetchUsers, logOperation])
 
@@ -299,60 +292,13 @@ const Users: React.FC = () => {
         .eq('id', currentUser.id)
 
       if (error) {
-        // 本地更新
-        setData(prev => prev.map(user => 
-          user.id === currentUser.id
-            ? {
-                ...user,
-                phone: formData.phone || null,
-                nickname: formData.nickname || null,
-                avatar_url: formData.avatar_url || null,
-                // 扩展资料字段
-                username: formData.username || null,
-                bio: formData.bio || null,
-                gender: formData.gender || null,
-                birthday: birthdayValue,
-                location: formData.location || null,
-                occupation: formData.occupation || null,
-                company: formData.company || null,
-                website: formData.website || null,
-                role: formData.role,
-                member_level: formData.member_level,
-                status: formData.status,
-                points: formData.points,
-                updated_at: new Date().toISOString(),
-              }
-            : user
-        ))
-      } else {
-        await fetchUsers()
+        message.error('更新用户失败: ' + error.message)
+        return
       }
+      await fetchUsers()
       await logOperation('update_user', currentUser.id, { changes: formData })
     } catch (err) {
-      // 本地更新
-      setData(prev => prev.map(user => 
-        user.id === currentUser.id
-          ? {
-              ...user,
-              phone: formData.phone || null,
-              nickname: formData.nickname || null,
-              // 扩展资料字段
-              username: formData.username || null,
-              bio: formData.bio || null,
-              gender: formData.gender || null,
-              birthday: birthdayValue,
-              location: formData.location || null,
-              occupation: formData.occupation || null,
-              company: formData.company || null,
-              website: formData.website || null,
-              role: formData.role,
-              member_level: formData.member_level,
-              status: formData.status,
-              points: formData.points,
-              updated_at: new Date().toISOString(),
-            }
-          : user
-      ))
+      message.error('更新用户失败，请检查网络连接后重试')
     }
   }, [currentUser, supabase, fetchUsers, logOperation])
 
@@ -365,19 +311,16 @@ const Users: React.FC = () => {
         .in('id', ids)
 
       if (error) {
-        // 本地删除
-        setData(prev => prev.filter(user => !ids.includes(user.id)))
-      } else {
-        await fetchUsers()
+        message.error('禁用用户失败: ' + error.message)
+        return
       }
+      await fetchUsers()
       for (const id of ids) {
         await logOperation('delete_user', id, { type: 'soft_delete' })
       }
       message.success(`成功禁用 ${ids.length} 个用户`)
     } catch (err) {
-      // 本地删除
-      setData(prev => prev.filter(user => !ids.includes(user.id)))
-      message.success(`成功删除 ${ids.length} 个用户`)
+      message.error('禁用用户失败，请检查网络连接后重试')
     }
     setSelectedRowKeys([])
   }, [supabase, fetchUsers, logOperation])
@@ -393,20 +336,14 @@ const Users: React.FC = () => {
         .eq('id', user.id)
 
       if (error) {
-        // 本地更新
-        setData(prev => prev.map(u => 
-          u.id === user.id ? { ...u, status: newStatus } : u
-        ))
-      } else {
-        await fetchUsers()
+        message.error('切换用户状态失败: ' + error.message)
+        return
       }
+      await fetchUsers()
       await logOperation('toggle_user_status', user.id, { from: user.status, to: newStatus })
       message.success(`用户已${newStatus === 'active' ? '启用' : '禁用'}`)
     } catch (err) {
-      // 本地更新
-      setData(prev => prev.map(u => 
-        u.id === user.id ? { ...u, status: newStatus } : u
-      ))
+      message.error('切换用户状态失败，请检查网络连接后重试')
     }
   }, [supabase, fetchUsers, logOperation])
 

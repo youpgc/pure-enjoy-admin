@@ -4,9 +4,20 @@ import { SearchOutlined, ExportOutlined, ReloadOutlined, DeleteOutlined, Warning
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import { usePermission } from '../hooks/usePermission'
-import type { OperationLogItem } from '../utils/mockData'
 import { exportToCSV } from '../utils/export'
 import { supabase } from '../utils/supabase'
+
+// 操作日志数据类型（与 operation_logs 表字段对应）
+interface OperationLogItem {
+  id: string
+  time: string
+  user_name: string
+  action: string
+  module: string
+  target: string
+  ip: string
+  detail: string
+}
 
 const { RangePicker } = DatePicker
 
@@ -83,35 +94,37 @@ const OperationLogs: React.FC = () => {
   const fetchLogs = useCallback(async () => {
     setLoading(true)
     try {
-      // 查询 users 表来获取用户昵称
+      // 查询 operation_logs 表，关联 users 表获取用户昵称
       const { data, error } = await supabase
         .from('operation_logs')
-        .select('*, users:user_id(nickname)')
+        .select('id, user_id, action, resource_type, resource_id, detail, ip_address, user_agent, created_at, users:user_id(nickname)')
         .order('created_at', { ascending: false })
-        .limit(100)
+        .limit(500)
 
       if (error) {
         console.error('加载操作日志失败:', error)
-        message.error('加载操作日志失败')
+        message.error(`加载操作日志失败: ${error.message}`)
         setLogs([])
         return
       }
 
-      // 映射数据，优先使用 users 的 nickname
+      // 映射数据库字段到界面展示字段
       const items: OperationLogItem[] = (data as any[] || []).map((row: any) => ({
-        id: row.id,
+        id: String(row.id),
         time: dayjs(row.created_at).format('YYYY-MM-DD HH:mm:ss'),
-        user_name: row.users?.nickname || '系统',
-        action: row.action,
-        module: row.module,
-        target: row.target_id || '',
-        ip: row.ip || '',
-        detail: typeof row.details === 'object' && row.details !== null ? JSON.stringify(row.details) : (row.details as string) || '',
+        user_name: row.users?.nickname || '未知用户',
+        action: row.action || '',
+        module: row.resource_type || '',
+        target: row.resource_id || '',
+        ip: row.ip_address || '',
+        detail: typeof row.detail === 'object' && row.detail !== null
+          ? JSON.stringify(row.detail)
+          : (row.detail as string) || '',
       }))
       setLogs(items)
     } catch (err) {
       console.error('加载操作日志异常:', err)
-      message.error('加载操作日志异常')
+      message.error('加载操作日志异常，请稍后重试')
       setLogs([])
     } finally {
       setLoading(false)
