@@ -55,34 +55,41 @@ async function flushErrorLogs() {
 // 定期刷新错误日志
 setInterval(flushErrorLogs, 5000)
 
-// 全局错误记录函数
-export function reportError(
+// 全局错误记录函数（直接写入数据库）
+export async function reportError(
   level: 'error' | 'warning' | 'info',
   module: string,
   message: string,
   detail?: string,
   error?: Error
 ) {
-  const errorLog: ErrorLog = {
-    level,
-    module,
-    message,
-    detail: {
-      description: detail || message,
-      stack_trace: error?.stack,
-    },
-  }
-  
-  // 添加到队列
-  errorLogQueue.push(errorLog)
-  
-  // 控制台输出
-  const consoleMethod = level === 'error' ? console.error : level === 'warning' ? console.warn : console.log
-  consoleMethod(`[${level.toUpperCase()}][${module}] ${message}`, { detail, error })
-  
-  // 立即尝试刷新（如果是错误级别）
-  if (level === 'error') {
-    flushErrorLogs()
+  try {
+    const adminUserStr = localStorage.getItem('admin_user')
+    const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
+    
+    const errorLog = {
+      level,
+      module,
+      message,
+      detail: {
+        description: detail || message,
+        stack_trace: error?.stack,
+      },
+      user_id: adminUser?.id || null,
+      created_at: new Date().toISOString(),
+    }
+    
+    // 控制台输出
+    const consoleMethod = level === 'error' ? console.error : level === 'warning' ? console.warn : console.log
+    consoleMethod(`[${level.toUpperCase()}][${module}] ${message}`, { detail, error })
+    
+    // 直接写入数据库
+    const { error: insertError } = await supabase.from('error_logs').insert(errorLog)
+    if (insertError) {
+      console.error('[ErrorLogger] 写入失败:', insertError)
+    }
+  } catch (err) {
+    console.error('[ErrorLogger] 记录异常:', err)
   }
 }
 
