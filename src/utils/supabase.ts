@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
+const isDev = import.meta.env?.DEV ?? process.env.NODE_ENV === 'development'
+
 const SUPABASE_URL = 'https://mhdrbjpqmzswswoazwjg.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_wFx9tlxImVfEpRN4NMkS1g_QOm64aj6'
 
@@ -41,8 +43,6 @@ async function flushErrorLogs() {
       console.error('[ErrorLogger] 写入错误日志失败:', error)
       // 如果写入失败，将日志放回队列
       errorLogQueue.unshift(...logsToFlush)
-    } else {
-      console.log(`[ErrorLogger] 成功写入 ${logsToFlush.length} 条错误日志`)
     }
   } catch (err) {
     console.error('[ErrorLogger] 刷新错误日志异常:', err)
@@ -80,8 +80,13 @@ export async function reportError(
     }
     
     // 控制台输出
-    const consoleMethod = level === 'error' ? console.error : level === 'warning' ? console.warn : console.log
-    consoleMethod(`[${level.toUpperCase()}][${module}] ${message}`, { detail, error })
+    if (level === 'error') {
+      console.error(`[${level.toUpperCase()}][${module}] ${message}`, { detail, error })
+    } else if (level === 'warning') {
+      console.warn(`[${level.toUpperCase()}][${module}] ${message}`, { detail, error })
+    } else if (isDev) {
+      console.log(`[${level.toUpperCase()}][${module}] ${message}`, { detail, error })
+    }
     
     // 直接写入数据库
     const { error: insertError } = await supabase.from('error_logs').insert(errorLog)
@@ -135,8 +140,6 @@ async function flushOperationLogs() {
         .filter(log => log.retryCount < 3)
         .map(log => ({ ...log, retryCount: log.retryCount + 1 }))
       operationLogQueue.unshift(...failedLogs)
-    } else {
-      console.log(`[OperationLog] 成功写入 ${logsToFlush.length} 条日志`)
     }
   } catch (err) {
     console.error('[OperationLog] 批量写入异常:', err)
@@ -190,15 +193,15 @@ export async function logOperation(params: {
       created_at: new Date().toISOString(),
     }
     
-    console.log('[OperationLog] 记录操作日志:', logData)
+    if (isDev) {
+      console.log('[OperationLog] 记录操作日志:', logData)
+    }
     
     // 直接写入数据库
     const { error } = await supabase.from('operation_logs').insert(logData)
     
     if (error) {
       console.error('[OperationLog] 写入失败:', error)
-    } else {
-      console.log('[OperationLog] 写入成功')
     }
   } catch (err) {
     console.error('[OperationLog] 记录操作日志异常:', err)
@@ -235,9 +238,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         // 忽略 URL 解析错误
       }
       
-      console.log(`[Supabase] ${method} ${tableName} - 请求开始`)
-      console.log(`[Supabase] URL: ${url}`)
-      console.log(`[Supabase] Headers:`, options.headers)
+      if (isDev) {
+        console.log(`[Supabase] ${method} ${tableName} - 请求开始`)
+      }
       
       return fetch(url, options).then(async (response) => {
         const duration = Date.now() - startTime
@@ -267,12 +270,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             url: url.toString().split('?')[0], // 移除查询参数，保护敏感信息
           })
         } else {
-          console.log(`[Supabase] ${method} ${tableName} - 请求成功 (${duration}ms)`)
-          // 打印响应内容用于调试
-          const cloneResponse = response.clone()
-          cloneResponse.text().then(text => {
-            console.log(`[Supabase] ${method} ${tableName} - 响应内容:`, text.substring(0, 500))
-          })
+          if (isDev) {
+            console.log(`[Supabase] ${method} ${tableName} - 请求成功 (${duration}ms)`)
+          }
         }
         
         return response
@@ -323,11 +323,15 @@ export const handleSupabaseError = (error: any, context: string): string => {
 
 // 日志记录函数
 export const logApiCall = (operation: string, table: string, data?: any) => {
-  console.log(`[API] ${operation} ${table}`, data ? { data } : '')
+  if (isDev) {
+    console.log(`[API] ${operation} ${table}`, data ? { data } : '')
+  }
 }
 
 export const logApiSuccess = (operation: string, table: string, result?: any) => {
-  console.log(`[API] ${operation} ${table} 成功`, result ? { result } : '')
+  if (isDev) {
+    console.log(`[API] ${operation} ${table} 成功`, result ? { result } : '')
+  }
 }
 
 export const logApiError = (operation: string, table: string, error: any) => {

@@ -11,16 +11,12 @@ const Login: React.FC = () => {
   const handleLogin = async (values: { username: string; password: string }) => {
     setLoading(true)
     try {
-      console.log('[Login] 开始登录:', values.username)
-
       // 直接查询 admin_users 表
       // eslint-disable-next-line no-template-curly-in-string
       const { data: users, error } = await supabase
         .from(`admin${'\x5f'}users`)
         .select('*')
         .eq('email', values.username)
-
-      console.log('[Login] 查询结果:', { users, error })
 
       if (error) {
         console.error('[Login] 查询失败:', error)
@@ -52,7 +48,6 @@ const Login: React.FC = () => {
       }
 
       localStorage.setItem('admin_user', JSON.stringify(adminUser))
-      console.log('[Login] 登录成功:', adminUser)
 
       message.success('登录成功')
       // 刷新页面让 AuthGuard 读取新的 localStorage

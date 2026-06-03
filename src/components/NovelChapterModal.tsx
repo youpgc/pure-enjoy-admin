@@ -98,7 +98,6 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
     if (!novelId || !open) return
 
     setLoading(true)
-    console.log(`[NovelChapterModal] 加载小说章节: ${novelId}`)
     
     try {
       // 移除默认的1000条限制，设置为10000
@@ -119,7 +118,6 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
         key: chapter.id,
       }))
 
-      console.log(`[NovelChapterModal] 成功加载 ${records.length} 个章节`)
       setData(records)
     } catch (error) {
       console.error('[NovelChapterModal] 获取章节列表失败:', error)
@@ -308,21 +306,19 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
         return
       }
       try {
-        console.log(`[NovelChapterModal] 删除章节: ${id}`)
-        const { error } = await supabase
-          .from('novel_chapters')
-          .delete()
-          .eq('id', id)
+      const { error } = await supabase
+        .from('novel_chapters')
+        .delete()
+        .eq('id', id)
 
-        if (error) {
-          console.error('[NovelChapterModal] 删除章节失败:', error)
-          throw error
-        }
+      if (error) {
+        console.error('[NovelChapterModal] 删除章节失败:', error)
+        throw error
+      }
 
-        setData((prev) => prev.filter((item) => item.id !== id))
-        message.success('删除成功')
-        console.log(`[NovelChapterModal] 章节删除成功: ${id}`)
-      } catch (error) {
+      setData((prev) => prev.filter((item) => item.id !== id))
+      message.success('删除成功')
+    } catch (error) {
         console.error('[NovelChapterModal] 删除失败:', error)
         message.error('删除失败')
       }
@@ -341,7 +337,6 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
       return
     }
     try {
-      console.log(`[NovelChapterModal] 批量删除章节:`, selectedRowKeys)
       const { error } = await supabase
         .from('novel_chapters')
         .delete()
@@ -355,7 +350,6 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
       setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
       setSelectedRowKeys([])
       message.success(`成功删除 ${selectedRowKeys.length} 个章节`)
-      console.log(`[NovelChapterModal] 批量删除成功: ${selectedRowKeys.length} 个章节`)
     } catch (error) {
       console.error('[NovelChapterModal] 批量删除失败:', error)
       message.error('批量删除失败')

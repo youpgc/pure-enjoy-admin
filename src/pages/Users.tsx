@@ -100,7 +100,6 @@ const Users: React.FC = () => {
   // ==================== 数据加载 ====================
   const fetchUsers = useCallback(async () => {
     setLoading(true)
-    console.log('[Users] 开始加载用户列表')
     
     try {
       // 尝试从 Supabase 获取数据
@@ -114,7 +113,6 @@ const Users: React.FC = () => {
         message.error('获取用户列表失败: ' + error.message)
         setData([])
       } else {
-        console.log(`[Users] 成功加载 ${users?.length || 0} 个用户`)
         setData(users || [])
       }
     } catch (err) {

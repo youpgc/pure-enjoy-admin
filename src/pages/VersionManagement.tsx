@@ -65,19 +65,14 @@ const VersionManagement: React.FC = () => {
 
   const fetchVersions = async () => {
     setLoading(true)
-    console.log('Fetching versions from Supabase...')
     const { data, error } = await supabase
       .from('app_versions')
       .select('*')
       .order('created_at', { ascending: false })
-    console.log('Supabase response:', { data, error })
     if (error) {
       console.error('Error fetching versions:', error)
       message.error('加载版本列表失败: ' + error.message)
     } else {
-      console.log('Versions loaded:', data?.length || 0, 'records')
-      console.log('Raw data sample:', data?.[0])
-      
       // 映射字段：将 GitHub Actions 创建的字段名转换为前端使用的字段名
       const mappedData = (data || []).map((item: any) => {
         // 处理发布时间：优先使用 released_at，否则使用 created_at
@@ -106,7 +101,6 @@ const VersionManagement: React.FC = () => {
         }
       })
       
-      console.log('Mapped data:', mappedData)
       setVersions(mappedData)
     }
     setLoading(false)

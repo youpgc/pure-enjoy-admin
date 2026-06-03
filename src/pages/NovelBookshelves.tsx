@@ -76,7 +76,6 @@ const NovelBookshelves: React.FC = () => {
   // 加载书架列表 - 联合 user_novels + novels + users 表查询
   const loadBookshelves = useCallback(async () => {
     setLoading(true)
-    console.log('[NovelBookshelves] 开始加载书架列表')
     
     try {
       // 分别查询三个表，然后在客户端合并数据
@@ -92,8 +91,6 @@ const NovelBookshelves: React.FC = () => {
         console.error('[NovelBookshelves] 查询 user_novels 失败:', unError)
         throw unError
       }
-
-      console.log(`[NovelBookshelves] 获取到 ${userNovels?.length || 0} 条用户小说记录`)
 
       // 2. 查询 novels 表获取书名和作者
       const novelIds = [...new Set(userNovels?.map((item: any) => item.novel_id) || [])]
@@ -112,7 +109,6 @@ const NovelBookshelves: React.FC = () => {
 
         novelsMap = new Map(novels?.map((n: any) => [n.id, n]) || [])
         setNovelsCache(novelsMap) // 缓存起来供详情页使用
-        console.log(`[NovelBookshelves] 获取到 ${novels?.length || 0} 本小说信息`)
       }
 
       // 3. 查询 users 表获取用户信息
@@ -130,7 +126,6 @@ const NovelBookshelves: React.FC = () => {
         }
 
         usersMap = new Map(users?.map((u: any) => [u.id, u]) || [])
-        console.log(`[NovelBookshelves] 获取到 ${users?.length || 0} 个用户信息`)
       }
 
       // 按用户分组统计
@@ -165,7 +160,6 @@ const NovelBookshelves: React.FC = () => {
       })
 
       const result = Array.from(userMap.values())
-      console.log(`[NovelBookshelves] 成功处理 ${result.length} 个用户书架`)
       
       setBookshelves(result)
       setFilteredBookshelves(result)
@@ -197,7 +191,6 @@ const NovelBookshelves: React.FC = () => {
   // 加载详情 - 使用缓存的小说信息展示书名、作者、阅读进度、最后阅读时间
   const loadDetail = useCallback(async (userId: string) => {
     setDetailLoading(true)
-    console.log(`[NovelBookshelves] 加载用户书架详情: ${userId}`)
     
     try {
       const { data: userNovels, error } = await supabase
@@ -229,7 +222,6 @@ const NovelBookshelves: React.FC = () => {
         }
       }) || []
 
-      console.log(`[NovelBookshelves] 成功加载 ${details.length} 条详情记录`)
       setDetailList(details)
     } catch (error: any) {
       console.error('[NovelBookshelves] 加载详情失败:', error)
@@ -241,7 +233,6 @@ const NovelBookshelves: React.FC = () => {
 
   // 查看详情
   const handleViewDetail = (record: UserBookshelf) => {
-    console.log(`[NovelBookshelves] 查看用户详情: ${record.user_name} (${record.user_id})`)
     setSelectedUser(record)
     setDetailVisible(true)
     loadDetail(record.user_id)

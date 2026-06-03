@@ -145,7 +145,6 @@ const Novels: React.FC = () => {
   // 加载数据
   const fetchNovels = useCallback(async () => {
     setLoading(true)
-    console.log('[Novels] 开始加载小说列表')
     
     try {
       const { data: novels, error } = await supabase
@@ -162,7 +161,6 @@ const Novels: React.FC = () => {
       }
 
       if (!novels || novels.length === 0) {
-        console.log('[Novels] 暂无小说数据')
         setData([])
         return
       }
@@ -196,7 +194,6 @@ const Novels: React.FC = () => {
         updated_at: novel.updated_at || '',
       }))
 
-      console.log(`[Novels] 成功加载 ${records.length} 本小说`)
       setData(records)
     } catch (error) {
       console.error('[Novels] 获取小说列表异常:', error)
@@ -518,7 +515,6 @@ const Novels: React.FC = () => {
   // 查看章节 - 打开章节管理弹窗
   const handleViewChapters = useCallback(
     (record: NovelRecord) => {
-      console.log(`[Novels] 打开章节管理弹窗: ${record.title} (${record.id})`)
       setSelectedNovel(record)
       setChapterModalOpen(true)
     },
