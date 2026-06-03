@@ -101,11 +101,13 @@ const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
     console.log(`[NovelChapterModal] 加载小说章节: ${novelId}`)
     
     try {
+      // 移除默认的1000条限制，设置为10000
       const { data: chapters, error } = await supabase
         .from('novel_chapters')
         .select('*')
         .eq('novel_id', novelId)
         .order('chapter_num', { ascending: true })
+        .limit(10000)
 
       if (error) {
         console.error('[NovelChapterModal] 获取章节列表失败:', error)
