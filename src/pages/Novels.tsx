@@ -292,12 +292,6 @@ const Novels: React.FC = () => {
       min: 0,
       precision: 0,
     },
-    {
-      name: 'is_published',
-      label: '是否上架',
-      type: 'switch',
-      defaultValue: true,
-    },
   ]
 
   // ==================== 数据处理 ====================
@@ -558,7 +552,6 @@ const Novels: React.FC = () => {
       { title: '字数', dataIndex: 'word_count', render: (val: unknown) => formatWordCount(val as number) },
       { title: '章节数', dataIndex: 'chapter_count' },
       { title: '状态', dataIndex: 'status' },
-      { title: '上架状态', dataIndex: 'is_published', render: (val: unknown) => val ? '已上架' : '已下架' },
       { title: '创建时间', dataIndex: 'created_at', render: (val: unknown) => dayjs(val as string).format('YYYY-MM-DD HH:mm') },
     ]
     exportToExcel<NovelRecord>(filteredData, columns, '小说管理')

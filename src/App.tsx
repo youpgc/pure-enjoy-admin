@@ -111,7 +111,7 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
   'novels' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
-  'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements'
+  'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -128,6 +128,7 @@ export const useNavigation = () => useContext(NavigationContext)
 // ========== MainLayout ==========
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false)
+  const [openKeys, setOpenKeys] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
   const { user, logout } = useAuth()
   const { canManageVersions } = usePermission()
@@ -288,6 +289,7 @@ const MainLayout: React.FC = () => {
       sensitive_word_analytics: '敏感词数据统计',
       file_management: '文件管理',
       announcements: '公告管理',
+      notifications: '通知管理',
     }
     return titles[currentPage] || '数据概览'
   }
@@ -321,6 +323,8 @@ const MainLayout: React.FC = () => {
           <Menu
             mode="inline"
             selectedKeys={[currentPage]}
+            openKeys={openKeys}
+            onOpenChange={(keys) => setOpenKeys(keys.length > 0 ? [keys[keys.length - 1]] : [])}
             items={menuItems}
             onClick={({ key }) => setCurrentPage(key as PageKey)}
             style={{ borderRight: 0 }}
@@ -370,7 +374,7 @@ const MainLayout: React.FC = () => {
         <Content 
           style={{ 
             marginTop: 64,
-            padding: 24, 
+            padding: '16px 24px',
             minHeight: 'calc(100vh - 64px)',
             overflow: 'auto',
           }}

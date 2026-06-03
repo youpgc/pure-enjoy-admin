@@ -24,13 +24,10 @@ const MOOD_COLORS: Record<string, string> = {
 
 const MOOD_OPTIONS = [
   { value: '开心', label: '开心' },
-  { value: '愉快', label: '愉快' },
   { value: '平静', label: '平静' },
   { value: '一般', label: '一般' },
-  { value: '低落', label: '低落' },
   { value: '难过', label: '难过' },
   { value: '焦虑', label: '焦虑' },
-  { value: '愤怒', label: '愤怒' },
 ]
 
 // ==================== 编辑字段配置 ====================
@@ -55,12 +52,6 @@ const EDIT_FIELDS: EditFieldConfig[] = [
     label: '日期',
     type: 'date',
     required: true,
-  },
-  {
-    name: 'tags',
-    label: '标签',
-    type: 'tags',
-    placeholder: '输入标签后按回车添加',
   },
 ]
 

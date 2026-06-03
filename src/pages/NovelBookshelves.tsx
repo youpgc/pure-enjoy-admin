@@ -119,6 +119,7 @@ const NovelBookshelves: React.FC = () => {
         const { data: users, error: uError } = await supabase
           .from('users')
           .select('id, nickname, email')
+          .in('id', userIds)
 
         if (uError) {
           console.error('[NovelBookshelves] 查询 users 失败:', uError)

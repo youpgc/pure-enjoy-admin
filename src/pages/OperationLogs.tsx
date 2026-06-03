@@ -97,7 +97,7 @@ const OperationLogs: React.FC = () => {
       // 查询 operation_logs 表，关联 users 表获取用户昵称
       const { data, error } = await supabase
         .from('operation_logs')
-        .select('id, user_id, action, resource_type, resource_id, detail, ip_address, user_agent, created_at, users:user_id(nickname)')
+        .select('id, user_id, action, module, target_id, details, ip, user_agent, created_at, users:user_id(nickname)')
         .order('created_at', { ascending: false })
         .limit(500)
 
@@ -114,12 +114,12 @@ const OperationLogs: React.FC = () => {
         time: dayjs(row.created_at).format('YYYY-MM-DD HH:mm:ss'),
         user_name: row.users?.nickname || '未知用户',
         action: row.action || '',
-        module: row.resource_type || '',
-        target: row.resource_id || '',
-        ip: row.ip_address || '',
-        detail: typeof row.detail === 'object' && row.detail !== null
-          ? JSON.stringify(row.detail)
-          : (row.detail as string) || '',
+        module: row.module || '',
+        target: row.target_id || '',
+        ip: row.ip || '',
+        detail: typeof row.details === 'object' && row.details !== null
+          ? JSON.stringify(row.details)
+          : (row.details as string) || '',
       }))
       setLogs(items)
     } catch (err) {

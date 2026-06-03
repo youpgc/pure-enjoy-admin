@@ -470,7 +470,10 @@ const Users: React.FC = () => {
       fixed: 'left',
       render: (id: string) => (
         <Tooltip title="点击查看详情">
-          <a onClick={() => handleViewUser(data.find(u => u.id === id)!)}>
+          <a onClick={() => {
+            const found = data.find(u => u.id === id)
+            if (found) handleViewUser(found)
+          }}>
             <Text style={{ fontSize: 12 }}>{id}</Text>
           </a>
         </Tooltip>
