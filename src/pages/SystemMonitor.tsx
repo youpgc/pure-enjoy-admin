@@ -1,18 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Row, Col, Card, Statistic, Spin, Table, Tag, Empty, Badge, Progress, Tabs, Space, Button } from 'antd'
+import { Row, Col, Card, Statistic, Spin, Table, Tag, Empty, Tabs, Space, Button } from 'antd'
 import {
   DatabaseOutlined,
   ApiOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
   ExclamationCircleOutlined,
   ReloadOutlined,
-  ThunderboltOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { usePermission } from '../hooks/usePermission'
-import { supabase, reportError } from '../utils/supabase'
-import type { DbTableStat, AlertItem } from '../utils/mockData'
+import { supabase } from '../utils/supabase'
 
 // 错误日志类型
 interface ErrorLog {
@@ -34,25 +30,12 @@ interface SystemStats {
   version: string
 }
 
-// 懒加载的图表组件
-const SystemOverviewCards: React.FC<{ stats: SystemStats | null; loading: boolean }> = React.lazy(() => 
-  import('../components/lazy/SystemOverviewCards').then(m => ({ default: m.SystemOverviewCards }))
-)
-
-const DatabaseTableList: React.FC<{ data: DbTableStat[]; loading: boolean }> = React.lazy(() => 
-  import('../components/lazy/DatabaseTableList').then(m => ({ default: m.DatabaseTableList }))
-)
-
-const ErrorAlertList: React.FC<{ data: ErrorLog[]; loading: boolean }> = React.lazy(() => 
-  import('../components/lazy/ErrorAlertList').then(m => ({ default: m.ErrorAlertList }))
-)
-
 const SystemMonitor: React.FC = () => {
   const { isAdmin } = usePermission()
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
   const [stats, setStats] = useState<SystemStats | null>(null)
-  const [dbTableStats, setDbTableStats] = useState<DbTableStat[]>([])
+  const [dbTableStats, setDbTableStats] = useState<{ tableName: string; displayName: string; rowCount: number; size: string; lastUpdate: string }[]>([])
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([])
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -107,7 +90,7 @@ const SystemMonitor: React.FC = () => {
       setDbTableStats(tableNames.map((name, i) => ({
         tableName: name,
         displayName: `${name}表`,
-        rowCount: tableCounts[i],
+        rowCount: tableCounts[i] || 0,
         size: '-',
         lastUpdate: '-',
       })))
@@ -117,7 +100,6 @@ const SystemMonitor: React.FC = () => {
       console.log('[SystemMonitor] 数据加载完成:', { totalUsers, totalTables, todayLogs, errorCount })
     } catch (err) {
       console.error('[SystemMonitor] 数据加载失败:', err)
-      // 不调用 reportError，避免递归
     } finally {
       setLoading(false)
     }
@@ -192,47 +174,43 @@ const SystemMonitor: React.FC = () => {
 
   // 数据库表统计
   const DatabaseContent = () => (
-    <React.Suspense fallback={<LoadingIndicator />}>
-      <Table
-        dataSource={dbTableStats}
-        rowKey="tableName"
-        loading={loading}
-        pagination={false}
-        columns={[
-          { title: '表名', dataIndex: 'displayName', key: 'displayName' },
-          { title: '记录数', dataIndex: 'rowCount', key: 'rowCount', render: (v: number) => v.toLocaleString() },
-          { title: '预估大小', dataIndex: 'size', key: 'size' },
-          { title: '最后更新', dataIndex: 'lastUpdate', key: 'lastUpdate' },
-        ]}
-      />
-    </React.Suspense>
+    <Table
+      dataSource={dbTableStats}
+      rowKey="tableName"
+      loading={loading}
+      pagination={false}
+      columns={[
+        { title: '表名', dataIndex: 'displayName', key: 'displayName' },
+        { title: '记录数', dataIndex: 'rowCount', key: 'rowCount', render: (v: number) => v.toLocaleString() },
+        { title: '预估大小', dataIndex: 'size', key: 'size' },
+        { title: '最后更新', dataIndex: 'lastUpdate', key: 'lastUpdate' },
+      ]}
+    />
   )
 
   // 错误日志
   const ErrorContent = () => (
-    <React.Suspense fallback={<LoadingIndicator />}>
-      <Table
-        dataSource={errorLogs}
-        rowKey="id"
-        loading={loading}
-        pagination={{ pageSize: 10 }}
-        columns={[
-          { 
-            title: '级别', 
-            dataIndex: 'level', 
-            key: 'level',
-            render: (level: string) => (
-              <Tag color={level === 'error' ? 'red' : level === 'warning' ? 'orange' : 'blue'}>
-                {level === 'error' ? '错误' : level === 'warning' ? '警告' : '信息'}
-              </Tag>
-            )
-          },
-          { title: '模块', dataIndex: 'module', key: 'module' },
-          { title: '消息', dataIndex: 'message', key: 'message', ellipsis: true },
-          { title: '时间', dataIndex: 'created_at', key: 'created_at', render: (t: string) => dayjs(t).format('MM-DD HH:mm:ss') },
-        ]}
-      />
-    </React.Suspense>
+    <Table
+      dataSource={errorLogs}
+      rowKey="id"
+      loading={loading}
+      pagination={{ pageSize: 10 }}
+      columns={[
+        { 
+          title: '级别', 
+          dataIndex: 'level', 
+          key: 'level',
+          render: (level: string) => (
+            <Tag color={level === 'error' ? 'red' : level === 'warning' ? 'orange' : 'blue'}>
+              {level === 'error' ? '错误' : level === 'warning' ? '警告' : '信息'}
+            </Tag>
+          )
+        },
+        { title: '模块', dataIndex: 'module', key: 'module' },
+        { title: '消息', dataIndex: 'message', key: 'message', ellipsis: true },
+        { title: '时间', dataIndex: 'created_at', key: 'created_at', render: (t: string) => dayjs(t).format('MM-DD HH:mm:ss') },
+      ]}
+    />
   )
 
   if (!isAdmin) {
@@ -253,9 +231,7 @@ const SystemMonitor: React.FC = () => {
       </div>
 
       {/* 概览卡片 */}
-      <React.Suspense fallback={<LoadingIndicator />}>
-        <OverviewContent />
-      </React.Suspense>
+      <OverviewContent />
 
       {/* 标签页 */}
       <Card style={{ marginTop: 16 }}>
