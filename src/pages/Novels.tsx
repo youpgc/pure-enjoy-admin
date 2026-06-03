@@ -50,6 +50,7 @@ interface NovelRecord {
   word_count: number
   chapter_count: number
   is_free: boolean
+  source: string | null
   created_at: string
   updated_at: string
 }
@@ -609,6 +610,13 @@ const Novels: React.FC = () => {
       width: 80,
       sorter: (a, b) => a.chapter_count - b.chapter_count,
       render: (chapterCount: number) => `${chapterCount}章`,
+    },
+    {
+      title: '来源',
+      dataIndex: 'source',
+      key: 'source',
+      width: 80,
+      render: (source: string) => source || '-',
     },
     {
       title: '状态',
