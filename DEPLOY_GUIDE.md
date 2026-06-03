@@ -53,29 +53,45 @@ echo "GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx" > /workspace/.env
 
 ---
 
-## 三、快速部署命令
+## 三、构建监控部署流程（推荐）
 
-### 使用部署脚本（推荐）
+### 完整构建监控流程
+
+```
+推送代码 → 触发 GitHub Actions → 实时监听进度 → 构建完成 → 汇报结果
+                                    ↓
+                              构建失败 → 显示错误原因 → 汇报失败
+```
+
+### 使用部署脚本（带完整监控）
 
 ```bash
 # 进入工作目录
 cd /workspace
 
-# 完整部署（管理后台 + App代码 + 可选APK）
-./deploy.sh all
-
-# 仅部署管理后台
+# 部署管理后台（触发构建 + 实时监听 + 汇报结果）
 ./deploy.sh admin
 
-# 仅同步 App 代码
-./deploy.sh app
-
-# 仅构建 APK
-./deploy.sh apk
-
-# 触发 GitHub Actions 构建并监控
+# 构建 App APK（触发构建 + 实时监听 + 汇报结果）
 ./deploy.sh build
+
+# 完整部署（管理后台 + App代码同步）
+./deploy.sh all
+
+# 仅同步 App 代码（不触发构建监听）
+./deploy.sh app
 ```
+
+### 部署脚本功能
+
+| 功能 | 说明 |
+|------|------|
+| 🚀 自动触发 | 推送代码后自动触发 GitHub Actions |
+| 📡 实时监听 | 每10秒轮询构建状态，显示进度动画 |
+| ⏱️ 超时保护 | 最多等待30分钟，超时自动退出 |
+| 📊 结果汇报 | 构建完成后显示成功/失败详情 |
+| 🔍 错误排查 | 失败时自动获取并显示错误日志 |
+| 📝 版本追踪 | 自动记录 commit 信息和版本号 |
 
 ### 使用 GitHub CLI 直接触发构建
 

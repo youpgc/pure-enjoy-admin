@@ -6,8 +6,8 @@
 #   1. 同步代码到 GitHub 和 Gitee
 #   2. 触发 GitHub Actions 构建并实时监控
 #   3. 构建失败自动排查原因并重试
-#   4. 构建成功获取版本号和下载地址
-#   5. 同步新版本到管理后台
+#   4. 构建成功/失败汇报结果
+#   5. 部署完成汇报
 # 用法：./deploy.sh [admin|app|build|all]
 # 环境变量：GITHUB_TOKEN（必需用于触发构建）
 # ============================================================
@@ -43,6 +43,14 @@ print_highlight() {
     echo -e "${CYAN}$1${NC}"
 }
 
+# 汇报函数 - 汇报给用户
+report() {
+    echo ""
+    print_highlight "========== 📊 结果汇报 =========="
+    echo "$1"
+    print_highlight "================================="
+}
+
 # 检查 GitHub Token
 check_github_token() {
     if [ -z "$GITHUB_TOKEN" ]; then
@@ -57,11 +65,9 @@ check_github_token() {
         print_info "请按以下方式之一配置："
         print_info "1. 环境变量: export GITHUB_TOKEN='ghp_xxxxxxxxxxxxxxxxxxxx'"
         print_info "2. .env 文件: echo 'GITHUB_TOKEN=ghp_xxx' > /workspace/.env"
-        print_info "3. GitHub CLI: gh auth login"
         return 1
     fi
     
-    # 设置 gh CLI 使用 Token
     export GH_TOKEN="$GITHUB_TOKEN"
     return 0
 }
@@ -76,29 +82,31 @@ install_gh_cli() {
     fi
 }
 
-# 监控构建过程
-monitor_build() {
-    local run_id=$1
-    local repo="youpgc/pure-enjoy"
-    local max_attempts=180  # 最多等待30分钟
+# 监控 GitHub Actions 构建过程
+monitor_github_actions() {
+    local repo=$1
+    local workflow=$2
+    local run_id=$3
+    local max_attempts=180  # 最多等待30分钟（180 * 10秒）
     local attempts=0
     
-    print_info "开始监控构建进程..."
-    print_info "构建日志: https://github.com/$repo/actions/runs/$run_id"
+    print_info "开始监听 GitHub Actions 构建..."
+    print_info "构建页面: https://github.com/$repo/actions/runs/$run_id"
     echo ""
     
     while [ $attempts -lt $max_attempts ]; do
-        local status=$(gh run view $run_id --repo $repo --json status --jq '.status' 2>/dev/null || echo "unknown")
-        local conclusion=$(gh run view $run_id --repo $repo --json conclusion --jq '.conclusion' 2>/dev/null || echo "null")
+        local status=$(gh run view $run_id --repo "$repo" --json status --jq '.status' 2>/dev/null || echo "unknown")
+        local conclusion=$(gh run view $run_id --repo "$repo" --json conclusion --jq '.conclusion' 2>/dev/null || echo "null")
         
         # 显示进度动画
         local spin=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
         local spin_idx=$((attempts % 10))
-        printf "\r${spin[$spin_idx]} 构建中... [%d/%d] 状态: %s" $attempts $max_attempts "$status"
+        printf "\r${spin[$spin_idx]} 监听构建中... [%d/%d] 状态: %s" $attempts $max_attempts "$status"
         
         # 检查是否完成
         if [ "$status" = "completed" ]; then
             echo ""  # 换行
+            echo "$conclusion"  # 返回结论
             return 0
         fi
         
@@ -107,384 +115,212 @@ monitor_build() {
     done
     
     echo ""
-    print_error "构建监控超时"
+    print_error "构建监听超时"
     return 1
 }
 
-# 获取构建结果
-get_build_result() {
-    local run_id=$1
-    local repo="youpgc/pure-enjoy"
+# 获取构建结果详情
+get_build_details() {
+    local repo=$1
+    local run_id=$2
     
-    local conclusion=$(gh run view $run_id --repo $repo --json conclusion --jq '.conclusion' 2>/dev/null || echo "unknown")
-    local status=$(gh run view $run_id --repo $repo --json status --jq '.status' 2>/dev/null || echo "unknown")
+    local run_info=$(gh run view $run_id --repo "$repo" --json headCommit,displayTitle,createdAt,conclusion --jq '.' 2>/dev/null)
+    local commit_msg=$(echo "$run_info" | jq -r '.displayTitle' 2>/dev/null || echo "未知")
+    local created_at=$(echo "$run_info" | jq -r '.createdAt' 2>/dev/null || echo "未知")
+    local conclusion=$(echo "$run_info" | jq -r '.conclusion' 2>/dev/null || echo "未知")
     
-    echo "$conclusion"
+    echo "commit_msg:$commit_msg"
+    echo "created_at:$created_at"
+    echo "conclusion:$conclusion"
 }
 
-# 获取构建日志
-get_build_logs() {
-    local run_id=$1
-    local repo="youpgc/pure-enjoy"
+# 获取构建失败原因
+get_failure_reason() {
+    local repo=$1
+    local run_id=$2
     
     print_info "获取构建日志..."
-    gh run view $run_id --repo $repo --log
+    gh run view $run_id --repo "$repo" --log-failed 2>/dev/null | head -50
 }
 
-# 获取失败日志
-get_failed_logs() {
-    local run_id=$1
-    local repo="youpgc/pure-enjoy"
-    
-    print_info "获取失败步骤日志..."
-    gh run view $run_id --repo $repo --log-failed
-}
-
-# 分析构建失败原因
-analyze_build_failure() {
-    local run_id=$1
-    local repo="youpgc/pure-enjoy"
-    
-    print_error "构建失败！开始分析原因..."
-    echo ""
-    
-    # 获取失败日志
-    local failed_logs=$(gh run view $run_id --repo $repo --log-failed 2>/dev/null || echo "")
-    
-    # 常见错误模式分析
-    echo "$failed_logs" | grep -i "error\|failed\|exception" | head -20
-    
-    print_highlight "\n========== 构建失败分析 =========="
-    
-    if echo "$failed_logs" | grep -qi "flutter.*pub.*get"; then
-        print_error "❌ 依赖获取失败"
-        print_info "可能原因:"
-        print_info "  - pubspec.yaml 格式错误"
-        print_info "  - 依赖版本冲突"
-        print_info "  - 网络问题"
-        print_info "解决方案:"
-        print_info "  1. 检查 pubspec.yaml 语法"
-        print_info "  2. 运行 flutter pub get 本地测试"
-        return "dependency_error"
-    fi
-    
-    if echo "$failed_logs" | grep -qi "compile\|build.*apk"; then
-        print_error "❌ 编译错误"
-        print_info "可能原因:"
-        print_info "  - Dart 语法错误"
-        print_info "  - 缺少依赖"
-        print_info "  - Android 配置问题"
-        print_info "解决方案:"
-        print_info "  1. 本地运行 flutter build apk 测试"
-        print_info "  2. 检查 lib/ 目录下的语法错误"
-        return "compile_error"
-    fi
-    
-    if echo "$failed_logs" | grep -qi "supabase\|upload\|storage"; then
-        print_error "❌ Supabase 上传失败"
-        print_info "可能原因:"
-        print_info "  - Secrets 配置错误"
-        print_info "  - Supabase 服务不可用"
-        print_info "  - 存储桶权限问题"
-        print_info "解决方案:"
-        print_info "  1. 检查 Secrets: SUPABASE_ACCESS_TOKEN, SUPABASE_PROJECT_ID"
-        print_info "  2. 检查 Supabase Storage 权限"
-        return "upload_error"
-    fi
-    
-    if echo "$failed_logs" | grep -qi "version\|pubspec"; then
-        print_error "❌ 版本号处理错误"
-        print_info "可能原因:"
-        print_info "  - pubspec.yaml 版本号格式错误"
-        print_info "  - 版本号解析失败"
-        print_info "解决方案:"
-        print_info "  1. 检查 pubspec.yaml 版本格式: version: x.x.x+x"
-        return "version_error"
-    fi
-    
-    print_error "❌ 未知错误"
-    print_info "请查看完整日志: https://github.com/youpgc/pure-enjoy/actions/runs/$run_id"
-    return "unknown_error"
-}
-
-# 尝试修复常见问题
-attempt_fix() {
-    local error_type=$1
-    
-    print_highlight "\n========== 尝试自动修复 =========="
-    
-    case $error_type in
-        "dependency_error")
-            print_info "尝试修复依赖问题..."
-            cd /workspace/pure-enjoy
-            flutter pub get 2>/dev/null || true
-            flutter pub upgrade 2>/dev/null || true
-            ;;
-        "version_error")
-            print_info "尝试修复版本号..."
-            cd /workspace/pure-enjoy
-            # 确保版本号格式正确
-            local current=$(grep "version:" pubspec.yaml | head -1 | awk '{print $2}')
-            if [[ ! $current =~ ^[0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$ ]]; then
-                print_warning "版本号格式不正确，修复为 1.9.3+45"
-                sed -i 's/^version:.*$/version: 1.9.3+45/' pubspec.yaml
-                git add pubspec.yaml
-                git commit -m "fix: 修复版本号格式"
-                git push origin master
-            fi
-            ;;
-        *)
-            print_warning "无法自动修复此问题，需要手动处理"
-            ;;
-    esac
-}
-
-# 触发构建并监控
-build_and_monitor() {
-    local max_retries=3
-    local retry_count=0
-    
-    while [ $retry_count -lt $max_retries ]; do
-        if [ $retry_count -gt 0 ]; then
-            print_highlight "\n========== 第 $retry_count 次重试 =========="
-        fi
-        
-        # 检查 Token
-        check_github_token || return 1
-        
-        # 安装 GitHub CLI
-        install_gh_cli
-        
-        # 触发构建
-        print_info "触发 GitHub Actions 构建..."
-        gh workflow run build_apk.yml --repo youpgc/pure-enjoy
-        
-        # 等待构建启动
-        print_info "等待构建启动..."
-        sleep 5
-        
-        # 获取运行 ID
-        local run_id=$(gh run list --repo youpgc/pure-enjoy --workflow build_apk.yml --limit 1 --json databaseId --jq '.[0].databaseId')
-        
-        if [ -z "$run_id" ]; then
-            print_error "无法获取构建运行 ID"
-            retry_count=$((retry_count + 1))
-            continue
-        fi
-        
-        print_info "构建运行 ID: $run_id"
-        
-        # 监控构建
-        if ! monitor_build $run_id; then
-            retry_count=$((retry_count + 1))
-            continue
-        fi
-        
-        # 获取构建结果
-        local conclusion=$(get_build_result $run_id)
-        
-        if [ "$conclusion" = "success" ]; then
-            print_success "✅ 构建成功！"
-            handle_build_success $run_id
-            return 0
-        else
-            print_error "❌ 构建失败！结论: $conclusion"
-            
-            # 分析失败原因
-            local error_type=$(analyze_build_failure $run_id)
-            
-            # 尝试修复
-            attempt_fix $error_type
-            
-            retry_count=$((retry_count + 1))
-            
-            if [ $retry_count -lt $max_retries ]; then
-                print_info "5秒后重试..."
-                sleep 5
-            fi
-        fi
-    done
-    
-    print_error "构建失败，已达到最大重试次数 ($max_retries)"
-    print_info "请手动查看日志并修复问题:"
-    print_info "https://github.com/youpgc/pure-enjoy/actions"
-    return 1
-}
-
-# 处理构建成功
-handle_build_success() {
-    local run_id=$1
-    local repo="youpgc/pure-enjoy"
-    
-    print_highlight "\n========== 构建成功详情 =========="
-    
-    # 获取构建信息
-    local run_info=$(gh run view $run_id --repo $repo --json headCommit,displayTitle,createdAt --jq '.')
-    local commit_msg=$(echo "$run_info" | grep -o '"displayTitle":"[^"]*"' | cut -d'"' -f4)
-    local created_at=$(echo "$run_info" | grep -o '"createdAt":"[^"]*"' | cut -d'"' -f4)
-    
-    # 获取版本信息（从构建产物名称）
-    local artifact_info=$(gh run view $run_id --repo $repo --json artifacts --jq '.artifacts[0]' 2>/dev/null || echo "")
-    local apk_name=$(echo "$artifact_info" | grep -o '"name":"[^"]*"' | head -1 | cut -d'"' -f4)
-    
-    # 解析版本号
-    if [[ $apk_name =~ pure-enjoy-v([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+) ]]; then
-        local version="${BASH_REMATCH[1]}"
-        local build_number="${BASH_REMATCH[2]}"
-        
-        print_success "📱 新版本号: v${version}+${build_number}"
-    else
-        local version="未知"
-        local build_number="未知"
-        print_warning "无法解析版本号"
-    fi
-    
-    # 下载地址
-    local download_url="https://github.com/$repo/actions/runs/$run_id"
-    local supabase_url="https://mhdrbjpqmzswswoazwjg.supabase.co/storage/v1/object/public/apk-releases/$apk_name"
-    
-    print_success "📦 APK 文件名: $apk_name"
-    print_success "🔗 GitHub 下载: $download_url"
-    print_success "☁️  Supabase 下载: $supabase_url"
-    print_info "📋 提交信息: $commit_msg"
-    print_info "📅 构建时间: $created_at"
-    
-    # 同步到管理后台
-    print_highlight "\n========== 同步到管理后台 =========="
-    sync_to_admin $version $build_number "$supabase_url"
-    
-    # 保存构建信息到文件
-    local info_file="/workspace/releases/latest_build_info.txt"
-    mkdir -p /workspace/releases
-    cat > $info_file << EOF
-构建时间: $(date)
-版本号: v${version}+${build_number}
-APK 文件名: $apk_name
-GitHub 下载: $download_url
-Supabase 下载: $supabase_url
-提交信息: $commit_msg
-EOF
-    
-    print_success "构建信息已保存到: $info_file"
-    
-    # 显示总结
-    print_highlight "\n========== 构建完成总结 =========="
-    print_success "✅ 版本号: v${version}+${build_number}"
-    print_success "✅ APK 下载: $supabase_url"
-    print_success "✅ 已同步到管理后台"
-    print_info "📱 管理后台: https://youpgc.github.io/pure-enjoy-admin/#/version-management"
-}
-
-# 同步到管理后台
-sync_to_admin() {
-    local version=$1
-    local build_number=$2
-    local apk_url=$3
-    
-    print_info "正在同步新版本到管理后台..."
-    
-    # 这里可以调用管理后台的 API 或执行其他同步操作
-    # 目前 GitHub Actions 已经自动同步到 app_versions 表
-    
-    print_success "✅ 版本已自动同步到 Supabase app_versions 表"
-    print_info "管理后台将自动显示新版本"
-}
-
-# 部署管理后台
+# ============================================================
+# 管理后台部署
+# ============================================================
 deploy_admin() {
-    print_info "开始部署管理后台..."
+    print_info "========== 开始部署管理后台 =========="
     
     cd /workspace/pure-enjoy-admin
     
-    # 检查是否有未提交的更改
-    if [ -n "$(git status --porcelain)" ]; then
-        print_warning "管理后台有未提交的更改，请先提交"
-        git status
-        return 1
-    fi
+    # 获取最新 commit 信息
+    local commit_msg=$(git log -1 --pretty=%B | head -1)
+    local commit_short=$(git log -1 --pretty=%h)
+    print_info "当前提交: $commit_short - $commit_msg"
     
-    # 同步到 GitHub
-    print_info "同步到 GitHub..."
-    git push origin main
-    print_success "GitHub 同步完成"
+    # 同步到 GitHub（自动触发构建）
+    print_info "同步到 GitHub 并触发构建..."
+    git push origin main 2>&1
+    
+    # 获取运行 ID
+    local run_id=""
+    sleep 3
+    run_id=$(gh run list --repo youpgc/pure-enjoy-admin --workflow deploy.yml --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+    
+    if [ -z "$run_id" ]; then
+        print_warning "无法获取构建运行 ID，等待自动触发..."
+        print_info "请手动查看: https://github.com/youpgc/pure-enjoy-admin/actions"
+    else
+        print_info "构建运行 ID: $run_id"
+        
+        # 监听构建过程
+        print_info "开始监听构建进度..."
+        local conclusion=$(monitor_github_actions "youpgc/pure-enjoy-admin" "deploy.yml" "$run_id")
+        
+        # 汇报结果
+        if [ "$conclusion" = "success" ]; then
+            print_success "✅ 管理后台构建成功！"
+            report "🎉 管理后台部署完成！
+
+📦 版本: $commit_short
+📝 提交: $commit_msg
+🔗 地址: https://youpgc.github.io/pure-enjoy-admin/
+⏱️ 用时: 请在页面查看"
+        else
+            print_error "❌ 管理后台构建失败！"
+            print_info "失败原因:"
+            get_failure_reason "youpgc/pure-enjoy-admin" "$run_id"
+            report "❌ 管理后台构建失败！
+
+📦 版本: $commit_short
+📝 提交: $commit_msg
+🔗 查看详情: https://github.com/youpgc/pure-enjoy-admin/actions/runs/$run_id"
+        fi
+    fi
     
     # 同步到 Gitee
     print_info "同步到 Gitee..."
-    git push gitee main
-    print_success "Gitee 同步完成"
+    git push gitee main 2>&1 || print_warning "Gitee 同步失败"
     
-    print_success "管理后台部署完成！GitHub Actions 将自动构建并部署到 GitHub Pages"
-    print_info "部署地址：https://youpgc.github.io/pure-enjoy-admin/"
+    print_success "========== 管理后台部署流程结束 =========="
 }
 
-# 部署 App（仅同步代码）
+# ============================================================
+# App 端部署
+# ============================================================
 deploy_app_code() {
-    print_info "开始同步 App 代码..."
+    print_info "========== 开始同步 App 代码 =========="
     
     cd /workspace/pure-enjoy
     
-    # 检查是否有未提交的更改
-    if [ -n "$(git status --porcelain)" ]; then
-        print_warning "App 有未提交的更改，请先提交"
-        git status
-        return 1
-    fi
+    # 获取最新 commit 信息
+    local commit_msg=$(git log -1 --pretty=%B | head -1)
+    local commit_short=$(git log -1 --pretty=%h)
+    print_info "当前提交: $commit_short - $commit_msg"
     
     # 同步到 GitHub
     print_info "同步到 GitHub..."
-    git push origin master
-    print_success "GitHub 同步完成"
+    git push origin master 2>&1
     
     # 同步到 Gitee
     print_info "同步到 Gitee..."
-    git push gitee master
-    print_success "Gitee 同步完成"
+    git push gitee master 2>&1 || print_warning "Gitee 同步失败"
     
-    print_success "App 代码同步完成！"
+    print_success "✅ App 代码同步完成！"
+    print_info "GitHub Actions 将自动构建 APK"
 }
 
+# ============================================================
+# App 端 APK 构建（带监控）
+# ============================================================
+build_app_apk() {
+    print_info "========== 开始构建 App APK =========="
+    
+    check_github_token || return 1
+    install_gh_cli
+    
+    # 触发构建
+    print_info "触发 GitHub Actions 构建..."
+    gh workflow run build_apk.yml --repo youpgc/pure-enjoy 2>&1
+    
+    # 等待构建启动
+    sleep 5
+    
+    # 获取运行 ID
+    local run_id=$(gh run list --repo youpgc/pure-enjoy --workflow build_apk.yml --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || echo "")
+    
+    if [ -z "$run_id" ]; then
+        print_error "无法获取构建运行 ID"
+        return 1
+    fi
+    
+    print_info "构建运行 ID: $run_id"
+    
+    # 监听构建过程
+    print_info "开始监听构建进度..."
+    local conclusion=$(monitor_github_actions "youpgc/pure-enjoy" "build_apk.yml" "$run_id")
+    
+    # 汇报结果
+    if [ "$conclusion" = "success" ]; then
+        # 获取版本信息
+        local details=$(get_build_details "youpgc/pure-enjoy" "$run_id")
+        local apk_name=$(gh run view $run_id --repo youpgc/pure-enjoy --json artifacts --jq '.artifacts[0].name' 2>/dev/null || echo "未知")
+        
+        print_success "✅ APK 构建成功！"
+        report "🎉 App APK 构建成功！
+
+📦 APK: $apk_name
+🔗 下载: https://github.com/youpgc/pure-enjoy/actions/runs/$run_id
+☁️ Supabase: https://mhdrbjpqmzswswoazwjg.supabase.co/storage/v1/object/public/apk-releases/"
+    else
+        print_error "❌ APK 构建失败！"
+        print_info "失败原因:"
+        get_failure_reason "youpgc/pure-enjoy" "$run_id"
+        report "❌ App APK 构建失败！
+
+🔗 查看详情: https://github.com/youpgc/pure-enjoy/actions/runs/$run_id"
+    fi
+}
+
+# ============================================================
 # 完整部署
+# ============================================================
 full_deploy() {
     deploy_admin
+    echo ""
     deploy_app_code
-    
-    print_highlight "\n========== 部署完成 =========="
-    print_info "App 端已配置 GitHub Actions 自动构建"
-    print_info "推送代码后将自动触发 APK 构建"
-    print_info ""
-    print_info "如需立即触发构建并监控，请运行:"
-    print_highlight "  ./deploy.sh build"
 }
 
+# ============================================================
 # 显示帮助
+# ============================================================
 show_help() {
     echo "用法: $0 [admin|app|build|all]"
     echo ""
     echo "选项:"
-    echo "  admin   - 仅部署管理后台"
+    echo "  admin   - 仅部署管理后台（触发构建+监听+汇报结果）"
     echo "  app     - 仅同步 App 代码"
-    echo "  build   - 触发 GitHub Actions 构建并监控（推荐）"
-    echo "  all     - 完整部署（默认）"
+    echo "  build   - 触发 App APK 构建（监听+汇报结果）"
+    echo "  all     - 完整部署"
+    echo "  help    - 显示帮助"
     echo ""
-    echo "环境变量:"
-    echo "  GITHUB_TOKEN - GitHub Personal Access Token"
+    echo "构建监控流程:"
+    echo "  1. 推送代码触发 GitHub Actions"
+    echo "  2. 实时监听构建进度"
+    echo "  3. 构建完成后汇报结果"
+    echo "  4. 失败时显示错误原因"
     echo ""
     echo "示例:"
-    echo "  export GITHUB_TOKEN='ghp_xxxxxxxxxxxxxxxxxxxx'"
-    echo "  ./deploy.sh build"
-    echo ""
-    echo "build 命令功能:"
-    echo "  1. 触发 GitHub Actions 构建"
-    echo "  2. 实时监控构建进度"
-    echo "  3. 构建失败自动排查原因"
-    echo "  4. 自动修复常见问题并重试"
-    echo "  5. 构建成功显示版本号和下载地址"
-    echo "  6. 同步新版本到管理后台"
+    echo "  ./deploy.sh admin    # 部署管理后台并监听"
+    echo "  ./deploy.sh build   # 构建 APK 并监听"
+    echo "  ./deploy.sh all     # 完整部署"
 }
 
+# ============================================================
 # 主函数
+# ============================================================
 main() {
-    case "${1:-all}" in
+    check_github_token
+    
+    case "${1:-help}" in
         admin)
             deploy_admin
             ;;
@@ -492,7 +328,7 @@ main() {
             deploy_app_code
             ;;
         build)
-            build_and_monitor
+            build_app_apk
             ;;
         all)
             full_deploy
