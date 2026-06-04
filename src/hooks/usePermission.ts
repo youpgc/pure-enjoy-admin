@@ -14,6 +14,7 @@ export type PermissionModule =
   | 'novels' 
   | 'versions' 
   | 'system'
+  | 'feedback'
 
 // 权限操作定义
 export type PermissionAction = 'read' | 'write' | 'delete' | 'export' | 'release'
@@ -46,6 +47,8 @@ const ROLE_PERMISSIONS_MAP: Record<string, PermissionString[]> = {
     'versions:read', 'versions:write', 'versions:delete', 'versions:release',
     // 系统
     'system:read', 'system:write',
+    // 反馈
+    'feedback:read', 'feedback:write', 'feedback:delete',
   ],
   admin: [
     // 用户管理
@@ -70,6 +73,8 @@ const ROLE_PERMISSIONS_MAP: Record<string, PermissionString[]> = {
     'versions:read', 'versions:write', 'versions:release',
     // 系统
     'system:read',
+    // 反馈
+    'feedback:read', 'feedback:write',
   ],
   viewer: [
     // 只读权限
@@ -190,6 +195,12 @@ export const usePermission = () => {
   const canWriteSystem = hasModulePermission('system', 'write')
   const canManageSystem = canReadSystem && canWriteSystem
 
+  // 反馈权限
+  const canReadFeedback = hasModulePermission('feedback', 'read')
+  const canWriteFeedback = hasModulePermission('feedback', 'write')
+  const canDeleteFeedback = hasModulePermission('feedback', 'delete')
+  const canManageFeedback = canReadFeedback && canWriteFeedback
+
   // ========== 角色判断 ==========
 
   const isSuperAdmin = user?.role === 'super_admin'
@@ -287,6 +298,12 @@ export const usePermission = () => {
     canReadSystem,
     canWriteSystem,
     canManageSystem,
+
+    // 反馈权限
+    canReadFeedback,
+    canWriteFeedback,
+    canDeleteFeedback,
+    canManageFeedback,
 
     // 角色判断
     isSuperAdmin,

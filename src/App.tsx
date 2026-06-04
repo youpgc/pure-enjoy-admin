@@ -23,6 +23,7 @@ import {
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   SoundOutlined,
+  MessageOutlined,
 } from '@ant-design/icons'
 import type { AdminUser } from './types/auth'
 import AuthGuard from './components/AuthGuard'
@@ -51,6 +52,7 @@ import SensitiveWordAnalytics from './pages/SensitiveWordAnalytics'
 import FileManagement from './pages/FileManagement'
 import Notifications from './pages/Notifications'
 import Announcements from './pages/Announcements'
+import Feedback from './pages/Feedback'
 
 
 const { Header, Sider, Content } = Layout
@@ -111,7 +113,7 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
   'novels' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
-  'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications'
+  'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -171,6 +173,7 @@ const MainLayout: React.FC = () => {
         { key: 'favorites', icon: <StarOutlined />, label: '收藏夹' },
         { key: 'reminders', icon: <BellOutlined />, label: '提醒事项' },
         { key: 'habits', icon: <CheckCircleOutlined />, label: '习惯打卡' },
+        { key: 'feedback', icon: <MessageOutlined />, label: '问题反馈' },
       ],
     },
     {
@@ -260,6 +263,8 @@ const MainLayout: React.FC = () => {
         return <FileManagement />
       case 'announcements':
         return <Announcements />
+      case 'feedback':
+        return <Feedback />
       default:
         return <Dashboard />
     }
@@ -290,6 +295,7 @@ const MainLayout: React.FC = () => {
       file_management: '文件管理',
       announcements: '公告管理',
       notifications: '通知管理',
+      feedback: '问题反馈',
     }
     return titles[currentPage] || '数据概览'
   }
