@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
+import { usePagination } from '../hooks/usePagination'
 
 // ==================== 类型定义 ====================
 
@@ -58,8 +59,7 @@ const Announcements: React.FC = () => {
   const [filterType, setFilterType] = useState<string | undefined>(undefined)
   const [filterPriority, setFilterPriority] = useState<string | undefined>(undefined)
   const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const { currentPage, pageSize, paginate, resetPage, setCurrentPage, setPageSize } = usePagination()
 
   // 弹窗状态
   const [modalOpen, setModalOpen] = useState(false)
@@ -113,10 +113,7 @@ const Announcements: React.FC = () => {
     })
   }, [announcements, filterType, filterPriority, filterStatus])
 
-  const paginatedAnnouncements = useMemo(() => {
-    const start = (currentPage - 1) * pageSize
-    return filteredAnnouncements.slice(start, start + pageSize)
-  }, [filteredAnnouncements, currentPage, pageSize])
+  const paginatedAnnouncements = useMemo(() => paginate(filteredAnnouncements), [filteredAnnouncements, currentPage, pageSize, paginate])
 
   // ==================== 操作处理 ====================
 
@@ -257,7 +254,7 @@ const Announcements: React.FC = () => {
     setFilterType(undefined)
     setFilterPriority(undefined)
     setFilterStatus(undefined)
-    setCurrentPage(1)
+    resetPage()
   }
 
   // ==================== 表格列定义 ====================

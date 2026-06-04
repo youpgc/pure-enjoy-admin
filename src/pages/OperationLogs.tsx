@@ -4,6 +4,7 @@ import { SearchOutlined, ExportOutlined, ReloadOutlined, DeleteOutlined, Warning
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import { usePermission } from '../hooks/usePermission'
+import { usePagination } from '../hooks/usePagination'
 import { exportToCSV } from '../utils/export'
 import { supabase } from '../utils/supabase'
 
@@ -81,8 +82,7 @@ const OperationLogs: React.FC = () => {
   const [filterModule, setFilterModule] = useState<string | undefined>(undefined)
   const [filterAction, setFilterAction] = useState<string | undefined>(undefined)
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const { currentPage, pageSize, paginate, resetPage, setCurrentPage, setPageSize } = usePagination()
 
   // 日志清理功能
   const [cleanModalOpen, setCleanModalOpen] = useState(false)
@@ -154,10 +154,7 @@ const OperationLogs: React.FC = () => {
   }, [logs, searchUser, filterModule, filterAction, dateRange])
 
   // 分页后的数据
-  const paginatedLogs = useMemo(() => {
-    const start = (currentPage - 1) * pageSize
-    return filteredLogs.slice(start, start + pageSize)
-  }, [filteredLogs, currentPage, pageSize])
+  const paginatedLogs = useMemo(() => paginate(filteredLogs), [filteredLogs, currentPage, pageSize, paginate])
 
   // 重置筛选
   const handleReset = () => {
@@ -165,7 +162,7 @@ const OperationLogs: React.FC = () => {
     setFilterModule(undefined)
     setFilterAction(undefined)
     setDateRange(null)
-    setCurrentPage(1)
+    resetPage()
   }
 
   // 计算清理预览

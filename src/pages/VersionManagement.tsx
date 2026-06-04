@@ -10,8 +10,8 @@ import {
 } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
-import dayjs from 'dayjs'
 import { getActionColumn } from '../components/ActionColumn'
+import { formatDateTime } from '../utils/format'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -313,13 +313,13 @@ const VersionManagement: React.FC = () => {
       dataIndex: 'released_at',
       key: 'released_at',
       render: (date: string | null) =>
-        date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+        date ? formatDateTime(date) : '-',
     },
     {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => formatDateTime(date),
     },
     getActionColumn<AppVersion>(
       (record) => {
@@ -434,7 +434,7 @@ const VersionManagement: React.FC = () => {
                   })()}
                 </Descriptions.Item>
                 <Descriptions.Item label="发布时间">
-                  {dayjs(releasedVersion.released_at).format('YYYY-MM-DD HH:mm')}
+                  {formatDateTime(releasedVersion.released_at)}
                 </Descriptions.Item>
                 <Descriptions.Item label="APK大小">
                   {formatSize(releasedVersion.apk_size || 0)}

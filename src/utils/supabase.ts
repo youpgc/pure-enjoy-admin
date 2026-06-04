@@ -320,20 +320,3 @@ export const handleSupabaseError = (error: any, context: string): string => {
   
   return error?.message || '操作失败，请稍后重试'
 }
-
-// 日志记录函数
-export const logApiCall = (operation: string, table: string, data?: any) => {
-  if (isDev) {
-    console.log(`[API] ${operation} ${table}`, data ? { data } : '')
-  }
-}
-
-export const logApiSuccess = (operation: string, table: string, result?: any) => {
-  if (isDev) {
-    console.log(`[API] ${operation} ${table} 成功`, result ? { result } : '')
-  }
-}
-
-export const logApiError = (operation: string, table: string, error: any) => {
-  console.error(`[API] ${operation} ${table} 失败:`, error)
-}

@@ -52,6 +52,7 @@ import { getActionColumn } from '../components/ActionColumn'
 import { supabase } from '../utils/supabase'
 import { useAuth } from '../App'
 import { usePermission } from '../hooks/usePermission'
+import { formatDateTime } from '../utils/format'
 import UserFormModal from '../components/UserFormModal'
 import UserDetailDrawer from '../components/UserDetailDrawer'
 
@@ -555,7 +556,7 @@ const Users: React.FC = () => {
       key: 'created_at',
       width: 160,
       sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => formatDateTime(date),
     },
     {
       title: '最后登录',
@@ -567,7 +568,7 @@ const Users: React.FC = () => {
         if (!b.last_login_at) return -1
         return new Date(a.last_login_at).getTime() - new Date(b.last_login_at).getTime()
       },
-      render: (date: string | null) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : <Text type="secondary">从未登录</Text>,
+      render: (date: string | null) => date ? formatDateTime(date) : <Text type="secondary">从未登录</Text>,
     },
     getActionColumn<User>(
       (record) => {

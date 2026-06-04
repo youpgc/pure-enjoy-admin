@@ -21,6 +21,9 @@ import { getActionColumn } from '../components/ActionColumn'
 import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
+import { useEditModal } from '../hooks/useEditModal'
+import { formatDateTime, formatDate } from '../utils/format'
+import NoPermission from '../components/NoPermission'
 
 // ==================== 常量定义 ====================
 
@@ -118,14 +121,14 @@ const getDetailColumns = (
       const dateB = (b.date as string) || ''
       return dateA.localeCompare(dateB)
     },
-    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD') : '-',
+    render: (date: string) => formatDate(date),
   },
   {
     title: '创建时间',
     dataIndex: 'created_at',
     key: 'created_at',
     width: 160,
-    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+    render: (date: string) => formatDateTime(date),
   },
   getActionColumn<any>(
     (record) => {
@@ -338,8 +341,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ userId, dateRange, categoryFilt
 
 const Expenses: React.FC = () => {
   const { canReadExpenses, canWriteExpenses, canDeleteExpenses } = usePermission()
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
+  const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
   const [selectedUserId, setSelectedUserId] = useState<string>()
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null])
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
@@ -368,8 +370,7 @@ const Expenses: React.FC = () => {
       message.warning('您没有编辑消费记录的权限')
       return
     }
-    setEditingRecord(record)
-    setEditModalOpen(true)
+    open(record)
   }
 
   // 处理用户选择变化
@@ -389,11 +390,7 @@ const Expenses: React.FC = () => {
 
   // 权限检查
   if (!canReadExpenses) {
-    return (
-      <div style={{ textAlign: 'center', padding: '50px 0' }}>
-        <Tag color="warning">您没有查看消费记录的权限</Tag>
-      </div>
-    )
+    return <NoPermission module="消费记录" />
   }
 
   return (
@@ -432,10 +429,7 @@ const Expenses: React.FC = () => {
         record={editingRecord}
         tableName="expenses"
         fields={EDIT_FIELDS}
-        onClose={() => {
-          setEditModalOpen(false)
-          setEditingRecord(null)
-        }}
+        onClose={close}
         onSuccess={() => {
           // 刷新列表
           window.location.reload()

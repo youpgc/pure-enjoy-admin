@@ -3,6 +3,7 @@ import { Card, Table, Select, Button, Tag, Space, Spin, Empty, Tooltip, message,
 import { ReloadOutlined, DeleteOutlined, PlusOutlined, BellOutlined, CheckCircleOutlined, EyeOutlined, EyeInvisibleOutlined, SoundOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
+import { usePagination } from '../hooks/usePagination'
 
 // ==================== 类型定义 ====================
 
@@ -57,8 +58,7 @@ const Notifications: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [filterType, setFilterType] = useState<string | undefined>(undefined)
   const [filterReadStatus, setFilterReadStatus] = useState<string | undefined>(undefined)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const { currentPage, pageSize, paginate, resetPage, setCurrentPage, setPageSize } = usePagination()
 
   // 发送通知弹窗
   const [sendModalOpen, setSendModalOpen] = useState(false)
@@ -130,10 +130,7 @@ const Notifications: React.FC = () => {
     })
   }, [notifications, filterType, filterReadStatus])
 
-  const paginatedNotifications = useMemo(() => {
-    const start = (currentPage - 1) * pageSize
-    return filteredNotifications.slice(start, start + pageSize)
-  }, [filteredNotifications, currentPage, pageSize])
+  const paginatedNotifications = useMemo(() => paginate(filteredNotifications), [filteredNotifications, currentPage, pageSize, paginate])
 
   // ==================== 操作处理 ====================
 
@@ -279,7 +276,7 @@ const Notifications: React.FC = () => {
   const handleReset = () => {
     setFilterType(undefined)
     setFilterReadStatus(undefined)
-    setCurrentPage(1)
+    resetPage()
   }
 
   // 打开发送弹窗时加载用户列表

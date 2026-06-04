@@ -1,13 +1,16 @@
-import React, { useMemo, useState } from 'react'
-import { Tag, Space, message } from 'antd'
+import React, { useMemo } from 'react'
+import { Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, EditOutlined, HeartFilled } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { getActionColumn } from '../components/ActionColumn'
 import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
+import { useEditModal } from '../hooks/useEditModal'
+import { formatDateTime, formatDate } from '../utils/format'
+import NoPermission from '../components/NoPermission'
+import TagsCell from '../components/TagsCell'
 
 // ==================== 常量定义 ====================
 
@@ -86,18 +89,7 @@ const getDetailColumns = (
     dataIndex: 'tags',
     key: 'tags',
     width: 150,
-    render: (tags: string[] | string) => {
-      if (!tags) return '-'
-      const tagList = Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').filter(Boolean) : [])
-      return (
-        <Space size={4} wrap>
-          {tagList.slice(0, 3).map((tag, index) => (
-            <Tag key={index} color="purple" style={{ margin: 0 }}>{tag.trim()}</Tag>
-          ))}
-          {tagList.length > 3 && <Tag style={{ margin: 0 }}>+{tagList.length - 3}</Tag>}
-        </Space>
-      )
-    },
+    render: (tags: string[] | string) => <TagsCell tags={tags} color="purple" />,
   },
   {
     title: '日期',
@@ -109,7 +101,7 @@ const getDetailColumns = (
       const dateB = (b.date as string) || ''
       return dateA.localeCompare(dateB)
     },
-    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD') : '-',
+    render: (date: string) => formatDate(date),
   },
   {
     title: '创建时间',
@@ -121,7 +113,7 @@ const getDetailColumns = (
       const dateB = (b.created_at as string) || ''
       return dateA.localeCompare(dateB)
     },
-    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+    render: (date: string) => formatDateTime(date),
   },
     getActionColumn<any>(
       (record) => {
@@ -152,8 +144,7 @@ const getDetailColumns = (
 
 const MoodDiaries: React.FC = () => {
   const { canReadMoods, canWriteMoods, canDeleteMoods } = usePermission()
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
+  const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -177,8 +168,7 @@ const MoodDiaries: React.FC = () => {
       message.warning('您没有编辑心情日记的权限')
       return
     }
-    setEditingRecord(record)
-    setEditModalOpen(true)
+    open(record)
   }
 
   // 模块配置
@@ -192,11 +182,7 @@ const MoodDiaries: React.FC = () => {
 
   // 权限检查
   if (!canReadMoods) {
-    return (
-      <div style={{ textAlign: 'center', padding: '50px 0' }}>
-        <Tag color="warning">您没有查看心情日记的权限</Tag>
-      </div>
-    )
+    return <NoPermission module="心情日记" />
   }
 
   return (
@@ -207,10 +193,7 @@ const MoodDiaries: React.FC = () => {
         record={editingRecord}
         tableName="mood_diaries"
         fields={EDIT_FIELDS}
-        onClose={() => {
-          setEditModalOpen(false)
-          setEditingRecord(null)
-        }}
+        onClose={close}
         onSuccess={() => {
           window.location.reload()
         }}

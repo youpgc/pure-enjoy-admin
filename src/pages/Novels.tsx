@@ -31,6 +31,7 @@ import { exportToCSV, exportToExcel } from '../utils/export'
 import { supabase, handleSupabaseError } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
+import NoPermission from '../components/NoPermission'
 
 const { Title } = Typography
 
@@ -747,15 +748,7 @@ const Novels: React.FC = () => {
   // ==================== 渲染 ====================
 
   if (!canReadNovels) {
-    return (
-      <Card>
-        <div style={{ textAlign: 'center', padding: '50px 0' }}>
-          <Title level={4} type="secondary">
-            您没有查看小说的权限
-          </Title>
-        </div>
-      </Card>
-    )
+    return <NoPermission module="小说" />
   }
 
   return (

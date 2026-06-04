@@ -1,13 +1,16 @@
-import React, { useMemo, useState } from 'react'
-import { Tag, Space, message } from 'antd'
+import React, { useMemo } from 'react'
+import { Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, EditOutlined, PushpinOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { getActionColumn } from '../components/ActionColumn'
 import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
+import { useEditModal } from '../hooks/useEditModal'
+import { formatDateTime } from '../utils/format'
+import NoPermission from '../components/NoPermission'
+import TagsCell from '../components/TagsCell'
 
 // ==================== 常量定义 ====================
 
@@ -90,18 +93,7 @@ const getDetailColumns = (
     dataIndex: 'tags',
     key: 'tags',
     width: 150,
-    render: (tags: string[] | string) => {
-      if (!tags) return '-'
-      const tagList = Array.isArray(tags) ? tags : (typeof tags === 'string' ? tags.split(',').filter(Boolean) : [])
-      return (
-        <Space size={4} wrap>
-          {tagList.slice(0, 3).map((tag, index) => (
-            <Tag key={index} color="cyan" style={{ margin: 0 }}>{tag.trim()}</Tag>
-          ))}
-          {tagList.length > 3 && <Tag style={{ margin: 0 }}>+{tagList.length - 3}</Tag>}
-        </Space>
-      )
-    },
+    render: (tags: string[] | string) => <TagsCell tags={tags} color="cyan" />,
   },
   {
     title: '内容预览',
@@ -122,7 +114,7 @@ const getDetailColumns = (
       return dateB.localeCompare(dateA)
     },
     defaultSortOrder: 'descend',
-    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+    render: (date: string) => formatDateTime(date),
   },
     getActionColumn<any>(
       (record) => {
@@ -153,8 +145,7 @@ const getDetailColumns = (
 
 const Notes: React.FC = () => {
   const { canReadNotes, canWriteNotes, canDeleteNotes } = usePermission()
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
+  const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -178,8 +169,7 @@ const Notes: React.FC = () => {
       message.warning('您没有编辑笔记的权限')
       return
     }
-    setEditingRecord(record)
-    setEditModalOpen(true)
+    open(record)
   }
 
   // 模块配置
@@ -193,11 +183,7 @@ const Notes: React.FC = () => {
 
   // 权限检查
   if (!canReadNotes) {
-    return (
-      <div style={{ textAlign: 'center', padding: '50px 0' }}>
-        <Tag color="warning">您没有查看笔记的权限</Tag>
-      </div>
-    )
+    return <NoPermission module="笔记" />
   }
 
   return (
@@ -208,10 +194,7 @@ const Notes: React.FC = () => {
         record={editingRecord}
         tableName="notes"
         fields={EDIT_FIELDS}
-        onClose={() => {
-          setEditModalOpen(false)
-          setEditingRecord(null)
-        }}
+        onClose={close}
         onSuccess={() => {
           window.location.reload()
         }}

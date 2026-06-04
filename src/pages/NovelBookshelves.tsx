@@ -31,6 +31,7 @@ import {
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { getActionColumn } from '../components/ActionColumn'
+import { formatDateTime } from '../utils/format'
 
 const { Title, Text } = Typography
 
@@ -327,7 +328,7 @@ const NovelBookshelves: React.FC = () => {
       render: (date) => date ? (
         <Space>
           <ClockCircleOutlined />
-          <Text>{dayjs(date).format('YYYY-MM-DD HH:mm')}</Text>
+          <Text>{formatDateTime(date)}</Text>
         </Space>
       ) : (
         <Text type="secondary">未阅读</Text>
@@ -589,7 +590,7 @@ const NovelBookshelves: React.FC = () => {
                               <CalendarOutlined />
                               <Text type="secondary">
                                 {item.last_read_at
-                                  ? dayjs(item.last_read_at).format('YYYY-MM-DD HH:mm')
+                                  ? formatDateTime(item.last_read_at)
                                   : '未阅读'}
                               </Text>
                             </Space>

@@ -8,6 +8,9 @@ import { getActionColumn } from '../components/ActionColumn'
 import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
+import { useEditModal } from '../hooks/useEditModal'
+import { formatDateTime } from '../utils/format'
+import NoPermission from '../components/NoPermission'
 
 // ==================== 类型定义 ====================
 
@@ -167,7 +170,7 @@ const getDetailColumns = (
     dataIndex: 'created_at',
     key: 'created_at',
     width: 160,
-    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+    render: (date: string) => formatDateTime(date),
   },
   getActionColumn<any>(
     (record) => {
@@ -479,8 +482,7 @@ const Habits: React.FC = () => {
   const { canReadHabits, canWriteHabits, canDeleteHabits } = usePermission()
   const [checkinModalOpen, setCheckinModalOpen] = useState(false)
   const [selectedHabit, setSelectedHabit] = useState<RecordItem | null>(null)
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
+  const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -504,8 +506,7 @@ const Habits: React.FC = () => {
       message.warning('您没有编辑习惯的权限')
       return
     }
-    setEditingRecord(record)
-    setEditModalOpen(true)
+    open(record)
   }
 
   // 查看打卡记录
@@ -530,11 +531,7 @@ const Habits: React.FC = () => {
 
   // 权限检查
   if (!canReadHabits) {
-    return (
-      <div style={{ textAlign: 'center', padding: '50px 0' }}>
-        <Tag color="warning">您没有查看习惯的权限</Tag>
-      </div>
-    )
+    return <NoPermission module="习惯" />
   }
 
   return (
@@ -553,10 +550,7 @@ const Habits: React.FC = () => {
         record={editingRecord}
         tableName="user_habits"
         fields={EDIT_FIELDS}
-        onClose={() => {
-          setEditModalOpen(false)
-          setEditingRecord(null)
-        }}
+        onClose={close}
         onSuccess={() => {
           window.location.reload()
         }}

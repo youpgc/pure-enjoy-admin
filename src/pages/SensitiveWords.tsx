@@ -32,11 +32,11 @@ import {
   FileTextOutlined,
   SettingOutlined,
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import DataFormModal, { FormField } from '../components/DataFormModal'
 import FilterBar, { FilterField } from '../components/FilterBar'
 import { supabase, logOperation } from '../utils/supabase'
 import { getActionColumn } from '../components/ActionColumn'
+import { formatDateTime } from '../utils/format'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -610,7 +610,7 @@ const SensitiveWords: React.FC = () => {
       key: 'created_at',
       width: 160,
       sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => formatDateTime(date),
     },
     getActionColumn<SensitiveWord>(
       (record) => [

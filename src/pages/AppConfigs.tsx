@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
 import { getActionColumn } from '../components/ActionColumn'
-import dayjs from 'dayjs'
+import { formatDateTime } from '../utils/format'
 
 const { Title, Text, Paragraph } = Typography
 
@@ -307,7 +307,7 @@ const AppConfigs: React.FC = () => {
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => formatDateTime(date),
     },
     getActionColumn<any>(
       (record: any) => [

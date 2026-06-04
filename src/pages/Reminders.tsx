@@ -1,13 +1,15 @@
-import React, { useMemo, useState } from 'react'
-import { Tag, Space, message } from 'antd'
+import React, { useMemo } from 'react'
+import { Space, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, EditOutlined, BellOutlined, CheckCircleOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import { getActionColumn } from '../components/ActionColumn'
 import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
+import { useEditModal } from '../hooks/useEditModal'
+import { formatDateTime } from '../utils/format'
+import NoPermission from '../components/NoPermission'
 
 // ==================== 常量定义 ====================
 
@@ -99,7 +101,7 @@ const getDetailColumns = (
       const dateB = (b.remind_at as string) || ''
       return dateA.localeCompare(dateB)
     },
-    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+    render: (date: string) => formatDateTime(date),
   },
   {
     title: '备注',
@@ -114,7 +116,7 @@ const getDetailColumns = (
     dataIndex: 'created_at',
     key: 'created_at',
     width: 160,
-    render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+    render: (date: string) => formatDateTime(date),
   },
     getActionColumn<any>(
       (record) => {
@@ -145,8 +147,7 @@ const getDetailColumns = (
 
 const Reminders: React.FC = () => {
   const { canReadReminders, canWriteReminders, canDeleteReminders } = usePermission()
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [editingRecord, setEditingRecord] = useState<RecordItem | null>(null)
+  const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -170,8 +171,7 @@ const Reminders: React.FC = () => {
       message.warning('您没有编辑提醒的权限')
       return
     }
-    setEditingRecord(record)
-    setEditModalOpen(true)
+    open(record)
   }
 
   // 模块配置
@@ -185,11 +185,7 @@ const Reminders: React.FC = () => {
 
   // 权限检查
   if (!canReadReminders) {
-    return (
-      <div style={{ textAlign: 'center', padding: '50px 0' }}>
-        <Tag color="warning">您没有查看提醒的权限</Tag>
-      </div>
-    )
+    return <NoPermission module="提醒" />
   }
 
   return (
@@ -200,10 +196,7 @@ const Reminders: React.FC = () => {
         record={editingRecord}
         tableName="user_reminders"
         fields={EDIT_FIELDS}
-        onClose={() => {
-          setEditModalOpen(false)
-          setEditingRecord(null)
-        }}
+        onClose={close}
         onSuccess={() => {
           window.location.reload()
         }}
