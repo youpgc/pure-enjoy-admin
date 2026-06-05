@@ -109,17 +109,18 @@ const RolePermission: React.FC = () => {
 
       const usersData = usersRes.data || []
 
-      // 尝试查询 system_configs 表，表不存在时不报错
+      // 尝试查询 system_configs 表
       let configsData: any[] = []
       try {
-        const configsRes = await supabase.from('system_configs').select('*').order('created_at', { ascending: true })
+        const configsRes = await supabase.from('system_configs').select('*')
         if (!configsRes.error && configsRes.data) {
           configsData = configsRes.data
+          console.log('[RolePermission] system_configs 查询成功:', configsData.length, '条记录')
         } else if (configsRes.error) {
-          console.warn('system_configs 表查询失败（表可能不存在）:', configsRes.error.message)
+          console.warn('[RolePermission] system_configs 表查询失败:', configsRes.error.message)
         }
       } catch (e) {
-        console.warn('system_configs 表不可用，使用 users 表角色信息降级')
+        console.warn('[RolePermission] system_configs 表不可用，使用降级数据')
       }
 
       // 从 system_configs 中解析角色配置和权限配置
@@ -171,43 +172,14 @@ const RolePermission: React.FC = () => {
         }
       }
 
-      // 如果从 system_configs 解析不到角色数据，尝试从 users 表中提取角色信息
+      // 如果从 system_configs 解析不到角色数据，使用默认角色
       if (roles.length === 0) {
-        const roleMap = new Map<string, { count: number }>()
-        usersData.forEach((u: any) => {
-          const role = u.role || 'user'
-          const existing = roleMap.get(role)
-          if (existing) {
-            existing.count++
-          } else {
-            roleMap.set(role, { count: 1 })
-          }
-        })
-
-        const roleNames: Record<string, string> = {
-          user: '普通用户',
-          admin: '管理员',
-          super_admin: '超级管理员',
-        }
-        const roleLevels: Record<string, number> = {
-          user: 1,
-          admin: 2,
-          super_admin: 3,
-        }
-
-        let idx = 1
-        roleMap.forEach((info, roleName) => {
-          roles.push({
-            id: idx,
-            name: roleName,
-            display_name: roleNames[roleName] || roleName,
-            description: `${roleNames[roleName] || roleName}，共 ${info.count} 人`,
-            level: roleLevels[roleName] || idx,
-            created_at: new Date().toISOString(),
-            permissions: [],
-          })
-          idx++
-        })
+        console.log('[RolePermission] system_configs 无角色数据，使用默认角色')
+        roles = [
+          { id: 1, name: 'user', display_name: '普通用户', description: '普通用户，基础功能权限', level: 1, created_at: new Date().toISOString(), permissions: [] },
+          { id: 2, name: 'admin', display_name: '管理员', description: '管理员，运营管理权限', level: 2, created_at: new Date().toISOString(), permissions: [] },
+          { id: 3, name: 'super_admin', display_name: '超级管理员', description: '超级管理员，全部权限', level: 3, created_at: new Date().toISOString(), permissions: [] },
+        ]
       }
 
       // 如果解析到了角色权限关联数据，为角色分配权限
