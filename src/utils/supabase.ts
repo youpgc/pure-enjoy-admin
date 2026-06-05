@@ -223,7 +223,19 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     fetch: (url, options = {}) => {
       const startTime = Date.now()
       const method = options.method || 'GET'
-      
+
+      // 自动注入 x-user-id Header（用于RLS策略）
+      const adminUserStr = localStorage.getItem('admin_user')
+      const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
+      const userId = adminUser?.id || adminUser?.user_id || null
+
+      if (userId && options.headers) {
+        const headers = options.headers as Record<string, string>
+        if (!headers['x-user-id']) {
+          headers['x-user-id'] = userId
+        }
+      }
+
       // 解析表名（用于日志）
       let tableName = 'unknown'
       try {
@@ -237,11 +249,11 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       } catch {
         // 忽略 URL 解析错误
       }
-      
+
       if (isDev) {
         console.log(`[Supabase] ${method} ${tableName} - 请求开始`)
       }
-      
+
       return fetch(url, options).then(async (response) => {
         const duration = Date.now() - startTime
         

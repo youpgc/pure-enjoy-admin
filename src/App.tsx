@@ -173,7 +173,6 @@ const MainLayout: React.FC = () => {
         { key: 'favorites', icon: <StarOutlined />, label: '收藏夹' },
         { key: 'reminders', icon: <BellOutlined />, label: '提醒事项' },
         { key: 'habits', icon: <CheckCircleOutlined />, label: '习惯打卡' },
-        { key: 'feedback', icon: <MessageOutlined />, label: '问题反馈' },
       ],
     },
     {
@@ -210,6 +209,7 @@ const MainLayout: React.FC = () => {
           { key: 'dict_management', icon: <FileTextOutlined />, label: '字典管理' },
           { key: 'file_management', icon: <FileTextOutlined />, label: '文件管理' },
           { key: 'announcements', icon: <SoundOutlined />, label: '公告管理' },
+          { key: 'feedback', icon: <MessageOutlined />, label: '问题反馈' },
         ],
       },
     ] : []),

@@ -6,3 +6,7 @@ dist/
 *.log
 .vscode/
 .idea/
+
+# 非功能性文档和脚本（本地开发参考，不上传仓库）
+docs/
+sql/
