@@ -9,6 +9,7 @@ import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { useEditModal } from '../hooks/useEditModal'
+import { useDictOptions } from '../hooks/useDictOptions'
 import { formatDateTime } from '../utils/format'
 import NoPermission from '../components/NoPermission'
 
@@ -43,7 +44,7 @@ const getFrequencyLabel = (freq: string): string => {
   return labels[freq] || freq || '-'
 }
 
-const FREQUENCY_OPTIONS = [
+const FREQUENCY_OPTIONS_FALLBACK = [
   { value: 'daily', label: '每天' },
   { value: 'weekly', label: '每周' },
   { value: 'monthly', label: '每月' },
@@ -52,7 +53,7 @@ const FREQUENCY_OPTIONS = [
 
 // ==================== 编辑字段配置 ====================
 
-const EDIT_FIELDS: EditFieldConfig[] = [
+const getEditFields = (frequencyOptions: { value: string; label: string }[]): EditFieldConfig[] => [
   {
     name: 'name',
     label: '习惯名称',
@@ -70,7 +71,7 @@ const EDIT_FIELDS: EditFieldConfig[] = [
     name: 'frequency',
     label: '频率',
     type: 'select',
-    options: FREQUENCY_OPTIONS,
+    options: frequencyOptions,
   },
   {
     name: 'target_days',
@@ -483,6 +484,7 @@ const Habits: React.FC = () => {
   const [checkinModalOpen, setCheckinModalOpen] = useState(false)
   const [selectedHabit, setSelectedHabit] = useState<RecordItem | null>(null)
   const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
+  const { options: frequencyOptions } = useDictOptions('habit_frequency', FREQUENCY_OPTIONS_FALLBACK)
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -549,7 +551,7 @@ const Habits: React.FC = () => {
         open={editModalOpen}
         record={editingRecord}
         tableName="user_habits"
-        fields={EDIT_FIELDS}
+        fields={getEditFields(frequencyOptions)}
         onClose={close}
         onSuccess={() => {
           window.location.reload()

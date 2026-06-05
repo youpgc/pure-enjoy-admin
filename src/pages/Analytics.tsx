@@ -36,11 +36,13 @@ import type {
   ExpenseCategoryItem,
 } from '../utils/mockData'
 import { EXPENSE_CATEGORY_OPTIONS } from '../utils/mockData'
+import { useDictOptions } from '../hooks/useDictOptions'
 
 const { RangePicker } = DatePicker
 
 const Analytics: React.FC = () => {
   const { isAdmin } = usePermission()
+  const { options: expenseCategoryOptions } = useDictOptions('expense_category', EXPENSE_CATEGORY_OPTIONS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
@@ -445,7 +447,7 @@ const Analytics: React.FC = () => {
         const expCategoryColors: Record<string, string> = {
           '餐饮': '#6C63FF', '交通': '#FF6B6B', '购物': '#4ECDC4', '娱乐': '#45B7D1', '其他': '#96CEB4',
         }
-        const expCategoryItems: ExpenseCategoryItem[] = EXPENSE_CATEGORY_OPTIONS.map(opt => ({
+        const expCategoryItems: ExpenseCategoryItem[] = expenseCategoryOptions.map(opt => ({
           name: opt.label,
           value: parseFloat((expCategoryMap[opt.value] || 0).toFixed(2)),
           color: expCategoryColors[opt.value] || '#999',

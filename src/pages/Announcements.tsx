@@ -10,6 +10,7 @@ import {
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePagination } from '../hooks/usePagination'
+import { useDictOptions } from '../hooks/useDictOptions'
 
 // ==================== 类型定义 ====================
 
@@ -27,13 +28,13 @@ interface Announcement {
 
 // ==================== 常量定义 ====================
 
-const TYPE_OPTIONS = [
+const TYPE_OPTIONS_FALLBACK = [
   { label: '系统公告', value: '系统公告' },
   { label: '活动通知', value: '活动通知' },
   { label: '版本更新', value: '版本更新' },
 ]
 
-const PRIORITY_OPTIONS = [
+const PRIORITY_OPTIONS_FALLBACK = [
   { label: '高', value: '高' },
   { label: '中', value: '中' },
   { label: '低', value: '低' },
@@ -60,6 +61,8 @@ const Announcements: React.FC = () => {
   const [filterPriority, setFilterPriority] = useState<string | undefined>(undefined)
   const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined)
   const { currentPage, pageSize, paginate, resetPage, setCurrentPage, setPageSize } = usePagination()
+  const { options: typeOptions } = useDictOptions('announcement_type', TYPE_OPTIONS_FALLBACK)
+  const { options: priorityOptions } = useDictOptions('priority_level', PRIORITY_OPTIONS_FALLBACK)
 
   // 弹窗状态
   const [modalOpen, setModalOpen] = useState(false)
@@ -440,7 +443,7 @@ const Announcements: React.FC = () => {
             placeholder="公告类型"
             value={filterType}
             onChange={(val) => { setFilterType(val); setCurrentPage(1) }}
-            options={TYPE_OPTIONS}
+            options={typeOptions}
             style={{ width: 140 }}
             allowClear
           />
@@ -448,7 +451,7 @@ const Announcements: React.FC = () => {
             placeholder="优先级"
             value={filterPriority}
             onChange={(val) => { setFilterPriority(val); setCurrentPage(1) }}
-            options={PRIORITY_OPTIONS}
+            options={priorityOptions}
             style={{ width: 120 }}
             allowClear
           />
@@ -554,14 +557,14 @@ const Announcements: React.FC = () => {
             label="类型"
             rules={[{ required: true, message: '请选择公告类型' }]}
           >
-            <Select placeholder="请选择公告类型" options={TYPE_OPTIONS} />
+            <Select placeholder="请选择公告类型" options={typeOptions} />
           </Form.Item>
           <Form.Item
             name="priority"
             label="优先级"
             rules={[{ required: true, message: '请选择优先级' }]}
           >
-            <Select placeholder="请选择优先级" options={PRIORITY_OPTIONS} />
+            <Select placeholder="请选择优先级" options={priorityOptions} />
           </Form.Item>
           <Form.Item
             name="publish_at"

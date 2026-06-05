@@ -8,6 +8,7 @@ import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { useEditModal } from '../hooks/useEditModal'
+import { useDictOptions } from '../hooks/useDictOptions'
 import { formatDateTime, formatDate } from '../utils/format'
 import NoPermission from '../components/NoPermission'
 import TagsCell from '../components/TagsCell'
@@ -25,7 +26,7 @@ const MOOD_COLORS: Record<string, string> = {
   '愤怒': 'red',
 }
 
-const MOOD_OPTIONS = [
+const MOOD_OPTIONS_FALLBACK = [
   { value: '开心', label: '开心' },
   { value: '平静', label: '平静' },
   { value: '一般', label: '一般' },
@@ -35,13 +36,13 @@ const MOOD_OPTIONS = [
 
 // ==================== 编辑字段配置 ====================
 
-const EDIT_FIELDS: EditFieldConfig[] = [
+const getEditFields = (moodOptions: { value: string; label: string }[]): EditFieldConfig[] => [
   {
     name: 'mood',
     label: '心情',
     type: 'select',
     required: true,
-    options: MOOD_OPTIONS,
+    options: moodOptions,
   },
   {
     name: 'content',
@@ -145,6 +146,7 @@ const getDetailColumns = (
 const MoodDiaries: React.FC = () => {
   const { canReadMoods, canWriteMoods, canDeleteMoods } = usePermission()
   const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
+  const { options: moodOptions } = useDictOptions('mood_type', MOOD_OPTIONS_FALLBACK)
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -192,7 +194,7 @@ const MoodDiaries: React.FC = () => {
         open={editModalOpen}
         record={editingRecord}
         tableName="mood_diaries"
-        fields={EDIT_FIELDS}
+        fields={getEditFields(moodOptions)}
         onClose={close}
         onSuccess={() => {
           window.location.reload()

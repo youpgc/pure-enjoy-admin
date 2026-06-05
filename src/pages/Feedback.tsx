@@ -8,12 +8,13 @@ import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { useEditModal } from '../hooks/useEditModal'
+import { useDictOptions } from '../hooks/useDictOptions'
 import { formatDateTime } from '../utils/format'
 import NoPermission from '../components/NoPermission'
 
 // ==================== 常量定义 ====================
 
-const STATUS_OPTIONS = [
+const STATUS_OPTIONS_FALLBACK = [
   { value: 'pending', label: '待确认' },
   { value: 'confirmed', label: '已确认' },
   { value: 'in_progress', label: '进行中' },
@@ -40,13 +41,13 @@ const CATEGORY_TAG_MAP: Record<string, { color: string; label: string }> = {
 
 // ==================== 编辑字段配置 ====================
 
-const EDIT_FIELDS: EditFieldConfig[] = [
+const getEditFields = (statusOptions: { value: string; label: string }[]): EditFieldConfig[] => [
   {
     name: 'status',
     label: '状态',
     type: 'select',
     required: true,
-    options: STATUS_OPTIONS,
+    options: statusOptions,
     placeholder: '请选择状态',
   },
   {
@@ -157,6 +158,7 @@ const getDetailColumns = (
 const Feedback: React.FC = () => {
   const { canReadFeedback, canWriteFeedback, canDeleteFeedback } = usePermission()
   const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
+  const { options: statusOptions } = useDictOptions('feedback_status', STATUS_OPTIONS_FALLBACK)
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -204,7 +206,7 @@ const Feedback: React.FC = () => {
         open={editModalOpen}
         record={editingRecord}
         tableName="user_feedback"
-        fields={EDIT_FIELDS}
+        fields={getEditFields(statusOptions)}
         onClose={close}
         onSuccess={() => {
           window.location.reload()

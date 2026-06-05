@@ -22,20 +22,13 @@ import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { useEditModal } from '../hooks/useEditModal'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 import { formatDateTime, formatDate } from '../utils/format'
 import NoPermission from '../components/NoPermission'
 
 // ==================== 常量定义 ====================
 
-const CATEGORY_COLORS: Record<string, string> = {
-  '餐饮': '#ff4d4f',
-  '交通': '#1890ff',
-  '购物': '#52c41a',
-  '娱乐': '#722ed1',
-  '其他': '#faad14',
-}
-
-const CATEGORY_OPTIONS = [
+const CATEGORY_OPTIONS_FALLBACK = [
   { value: '餐饮', label: '餐饮' },
   { value: '交通', label: '交通' },
   { value: '购物', label: '购物' },
@@ -47,7 +40,7 @@ const { RangePicker } = DatePicker
 
 // ==================== 编辑字段配置 ====================
 
-const EDIT_FIELDS: EditFieldConfig[] = [
+const getEditFields = (categoryOptions: { value: string; label: string }[]): EditFieldConfig[] => [
   {
     name: 'amount',
     label: '金额',
@@ -62,7 +55,7 @@ const EDIT_FIELDS: EditFieldConfig[] = [
     label: '分类',
     type: 'select',
     required: true,
-    options: CATEGORY_OPTIONS,
+    options: categoryOptions,
   },
   {
     name: 'date',
@@ -83,7 +76,8 @@ const EDIT_FIELDS: EditFieldConfig[] = [
 const getDetailColumns = (
   canDelete: boolean,
   onDelete: (id: string) => void,
-  onEdit: (record: RecordItem) => void
+  onEdit: (record: RecordItem) => void,
+  getColor: (code: string) => string
 ): ColumnsType<RecordItem> => [
   {
     title: '金额',
@@ -100,7 +94,7 @@ const getDetailColumns = (
     key: 'category',
     width: 100,
     render: (category: string) => (
-      <Tag color={CATEGORY_COLORS[category || ''] || 'default'}>{category || '-'}</Tag>
+      <Tag color={getColor(category || '') || 'default'}>{category || '-'}</Tag>
     ),
   },
   {
@@ -161,9 +155,10 @@ interface StatsCardsProps {
   userId?: string
   dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null]
   categoryFilter: string | null
+  getColor: (code: string) => string
 }
 
-const StatsCards: React.FC<StatsCardsProps> = ({ userId, dateRange, categoryFilter }) => {
+const StatsCards: React.FC<StatsCardsProps> = ({ userId, dateRange, categoryFilter, getColor }) => {
   const [stats, setStats] = useState({
     totalAmount: 0,
     totalCount: 0,
@@ -216,7 +211,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({ userId, dateRange, categoryFilt
       const categoryData = Array.from(categoryMap.entries()).map(([name, value]) => ({
         name,
         value,
-        color: CATEGORY_COLORS[name] || '#999',
+        color: getColor(name) || '#999',
       }))
 
       // 每日统计
@@ -345,6 +340,8 @@ const Expenses: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string>()
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null])
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
+  const { options: categoryOptions } = useDictOptions('expense_category', CATEGORY_OPTIONS_FALLBACK)
+  const { getColor } = useDictColors('expense_category')
 
   // ==================== 操作处理 ====================
 
@@ -384,7 +381,7 @@ const Expenses: React.FC = () => {
     title: '消费记录管理',
     tableName: 'expenses',
     detailTitle: '消费记录详情',
-    detailColumns: getDetailColumns(canDeleteExpenses || false, handleDelete, handleEdit),
+    detailColumns: getDetailColumns(canDeleteExpenses || false, handleDelete, handleEdit, getColor),
     onUserSelect: handleUserSelect,
   }), [canDeleteExpenses, canWriteExpenses])
 
@@ -409,7 +406,7 @@ const Expenses: React.FC = () => {
             style={{ width: 120 }}
             value={categoryFilter}
             onChange={setCategoryFilter}
-            options={CATEGORY_OPTIONS}
+            options={categoryOptions}
           />
         </AntSpace>
       </Card>
@@ -420,6 +417,7 @@ const Expenses: React.FC = () => {
           userId={selectedUserId}
           dateRange={dateRange}
           categoryFilter={categoryFilter}
+          getColor={getColor}
         />
       )}
 
@@ -428,7 +426,7 @@ const Expenses: React.FC = () => {
         open={editModalOpen}
         record={editingRecord}
         tableName="expenses"
-        fields={EDIT_FIELDS}
+        fields={getEditFields(categoryOptions)}
         onClose={close}
         onSuccess={() => {
           // 刷新列表
