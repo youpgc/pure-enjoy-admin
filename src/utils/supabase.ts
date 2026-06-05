@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const isDev = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development' ? true : false
+declare const process: { env: Record<string, string | undefined> } | undefined;
+const isDev = typeof process !== 'undefined' && process!.env && process!.env.NODE_ENV === 'development'
 
 const SUPABASE_URL = 'https://mhdrbjpqmzswswoazwjg.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_wFx9tlxImVfEpRN4NMkS1g_QOm64aj6'
