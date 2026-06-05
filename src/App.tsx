@@ -24,6 +24,7 @@ import {
   MenuFoldOutlined,
   SoundOutlined,
   MessageOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons'
 import type { AdminUser } from './types/auth'
 import AuthGuard from './components/AuthGuard'
@@ -44,6 +45,7 @@ import SystemMonitor from './pages/SystemMonitor'
 import Favorites from './pages/Favorites'
 import Reminders from './pages/Reminders'
 import Habits from './pages/Habits'
+import Anniversaries from './pages/Anniversaries'
 import AppConfigs from './pages/AppConfigs'
 import NovelBookshelves from './pages/NovelBookshelves'
 import DictManagement from './pages/DictManagement'
@@ -114,6 +116,7 @@ type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' 
   'novels' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
+  | 'anniversaries'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -173,6 +176,7 @@ const MainLayout: React.FC = () => {
         { key: 'favorites', icon: <StarOutlined />, label: '收藏夹' },
         { key: 'reminders', icon: <BellOutlined />, label: '提醒事项' },
         { key: 'habits', icon: <CheckCircleOutlined />, label: '习惯打卡' },
+        { key: 'anniversaries', icon: <CalendarOutlined />, label: '纪念日' },
       ],
     },
     {
@@ -251,6 +255,8 @@ const MainLayout: React.FC = () => {
         return <Reminders />
       case 'habits':
         return <Habits />
+      case 'anniversaries':
+        return <Anniversaries />
       case 'app_configs':
         return <AppConfigs />
       case 'dict_management':
@@ -296,6 +302,7 @@ const MainLayout: React.FC = () => {
       announcements: '公告管理',
       notifications: '通知管理',
       feedback: '问题反馈',
+      anniversaries: '纪念日',
     }
     return titles[currentPage] || '数据概览'
   }
