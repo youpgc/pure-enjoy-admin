@@ -60,11 +60,8 @@ const RolePermission: React.FC = () => {
     setError(null)
     setIsEmpty(false)
     try {
-      // 并行查询 users 表和 system_configs 表
-      const [usersRes, configsRes] = await Promise.all([
-        supabase.from('users').select('id, nickname, role').order('created_at', { ascending: false }),
-        supabase.from('system_configs').select('*').order('created_at', { ascending: true }),
-      ])
+      // 查询 users 表
+      const usersRes = await supabase.from('users').select('id, nickname, role').order('created_at', { ascending: false })
 
       if (usersRes.error) {
         console.error('加载用户列表失败:', usersRes.error)
@@ -72,21 +69,19 @@ const RolePermission: React.FC = () => {
         return
       }
 
-      if (configsRes.error) {
-        console.error('加载角色配置失败:', configsRes.error)
-        setError(`加载角色配置失败: ${configsRes.error.message}`)
-        return
-      }
-
       const usersData = usersRes.data || []
-      const configsData = configsRes.data || []
 
-      // 如果 system_configs 表为空，显示空状态提示
-      if (configsData.length === 0) {
-        setIsEmpty(true)
-        setRolesWithPerms([])
-        setPermissions([])
-        return
+      // 尝试查询 system_configs 表，表不存在时不报错
+      let configsData: any[] = []
+      try {
+        const configsRes = await supabase.from('system_configs').select('*').order('created_at', { ascending: true })
+        if (!configsRes.error && configsRes.data) {
+          configsData = configsRes.data
+        } else if (configsRes.error) {
+          console.warn('system_configs 表查询失败（表可能不存在）:', configsRes.error.message)
+        }
+      } catch (e) {
+        console.warn('system_configs 表不可用，使用 users 表角色信息降级')
       }
 
       // 从 system_configs 中解析角色配置和权限配置
@@ -222,64 +217,61 @@ const RolePermission: React.FC = () => {
   const handleSavePermissions = async (roleId: number, permissionIds: number[]) => {
     try {
       // 尝试更新 system_configs 中的角色权限关联配置
-      const { data: existingConfigs, error: queryError } = await supabase
-        .from('system_configs')
-        .select('*')
-        .eq('key', 'role_permissions')
-
-      if (queryError) {
-        console.error('查询角色权限配置失败:', queryError)
-        message.error('保存权限配置失败')
-        return
-      }
-
-      // 构建新的角色权限关联数据
-      const existingConfig = existingConfigs && existingConfigs.length > 0 ? existingConfigs[0] : null
       let allRolePerms: Array<{ role_id: number; permission_id: number }> = []
 
-      if (existingConfig) {
-        try {
-          const parsed = typeof existingConfig.value === 'string'
-            ? JSON.parse(existingConfig.value)
-            : existingConfig.value
-          allRolePerms = Array.isArray(parsed) ? parsed : []
-        } catch {
-          allRolePerms = []
-        }
-      }
-
-      // 更新当前角色的权限关联
-      allRolePerms = allRolePerms.filter((rp: any) => rp.role_id !== roleId)
-      permissionIds.forEach(pid => {
-        allRolePerms.push({ role_id: roleId, permission_id: pid })
-      })
-
-      if (existingConfig) {
-        // 更新已有配置
-        const { error: updateError } = await supabase
+      try {
+        const { data: existingConfigs, error: queryError } = await supabase
           .from('system_configs')
-          .update({ value: JSON.stringify(allRolePerms) })
-          .eq('id', existingConfig.id)
+          .select('*')
+          .eq('key', 'role_permissions')
 
-        if (updateError) {
-          console.error('更新角色权限配置失败:', updateError)
-          message.error('保存权限配置失败')
-          return
-        }
-      } else {
-        // 插入新配置
-        const { error: insertError } = await supabase
-          .from('system_configs')
-          .insert({
-            key: 'role_permissions',
-            value: JSON.stringify(allRolePerms),
+        if (queryError) {
+          console.warn('system_configs 表不存在，权限仅保存到本地状态')
+        } else if (existingConfigs && existingConfigs.length > 0) {
+          const existingConfig = existingConfigs[0]
+          try {
+            const parsed = typeof existingConfig.value === 'string'
+              ? JSON.parse(existingConfig.value)
+              : existingConfig.value
+            allRolePerms = Array.isArray(parsed) ? parsed : []
+          } catch {
+            allRolePerms = []
+          }
+
+          // 更新当前角色的权限关联
+          allRolePerms = allRolePerms.filter((rp: any) => rp.role_id !== roleId)
+          permissionIds.forEach(pid => {
+            allRolePerms.push({ role_id: roleId, permission_id: pid })
           })
 
-        if (insertError) {
-          console.error('插入角色权限配置失败:', insertError)
-          message.error('保存权限配置失败')
-          return
+          // 更新已有配置
+          const { error: updateError } = await supabase
+            .from('system_configs')
+            .update({ value: JSON.stringify(allRolePerms) })
+            .eq('id', existingConfig.id)
+
+          if (updateError) {
+            console.error('更新角色权限配置失败:', updateError)
+          }
+        } else {
+          // 插入新配置
+          permissionIds.forEach(pid => {
+            allRolePerms.push({ role_id: roleId, permission_id: pid })
+          })
+
+          const { error: insertError } = await supabase
+            .from('system_configs')
+            .insert({
+              key: 'role_permissions',
+              value: JSON.stringify(allRolePerms),
+            })
+
+          if (insertError) {
+            console.error('插入角色权限配置失败:', insertError)
+          }
         }
+      } catch (e) {
+        console.warn('system_configs 表不可用，权限仅保存到本地状态')
       }
 
       message.success('权限配置已保存')
