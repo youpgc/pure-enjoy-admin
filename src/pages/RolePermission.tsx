@@ -16,6 +16,44 @@ import { supabase } from '../utils/supabase'
 
 const { Title, Text } = Typography
 
+// 默认权限列表（当 system_configs 表不可用时使用）
+const DEFAULT_PERMISSIONS: Permission[] = [
+  { id: 1, name: 'users:read', display_name: '查看用户', module: 'users', action: 'read', description: null, created_at: '' },
+  { id: 2, name: 'users:write', display_name: '编辑用户', module: 'users', action: 'write', description: null, created_at: '' },
+  { id: 3, name: 'users:delete', display_name: '删除用户', module: 'users', action: 'delete', description: null, created_at: '' },
+  { id: 4, name: 'expenses:read', display_name: '查看消费', module: 'expenses', action: 'read', description: null, created_at: '' },
+  { id: 5, name: 'expenses:write', display_name: '编辑消费', module: 'expenses', action: 'write', description: null, created_at: '' },
+  { id: 6, name: 'expenses:delete', display_name: '删除消费', module: 'expenses', action: 'delete', description: null, created_at: '' },
+  { id: 7, name: 'moods:read', display_name: '查看心情', module: 'moods', action: 'read', description: null, created_at: '' },
+  { id: 8, name: 'moods:write', display_name: '编辑心情', module: 'moods', action: 'write', description: null, created_at: '' },
+  { id: 9, name: 'moods:delete', display_name: '删除心情', module: 'moods', action: 'delete', description: null, created_at: '' },
+  { id: 10, name: 'weights:read', display_name: '查看体重', module: 'weights', action: 'read', description: null, created_at: '' },
+  { id: 11, name: 'weights:write', display_name: '编辑体重', module: 'weights', action: 'write', description: null, created_at: '' },
+  { id: 12, name: 'weights:delete', display_name: '删除体重', module: 'weights', action: 'delete', description: null, created_at: '' },
+  { id: 13, name: 'notes:read', display_name: '查看笔记', module: 'notes', action: 'read', description: null, created_at: '' },
+  { id: 14, name: 'notes:write', display_name: '编辑笔记', module: 'notes', action: 'write', description: null, created_at: '' },
+  { id: 15, name: 'notes:delete', display_name: '删除笔记', module: 'notes', action: 'delete', description: null, created_at: '' },
+  { id: 16, name: 'novels:read', display_name: '查看小说', module: 'novels', action: 'read', description: null, created_at: '' },
+  { id: 17, name: 'novels:write', display_name: '编辑小说', module: 'novels', action: 'write', description: null, created_at: '' },
+  { id: 18, name: 'novels:delete', display_name: '删除小说', module: 'novels', action: 'delete', description: null, created_at: '' },
+  { id: 19, name: 'versions:read', display_name: '查看版本', module: 'versions', action: 'read', description: null, created_at: '' },
+  { id: 20, name: 'versions:write', display_name: '编辑版本', module: 'versions', action: 'write', description: null, created_at: '' },
+  { id: 21, name: 'versions:delete', display_name: '删除版本', module: 'versions', action: 'delete', description: null, created_at: '' },
+  { id: 22, name: 'system:read', display_name: '查看系统', module: 'system', action: 'read', description: null, created_at: '' },
+  { id: 23, name: 'system:write', display_name: '编辑系统', module: 'system', action: 'write', description: null, created_at: '' },
+  { id: 24, name: 'feedback:read', display_name: '查看反馈', module: 'feedback', action: 'read', description: null, created_at: '' },
+  { id: 25, name: 'announcements:read', display_name: '查看公告', module: 'announcements', action: 'read', description: null, created_at: '' },
+  { id: 26, name: 'announcements:write', display_name: '编辑公告', module: 'announcements', action: 'write', description: null, created_at: '' },
+  { id: 27, name: 'announcements:delete', display_name: '删除公告', module: 'announcements', action: 'delete', description: null, created_at: '' },
+]
+
+// 默认角色权限关联（role_id -> permission_id[]）
+const DEFAULT_ROLE_PERMISSIONS: Record<number, number[]> = {
+  1: [4, 7, 10, 13, 16, 22], // user: 各模块只读
+  2: [1, 4, 5, 7, 8, 10, 11, 13, 14, 16, 17, 19, 20, 22, 24, 25, 26], // admin: 读写+运营
+  3: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27], // super_admin: 全部
+}
+
 // 角色图标和颜色
 const ROLE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bgColor: string }> = {
   user: {
@@ -191,6 +229,18 @@ const RolePermission: React.FC = () => {
         } catch {
           console.error('解析角色权限关联失败')
         }
+      }
+
+      // 降级：如果权限列表为空（system_configs不可用），使用前端默认权限
+      if (perms.length === 0) {
+        perms = DEFAULT_PERMISSIONS
+        roles = roles.map(role => {
+          const permIds = DEFAULT_ROLE_PERMISSIONS[role.id] || []
+          return {
+            ...role,
+            permissions: perms.filter(p => permIds.includes(p.id)),
+          }
+        })
       }
 
       setRolesWithPerms(roles)
