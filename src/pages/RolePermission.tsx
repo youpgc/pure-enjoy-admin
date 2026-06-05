@@ -107,8 +107,6 @@ const RolePermission: React.FC = () => {
         return
       }
 
-      const _usersData = usersRes.data || []
-
       // 尝试查询 system_configs 表
       let configsData: any[] = []
       try {
