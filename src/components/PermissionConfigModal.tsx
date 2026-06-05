@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Modal, Checkbox, Button, message, Divider, Tag, Spin } from 'antd'
+import { Modal, Checkbox, Button, message, Divider, Tag } from 'antd'
 import type { CheckboxChangeEvent } from 'antd/es/checkbox'
 import {
   UserOutlined,
@@ -15,7 +15,6 @@ import {
 } from '@ant-design/icons'
 import type { Role, Permission } from '../types/permission'
 import { MODULE_DISPLAY_NAMES, MODULE_COLORS } from '../types/permission'
-import { supabase } from '../utils/supabase'
 
 interface PermissionConfigModalProps {
   visible: boolean

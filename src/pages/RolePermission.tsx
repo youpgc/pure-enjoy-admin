@@ -619,6 +619,10 @@ const RolePermission: React.FC = () => {
       <PermissionConfigModal
         visible={modalVisible}
         role={selectedRole}
+        permissions={permissions}
+        rolePermissions={rolesWithPerms.flatMap(r =>
+          r.permissions.map(p => ({ role_id: r.id, permission_id: p.id }))
+        )}
         onClose={() => {
           setModalVisible(false)
           setSelectedRole(null)
