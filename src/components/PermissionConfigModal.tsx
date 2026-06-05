@@ -10,14 +10,18 @@ import {
   ReadOutlined,
   MobileOutlined,
   SettingOutlined,
+  MessageOutlined,
+  SoundOutlined,
 } from '@ant-design/icons'
 import type { Role, Permission } from '../types/permission'
 import { MODULE_DISPLAY_NAMES, MODULE_COLORS } from '../types/permission'
-import { mockPermissions, mockRolePermissions } from '../utils/mockData'
+import { supabase } from '../utils/supabase'
 
 interface PermissionConfigModalProps {
   visible: boolean
   role: Role | null
+  permissions: Permission[]
+  rolePermissions: Array<{ role_id: number; permission_id: number }>
   onClose: () => void
   onSave: (roleId: number, permissionIds: number[]) => Promise<void>
   readOnly?: boolean
@@ -33,45 +37,43 @@ const MODULE_ICONS: Record<string, React.ReactNode> = {
   novels: <ReadOutlined />,
   versions: <MobileOutlined />,
   system: <SettingOutlined />,
+  feedback: <MessageOutlined />,
+  announcements: <SoundOutlined />,
 }
 
 const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
   visible,
   role,
+  permissions,
+  rolePermissions,
   onClose,
   onSave,
   readOnly = false,
 }) => {
-  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<number[]>([])
 
   // 按模块分组的权限
   const permissionsByModule = useMemo(() => {
     const grouped: Record<string, Permission[]> = {}
-    mockPermissions.forEach(permission => {
+    permissions.forEach(permission => {
       if (!grouped[permission.module]) {
         grouped[permission.module] = []
       }
       grouped[permission.module]!.push(permission)
     })
     return grouped
-  }, [])
+  }, [permissions])
 
   // 加载角色权限
   useEffect(() => {
     if (visible && role) {
-      setLoading(true)
-      // 模拟异步加载
-      setTimeout(() => {
-        const rolePerms = mockRolePermissions
-          .filter(rp => rp.role_id === role.id)
-          .map(rp => rp.permission_id)
-        setSelectedPermissionIds(rolePerms)
-        setLoading(false)
-      }, 300)
+      const rolePerms = rolePermissions
+        .filter(rp => rp.role_id === role.id)
+        .map(rp => rp.permission_id)
+      setSelectedPermissionIds(rolePerms)
     }
-  }, [visible, role])
+  }, [visible, role, rolePermissions])
 
   // 处理单个权限勾选
   const handlePermissionChange = (permissionId: number) => (e: CheckboxChangeEvent) => {
@@ -144,73 +146,65 @@ const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
         ),
       ]}
     >
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Spin />
-        </div>
-      ) : (
-        <div>
-          {role && (
-            <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
-              <div style={{ fontWeight: 500, marginBottom: 4 }}>{role.display_name}</div>
-              <div style={{ color: '#666', fontSize: 13 }}>{role.description}</div>
-              <div style={{ marginTop: 8 }}>
-                <Tag color="blue">Level {role.level}</Tag>
-                <Tag color="green">{selectedPermissionIds.length} 个权限</Tag>
-              </div>
-            </div>
-          )}
-
-          {Object.entries(permissionsByModule).map(([module, permissions]) => (
-            <div key={module} style={{ marginBottom: 16 }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  marginBottom: 8,
-                  padding: '8px 12px',
-                  background: '#fafafa',
-                  borderRadius: 6,
-                }}
-              >
-                <Checkbox
-                  checked={isModuleAllChecked(module)}
-                  indeterminate={isModuleIndeterminate(module)}
-                  onChange={e => handleModuleCheckAll(module, e.target.checked)}
-                  disabled={readOnly}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: MODULE_COLORS[module] || '#666' }}>
-                      {MODULE_ICONS[module]}
-                    </span>
-                    <span style={{ fontWeight: 500 }}>{MODULE_DISPLAY_NAMES[module] || module}</span>
-                  </span>
-                </Checkbox>
-              </div>
-              <div style={{ paddingLeft: 24 }}>
-                <Checkbox.Group
-                  value={selectedPermissionIds}
-                  style={{ width: '100%' }}
-                  disabled={readOnly}
-                >
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
-                    {permissions.map(permission => (
-                      <Checkbox
-                        key={permission.id}
-                        value={permission.id}
-                        onChange={handlePermissionChange(permission.id)}
-                      >
-                        {permission.display_name}
-                      </Checkbox>
-                    ))}
-                  </div>
-                </Checkbox.Group>
-              </div>
-              <Divider style={{ margin: '12px 0' }} />
-            </div>
-          ))}
+      {role && (
+        <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
+          <div style={{ fontWeight: 500, marginBottom: 4 }}>{role.display_name}</div>
+          <div style={{ color: '#666', fontSize: 13 }}>{role.description}</div>
+          <div style={{ marginTop: 8 }}>
+            <Tag color="blue">Level {role.level}</Tag>
+            <Tag color="green">{selectedPermissionIds.length} 个权限</Tag>
+          </div>
         </div>
       )}
+
+      {Object.entries(permissionsByModule).map(([module, modulePermissions]) => (
+        <div key={module} style={{ marginBottom: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: 8,
+              padding: '8px 12px',
+              background: '#fafafa',
+              borderRadius: 6,
+            }}
+          >
+            <Checkbox
+              checked={isModuleAllChecked(module)}
+              indeterminate={isModuleIndeterminate(module)}
+              onChange={e => handleModuleCheckAll(module, e.target.checked)}
+              disabled={readOnly}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: MODULE_COLORS[module] || '#666' }}>
+                  {MODULE_ICONS[module]}
+                </span>
+                <span style={{ fontWeight: 500 }}>{MODULE_DISPLAY_NAMES[module] || module}</span>
+              </span>
+            </Checkbox>
+          </div>
+          <div style={{ paddingLeft: 24 }}>
+            <Checkbox.Group
+              value={selectedPermissionIds}
+              style={{ width: '100%' }}
+              disabled={readOnly}
+            >
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
+                {modulePermissions.map(permission => (
+                  <Checkbox
+                    key={permission.id}
+                    value={permission.id}
+                    onChange={handlePermissionChange(permission.id)}
+                  >
+                    {permission.display_name}
+                  </Checkbox>
+                ))}
+              </div>
+            </Checkbox.Group>
+          </div>
+          <Divider style={{ margin: '12px 0' }} />
+        </div>
+      ))}
     </Modal>
   )
 }
