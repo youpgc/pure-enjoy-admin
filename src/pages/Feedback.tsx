@@ -20,12 +20,7 @@ const STATUS_OPTIONS = [
   { value: 'resolved', label: '已完结' },
 ]
 
-const CATEGORY_OPTIONS = [
-  { value: 'bug', label: 'Bug' },
-  { value: 'feature', label: '功能建议' },
-  { value: 'improvement', label: '体验优化' },
-  { value: 'other', label: '其他' },
-]
+
 
 // 状态标签颜色映射
 const STATUS_TAG_MAP: Record<string, { color: string; label: string }> = {

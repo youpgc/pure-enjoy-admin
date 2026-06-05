@@ -330,7 +330,7 @@ const MainLayout: React.FC = () => {
             mode="inline"
             selectedKeys={[currentPage]}
             openKeys={openKeys}
-            onOpenChange={(keys) => setOpenKeys(keys.length > 0 ? [keys[keys.length - 1]] : [])}
+            onOpenChange={(keys) => setOpenKeys(keys.length > 0 ? [String(keys[keys.length - 1])] : [])}
             items={menuItems}
             onClick={({ key }) => setCurrentPage(key as PageKey)}
             style={{ borderRight: 0 }}

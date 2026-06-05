@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react'
 import {
   Card, Table, Button, Modal, Form, Input, Select, Tag, Space,
-  message, Popconfirm, Tooltip, Empty, Spin, DatePicker, Switch
+  message, Popconfirm, Tooltip, Empty, Spin, DatePicker
 } from 'antd'
 import {
   ReloadOutlined, DeleteOutlined, PlusOutlined, EditOutlined,
-  CheckCircleOutlined, StopOutlined, SoundOutlined, EyeOutlined
+  CheckCircleOutlined, StopOutlined, EyeOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
