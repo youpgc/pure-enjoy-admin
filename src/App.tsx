@@ -327,7 +327,7 @@ const MainLayout: React.FC = () => {
         }}
       >
         <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <img src="/logo.png" alt="logo" style={{ width: 32, height: 32 }} />
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="logo" style={{ width: 32, height: 32 }} />
           {!collapsed && <h2 style={{ margin: 0, color: '#6C63FF', fontSize: 20 }}>纯享管理</h2>}
         </div>
         {/* 菜单区域 - 可滚动 */}

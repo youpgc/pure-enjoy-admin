@@ -65,7 +65,7 @@ const Login: React.FC = () => {
     <div className="login-container">
       <Card className="login-card">
         <div className="login-logo">
-          <img src="/logo.png" alt="logo" style={{ width: 64, height: 64, marginBottom: 12 }} />
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="logo" style={{ width: 64, height: 64, marginBottom: 12 }} />
           <Title level={2} style={{ color: '#6C63FF', marginBottom: 8 }}>
             纯享管理后台
           </Title>
