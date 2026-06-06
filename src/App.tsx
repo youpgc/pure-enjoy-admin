@@ -5,6 +5,7 @@ import type { MenuProps } from 'antd'
 import {
   DashboardOutlined,
   UserOutlined,
+  TeamOutlined,
   WalletOutlined,
   SmileOutlined,
   LineChartOutlined,
@@ -15,17 +16,24 @@ import {
   SafetyOutlined,
   BarChartOutlined,
   FileTextOutlined,
+  FileSearchOutlined,
   MonitorOutlined,
   AppstoreOutlined,
   StarOutlined,
+  StarFilled,
   BellOutlined,
+  NotificationOutlined,
   CheckCircleOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   SoundOutlined,
   MessageOutlined,
   CalendarOutlined,
-  StarFilled,
+  ControlOutlined,
+  SettingOutlined,
+  ToolOutlined,
+  FolderOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons'
 import type { AdminUser } from './types/auth'
 import AuthGuard from './components/AuthGuard'
@@ -147,80 +155,80 @@ const MainLayout: React.FC = () => {
     logout()
   }
 
-  // 定义菜单项
+  // 定义菜单项（按业务模块分组）
   const menuItems: MenuProps['items'] = [
+    // 数据概览
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
       label: '数据概览',
     },
+    // 用户中心
     {
-      key: 'users',
-      icon: <UserOutlined />,
-      label: '用户管理',
+      key: 'user-center',
+      icon: <TeamOutlined />,
+      label: '用户中心',
+      children: [
+        { key: 'users', icon: <UserOutlined />, label: '用户管理' },
+        { key: 'points', icon: <StarFilled />, label: '积分管理' },
+      ],
     },
+    // 内容管理
     {
-      key: 'points',
-      icon: <StarFilled />,
-      label: '积分管理',
+      key: 'content',
+      icon: <ReadOutlined />,
+      label: '内容管理',
+      children: [
+        { key: 'novels', icon: <ReadOutlined />, label: '小说管理' },
+        { key: 'novel_bookshelves', icon: <UnorderedListOutlined />, label: '书架管理' },
+        { key: 'sensitive_words', icon: <SafetyOutlined />, label: '敏感词管理' },
+        { key: 'sensitive_word_analytics', icon: <LineChartOutlined />, label: '敏感词统计' },
+      ],
     },
+    // 生活服务
     {
       key: 'life',
       icon: <AppstoreOutlined />,
-      label: '生活记录',
+      label: '生活服务',
       children: [
         { key: 'expenses', icon: <WalletOutlined />, label: '消费记录' },
         { key: 'mood', icon: <SmileOutlined />, label: '心情日记' },
         { key: 'weight', icon: <LineChartOutlined />, label: '体重记录' },
-        { key: 'notes', icon: <BookOutlined />, label: '笔记本' },
-      ],
-    },
-    {
-      key: 'extension',
-      icon: <StarOutlined />,
-      label: '扩展功能',
-      children: [
+        { key: 'notes', icon: <FileTextOutlined />, label: '笔记本' },
         { key: 'favorites', icon: <StarOutlined />, label: '收藏夹' },
         { key: 'reminders', icon: <BellOutlined />, label: '提醒事项' },
         { key: 'habits', icon: <CheckCircleOutlined />, label: '习惯打卡' },
         { key: 'anniversaries', icon: <CalendarOutlined />, label: '纪念日' },
       ],
     },
-    {
-      key: 'novel',
-      icon: <ReadOutlined />,
-      label: '小说管理',
-      children: [
-        { key: 'novels', icon: <BookOutlined />, label: '小说管理' },
-        { key: 'novel_bookshelves', icon: <BookOutlined />, label: '书架管理' },
-      ],
-    },
-    {
-      key: 'sensitive',
-      icon: <SafetyOutlined />,
-      label: '敏感词管理',
-      children: [
-        { key: 'sensitive_words', icon: <SafetyOutlined />, label: '敏感词列表' },
-        { key: 'sensitive_word_analytics', icon: <BarChartOutlined />, label: '数据统计' },
-      ],
-    },
+    // 运营管理
     ...(canManageVersions ? [
       {
         key: 'operation',
-        icon: <BarChartOutlined />,
+        icon: <ControlOutlined />,
         label: '运营管理',
         children: [
           { key: 'versions', icon: <MobileOutlined />, label: '版本管理' },
-          { key: 'notifications', icon: <BellOutlined />, label: '通知管理' },
-          { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析' },
-          { key: 'operation_logs', icon: <FileTextOutlined />, label: '操作日志' },
-          { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控' },
-          { key: 'roles', icon: <SafetyOutlined />, label: '角色权限' },
-          { key: 'app_configs', icon: <FileTextOutlined />, label: '配置管理' },
-          { key: 'dict_management', icon: <FileTextOutlined />, label: '字典管理' },
-          { key: 'file_management', icon: <FileTextOutlined />, label: '文件管理' },
+          { key: 'notifications', icon: <NotificationOutlined />, label: '通知管理' },
           { key: 'announcements', icon: <SoundOutlined />, label: '公告管理' },
           { key: 'feedback', icon: <MessageOutlined />, label: '问题反馈' },
+          { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析' },
+        ],
+      },
+    ] : []),
+    // 系统设置
+    ...(canManageVersions ? [
+      {
+        key: 'system',
+        icon: <SettingOutlined />,
+        label: '系统设置',
+        children: [
+          { key: 'roles', icon: <SafetyOutlined />, label: '角色权限' },
+          { key: 'operation_logs', icon: <FileSearchOutlined />, label: '操作日志' },
+          { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控' },
+          { key: 'app_configs', icon: <ToolOutlined />, label: '配置管理' },
+          { key: 'dict_management', icon: <BookOutlined />, label: '字典管理' },
+          { key: 'file_management', icon: <FolderOutlined />, label: '文件管理' },
         ],
       },
     ] : []),
