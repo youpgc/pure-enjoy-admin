@@ -1,37 +1,63 @@
-import React, { useMemo } from 'react'
-import { Space, Tag, message } from 'antd'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import {
+  Table, Tag, Button, Modal, Input, Space, message, Tooltip, Timeline, Popconfirm, Badge, Empty
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { EditOutlined, CheckCircleOutlined } from '@ant-design/icons'
-import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
-import { getActionColumn } from '../components/ActionColumn'
-import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
+import {
+  CheckOutlined, CloseOutlined, ClockCircleOutlined,
+  EyeOutlined, DeleteOutlined, HistoryOutlined,
+  ExclamationCircleOutlined, SyncOutlined
+} from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
-import { useEditModal } from '../hooks/useEditModal'
-import { useDictOptions } from '../hooks/useDictOptions'
 import { formatDateTime } from '../utils/format'
 import NoPermission from '../components/NoPermission'
 
+// ==================== 类型定义 ====================
+
+interface FeedbackRecord {
+  id: string
+  user_id: string
+  user_nickname: string | null
+  title: string
+  description: string | null
+  category: string
+  status: string
+  admin_reply: string | null
+  created_at: string
+  updated_at: string | null
+}
+
+interface FlowRecord {
+  id: string
+  feedback_id: string
+  action: string
+  remark: string | null
+  operator_id: string | null
+  operator_name: string | null
+  created_at: string
+}
+
 // ==================== 常量定义 ====================
 
-const STATUS_OPTIONS_FALLBACK = [
-  { value: 'pending', label: '待确认' },
-  { value: 'confirmed', label: '已确认' },
-  { value: 'in_progress', label: '进行中' },
-  { value: 'resolved', label: '已完结' },
-]
-
-
-
-// 状态标签颜色映射
 const STATUS_TAG_MAP: Record<string, { color: string; label: string }> = {
   pending: { color: 'default', label: '待确认' },
   confirmed: { color: 'processing', label: '已确认' },
-  in_progress: { color: 'warning', label: '进行中' },
+  in_progress: { color: 'warning', label: '处理中' },
   resolved: { color: 'success', label: '已完结' },
+  rejected: { color: 'error', label: '已拒绝' },
+  delayed: { color: 'orange', label: '已滞后' },
 }
 
-// 分类标签颜色映射
+const ACTION_TAG_MAP: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
+  confirmed: { color: 'blue', label: '确认', icon: <CheckOutlined /> },
+  in_progress: { color: 'orange', label: '处理中', icon: <SyncOutlined spin /> },
+  resolved: { color: 'green', label: '完成', icon: <CheckCircleOutlined /> },
+  rejected: { color: 'red', label: '拒绝', icon: <CloseOutlined /> },
+  delayed: { color: 'gold', label: '滞后', icon: <ClockCircleOutlined /> },
+  deleted: { color: 'default', label: '删除', icon: <DeleteOutlined /> },
+}
+
 const CATEGORY_TAG_MAP: Record<string, { color: string; label: string }> = {
   bug: { color: 'error', label: 'Bug' },
   feature: { color: 'processing', label: '功能建议' },
@@ -39,160 +65,397 @@ const CATEGORY_TAG_MAP: Record<string, { color: string; label: string }> = {
   other: { color: 'default', label: '其他' },
 }
 
-// ==================== 编辑字段配置 ====================
+// 状态流转规则：当前状态 -> 可执行的操作列表
+const STATUS_ACTIONS: Record<string, string[]> = {
+  pending: ['confirmed', 'rejected'],
+  confirmed: ['in_progress', 'delayed', 'rejected'],
+  in_progress: ['resolved', 'delayed', 'rejected'],
+  resolved: [],
+  rejected: [],
+  delayed: ['in_progress', 'resolved', 'rejected'],
+}
 
-const getEditFields = (statusOptions: { value: string; label: string }[]): EditFieldConfig[] => [
-  {
-    name: 'status',
-    label: '状态',
-    type: 'select',
-    required: true,
-    options: statusOptions,
-    placeholder: '请选择状态',
-  },
-  {
-    name: 'admin_reply',
-    label: '答复备注',
-    type: 'textarea',
-    placeholder: '请输入管理员答复',
-  },
-]
+// ==================== 状态流转弹窗 ====================
 
-// ==================== 详情列表列配置 ====================
+const ActionModal: React.FC<{
+  open: boolean
+  record: FeedbackRecord | null
+  action: string | null
+  onClose: () => void
+  onConfirm: (remark: string) => void
+  loading: boolean
+}> = ({ open, record, action, onClose, onConfirm, loading }) => {
+  const [remark, setRemark] = useState('')
+  const actionConfig = action ? ACTION_TAG_MAP[action] : null
 
-const getDetailColumns = (
-  canDelete: boolean,
-  onDelete: (id: string) => void,
-  onEdit: (record: RecordItem) => void
-): ColumnsType<RecordItem> => [
-  {
-    title: '状态',
-    dataIndex: 'status',
-    key: 'status',
-    width: 100,
-    render: (status: string) => {
-      const config = STATUS_TAG_MAP[status] || { color: 'default', label: status }
-      return <Tag color={config.color}>{config.label}</Tag>
-    },
-  },
-  {
-    title: '标题',
-    dataIndex: 'title',
-    key: 'title',
-    ellipsis: true,
-    width: 200,
-    render: (title: string) => title || '-',
-  },
-  {
-    title: '分类',
-    dataIndex: 'category',
-    key: 'category',
-    width: 100,
-    render: (category: string) => {
-      const config = CATEGORY_TAG_MAP[category] || { color: 'default', label: category }
-      return <Tag color={config.color}>{config.label}</Tag>
-    },
-  },
-  {
-    title: '描述',
-    dataIndex: 'description',
-    key: 'description',
-    ellipsis: true,
-    width: 250,
-    render: (description: string) => description || '-',
-  },
-  {
-    title: '管理员答复',
-    dataIndex: 'admin_reply',
-    key: 'admin_reply',
-    ellipsis: true,
-    width: 200,
-    render: (adminReply: string) => (
-      <Space>
-        {adminReply ? (
-          <CheckCircleOutlined style={{ color: '#52c41a' }} />
-        ) : null}
-        <span>{adminReply || '-'}</span>
-      </Space>
-    ),
-  },
-  {
-    title: '创建时间',
-    dataIndex: 'created_at',
-    key: 'created_at',
-    width: 160,
-    sorter: (a, b) => {
-      const dateA = (a.created_at as string) || ''
-      const dateB = (b.created_at as string) || ''
-      return dateA.localeCompare(dateB)
-    },
-    render: (date: string) => formatDateTime(date),
-  },
-  getActionColumn<any>(
-    (record) => {
-      const actions: import('../components/ActionColumn').ActionButton[] = [
-        {
-          key: 'edit',
-          label: '编辑',
-          icon: <EditOutlined />,
-          onClick: () => onEdit(record),
-        },
-      ]
-      if (canDelete) {
-        actions.push({
-          key: 'delete',
-          label: '删除',
-          icon: <EditOutlined />,
-          danger: true,
-          onClick: () => onDelete(record.id as string),
-        })
+  useEffect(() => {
+    if (open) setRemark('')
+  }, [open])
+
+  if (!record || !action || !actionConfig) return null
+
+  return (
+    <Modal
+      title={
+        <Space>
+          {actionConfig.icon}
+          <span>{actionConfig.label}反馈</span>
+          <Tag color={STATUS_TAG_MAP[record.status]?.color}>
+            {STATUS_TAG_MAP[record.status]?.label}
+          </Tag>
+          <span style={{ color: '#999' }}>→</span>
+          <Tag color={STATUS_TAG_MAP[action === 'deleted' ? record.status : action]?.color}>
+            {action === 'deleted' ? '删除' : STATUS_TAG_MAP[action]?.label}
+          </Tag>
+        </Space>
       }
-      return actions
-    },
-    { width: 240, maxVisible: 2 }
-  ),
-]
+      open={open}
+      onCancel={onClose}
+      onOk={() => onConfirm(remark)}
+      confirmLoading={loading}
+      okText="确认"
+      cancelText="取消"
+      width={480}
+    >
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>{record.title}</div>
+        {record.description && (
+          <div style={{ color: '#666', fontSize: 13 }}>{record.description}</div>
+        )}
+      </div>
+      <div style={{ marginBottom: 8, fontWeight: 500 }}>
+        <ExclamationCircleOutlined style={{ marginRight: 4, color: '#faad14' }} />
+        备注说明（必填）
+      </div>
+      <Input.TextArea
+        rows={3}
+        placeholder={`请输入${actionConfig.label}原因/备注...`}
+        value={remark}
+        onChange={(e) => setRemark(e.target.value)}
+        maxLength={500}
+        showCount
+      />
+    </Modal>
+  )
+}
+
+// ==================== 流转记录弹窗 ====================
+
+const FlowHistoryModal: React.FC<{
+  open: boolean
+  record: FeedbackRecord | null
+  onClose: () => void
+}> = ({ open, record, onClose }) => {
+  const [records, setRecords] = useState<FlowRecord[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (open && record) {
+      setLoading(true)
+      supabase
+        .from('feedback_flow_records')
+        .select('*')
+        .eq('feedback_id', record.id)
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (error) console.error('获取流转记录失败:', error)
+          setRecords(data || [])
+          setLoading(false)
+        })
+    }
+  }, [open, record])
+
+  return (
+    <Modal
+      title={
+        <Space>
+          <HistoryOutlined />
+          <span>流转记录</span>
+          {record && <Tag color={STATUS_TAG_MAP[record.status]?.color}>{STATUS_TAG_MAP[record.status]?.label}</Tag>}
+        </Space>
+      }
+      open={open}
+      onCancel={onClose}
+      footer={<Button onClick={onClose}>关闭</Button>}
+      width={560}
+    >
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40 }}>加载中...</div>
+      ) : records.length === 0 ? (
+        <Empty description="暂无流转记录" />
+      ) : (
+        <Timeline
+          items={records.map((r) => {
+            const config = ACTION_TAG_MAP[r.action] || { color: 'default', label: r.action, icon: null }
+            return {
+              color: config.color,
+              children: (
+                <div key={r.id}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <Tag color={config.color} style={{ margin: 0 }}>
+                      {config.icon} {config.label}
+                    </Tag>
+                    <span style={{ color: '#999', fontSize: 12 }}>{formatDateTime(r.created_at)}</span>
+                    {r.operator_name && (
+                      <span style={{ color: '#666', fontSize: 12 }}>操作人: {r.operator_name}</span>
+                    )}
+                  </div>
+                  {r.remark && (
+                    <div style={{
+                      background: '#f5f5f5', padding: '8px 12px', borderRadius: 6,
+                      fontSize: 13, color: '#333', marginTop: 4
+                    }}>
+                      {r.remark}
+                    </div>
+                  )}
+                </div>
+              ),
+            }
+          })}
+        />
+      )}
+    </Modal>
+  )
+}
 
 // ==================== 主组件 ====================
 
 const Feedback: React.FC = () => {
   const { canReadFeedback, canWriteFeedback, canDeleteFeedback } = usePermission()
-  const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
-  const { options: statusOptions } = useDictOptions('feedback_status', STATUS_OPTIONS_FALLBACK)
 
-  // 删除记录
-  const handleDelete = async (id: string) => {
-    if (!canDeleteFeedback) {
-      message.warning('您没有删除反馈的权限')
-      return
-    }
+  // 列表数据
+  const [data, setData] = useState<FeedbackRecord[]>([])
+  const [loading, setLoading] = useState(false)
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+
+  // 弹窗状态
+  const [actionModalOpen, setActionModalOpen] = useState(false)
+  const [flowModalOpen, setFlowModalOpen] = useState(false)
+  const [selectedRecord, setSelectedRecord] = useState<FeedbackRecord | null>(null)
+  const [selectedAction, setSelectedAction] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
+
+  // 加载数据
+  const fetchData = useCallback(async (page = 1, pageSize = 20) => {
+    setLoading(true)
     try {
-      const { error } = await supabase.from('user_feedback').delete().eq('id', id)
-      if (error) throw error
-      message.success('删除成功')
-    } catch (error) {
-      console.error('删除失败:', error)
-      message.error('删除失败')
-    }
-  }
+      // 先获取总数
+      const { count, error: countError } = await supabase
+        .from('user_feedback')
+        .select('*', { count: 'exact', head: true })
+      if (countError) throw countError
 
-  // 编辑记录
-  const handleEdit = (record: RecordItem) => {
-    if (!canWriteFeedback) {
-      message.warning('您没有编辑反馈的权限')
+      // 分页查询
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      const { data: items, error } = await supabase
+        .from('user_feedback')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (error) throw error
+      setData(items || [])
+      setPagination({ current: page, pageSize, total: count || 0 })
+    } catch (error) {
+      console.error('获取反馈列表失败:', error)
+      message.error('获取反馈列表失败')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (canReadFeedback) fetchData()
+  }, [canReadFeedback, fetchData])
+
+  // 执行状态流转
+  const handleAction = async (remark: string) => {
+    if (!selectedRecord || !selectedAction) return
+
+    // 删除操作不需要 remark（但弹窗中已设为必填）
+    if (!remark.trim() && selectedAction !== 'deleted') {
+      message.warning('请输入备注说明')
       return
     }
-    open(record)
+
+    setActionLoading(true)
+    try {
+      // 获取操作人信息
+      const adminUserStr = localStorage.getItem('admin_user')
+      const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
+      const operatorId = adminUser?.id || adminUser?.user_id || 'system'
+      const operatorName = adminUser?.nickname || adminUser?.username || '管理员'
+
+      if (selectedAction === 'deleted') {
+        // 删除：先记录流转，再删除
+        await supabase.from('feedback_flow_records').insert({
+          feedback_id: selectedRecord.id,
+          action: 'deleted',
+          remark: remark.trim() || '删除反馈记录',
+          operator_id: operatorId,
+          operator_name: operatorName,
+        })
+        const { error } = await supabase.from('user_feedback').delete().eq('id', selectedRecord.id)
+        if (error) throw error
+        message.success('删除成功')
+      } else {
+        // 状态流转：记录流转 + 更新状态
+        await supabase.from('feedback_flow_records').insert({
+          feedback_id: selectedRecord.id,
+          action: selectedAction,
+          remark: remark.trim(),
+          operator_id: operatorId,
+          operator_name: operatorName,
+        })
+        const { error } = await supabase
+          .from('user_feedback')
+          .update({ status: selectedAction, admin_reply: remark.trim() })
+          .eq('id', selectedRecord.id)
+        if (error) throw error
+        message.success(`${ACTION_TAG_MAP[selectedAction]?.label}成功`)
+      }
+
+      setActionModalOpen(false)
+      setSelectedRecord(null)
+      setSelectedAction(null)
+      fetchData(pagination.current, pagination.pageSize)
+    } catch (error: any) {
+      console.error('操作失败:', error)
+      message.error(`操作失败: ${error?.message || '未知错误'}`)
+    } finally {
+      setActionLoading(false)
+    }
   }
 
-  // 模块配置
-  const moduleConfig: ModuleConfig = useMemo(() => ({
-    key: 'feedback',
-    title: '问题反馈',
-    tableName: 'user_feedback',
-    detailTitle: '反馈详情',
-    detailColumns: getDetailColumns(canDeleteFeedback || false, handleDelete, handleEdit),
-  }), [canDeleteFeedback, canWriteFeedback])
+  // 打开操作弹窗
+  const openActionModal = (record: FeedbackRecord, action: string) => {
+    if (!canWriteFeedback) {
+      message.warning('您没有操作反馈的权限')
+      return
+    }
+    setSelectedRecord(record)
+    setSelectedAction(action)
+    setActionModalOpen(true)
+  }
+
+  // 列配置
+  const columns: ColumnsType<FeedbackRecord> = useMemo(() => [
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 90,
+      fixed: 'left',
+      filters: Object.entries(STATUS_TAG_MAP).map(([value, { label }]) => ({ text: label, value })),
+      onFilter: (value, record) => record.status === value,
+      render: (status: string) => {
+        const config = STATUS_TAG_MAP[status] || { color: 'default', label: status }
+        return <Tag color={config.color}>{config.label}</Tag>
+      },
+    },
+    {
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: true,
+      width: 180,
+      render: (title: string, record) => (
+        <Tooltip title={`用户: ${record.user_nickname || record.user_id?.substring(0, 6)}`}>
+          {title || '-'}
+        </Tooltip>
+      ),
+    },
+    {
+      title: '用户',
+      dataIndex: 'user_nickname',
+      key: 'user_nickname',
+      width: 120,
+      render: (nickname: string, record) => nickname || `用户${record.user_id?.substring(0, 6)}`,
+    },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      key: 'category',
+      width: 100,
+      filters: Object.entries(CATEGORY_TAG_MAP).map(([value, { label }]) => ({ text: label, value })),
+      onFilter: (value, record) => record.category === value,
+      render: (category: string) => {
+        const config = CATEGORY_TAG_MAP[category] || { color: 'default', label: category }
+        return <Tag color={config.color}>{config.label}</Tag>
+      },
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+      width: 220,
+      render: (desc: string) => desc || '-',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 160,
+      sorter: (a, b) => (a.created_at || '').localeCompare(b.created_at || ''),
+      render: (date: string) => formatDateTime(date),
+    },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 280,
+      fixed: 'right',
+      render: (_: any, record: FeedbackRecord) => {
+        const actions = STATUS_ACTIONS[record.status] || []
+        return (
+          <Space size={4} wrap>
+            {actions.map((action) => {
+              const config = ACTION_TAG_MAP[action]
+              return (
+                <Button
+                  key={action}
+                  type="link"
+                  size="small"
+                  icon={config.icon}
+                  onClick={() => openActionModal(record, action)}
+                  style={{ padding: '0 6px' }}
+                >
+                  {config.label}
+                </Button>
+              )
+            })}
+            <Tooltip title="流转记录">
+              <Button
+                type="link"
+                size="small"
+                icon={<HistoryOutlined />}
+                onClick={() => {
+                  setSelectedRecord(record)
+                  setFlowModalOpen(true)
+                }}
+                style={{ padding: '0 6px' }}
+              />
+            </Tooltip>
+            {canDeleteFeedback && (
+              <Popconfirm
+                title="确定删除此反馈？"
+                description="删除后将记录流转历史"
+                onConfirm={() => openActionModal(record, 'deleted')}
+                okText="删除"
+                cancelText="取消"
+                okButtonProps={{ danger: true }}
+              >
+                <Button type="link" size="small" danger icon={<DeleteOutlined />} style={{ padding: '0 6px' }}>
+                  删除
+                </Button>
+              </Popconfirm>
+            )}
+          </Space>
+        )
+      },
+    },
+  ], [canWriteFeedback, canDeleteFeedback, pagination])
 
   // 权限检查
   if (!canReadFeedback) {
@@ -201,15 +464,57 @@ const Feedback: React.FC = () => {
 
   return (
     <>
-      <UserDimensionList moduleConfig={moduleConfig} />
-      <EditRecordModal
-        open={editModalOpen}
-        record={editingRecord}
-        tableName="user_feedback"
-        fields={getEditFields(statusOptions)}
-        onClose={close}
-        onSuccess={() => {
-          window.location.reload()
+      <div style={{ padding: '0 0 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0 }}>问题反馈</h3>
+        <Space>
+          <Badge count={data.filter(d => d.status === 'pending').length} offset={[0, 0]}>
+            <Tag color="default">待确认</Tag>
+          </Badge>
+          <Badge count={data.filter(d => d.status === 'in_progress').length} offset={[0, 0]}>
+            <Tag color="warning">处理中</Tag>
+          </Badge>
+          <Badge count={data.filter(d => d.status === 'delayed').length} offset={[0, 0]}>
+            <Tag color="orange">已滞后</Tag>
+          </Badge>
+        </Space>
+      </div>
+
+      <Table
+        columns={columns}
+        dataSource={data}
+        rowKey="id"
+        loading={loading}
+        scroll={{ x: 1200 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          pageSizeOptions: ['10', '20', '50'],
+          showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+          onChange: (page, pageSize) => fetchData(page, pageSize),
+        }}
+        size="middle"
+      />
+
+      <ActionModal
+        open={actionModalOpen}
+        record={selectedRecord}
+        action={selectedAction}
+        onClose={() => {
+          setActionModalOpen(false)
+          setSelectedRecord(null)
+          setSelectedAction(null)
+        }}
+        onConfirm={handleAction}
+        loading={actionLoading}
+      />
+
+      <FlowHistoryModal
+        open={flowModalOpen}
+        record={selectedRecord}
+        onClose={() => {
+          setFlowModalOpen(false)
+          setSelectedRecord(null)
         }}
       />
     </>
