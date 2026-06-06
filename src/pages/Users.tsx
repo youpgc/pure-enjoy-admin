@@ -260,7 +260,7 @@ const Users: React.FC = () => {
       : null
 
     try {
-      const updateData: Record<string, any> = {
+      const updateData: Record<string, string | number | null> = {
         phone: formData.phone || null,
         nickname: formData.nickname || null,
         avatar_url: formData.avatar_url || null,

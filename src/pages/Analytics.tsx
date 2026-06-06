@@ -89,6 +89,8 @@ const Analytics: React.FC = () => {
   })
 
   useEffect(() => {
+    const abortController = new AbortController()
+
     const fetchAnalyticsData = async () => {
       try {
         setError(null)
@@ -124,49 +126,49 @@ const Analytics: React.FC = () => {
           weightRecordsCountRes,
         ] = await Promise.all([
           // 总用户数
-          supabase.from('users').select('*', { count: 'exact', head: true }),
+          supabase.from('users').select('*', { count: 'exact', head: true }).abortSignal(abortController.signal),
           // 今日新增
-          supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', todayStart),
+          supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', todayStart).abortSignal(abortController.signal),
           // 活跃用户：最近7天有操作日志的用户
-          supabase.from('operation_logs').select('user_id').gte('created_at', sevenDaysAgo),
+          supabase.from('operation_logs').select('user_id').gte('created_at', sevenDaysAgo).abortSignal(abortController.signal),
           // 总消费
-          supabase.from('expenses').select('amount'),
+          supabase.from('expenses').select('amount').abortSignal(abortController.signal),
           // 总日记数
-          supabase.from('mood_diaries').select('id', { count: 'exact', head: true }),
+          supabase.from('mood_diaries').select('id', { count: 'exact', head: true }).abortSignal(abortController.signal),
           // 总笔记数
-          supabase.from('notes').select('id', { count: 'exact', head: true }),
+          supabase.from('notes').select('id', { count: 'exact', head: true }).abortSignal(abortController.signal),
           // 小说阅读量（novels 的 read_count 总和）
-          supabase.from('novels').select('read_count'),
+          supabase.from('novels').select('read_count').abortSignal(abortController.signal),
           // 用户增长趋势（30天）
-          supabase.from('users').select('created_at').gte('created_at', thirtyDaysAgo),
+          supabase.from('users').select('created_at').gte('created_at', thirtyDaysAgo).abortSignal(abortController.signal),
           // 所有用户（用于分布统计和留存率计算）
-          supabase.from('users').select('id, role, member_level, status, created_at'),
+          supabase.from('users').select('id, role, member_level, status, created_at').abortSignal(abortController.signal),
           // 操作日志（用于活跃度统计）
-          supabase.from('operation_logs').select('user_id, created_at').gte('created_at', thirtyDaysAgo),
+          supabase.from('operation_logs').select('user_id, created_at').gte('created_at', thirtyDaysAgo).abortSignal(abortController.signal),
           // 消费趋势（30天）
-          supabase.from('expenses').select('amount, date').gte('date', thirtyDaysAgo),
+          supabase.from('expenses').select('amount, date').gte('date', thirtyDaysAgo).abortSignal(abortController.signal),
           // 心情趋势（14天）
-          supabase.from('mood_diaries').select('mood, date').gte('date', fourteenDaysAgo),
+          supabase.from('mood_diaries').select('mood, date').gte('date', fourteenDaysAgo).abortSignal(abortController.signal),
           // 体重分析（30天，使用数据库已有的 bmi 字段）
-          supabase.from('weight_records').select('weight, bmi, date').gte('date', thirtyDaysAgo),
+          supabase.from('weight_records').select('weight, bmi, date').gte('date', thirtyDaysAgo).abortSignal(abortController.signal),
           // 笔记活跃度（30天）
-          supabase.from('notes').select('created_at').gte('created_at', thirtyDaysAgo),
+          supabase.from('notes').select('created_at').gte('created_at', thirtyDaysAgo).abortSignal(abortController.signal),
           // 消费分类
-          supabase.from('expenses').select('category, amount'),
+          supabase.from('expenses').select('category, amount').abortSignal(abortController.signal),
           // 小说统计
-          supabase.from('novels').select('id, category, read_count, title, author, word_count, collect_count, rating, status'),
+          supabase.from('novels').select('id, category, read_count, title, author, word_count, collect_count, rating, status').abortSignal(abortController.signal),
           // 章节统计
-          supabase.from('novel_chapters').select('id', { count: 'exact', head: true }),
+          supabase.from('novel_chapters').select('id', { count: 'exact', head: true }).abortSignal(abortController.signal),
           // user_novels 统计
-          supabase.from('user_novels').select('progress, last_read_at, user_id'),
+          supabase.from('user_novels').select('progress, last_read_at, user_id').abortSignal(abortController.signal),
           // 收藏总数
-          supabase.from('user_favorites').select('id', { count: 'exact', head: true }),
+          supabase.from('user_favorites').select('id', { count: 'exact', head: true }).abortSignal(abortController.signal),
           // 提醒总数
-          supabase.from('user_reminders').select('id', { count: 'exact', head: true }),
+          supabase.from('user_reminders').select('id', { count: 'exact', head: true }).abortSignal(abortController.signal),
           // 习惯总数
-          supabase.from('user_habits').select('id', { count: 'exact', head: true }),
+          supabase.from('user_habits').select('id', { count: 'exact', head: true }).abortSignal(abortController.signal),
           // 体重记录总数
-          supabase.from('weight_records').select('id', { count: 'exact', head: true }),
+          supabase.from('weight_records').select('id', { count: 'exact', head: true }).abortSignal(abortController.signal),
         ])
 
         // 检查关键查询是否有错误
@@ -252,7 +254,7 @@ const Analytics: React.FC = () => {
           monthActiveSet.add(log.user_id)
         })
         // 最近7天的活跃用户
-        const recentLogsRes = await supabase.from('operation_logs').select('user_id').gte('created_at', sevenDaysAgo)
+        const recentLogsRes = await supabase.from('operation_logs').select('user_id').gte('created_at', sevenDaysAgo).abortSignal(abortController.signal)
         ;(recentLogsRes.data || []).forEach(l => weekActiveSet.add(l.user_id))
 
         const activityItems: UserActivityItem[] = []
@@ -547,6 +549,10 @@ const Analytics: React.FC = () => {
     }
 
     fetchAnalyticsData()
+
+    return () => {
+      abortController.abort()
+    }
   }, [])
 
   if (!isAdmin) {

@@ -74,7 +74,27 @@ const VersionManagement: React.FC = () => {
       message.error('加载版本列表失败: ' + error.message)
     } else {
       // 映射字段：将 GitHub Actions 创建的字段名转换为前端使用的字段名
-      const mappedData = (data || []).map((item: any) => {
+      interface RawVersionRecord {
+        id: number
+        version?: string
+        build_number?: number
+        release_type?: 'hotfix' | 'feature' | 'force'
+        release_notes?: string
+        apk_url?: string | null
+        download_url?: string | null
+        apk_size?: number
+        file_size?: number | string
+        status?: 'draft' | 'released' | 'revoked'
+        is_active?: boolean
+        released_at?: string | null
+        created_at?: string
+        revoked_at?: string | null
+        created_by?: string | null
+        file_name?: string
+        checksum?: string
+        platform?: string
+      }
+      const mappedData = (data || []).map((item: RawVersionRecord) => {
         // 处理发布时间：优先使用 released_at，否则使用 created_at
         const releasedAt = item.released_at || item.created_at || null
         

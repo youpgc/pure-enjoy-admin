@@ -108,11 +108,16 @@ const RolePermission: React.FC = () => {
       }
 
       // 尝试查询 system_configs 表
-      let configsData: any[] = []
+      interface SystemConfigItem {
+        id: number
+        key: string
+        value: unknown
+      }
+      let configsData: SystemConfigItem[] = []
       try {
         const configsRes = await supabase.from('system_configs').select('*')
         if (!configsRes.error && configsRes.data) {
-          configsData = configsRes.data
+          configsData = configsRes.data as SystemConfigItem[]
           console.log('[RolePermission] system_configs 查询成功:', configsData.length, '条记录')
         } else if (configsRes.error) {
           console.warn('[RolePermission] system_configs 表查询失败:', configsRes.error.message)
@@ -124,20 +129,39 @@ const RolePermission: React.FC = () => {
       // 从 system_configs 中解析角色配置和权限配置
       // system_configs 表通常以 key-value 形式存储配置
       // 尝试解析角色和权限数据
-      const roleConfig = configsData.find((c: any) => c.key === 'roles' || c.key === 'role_config')
-      const permissionConfig = configsData.find((c: any) => c.key === 'permissions' || c.key === 'permission_config')
-      const rolePermConfig = configsData.find((c: any) => c.key === 'role_permissions' || c.key === 'role_permission_config')
+      const roleConfig = configsData.find((c) => c.key === 'roles' || c.key === 'role_config')
+      const permissionConfig = configsData.find((c) => c.key === 'permissions' || c.key === 'permission_config')
+      const rolePermConfig = configsData.find((c) => c.key === 'role_permissions' || c.key === 'role_permission_config')
 
       // 解析角色数据
       let roles: RoleWithPermissions[] = []
       let perms: Permission[] = []
 
+      interface RawRole {
+        id?: number
+        name?: string
+        role?: string
+        display_name?: string
+        description?: string | null
+        level?: number
+        created_at?: string
+      }
+      interface RawPermission {
+        id?: number
+        name?: string
+        module?: string
+        action?: string
+        display_name?: string
+        description?: string | null
+        created_at?: string
+      }
+
       if (roleConfig) {
         try {
-          const parsed = typeof roleConfig.value === 'string'
+          const parsed: unknown = typeof roleConfig.value === 'string'
             ? JSON.parse(roleConfig.value)
             : roleConfig.value
-          roles = (Array.isArray(parsed) ? parsed : []).map((r: any, idx: number) => ({
+          roles = (Array.isArray(parsed) ? parsed : []).map((r: RawRole, idx: number) => ({
             id: r.id || idx + 1,
             name: r.name || r.role || 'unknown',
             display_name: r.display_name || r.name || '未知角色',
@@ -153,10 +177,10 @@ const RolePermission: React.FC = () => {
 
       if (permissionConfig) {
         try {
-          const parsed = typeof permissionConfig.value === 'string'
+          const parsed: unknown = typeof permissionConfig.value === 'string'
             ? JSON.parse(permissionConfig.value)
             : permissionConfig.value
-          perms = (Array.isArray(parsed) ? parsed : []).map((p: any, idx: number) => ({
+          perms = (Array.isArray(parsed) ? parsed : []).map((p: RawPermission, idx: number) => ({
             id: p.id || idx + 1,
             name: p.name || `${p.module}:${p.action}`,
             display_name: p.display_name || p.name || '未知权限',
@@ -183,14 +207,19 @@ const RolePermission: React.FC = () => {
       // 如果解析到了角色权限关联数据，为角色分配权限
       if (rolePermConfig && perms.length > 0) {
         try {
-          const parsed = typeof rolePermConfig.value === 'string'
+          const parsed: unknown = typeof rolePermConfig.value === 'string'
             ? JSON.parse(rolePermConfig.value)
             : rolePermConfig.value
           const rpList = Array.isArray(parsed) ? parsed : []
+          interface RawRolePermission {
+            role_id?: number
+            role_name?: string
+            permission_id?: number
+          }
           roles = roles.map(role => {
             const permIds = rpList
-              .filter((rp: any) => rp.role_id === role.id || rp.role_name === role.name)
-              .map((rp: any) => rp.permission_id)
+              .filter((rp: RawRolePermission) => rp.role_id === role.id || rp.role_name === role.name)
+              .map((rp: RawRolePermission) => rp.permission_id)
             return {
               ...role,
               permissions: perms.filter(p => permIds.includes(p.id)),
@@ -259,7 +288,7 @@ const RolePermission: React.FC = () => {
           }
 
           // 更新当前角色的权限关联
-          allRolePerms = allRolePerms.filter((rp: any) => rp.role_id !== roleId)
+          allRolePerms = allRolePerms.filter((rp) => rp.role_id !== roleId)
           permissionIds.forEach(pid => {
             allRolePerms.push({ role_id: roleId, permission_id: pid })
           })

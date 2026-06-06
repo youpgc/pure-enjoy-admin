@@ -126,7 +126,15 @@ const Announcements: React.FC = () => {
       const values = await form.validateFields()
       setModalLoading(true)
 
-      const submitData: any = {
+      interface AnnouncementFormValues {
+        title: string
+        content: string
+        type: '系统公告' | '活动通知' | '版本更新'
+        priority: '高' | '中' | '低'
+        publish_at: dayjs.Dayjs | null
+        expire_at: dayjs.Dayjs | null
+      }
+      const submitData: Partial<Announcement> & { is_published?: boolean } = {
         title: values.title,
         content: values.content,
         type: values.type,

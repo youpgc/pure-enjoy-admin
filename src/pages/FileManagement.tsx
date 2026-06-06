@@ -187,6 +187,17 @@ const FileManagement: React.FC = () => {
     }
   }, [filterType, searchText])
 
+  interface NovelRef {
+    id: string
+    title: string
+    cover_url: string
+  }
+  interface UserRef {
+    id: string
+    nickname: string
+    avatar_url: string
+  }
+
   // 检查文件关联
   const checkFileAssociations = async (file: FileRecord): Promise<FileAssociation[]> => {
     try {
@@ -210,7 +221,7 @@ const FileManagement: React.FC = () => {
 
       const associations: FileAssociation[] = []
 
-      novels?.forEach((novel: any) => {
+      novels?.forEach((novel: NovelRef) => {
         associations.push({
           id: `novel_${novel.id}`,
           file_id: file.id,
@@ -221,7 +232,7 @@ const FileManagement: React.FC = () => {
         })
       })
 
-      users?.forEach((user: any) => {
+      users?.forEach((user: UserRef) => {
         associations.push({
           id: `user_${user.id}`,
           file_id: file.id,
@@ -244,8 +255,14 @@ const FileManagement: React.FC = () => {
     loadFiles()
   }, [loadFileTypes, loadFiles])
 
+  interface UploadFormValues {
+    file_type?: string
+    file_category?: string
+    description?: string
+  }
+
   // 上传文件到 Supabase Storage
-  const handleUpload = async (values: any) => {
+  const handleUpload = async (values: UploadFormValues) => {
     if (fileList.length === 0) {
       message.error('请选择要上传的文件')
       return

@@ -295,14 +295,14 @@ const SensitiveWords: React.FC = () => {
   const handleSave = useCallback(async (values: Record<string, unknown>) => {
     setSaving(true)
     try {
-      const saveData: Record<string, any> = {
-        word: values.word,
-        category: values.category || 'novel',
-        level: values.level || 'block',
-        replace_word: values.level === 'replace' ? (values.replace_word || '***') : null,
-        description: values.description || null,
-        match_mode: values.match_mode || 'exact',
-        is_active: values.is_active !== undefined ? values.is_active : true,
+      const saveData: Record<string, string | boolean | null | number> = {
+        word: String(values.word || ''),
+        category: String(values.category || 'novel'),
+        level: String(values.level || 'block'),
+        replace_word: values.level === 'replace' ? String(values.replace_word || '***') : null,
+        description: values.description ? String(values.description) : null,
+        match_mode: String(values.match_mode || 'exact'),
+        is_active: values.is_active !== undefined ? Boolean(values.is_active) : true,
         updated_at: new Date().toISOString(),
       }
 
