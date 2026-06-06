@@ -13,7 +13,10 @@ dayjs.locale('zh-cn')
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ConfigProvider locale={zhCN}>
+    <ConfigProvider
+      locale={zhCN}
+      modal={{ styles: { content: { width: 1200 } } }}
+    >
       <BrowserRouter basename="/pure-enjoy-admin">
         <App />
       </BrowserRouter>
