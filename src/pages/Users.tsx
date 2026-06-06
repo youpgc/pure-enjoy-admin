@@ -555,7 +555,6 @@ const Users: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 160,
-      sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
       render: (date: string) => formatDateTime(date),
     },
     {
@@ -563,11 +562,6 @@ const Users: React.FC = () => {
       dataIndex: 'last_login_at',
       key: 'last_login_at',
       width: 160,
-      sorter: (a, b) => {
-        if (!a.last_login_at) return 1
-        if (!b.last_login_at) return -1
-        return new Date(a.last_login_at).getTime() - new Date(b.last_login_at).getTime()
-      },
       render: (date: string | null) => date ? formatDateTime(date) : <Text type="secondary">从未登录</Text>,
     },
     getActionColumn<User>(

@@ -5,8 +5,8 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import {
   CheckOutlined, CloseOutlined, ClockCircleOutlined,
-  EyeOutlined, DeleteOutlined, HistoryOutlined,
-  ExclamationCircleOutlined, SyncOutlined
+  DeleteOutlined, HistoryOutlined,
+  ExclamationCircleOutlined, SyncOutlined, CheckCircleOutlined
 } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
@@ -398,7 +398,6 @@ const Feedback: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 160,
-      sorter: (a, b) => (a.created_at || '').localeCompare(b.created_at || ''),
       render: (date: string) => formatDateTime(date),
     },
     {
@@ -412,6 +411,7 @@ const Feedback: React.FC = () => {
           <Space size={4} wrap>
             {actions.map((action) => {
               const config = ACTION_TAG_MAP[action]
+              if (!config) return null
               return (
                 <Button
                   key={action}

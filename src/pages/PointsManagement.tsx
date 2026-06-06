@@ -6,6 +6,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   EyeOutlined, PlusOutlined, MinusOutlined
 } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { formatDateTime } from '../utils/format'
 
@@ -26,11 +27,13 @@ interface PointRecord {
   id: string
   user_id: string
   type: string
-  points: number | null
+  amount: number
   remark: string | null
   operator_id: string | null
   operator_name: string | null
   created_at: string
+  expires_at: string | null
+  status: string | null
 }
 
 // ==================== 常量定义 ====================
@@ -89,12 +92,12 @@ const RecordsModal: React.FC<{
     },
     {
       title: '积分数量',
-      dataIndex: 'points',
-      key: 'points',
+      dataIndex: 'amount',
+      key: 'amount',
       width: 100,
-      render: (points: number) => (
-        <span style={{ color: points > 0 ? '#52c41a' : points < 0 ? '#ff4d4f' : '#999', fontWeight: 500 }}>
-          {points > 0 ? `+${points}` : points}
+      render: (amount: number) => (
+        <span style={{ color: amount > 0 ? '#52c41a' : amount < 0 ? '#ff4d4f' : '#999', fontWeight: 500 }}>
+          {amount > 0 ? `+${amount}` : amount}
         </span>
       ),
     },
@@ -111,6 +114,23 @@ const RecordsModal: React.FC<{
       key: 'operator_name',
       width: 120,
       render: (name: string) => name || '-',
+    },
+    {
+      title: '过期时间',
+      dataIndex: 'expires_at',
+      key: 'expires_at',
+      width: 160,
+      render: (date: string) => formatDateTime(date),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: string) => {
+        const isActive = status === 'active'
+        return <Tag color={isActive ? 'green' : 'default'}>{isActive ? '有效' : '已过期'}</Tag>
+      },
     },
     {
       title: '时间',
@@ -208,14 +228,18 @@ const PointsActionModal: React.FC<{
         }
       }
 
+      // 计算过期时间：现在 + 180天
+      const expiresAt = dayjs().add(180, 'day').toISOString()
+
       // 1. 插入 point_records 记录
       const { error: insertError } = await supabase.from('point_records').insert({
         user_id: user.id,
         type: recordType,
-        points: pointsValue,
+        amount: pointsValue,
         remark: remark.trim(),
         operator_id: operatorId,
         operator_name: operatorName,
+        expires_at: expiresAt,
       })
       if (insertError) throw insertError
 
@@ -393,7 +417,6 @@ const PointsManagement: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 160,
-      sorter: (a, b) => (a.created_at || '').localeCompare(b.created_at || ''),
       render: (date: string) => formatDateTime(date),
     },
     {
