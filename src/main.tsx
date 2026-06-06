@@ -15,7 +15,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ConfigProvider
       locale={zhCN}
-      modal={{ styles: { content: { width: 1200 } } }}
+      modal={{ styles: { content: { width: 1200, margin: '0 auto' } } }}
     >
       <BrowserRouter basename="/pure-enjoy-admin">
         <App />
