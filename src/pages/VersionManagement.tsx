@@ -94,7 +94,7 @@ const VersionManagement: React.FC = () => {
         checksum?: string
         platform?: string
       }
-      const mappedData = (data || []).map((item: RawVersionRecord) => {
+      const mappedData: AppVersion[] = (data || []).map((item: RawVersionRecord) => {
         // 处理发布时间：优先使用 released_at，否则使用 created_at
         const releasedAt = item.released_at || item.created_at || null
         
