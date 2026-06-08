@@ -109,15 +109,18 @@ const VersionManagement: React.FC = () => {
         }
         
         return {
-          ...item,
-          apk_url: item.apk_url || item.download_url || null,
-          apk_size: apkSize,
-          status: status,
-          released_at: releasedAt,
-          // 确保其他字段也有默认值
+          id: item.id,
           version: item.version || '1.0.0',
           build_number: Number(item.build_number) || 1,
+          release_type: (item.release_type as 'hotfix' | 'feature' | 'force') || 'feature',
           release_notes: item.release_notes || '无更新说明',
+          apk_url: item.apk_url || item.download_url || null,
+          apk_size: apkSize,
+          status: status as 'draft' | 'released' | 'revoked',
+          released_at: releasedAt,
+          revoked_at: item.revoked_at || null,
+          created_at: item.created_at || new Date().toISOString(),
+          created_by: item.created_by || null,
         }
       })
       
