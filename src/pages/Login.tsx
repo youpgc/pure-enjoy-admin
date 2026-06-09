@@ -3,6 +3,15 @@ import { Card, Form, Input, Button, message, Typography } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
 
+/// 对密码进行 SHA-256 哈希（与App端保持一致）
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(password)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 const { Title, Text } = Typography
 
 const Login: React.FC = () => {
@@ -11,6 +20,9 @@ const Login: React.FC = () => {
   const handleLogin = async (values: { username: string; password: string }) => {
     setLoading(true)
     try {
+      // 对密码进行哈希（与App端保持一致）
+      const passwordHash = await hashPassword(values.password)
+
       // 直接查询 admin_users 表
       // eslint-disable-next-line no-template-curly-in-string
       const { data: users, error } = await supabase
@@ -29,8 +41,8 @@ const Login: React.FC = () => {
 
       const user = users[0]
 
-      // 明文密码比较
-      if (user.password !== values.password) {
+      // 哈希密码比较（与App端保持一致）
+      if (user.password_hash !== passwordHash) {
         throw new Error('用户名或密码错误')
       }
 

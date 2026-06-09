@@ -258,6 +258,17 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       return fetch(url, options).then(async (response) => {
         const duration = Date.now() - startTime
         
+        // 处理 401 未授权 — 清除登录状态并跳转登录页
+        if (response.status === 401) {
+          console.error(`[Supabase] ${method} ${tableName} - 401 未授权，清除登录状态`)
+          localStorage.removeItem('admin_user')
+          // 如果不在登录页，则跳转
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/pure-enjoy-admin/login'
+          }
+          return response
+        }
+        
         if (!response.ok) {
           // 尝试解析错误信息
           let errorMessage = `HTTP ${response.status}`
