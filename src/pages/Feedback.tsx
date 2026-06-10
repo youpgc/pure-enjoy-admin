@@ -12,6 +12,7 @@ import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { formatDateTime } from '../utils/format'
 import NoPermission from '../components/NoPermission'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 // ==================== 类型定义 ====================
 
@@ -40,7 +41,7 @@ interface FlowRecord {
 
 // ==================== 常量定义 ====================
 
-const STATUS_TAG_MAP: Record<string, { color: string; label: string }> = {
+const STATUS_TAG_MAP_FALLBACK: Record<string, { color: string; label: string }> = {
   pending: { color: 'default', label: '待确认' },
   confirmed: { color: 'processing', label: '已确认' },
   in_progress: { color: 'warning', label: '处理中' },
@@ -49,7 +50,7 @@ const STATUS_TAG_MAP: Record<string, { color: string; label: string }> = {
   delayed: { color: 'orange', label: '已滞后' },
 }
 
-const ACTION_TAG_MAP: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
+const ACTION_TAG_MAP_FALLBACK: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
   confirmed: { color: 'blue', label: '确认', icon: <CheckOutlined /> },
   in_progress: { color: 'orange', label: '处理中', icon: <SyncOutlined spin /> },
   resolved: { color: 'green', label: '完成', icon: <CheckCircleOutlined /> },
@@ -58,7 +59,7 @@ const ACTION_TAG_MAP: Record<string, { color: string; label: string; icon: React
   deleted: { color: 'default', label: '删除', icon: <DeleteOutlined /> },
 }
 
-const CATEGORY_TAG_MAP: Record<string, { color: string; label: string }> = {
+const CATEGORY_TAG_MAP_FALLBACK: Record<string, { color: string; label: string }> = {
   bug: { color: 'error', label: 'Bug' },
   feature: { color: 'processing', label: '功能建议' },
   improvement: { color: 'warning', label: '体验优化' },
@@ -86,7 +87,31 @@ const ActionModal: React.FC<{
   loading: boolean
 }> = ({ open, record, action, onClose, onConfirm, loading }) => {
   const [remark, setRemark] = useState('')
-  const actionConfig = action ? ACTION_TAG_MAP[action] : null
+  const { options: actionOptions } = useDictOptions('feedback_action', [])
+  const { options: statusOptions } = useDictOptions('feedback_status', [])
+  const { getColor: getActionColor } = useDictColors('feedback_action')
+  const { getColor: getStatusColor } = useDictColors('feedback_status')
+  const actionConfig = action
+    ? (() => {
+        const dictOpt = actionOptions.find(opt => opt.value === action)
+        const fallback = ACTION_TAG_MAP_FALLBACK[action]
+        if (!dictOpt && !fallback) return null
+        return {
+          color: getActionColor(action) || fallback?.color || 'default',
+          label: dictOpt?.label || fallback?.label || action,
+          icon: fallback?.icon || null,
+        }
+      })()
+    : null
+
+  const getStatusLabel = (status: string) => {
+    const dictOpt = statusOptions.find(opt => opt.value === status)
+    const fallback = STATUS_TAG_MAP_FALLBACK[status]
+    return dictOpt?.label || fallback?.label || status
+  }
+  const getStatusColorValue = (status: string) => {
+    return getStatusColor(status) || STATUS_TAG_MAP_FALLBACK[status]?.color || 'default'
+  }
 
   useEffect(() => {
     if (open) setRemark('')
@@ -100,12 +125,12 @@ const ActionModal: React.FC<{
         <Space>
           {actionConfig.icon}
           <span>{actionConfig.label}反馈</span>
-          <Tag color={STATUS_TAG_MAP[record.status]?.color}>
-            {STATUS_TAG_MAP[record.status]?.label}
+          <Tag color={getStatusColorValue(record.status)}>
+            {getStatusLabel(record.status)}
           </Tag>
           <span style={{ color: '#999' }}>→</span>
-          <Tag color={STATUS_TAG_MAP[action === 'deleted' ? record.status : action]?.color}>
-            {action === 'deleted' ? '删除' : STATUS_TAG_MAP[action]?.label}
+          <Tag color={action === 'deleted' ? getStatusColorValue(record.status) : getStatusColorValue(action)}>
+            {action === 'deleted' ? '删除' : getStatusLabel(action)}
           </Tag>
         </Space>
       }
@@ -148,6 +173,19 @@ const FlowHistoryModal: React.FC<{
 }> = ({ open, record, onClose }) => {
   const [records, setRecords] = useState<FlowRecord[]>([])
   const [loading, setLoading] = useState(false)
+  const { options: actionOptions } = useDictOptions('feedback_action', [])
+  const { options: statusOptions } = useDictOptions('feedback_status', [])
+  const { getColor: getActionColor } = useDictColors('feedback_action')
+  const { getColor: getStatusColor } = useDictColors('feedback_status')
+
+  const getStatusLabel = (status: string) => {
+    const dictOpt = statusOptions.find(opt => opt.value === status)
+    const fallback = STATUS_TAG_MAP_FALLBACK[status]
+    return dictOpt?.label || fallback?.label || status
+  }
+  const getStatusColorValue = (status: string) => {
+    return getStatusColor(status) || STATUS_TAG_MAP_FALLBACK[status]?.color || 'default'
+  }
 
   useEffect(() => {
     if (open && record) {
@@ -171,7 +209,7 @@ const FlowHistoryModal: React.FC<{
         <Space>
           <HistoryOutlined />
           <span>流转记录</span>
-          {record && <Tag color={STATUS_TAG_MAP[record.status]?.color}>{STATUS_TAG_MAP[record.status]?.label}</Tag>}
+          {record && <Tag color={getStatusColorValue(record.status)}>{getStatusLabel(record.status)}</Tag>}
         </Space>
       }
       open={open}
@@ -186,7 +224,13 @@ const FlowHistoryModal: React.FC<{
       ) : (
         <Timeline
           items={records.map((r) => {
-            const config = ACTION_TAG_MAP[r.action] || { color: 'default', label: r.action, icon: null }
+            const dictOpt = actionOptions.find(opt => opt.value === r.action)
+            const fallback = ACTION_TAG_MAP_FALLBACK[r.action]
+            const config = {
+              color: getActionColor(r.action) || fallback?.color || 'default',
+              label: dictOpt?.label || fallback?.label || r.action,
+              icon: fallback?.icon || null,
+            }
             return {
               color: config.color,
               children: (
@@ -227,6 +271,14 @@ const Feedback: React.FC = () => {
   const [data, setData] = useState<FeedbackRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+
+  // 字典查询
+  const { options: statusOptions } = useDictOptions('feedback_status', [])
+  const { options: categoryOptions } = useDictOptions('feedback_category', [])
+  const { options: actionOptions } = useDictOptions('feedback_action', [])
+  const { getColor: getStatusColor } = useDictColors('feedback_status')
+  const { getColor: getCategoryColor } = useDictColors('feedback_category')
+  const { getColor: getActionColor } = useDictColors('feedback_action')
 
   // 弹窗状态
   const [actionModalOpen, setActionModalOpen] = useState(false)
@@ -313,7 +365,12 @@ const Feedback: React.FC = () => {
           .update({ status: selectedAction, admin_reply: remark.trim() })
           .eq('id', selectedRecord.id)
         if (error) throw error
-        message.success(`${ACTION_TAG_MAP[selectedAction]?.label}成功`)
+        const actionLabel = (() => {
+        const dictOpt = actionOptions.find(opt => opt.value === selectedAction)
+        const fallback = ACTION_TAG_MAP_FALLBACK[selectedAction]
+        return dictOpt?.label || fallback?.label || selectedAction
+      })()
+      message.success(`${actionLabel}成功`)
       }
 
       setActionModalOpen(false)
@@ -347,11 +404,16 @@ const Feedback: React.FC = () => {
       key: 'status',
       width: 90,
       fixed: 'left',
-      filters: Object.entries(STATUS_TAG_MAP).map(([value, { label }]) => ({ text: label, value })),
+      filters: statusOptions.length > 0
+        ? statusOptions.map(opt => ({ text: opt.label, value: opt.value }))
+        : Object.entries(STATUS_TAG_MAP_FALLBACK).map(([value, { label }]) => ({ text: label, value })),
       onFilter: (value, record) => record.status === value,
       render: (status: string) => {
-        const config = STATUS_TAG_MAP[status] || { color: 'default', label: status }
-        return <Tag color={config.color}>{config.label}</Tag>
+        const dictOpt = statusOptions.find(opt => opt.value === status)
+        const fallback = STATUS_TAG_MAP_FALLBACK[status]
+        const label = dictOpt?.label || fallback?.label || status
+        const color = getStatusColor(status) || fallback?.color || 'default'
+        return <Tag color={color}>{label}</Tag>
       },
     },
     {
@@ -378,11 +440,16 @@ const Feedback: React.FC = () => {
       dataIndex: 'category',
       key: 'category',
       width: 100,
-      filters: Object.entries(CATEGORY_TAG_MAP).map(([value, { label }]) => ({ text: label, value })),
+      filters: categoryOptions.length > 0
+        ? categoryOptions.map(opt => ({ text: opt.label, value: opt.value }))
+        : Object.entries(CATEGORY_TAG_MAP_FALLBACK).map(([value, { label }]) => ({ text: label, value })),
       onFilter: (value, record) => record.category === value,
       render: (category: string) => {
-        const config = CATEGORY_TAG_MAP[category] || { color: 'default', label: category }
-        return <Tag color={config.color}>{config.label}</Tag>
+        const dictOpt = categoryOptions.find(opt => opt.value === category)
+        const fallback = CATEGORY_TAG_MAP_FALLBACK[category]
+        const label = dictOpt?.label || fallback?.label || category
+        const color = getCategoryColor(category) || fallback?.color || 'default'
+        return <Tag color={color}>{label}</Tag>
       },
     },
     {
@@ -410,8 +477,14 @@ const Feedback: React.FC = () => {
         return (
           <Space size={4} wrap>
             {actions.map((action) => {
-              const config = ACTION_TAG_MAP[action]
-              if (!config) return null
+              const dictOpt = actionOptions.find(opt => opt.value === action)
+              const fallback = ACTION_TAG_MAP_FALLBACK[action]
+              if (!dictOpt && !fallback) return null
+              const config = {
+                color: getActionColor(action) || fallback?.color || 'default',
+                label: dictOpt?.label || fallback?.label || action,
+                icon: fallback?.icon || null,
+              }
               return (
                 <Button
                   key={action}

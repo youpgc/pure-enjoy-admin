@@ -10,7 +10,7 @@ import {
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePagination } from '../hooks/usePagination'
-import { useDictOptions } from '../hooks/useDictOptions'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 // ==================== 类型定义 ====================
 
@@ -63,6 +63,8 @@ const Announcements: React.FC = () => {
   const { currentPage, pageSize, paginate, resetPage, setCurrentPage, setPageSize } = usePagination()
   const { options: typeOptions } = useDictOptions('announcement_type', TYPE_OPTIONS_FALLBACK)
   const { options: priorityOptions } = useDictOptions('priority_level', PRIORITY_OPTIONS_FALLBACK)
+  const { getColor: getTypeColor } = useDictColors('announcement_type')
+  const { getColor: getPriorityColor } = useDictColors('priority_level')
 
   // 弹窗状态
   const [modalOpen, setModalOpen] = useState(false)
@@ -296,7 +298,7 @@ const Announcements: React.FC = () => {
       key: 'type',
       width: 100,
       render: (type: string) => (
-        <Tag color={TYPE_COLOR_MAP[type] || 'default'}>{type || '-'}</Tag>
+        <Tag color={getTypeColor(type) || TYPE_COLOR_MAP[type] || 'default'}>{type || '-'}</Tag>
       ),
     },
     {
@@ -305,7 +307,7 @@ const Announcements: React.FC = () => {
       key: 'priority',
       width: 80,
       render: (priority: string) => (
-        <Tag color={PRIORITY_COLOR_MAP[priority] || 'default'}>{priority || '-'}</Tag>
+        <Tag color={getPriorityColor(priority) || PRIORITY_COLOR_MAP[priority] || 'default'}>{priority || '-'}</Tag>
       ),
     },
     {
@@ -610,11 +612,11 @@ const Announcements: React.FC = () => {
             <Space style={{ marginBottom: 16 }} size="large">
               <div>
                 <div style={{ color: '#8c8c8c', fontSize: 13, marginBottom: 4 }}>类型</div>
-                <Tag color={TYPE_COLOR_MAP[detailRecord.type]}>{detailRecord.type}</Tag>
+                <Tag color={getTypeColor(detailRecord.type) || TYPE_COLOR_MAP[detailRecord.type] || 'default'}>{detailRecord.type}</Tag>
               </div>
               <div>
                 <div style={{ color: '#8c8c8c', fontSize: 13, marginBottom: 4 }}>优先级</div>
-                <Tag color={PRIORITY_COLOR_MAP[detailRecord.priority]}>{detailRecord.priority}</Tag>
+                <Tag color={getPriorityColor(detailRecord.priority) || PRIORITY_COLOR_MAP[detailRecord.priority] || 'default'}>{detailRecord.priority}</Tag>
               </div>
               <div>
                 <div style={{ color: '#8c8c8c', fontSize: 13, marginBottom: 4 }}>状态</div>

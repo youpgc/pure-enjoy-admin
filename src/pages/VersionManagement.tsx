@@ -12,6 +12,7 @@ import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import { formatDateTime } from '../utils/format'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -37,13 +38,13 @@ interface AppVersion {
   platform?: string
 }
 
-const releaseTypeMap: Record<string, { label: string; color: string }> = {
+const releaseTypeMapFallback: Record<string, { label: string; color: string }> = {
   hotfix: { label: '热更新', color: 'orange' },
   feature: { label: '功能迭代', color: 'blue' },
   force: { label: '强制更新', color: 'red' },
 }
 
-const statusMap: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+const statusMapFallback: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   draft: { label: '草稿', color: 'default', icon: <ClockCircleOutlined /> },
   released: { label: '已发布', color: 'green', icon: <CheckCircleOutlined /> },
   revoked: { label: '已撤回', color: 'red', icon: <CloseCircleOutlined /> },
@@ -58,6 +59,12 @@ const VersionManagement: React.FC = () => {
   const [selectedVersion, setSelectedVersion] = useState<AppVersion | null>(null)
   const [uploading, setUploading] = useState(false)
   const [form] = Form.useForm()
+
+  // 字典查询
+  const { options: releaseTypeOptions } = useDictOptions('release_type', [])
+  const { options: versionStatusOptions } = useDictOptions('version_status', [])
+  const { getColor: getReleaseTypeColor } = useDictColors('release_type')
+  const { getColor: getVersionStatusColor } = useDictColors('version_status')
 
   useEffect(() => {
     fetchVersions()
@@ -305,8 +312,11 @@ const VersionManagement: React.FC = () => {
       dataIndex: 'release_type',
       key: 'release_type',
       render: (type: string) => {
-        const info = releaseTypeMap[type]
-        return <Tag color={info?.color}>{info?.label}</Tag>
+        const dictOpt = releaseTypeOptions.find(opt => opt.value === type)
+        const fallback = releaseTypeMapFallback[type]
+        const label = dictOpt?.label || fallback?.label || type
+        const color = getReleaseTypeColor(type) || fallback?.color || 'default'
+        return <Tag color={color}>{label}</Tag>
       },
     },
     {
@@ -314,8 +324,11 @@ const VersionManagement: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => {
-        const info = statusMap[status]
-        return <Tag icon={info?.icon} color={info?.color}>{info?.label}</Tag>
+        const dictOpt = versionStatusOptions.find(opt => opt.value === status)
+        const fallback = statusMapFallback[status]
+        const label = dictOpt?.label || fallback?.label || status
+        const color = getVersionStatusColor(status) || fallback?.color || 'default'
+        return <Tag icon={fallback?.icon} color={color}>{label}</Tag>
       },
     },
     {
@@ -452,8 +465,11 @@ const VersionManagement: React.FC = () => {
                 </Descriptions.Item>
                 <Descriptions.Item label="更新类型">
                   {(() => {
-                    const info = releaseTypeMap[releasedVersion.release_type]
-                    return <Tag color={info?.color}>{info?.label}</Tag>
+                    const dictOpt = releaseTypeOptions.find(opt => opt.value === releasedVersion.release_type)
+                    const fallback = releaseTypeMapFallback[releasedVersion.release_type]
+                    const label = dictOpt?.label || fallback?.label || releasedVersion.release_type
+                    const color = getReleaseTypeColor(releasedVersion.release_type) || fallback?.color || 'default'
+                    return <Tag color={color}>{label}</Tag>
                   })()}
                 </Descriptions.Item>
                 <Descriptions.Item label="发布时间">
@@ -520,11 +536,11 @@ const VersionManagement: React.FC = () => {
               label="更新类型"
               rules={[{ required: true, message: '请选择更新类型' }]}
             >
-              <Select placeholder="选择更新类型">
-                <Select.Option value="hotfix">热更新 - Bug修复</Select.Option>
-                <Select.Option value="feature">功能迭代 - 新功能</Select.Option>
-                <Select.Option value="force">强制更新 - 必须升级</Select.Option>
-              </Select>
+              <Select placeholder="选择更新类型" options={releaseTypeOptions.length > 0 ? releaseTypeOptions : [
+                { label: '热更新 - Bug修复', value: 'hotfix' },
+                { label: '功能迭代 - 新功能', value: 'feature' },
+                { label: '强制更新 - 必须升级', value: 'force' },
+              ]} />
             </Form.Item>
             <Form.Item
               name="release_notes"

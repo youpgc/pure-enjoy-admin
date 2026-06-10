@@ -36,13 +36,19 @@ import type {
   ExpenseCategoryItem,
 } from '../utils/mockData'
 import { EXPENSE_CATEGORY_OPTIONS } from '../utils/mockData'
-import { useDictOptions } from '../hooks/useDictOptions'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 const { RangePicker } = DatePicker
 
 const Analytics: React.FC = () => {
   const { isAdmin } = usePermission()
   const { options: expenseCategoryOptions } = useDictOptions('expense_category', EXPENSE_CATEGORY_OPTIONS)
+  const { options: roleOptions } = useDictOptions('user_role', [])
+  const { options: memberLevelOptions } = useDictOptions('member_level', [])
+  const { options: userStatusOptions } = useDictOptions('user_status', [])
+  const { getColor: getRoleColor } = useDictColors('user_role')
+  const { getColor: getMemberLevelColor } = useDictColors('member_level')
+  const { getColor: getUserStatusColor } = useDictColors('user_status')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
@@ -401,41 +407,50 @@ const Analytics: React.FC = () => {
         // ==================== 用户分布 ====================
         // 角色分布
         const roleMap: Record<string, number> = {}
-        const roleColors: Record<string, string> = { 'user': '#1890ff', 'admin': '#36cfc9', 'super_admin': '#9254de' }
-        const roleLabels: Record<string, string> = { 'user': '普通用户', 'admin': '管理员', 'super_admin': '超级管理员' }
+        const roleColorsFallback: Record<string, string> = { 'user': '#1890ff', 'admin': '#36cfc9', 'super_admin': '#9254de' }
+        const roleLabelsFallback: Record<string, string> = { 'user': '普通用户', 'admin': '管理员', 'super_admin': '超级管理员' }
         allUsersData.forEach(u => { roleMap[u.role] = (roleMap[u.role] || 0) + 1 })
         setUserByRole(
-          Object.entries(roleMap).map(([role, count]) => ({
-            name: roleLabels[role] || role,
-            value: count,
-            color: roleColors[role] || '#999',
-          }))
+          Object.entries(roleMap).map(([role, count]) => {
+            const dictOpt = roleOptions.find(opt => opt.value === role)
+            return {
+              name: dictOpt?.label || roleLabelsFallback[role] || role,
+              value: count,
+              color: getRoleColor(role) || roleColorsFallback[role] || '#999',
+            }
+          })
         )
 
         // 会员等级分布
         const memberMap: Record<string, number> = {}
-        const memberColors: Record<string, string> = { 'normal': '#1890ff', 'member': '#597ef7', 'super_member': '#f759ab' }
-        const memberLabels: Record<string, string> = { 'normal': '普通会员', 'member': '会员', 'super_member': '超级会员' }
+        const memberColorsFallback: Record<string, string> = { 'normal': '#1890ff', 'member': '#597ef7', 'super_member': '#f759ab' }
+        const memberLabelsFallback: Record<string, string> = { 'normal': '普通会员', 'member': '会员', 'super_member': '超级会员' }
         allUsersData.forEach(u => { memberMap[u.member_level] = (memberMap[u.member_level] || 0) + 1 })
         setUserByMemberLevel(
-          Object.entries(memberMap).map(([level, count]) => ({
-            name: memberLabels[level] || level,
-            value: count,
-            color: memberColors[level] || '#999',
-          }))
+          Object.entries(memberMap).map(([level, count]) => {
+            const dictOpt = memberLevelOptions.find(opt => opt.value === level)
+            return {
+              name: dictOpt?.label || memberLabelsFallback[level] || level,
+              value: count,
+              color: getMemberLevelColor(level) || memberColorsFallback[level] || '#999',
+            }
+          })
         )
 
         // 用户状态分布
         const statusMap: Record<string, number> = {}
-        const statusColors: Record<string, string> = { 'active': '#52c41a', 'abnormal': '#faad14', 'disabled': '#d9d9d9', 'banned': '#ff4d4f' }
-        const statusLabels: Record<string, string> = { 'active': '正常', 'abnormal': '异常', 'disabled': '禁用', 'banned': '封禁' }
+        const statusColorsFallback: Record<string, string> = { 'active': '#52c41a', 'abnormal': '#faad14', 'disabled': '#d9d9d9', 'banned': '#ff4d4f' }
+        const statusLabelsFallback: Record<string, string> = { 'active': '正常', 'abnormal': '异常', 'disabled': '禁用', 'banned': '封禁' }
         allUsersData.forEach(u => { statusMap[u.status] = (statusMap[u.status] || 0) + 1 })
         setUserByStatus(
-          Object.entries(statusMap).map(([status, count]) => ({
-            name: statusLabels[status] || status,
-            value: count,
-            color: statusColors[status] || '#999',
-          }))
+          Object.entries(statusMap).map(([status, count]) => {
+            const dictOpt = userStatusOptions.find(opt => opt.value === status)
+            return {
+              name: dictOpt?.label || statusLabelsFallback[status] || status,
+              value: count,
+              color: getUserStatusColor(status) || statusColorsFallback[status] || '#999',
+            }
+          })
         )
 
         // ==================== 消费分类占比 ====================

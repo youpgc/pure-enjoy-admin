@@ -46,6 +46,7 @@ import {
   MEMBER_LEVEL_OPTIONS,
   USER_STATUS_OPTIONS,
 } from '../types/user'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 import { generateUserId } from '../utils/userId'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { getActionColumn } from '../components/ActionColumn'
@@ -97,6 +98,14 @@ const Users: React.FC = () => {
   // 权限
   const { user: adminUser } = useAuth()
   const { canManageUsers } = usePermission()
+
+  // 字典查询
+  const { options: roleOptions } = useDictOptions('user_role', USER_ROLE_OPTIONS)
+  const { options: statusOptions } = useDictOptions('user_status', USER_STATUS_OPTIONS)
+  const { options: memberLevelOptions } = useDictOptions('member_level', MEMBER_LEVEL_OPTIONS)
+  const { getColor: getRoleColor } = useDictColors('user_role')
+  const { getColor: getStatusColor } = useDictColors('user_status')
+  const { getColor: getMemberLevelColor } = useDictColors('member_level')
 
   // ==================== 数据加载 ====================
   const fetchUsers = useCallback(async (page = 1, pageSize = 10) => {
@@ -531,7 +540,7 @@ const Users: React.FC = () => {
       key: 'role',
       width: 100,
       render: (role: UserRole) => (
-        <Tag color={USER_ROLE_COLORS[role]}>{USER_ROLE_LABELS[role]}</Tag>
+        <Tag color={getRoleColor(role) || USER_ROLE_COLORS[role]}>{USER_ROLE_LABELS[role]}</Tag>
       ),
     },
     {
@@ -540,7 +549,7 @@ const Users: React.FC = () => {
       key: 'member_level',
       width: 100,
       render: (level: MemberLevel) => (
-        <Tag color={MEMBER_LEVEL_COLORS[level]}>{MEMBER_LEVEL_LABELS[level]}</Tag>
+        <Tag color={getMemberLevelColor(level) || MEMBER_LEVEL_COLORS[level]}>{MEMBER_LEVEL_LABELS[level]}</Tag>
       ),
     },
     {
@@ -557,7 +566,7 @@ const Users: React.FC = () => {
       key: 'status',
       width: 80,
       render: (status: UserStatus) => (
-        <Tag color={USER_STATUS_COLORS[status]}>{USER_STATUS_LABELS[status]}</Tag>
+        <Tag color={getStatusColor(status) || USER_STATUS_COLORS[status]}>{USER_STATUS_LABELS[status]}</Tag>
       ),
     },
     {
@@ -704,7 +713,7 @@ const Users: React.FC = () => {
                 allowClear
                 value={filterValues.role}
                 onChange={value => setFilterValues(prev => ({ ...prev, role: value as UserRole | undefined }))}
-                options={USER_ROLE_OPTIONS}
+                options={roleOptions}
               />
             </Col>
             <Col xs={24} sm={12} md={6}>
@@ -714,7 +723,7 @@ const Users: React.FC = () => {
                 allowClear
                 value={filterValues.status}
                 onChange={value => setFilterValues(prev => ({ ...prev, status: value as UserStatus | undefined }))}
-                options={USER_STATUS_OPTIONS}
+                options={statusOptions}
               />
             </Col>
             <Col xs={24} sm={12} md={6}>
@@ -724,7 +733,7 @@ const Users: React.FC = () => {
                 allowClear
                 value={filterValues.member_level}
                 onChange={value => setFilterValues(prev => ({ ...prev, member_level: value as MemberLevel | undefined }))}
-                options={MEMBER_LEVEL_OPTIONS}
+                options={memberLevelOptions}
               />
             </Col>
             <Col xs={24} sm={12} md={6}>

@@ -26,6 +26,7 @@ import {
 } from 'recharts'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 // ==================== 类型定义 ====================
 interface UserTrendItem {
@@ -70,6 +71,11 @@ const Dashboard: React.FC = () => {
     totalReadCount: 0,
     activeReaders: 0,
   })
+
+  // 字典查询
+  const { options: actionOptions } = useDictOptions('operation_action', [])
+  const { options: moduleOptions } = useDictOptions('operation_module', [])
+  const { getColor: getActionColor } = useDictColors('operation_action')
 
   useEffect(() => {
     fetchDashboardData()
@@ -417,14 +423,15 @@ const Dashboard: React.FC = () => {
                   dataIndex: 'action',
                   key: 'action',
                   render: (text: string) => {
-                    const colorMap: Record<string, string> = {
+                    const colorMapFallback: Record<string, string> = {
                       'create': 'green',
                       'update': 'blue',
                       'delete': 'red',
                       'login': 'purple',
                       'view': 'default',
                     }
-                    return <Tag color={colorMap[text] || 'default'}>{text}</Tag>
+                    const dictOpt = actionOptions.find(opt => opt.value === text)
+                    return <Tag color={getActionColor(text) || colorMapFallback[text] || 'default'}>{dictOpt?.label || text}</Tag>
                   },
                 },
                 {
@@ -432,16 +439,17 @@ const Dashboard: React.FC = () => {
                   dataIndex: 'module',
                   key: 'module',
                   render: (text: string) => {
-                    const iconMap: Record<string, React.ReactNode> = {
+                    const iconMapFallback: Record<string, React.ReactNode> = {
                       'expenses': <WalletOutlined />,
                       'mood_diaries': <HeartOutlined />,
                       'notes': <FileTextOutlined />,
                       'novels': <BookOutlined />,
                       'users': <UserOutlined />,
                     }
+                    const dictOpt = moduleOptions.find(opt => opt.value === text)
                     return (
                       <span>
-                        {iconMap[text] || null} {text}
+                        {iconMapFallback[text] || null} {dictOpt?.label || text}
                       </span>
                     )
                   },

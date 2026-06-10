@@ -37,6 +37,7 @@ import FilterBar, { FilterField } from '../components/FilterBar'
 import { supabase, logOperation } from '../utils/supabase'
 import { getActionColumn } from '../components/ActionColumn'
 import { formatDateTime } from '../utils/format'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 const { Text } = Typography
 const { TextArea } = Input
@@ -67,42 +68,42 @@ interface CategorySwitch {
 
 // ==================== 常量 ====================
 
-const CATEGORY_OPTIONS = [
+const CATEGORY_OPTIONS_FALLBACK = [
   { label: '小说敏感词', value: 'novel' },
   { label: '系统敏感词', value: 'system' },
 ]
 
-const LEVEL_OPTIONS = [
+const LEVEL_OPTIONS_FALLBACK = [
   { label: '屏蔽', value: 'block' },
   { label: '替换', value: 'replace' },
   { label: '警告', value: 'warn' },
 ]
 
-const MATCH_MODE_OPTIONS = [
+const MATCH_MODE_OPTIONS_FALLBACK = [
   { label: '精确匹配', value: 'exact' },
   { label: '包含匹配', value: 'contains' },
   { label: '正则匹配', value: 'regex' },
 ]
 
-const LEVEL_COLORS: Record<string, string> = {
+const LEVEL_COLORS_FALLBACK: Record<string, string> = {
   block: 'red',
   replace: 'orange',
   warn: 'blue',
 }
 
-const LEVEL_LABELS: Record<string, string> = {
+const LEVEL_LABELS_FALLBACK: Record<string, string> = {
   block: '屏蔽',
   replace: '替换',
   warn: '警告',
 }
 
-const MATCH_MODE_LABELS: Record<string, string> = {
+const MATCH_MODE_LABELS_FALLBACK: Record<string, string> = {
   exact: '精确',
   contains: '包含',
   regex: '正则',
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
+const CATEGORY_LABELS_FALLBACK: Record<string, string> = {
   novel: '小说',
   system: '系统',
 }
@@ -119,6 +120,13 @@ const SensitiveWords: React.FC = () => {
   const [searchText, setSearchText] = useState('')
   const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
   const [activeTab, setActiveTab] = useState<string>('all')
+
+  // 字典查询
+  const { options: categoryOptions } = useDictOptions('sensitive_word_category', CATEGORY_OPTIONS_FALLBACK)
+  const { options: levelOptions } = useDictOptions('sensitive_word_level', LEVEL_OPTIONS_FALLBACK)
+  const { options: matchModeOptions } = useDictOptions('match_mode', MATCH_MODE_OPTIONS_FALLBACK)
+  const { getColor: getLevelColor } = useDictColors('sensitive_word_level')
+  const { getColor: getCategoryColor } = useDictColors('sensitive_word_category')
 
   // 分类开关状态
   const [switches, setSwitches] = useState<CategorySwitch[]>([
@@ -272,9 +280,10 @@ const SensitiveWords: React.FC = () => {
       }
 
       if (matched) {
+        const levelDictOpt = levelOptions.find(opt => opt.value === word.level)
         results.push({
           word: word.word,
-          level: LEVEL_LABELS[word.level] || word.level,
+          level: levelDictOpt?.label || LEVEL_LABELS_FALLBACK[word.level] || word.level,
           matchType,
         })
       }
@@ -475,7 +484,7 @@ const SensitiveWords: React.FC = () => {
       label: '分类',
       type: 'select',
       required: true,
-      options: CATEGORY_OPTIONS,
+      options: categoryOptions,
       defaultValue: activeTab === 'novel' || activeTab === 'system' ? activeTab : 'novel',
       span: 12,
     },
@@ -484,7 +493,7 @@ const SensitiveWords: React.FC = () => {
       label: '处理级别',
       type: 'select',
       required: true,
-      options: LEVEL_OPTIONS,
+      options: levelOptions,
       defaultValue: 'block',
       span: 12,
     },
@@ -502,7 +511,7 @@ const SensitiveWords: React.FC = () => {
       label: '匹配模式',
       type: 'select',
       required: true,
-      options: MATCH_MODE_OPTIONS,
+      options: matchModeOptions,
       defaultValue: 'contains',
       span: 12,
       tooltip: '精确: 完全匹配; 包含: 文本中包含即命中; 正则: 使用正则表达式匹配',
@@ -544,20 +553,25 @@ const SensitiveWords: React.FC = () => {
       dataIndex: 'category',
       key: 'category',
       width: 100,
-      render: (category: string) => (
-        <Tag color={category === 'novel' ? 'purple' : 'cyan'}>
-          {CATEGORY_LABELS[category] || category}
-        </Tag>
-      ),
+      render: (category: string) => {
+        const catDictOpt = categoryOptions.find(opt => opt.value === category)
+        const catFallback = CATEGORY_LABELS_FALLBACK[category]
+        const label = catDictOpt?.label || catFallback || category
+        const color = getCategoryColor(category) || (category === 'novel' ? 'purple' : 'cyan')
+        return <Tag color={color}>{label}</Tag>
+      },
     },
     {
       title: '处理级别',
       dataIndex: 'level',
       key: 'level',
       width: 90,
-      render: (level: string) => (
-        <Tag color={LEVEL_COLORS[level]}>{LEVEL_LABELS[level] || level}</Tag>
-      ),
+      render: (level: string) => {
+        const levelDictOpt = levelOptions.find(opt => opt.value === level)
+        const label = levelDictOpt?.label || LEVEL_LABELS_FALLBACK[level] || level
+        const color = getLevelColor(level) || LEVEL_COLORS_FALLBACK[level] || 'default'
+        return <Tag color={color}>{label}</Tag>
+      },
     },
     {
       title: '替换词',
@@ -571,7 +585,10 @@ const SensitiveWords: React.FC = () => {
       dataIndex: 'match_mode',
       key: 'match_mode',
       width: 90,
-      render: (mode: string) => MATCH_MODE_LABELS[mode] || mode,
+      render: (mode: string) => {
+        const dictOpt = matchModeOptions.find(opt => opt.value === mode)
+        return dictOpt?.label || MATCH_MODE_LABELS_FALLBACK[mode] || mode
+      },
     },
     {
       title: '命中次数',
@@ -638,9 +655,9 @@ const SensitiveWords: React.FC = () => {
   // ==================== 筛选字段 ====================
 
   const filterFields: FilterField[] = [
-    { name: 'category', label: '分类', type: 'select', options: CATEGORY_OPTIONS },
-    { name: 'level', label: '处理级别', type: 'select', options: LEVEL_OPTIONS },
-    { name: 'match_mode', label: '匹配模式', type: 'select', options: MATCH_MODE_OPTIONS },
+    { name: 'category', label: '分类', type: 'select', options: categoryOptions },
+    { name: 'level', label: '处理级别', type: 'select', options: levelOptions },
+    { name: 'match_mode', label: '匹配模式', type: 'select', options: matchModeOptions },
   ]
 
   // ==================== 渲染 ====================
@@ -888,7 +905,7 @@ const SensitiveWords: React.FC = () => {
             <Select
               value={importCategory}
               onChange={setImportCategory}
-              options={CATEGORY_OPTIONS}
+              options={categoryOptions}
             />
           </Form.Item>
           <Form.Item

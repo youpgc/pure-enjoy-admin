@@ -4,6 +4,7 @@ import { ReloadOutlined, DeleteOutlined, PlusOutlined, BellOutlined, CheckCircle
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePagination } from '../hooks/usePagination'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 // ==================== 类型定义 ====================
 
@@ -28,7 +29,7 @@ interface UserOption {
 
 // ==================== 常量定义 ====================
 
-const TYPE_OPTIONS = [
+const TYPE_OPTIONS_FALLBACK = [
   { label: '系统通知', value: '系统通知' },
   { label: '版本更新', value: '版本更新' },
   { label: '提醒', value: '提醒' },
@@ -37,7 +38,7 @@ const TYPE_OPTIONS = [
   { label: '消费', value: '消费' },
 ]
 
-const TYPE_COLOR_MAP: Record<string, string> = {
+const TYPE_COLOR_MAP_FALLBACK: Record<string, string> = {
   '系统通知': 'blue',
   '版本更新': 'purple',
   '提醒': 'orange',
@@ -59,6 +60,10 @@ const Notifications: React.FC = () => {
   const [filterType, setFilterType] = useState<string | undefined>(undefined)
   const [filterReadStatus, setFilterReadStatus] = useState<string | undefined>(undefined)
   const { currentPage, pageSize, paginate, resetPage, setCurrentPage, setPageSize } = usePagination()
+
+  // 字典查询
+  const { options: typeOptions } = useDictOptions('notification_type', TYPE_OPTIONS_FALLBACK)
+  const { getColor: getTypeColor } = useDictColors('notification_type')
 
   // 发送通知弹窗
   const [sendModalOpen, setSendModalOpen] = useState(false)
@@ -325,7 +330,7 @@ const Notifications: React.FC = () => {
       key: 'type',
       width: 100,
       render: (type: string) => (
-        <Tag color={TYPE_COLOR_MAP[type] || 'default'}>{type || '-'}</Tag>
+        <Tag color={getTypeColor(type) || TYPE_COLOR_MAP_FALLBACK[type] || 'default'}>{type || '-'}</Tag>
       ),
     },
     {
@@ -415,7 +420,7 @@ const Notifications: React.FC = () => {
             placeholder="通知类型"
             value={filterType}
             onChange={(val) => { setFilterType(val); setCurrentPage(1) }}
-            options={TYPE_OPTIONS}
+            options={typeOptions}
             style={{ width: 140 }}
             allowClear
           />
@@ -552,7 +557,7 @@ const Notifications: React.FC = () => {
                 label="类型"
                 rules={[{ required: true, message: '请选择通知类型' }]}
               >
-                <Select placeholder="请选择通知类型" options={TYPE_OPTIONS} />
+                <Select placeholder="请选择通知类型" options={typeOptions} />
               </Form.Item>
               <Form.Item
                 name="user_id"

@@ -9,6 +9,7 @@ import {
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { formatDateTime } from '../utils/format'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 // ==================== 类型定义 ====================
 
@@ -38,7 +39,7 @@ interface PointRecord {
 
 // ==================== 常量定义 ====================
 
-const TYPE_TAG_MAP: Record<string, { color: string; label: string }> = {
+const TYPE_TAG_MAP_FALLBACK: Record<string, { color: string; label: string }> = {
   checkin: { color: 'green', label: '打卡' },
   recharge: { color: 'blue', label: '充值' },
   deduct: { color: 'orange', label: '抵扣' },
@@ -46,7 +47,7 @@ const TYPE_TAG_MAP: Record<string, { color: string; label: string }> = {
   admin_deduct: { color: 'red', label: '后台抵扣' },
 }
 
-const ROLE_TAG_MAP: Record<string, { color: string; label: string }> = {
+const ROLE_TAG_MAP_FALLBACK: Record<string, { color: string; label: string }> = {
   super_admin: { color: 'red', label: '超级管理员' },
   admin: { color: 'orange', label: '管理员' },
   user: { color: 'default', label: '用户' },
@@ -62,6 +63,8 @@ const RecordsModal: React.FC<{
 }> = ({ open, userId, nickname, onClose }) => {
   const [records, setRecords] = useState<PointRecord[]>([])
   const [loading, setLoading] = useState(false)
+  const { options: pointTypeOptions } = useDictOptions('point_type', [])
+  const { getColor: getPointTypeColor } = useDictColors('point_type')
 
   useEffect(() => {
     if (open && userId) {
@@ -86,8 +89,11 @@ const RecordsModal: React.FC<{
       key: 'type',
       width: 100,
       render: (type: string) => {
-        const config = TYPE_TAG_MAP[type] || { color: 'default', label: type }
-        return <Tag color={config.color}>{config.label}</Tag>
+        const dictOption = pointTypeOptions.find(opt => opt.value === type)
+        const fallback = TYPE_TAG_MAP_FALLBACK[type]
+        const label = dictOption?.label || fallback?.label || type
+        const color = getPointTypeColor(type) || fallback?.color || 'default'
+        return <Tag color={color}>{label}</Tag>
       },
     },
     {
@@ -318,6 +324,10 @@ const PointsManagement: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
 
+  // 字典查询
+  const { options: roleOptions } = useDictOptions('user_role', [])
+  const { getColor: getRoleColor } = useDictColors('user_role')
+
   // 弹窗状态
   const [recordsModalOpen, setRecordsModalOpen] = useState(false)
   const [actionModalOpen, setActionModalOpen] = useState(false)
@@ -391,8 +401,11 @@ const PointsManagement: React.FC = () => {
       key: 'role',
       width: 100,
       render: (role: string) => {
-        const config = ROLE_TAG_MAP[role] || { color: 'default', label: role || '未知' }
-        return <Tag color={config.color}>{config.label}</Tag>
+        const dictOption = roleOptions.find(opt => opt.value === role)
+        const fallback = ROLE_TAG_MAP_FALLBACK[role]
+        const label = dictOption?.label || fallback?.label || role || '未知'
+        const color = getRoleColor(role) || fallback?.color || 'default'
+        return <Tag color={color}>{label}</Tag>
       },
     },
     {
@@ -401,12 +414,13 @@ const PointsManagement: React.FC = () => {
       key: 'member_level',
       width: 90,
       render: (level: string) => {
+        const dictOption = roleOptions.find(opt => opt.value === level)
         const levelMap: Record<string, string> = {
           normal: '普通会员',
           member: '会员',
           super_member: '超级会员',
         }
-        return level != null ? levelMap[level] || level : '-'
+        return level != null ? (dictOption?.label || levelMap[level] || level) : '-'
       },
     },
     {
