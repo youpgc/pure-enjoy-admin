@@ -99,15 +99,24 @@ const Users: React.FC = () => {
   const { canManageUsers } = usePermission()
 
   // ==================== 数据加载 ====================
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (page = 1, pageSize = 10) => {
     setLoading(true)
-    
+
     try {
-      // 尝试从 Supabase 获取数据
+      // 先获取总数
+      const { count, error: countError } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+      if (countError) throw countError
+
+      // 分页查询
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
       const { data: users, error } = await supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false })
+        .range(from, to)
 
       if (error) {
         console.error('[Users] Supabase 查询失败:', error)
@@ -115,6 +124,7 @@ const Users: React.FC = () => {
         setData([])
       } else {
         setData(users || [])
+        setPagination(prev => ({ ...prev, current: page, pageSize, total: count || 0 }))
       }
     } catch (err) {
       console.error('[Users] 获取用户列表失败:', err)
@@ -741,9 +751,12 @@ const Users: React.FC = () => {
         loading={loading}
         pagination={{
           ...pagination,
-          total: filteredData.length,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
         }}
-        onChange={pag => setPagination(pag)}
+        onChange={pag => fetchUsers(pag.current, pag.pageSize)}
         scroll={{ x: 1400 }}
         rowSelection={
           canManageUsers

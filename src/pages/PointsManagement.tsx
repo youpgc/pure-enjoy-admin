@@ -17,7 +17,7 @@ interface UserRecord {
   email: string | null
   nickname: string | null
   role: string | null
-  member_level: number | null
+  member_level: string | null
   points: number | null
   login_count: number | null
   created_at: string
@@ -400,7 +400,14 @@ const PointsManagement: React.FC = () => {
       dataIndex: 'member_level',
       key: 'member_level',
       width: 90,
-      render: (level: number) => level != null ? `Lv.${level}` : '-',
+      render: (level: string) => {
+        const levelMap: Record<string, string> = {
+          normal: '普通会员',
+          member: '会员',
+          super_member: '超级会员',
+        }
+        return level != null ? levelMap[level] || level : '-'
+      },
     },
     {
       title: '总积分',

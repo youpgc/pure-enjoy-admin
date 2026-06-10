@@ -129,8 +129,8 @@ const Analytics: React.FC = () => {
           supabase.from('users').select('*', { count: 'exact', head: true }).abortSignal(abortController.signal),
           // 今日新增
           supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', todayStart).abortSignal(abortController.signal),
-          // 活跃用户：最近7天有操作日志的用户
-          supabase.from('operation_logs').select('user_id').gte('created_at', sevenDaysAgo).abortSignal(abortController.signal),
+          // 活跃用户：最近7天有操作日志的用户（去重）
+          supabase.from('operation_logs').select('user_id', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo).abortSignal(abortController.signal),
           // 总消费
           supabase.from('expenses').select('amount').abortSignal(abortController.signal),
           // 总日记数
@@ -193,8 +193,7 @@ const Analytics: React.FC = () => {
         // ==================== 核心指标 ====================
         const totalUsers = usersCountRes.count || 0
         const todayNewUsers = todayNewUsersRes.count || 0
-        const activeUserIds = new Set(activeUsersLogsRes.data?.map(l => l.user_id) || [])
-        const activeUsers = activeUserIds.size
+        const activeUsers = activeUsersLogsRes.count || 0
         const totalExpense = totalExpenseRes.data?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
         const totalDiaries = totalDiariesRes.count || 0
         const totalNotes = totalNotesRes.count || 0
@@ -253,9 +252,8 @@ const Analytics: React.FC = () => {
         opLogsData.forEach(log => {
           monthActiveSet.add(log.user_id)
         })
-        // 最近7天的活跃用户
-        const recentLogsRes = await supabase.from('operation_logs').select('user_id').gte('created_at', sevenDaysAgo).abortSignal(abortController.signal)
-        ;(recentLogsRes.data || []).forEach(l => weekActiveSet.add(l.user_id))
+        // 最近7天的活跃用户（已在并行查询中获取，直接使用 opLogsData）
+        opLogsData.forEach(l => weekActiveSet.add(l.user_id))
 
         const activityItems: UserActivityItem[] = []
         for (let i = 29; i >= 0; i--) {
