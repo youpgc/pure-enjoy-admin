@@ -6,11 +6,11 @@
 import { supabase } from './supabase'
 
 export interface DictItem {
-  item_code: string
-  item_name: string
-  item_value: string | null
+  code: string
+  label: string
+  value: string | null
   sort_order: number
-  extra_data: Record<string, any> | null
+  extra: Record<string, any> | null
 }
 
 // 字典数据缓存
@@ -44,11 +44,11 @@ export async function getDictItems(typeCode: string, useCache = true): Promise<D
     }
 
     const items: DictItem[] = (data || []).map((item: any) => ({
-      item_code: item.item_code,
-      item_name: item.item_name,
-      item_value: item.item_value,
+      code: item.code ?? item.item_code,
+      label: item.label ?? item.item_name,
+      value: item.value ?? item.item_value,
       sort_order: item.sort_order,
-      extra_data: item.extra_data,
+      extra: item.extra ?? item.extra_data,
     }))
 
     // 更新缓存
@@ -70,8 +70,8 @@ export async function getDictItems(typeCode: string, useCache = true): Promise<D
 export async function getDictOptions(typeCode: string): Promise<Array<{ label: string; value: string }>> {
   const items = await getDictItems(typeCode)
   return items.map(item => ({
-    label: item.item_name,
-    value: item.item_code,
+    label: item.label,
+    value: item.code,
   }))
 }
 
@@ -84,8 +84,8 @@ export async function getDictColorMap(typeCode: string): Promise<Record<string, 
   const items = await getDictItems(typeCode)
   const map: Record<string, string> = {}
   items.forEach(item => {
-    if (item.extra_data?.color) {
-      map[item.item_code] = item.extra_data.color
+    if (item.extra?.color) {
+      map[item.code] = item.extra.color
     }
   })
   return map

@@ -63,7 +63,7 @@ interface FileTypeDict {
   code: string
   label: string
   value: string
-  extra_data?: {
+  extra?: {
     icon?: string
     color?: string
     accept?: string
@@ -136,7 +136,7 @@ const FileManagement: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('dict_items')
-        .select('code, label, value, extra_data')
+        .select('code, label, value, extra')
         .eq('type_id', (
           await supabase
             .from('dict_types')
