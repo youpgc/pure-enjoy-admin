@@ -7,7 +7,6 @@ import {
   Modal,
   Tag,
   Typography,
-  Tooltip,
   Empty,
   Descriptions,
   Divider,
@@ -275,25 +274,21 @@ const UserDimensionList: React.FC<{
 
   const columns: ColumnsType<UserSummary> = [
     {
-      title: '用户',
-      key: 'user',
-      width: 200,
+      title: '用户名',
+      key: 'username',
+      width: 140,
       render: (_, record) => {
         const userInfo = userMap.get(record.user_id)
-        const nickname = userInfo?.nickname || record.user_nickname || ''
-        const username = userInfo?.username || ''
-        return (
-          <div>
-            <div style={{ fontWeight: 500 }}>
-              {nickname || username || `用户${record.user_id.substring(0, 6)}`}
-            </div>
-            <Tooltip title={record.user_id}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                {username && username !== nickname ? `@${username}` : record.user_id.substring(0, 16)}...
-              </Text>
-            </Tooltip>
-          </div>
-        )
+        return userInfo?.username || record.user_nickname || '-'
+      },
+    },
+    {
+      title: '昵称',
+      key: 'nickname',
+      width: 140,
+      render: (_, record) => {
+        const userInfo = userMap.get(record.user_id)
+        return userInfo?.nickname || '-'
       },
     },
     {
