@@ -31,6 +31,25 @@ import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
+// ==================== 分类映射 ====================
+
+const EXPENSE_CATEGORY_MAP: Record<string, string> = {
+  food: '餐饮',
+  transport: '交通',
+  communication: '通讯',
+  shopping: '购物',
+  entertainment: '娱乐',
+  health: '医疗',
+  housing: '居住',
+  education: '教育',
+  other: '其他',
+}
+
+const EXPENSE_CATEGORY_OPTIONS = Object.entries(EXPENSE_CATEGORY_MAP).map(([code, label]) => ({
+  label,
+  value: code,
+}))
+
 // ==================== 类型定义 ====================
 
 interface Expense {
@@ -174,6 +193,7 @@ const Expenses: React.FC = () => {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
+      render: (category: string) => EXPENSE_CATEGORY_MAP[category] || category,
     },
     {
       title: '描述',
@@ -342,14 +362,7 @@ const Expenses: React.FC = () => {
           >
             <Select
               placeholder="请选择分类"
-              options={[
-                { label: '餐饮', value: 'food' },
-                { label: '交通', value: 'transport' },
-                { label: '购物', value: 'shopping' },
-                { label: '娱乐', value: 'entertainment' },
-                { label: '医疗', value: 'medical' },
-                { label: '其他', value: 'other' },
-              ]}
+              options={EXPENSE_CATEGORY_OPTIONS}
             />
           </Form.Item>
           <Form.Item
