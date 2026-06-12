@@ -14,9 +14,6 @@ import {
   Switch,
   Badge,
   Typography,
-  Row,
-  Col,
-  Statistic,
 } from 'antd'
 import {
   SearchOutlined,
@@ -444,39 +441,6 @@ const Novels: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总小说数"
-              value={pagination.total}
-              prefix={<BookOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="连载中"
-              value={novels.filter(n => n.status === 'ongoing').length}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="免费小说"
-              value={novels.filter(n => n.is_free).length}
-              prefix={<EyeOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

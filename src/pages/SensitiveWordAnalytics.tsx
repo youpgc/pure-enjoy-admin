@@ -3,7 +3,6 @@ import {
   Card,
   Row,
   Col,
-  Statistic,
   Table,
   Tag,
   Spin,
@@ -26,10 +25,7 @@ import {
   Cell,
 } from 'recharts'
 import {
-  WarningOutlined,
   ReloadOutlined,
-  FileTextOutlined,
-  CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
@@ -227,39 +223,6 @@ const SensitiveWordAnalytics: React.FC = () => {
           </Button>
         </Space>
       </div>
-
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总命中数"
-              value={hits.length}
-              prefix={<WarningOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="涉及分类"
-              value={categoryStats.length}
-              prefix={<FileTextOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="今日命中"
-              value={hits.filter(h => dayjs(h.created_at).isSame(dayjs(), 'day')).length}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-      </Row>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 100 }}>

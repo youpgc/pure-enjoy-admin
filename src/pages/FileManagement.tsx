@@ -12,9 +12,6 @@ import {
   Popconfirm,
   Select,
   Typography,
-  Row,
-  Col,
-  Statistic,
 } from 'antd'
 import {
   SearchOutlined,
@@ -303,43 +300,8 @@ const FileManagement: React.FC = () => {
     ),
   ]
 
-  // 总存储大小
-  const totalSize = files.reduce((sum, f) => sum + f.size, 0)
-
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总文件数"
-              value={pagination.total}
-              prefix={<FileOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总存储"
-              value={formatFileSize(totalSize)}
-              prefix={<InboxOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="图片文件"
-              value={files.filter(f => f.mime_type.startsWith('image/')).length}
-              prefix={<PictureOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

@@ -13,9 +13,6 @@ import {
   Popconfirm,
   Tooltip,
   Typography,
-  Row,
-  Col,
-  Statistic,
   Descriptions,
 } from 'antd'
 import {
@@ -23,7 +20,6 @@ import {
   ReloadOutlined,
   EyeOutlined,
   DeleteOutlined,
-  MessageOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
@@ -311,49 +307,6 @@ const Feedback: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="总反馈数"
-              value={pagination.total}
-              prefix={<MessageOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="待处理"
-              value={feedbackList.filter(f => f.status === 'pending').length}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="处理中"
-              value={feedbackList.filter(f => f.status === 'processing').length}
-              prefix={<ExclamationCircleOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="已解决"
-              value={feedbackList.filter(f => f.status === 'resolved').length}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

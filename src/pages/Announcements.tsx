@@ -14,9 +14,6 @@ import {
   Select,
   DatePicker,
   Typography,
-  Row,
-  Col,
-  Statistic,
 } from 'antd'
 import {
   SearchOutlined,
@@ -24,7 +21,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  SoundOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -285,39 +281,6 @@ const Announcements: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总公告数"
-              value={pagination.total}
-              prefix={<SoundOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="已发布"
-              value={announcements.filter(a => a.is_published).length}
-              prefix={<SoundOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="系统公告"
-              value={announcements.filter(a => a.type === 'system').length}
-              prefix={<SoundOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

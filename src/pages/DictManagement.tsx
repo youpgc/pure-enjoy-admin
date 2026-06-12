@@ -13,9 +13,6 @@ import {
   InputNumber,
   Switch,
   Typography,
-  Row,
-  Col,
-  Statistic,
 } from 'antd'
 import {
   SearchOutlined,
@@ -23,7 +20,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  BookOutlined,
   AppstoreOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons'
@@ -473,39 +469,6 @@ const DictManagement: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="字典类型数"
-              value={dictTypes.length}
-              prefix={<AppstoreOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="当前类型字典项"
-              value={dictItems.length}
-              prefix={<UnorderedListOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="启用项"
-              value={dictItems.filter(d => d.is_active).length}
-              prefix={<BookOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* ==================== 字典类型区域 ==================== */}
       <Card
         title={

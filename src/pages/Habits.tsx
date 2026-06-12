@@ -13,9 +13,6 @@ import {
   Switch,
   InputNumber,
   Typography,
-  Row,
-  Col,
-  Statistic,
   Descriptions,
 } from 'antd'
 import {
@@ -24,7 +21,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  CheckCircleOutlined,
   EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -251,30 +247,6 @@ const Habits: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12}>
-          <Card>
-            <Statistic
-              title="总习惯数"
-              value={habits.length}
-              prefix={<CheckCircleOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12}>
-          <Card>
-            <Statistic
-              title="平均连续天数"
-              value={habits.length > 0 ? Math.round(habits.reduce((sum, h) => sum + (h.current_streak || 0), 0) / habits.length) : 0}
-              suffix="天"
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

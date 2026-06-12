@@ -13,9 +13,6 @@ import {
   InputNumber,
   Select,
   Typography,
-  Row,
-  Col,
-  Statistic,
   Descriptions,
 } from 'antd'
 import {
@@ -24,7 +21,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  DollarOutlined,
   EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -287,44 +283,8 @@ const Expenses: React.FC = () => {
     },
   ]
 
-  // 计算总支出（基于当前筛选）
-  const totalAmount = records.reduce((sum, r) => sum + r.amount, 0)
-
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总记录数"
-              value={records.length}
-              prefix={<DollarOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总支出"
-              value={totalAmount.toFixed(2)}
-              prefix="¥"
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="今日支出"
-              value={records.filter(r => dayjs(r.date).isSame(dayjs(), 'day')).reduce((sum, r) => sum + r.amount, 0).toFixed(2)}
-              prefix="¥"
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

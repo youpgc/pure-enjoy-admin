@@ -10,15 +10,11 @@ import {
   Select,
   DatePicker,
   Typography,
-  Row,
-  Col,
-  Statistic,
 } from 'antd'
 import {
   SearchOutlined,
   ReloadOutlined,
   DeleteOutlined,
-  HistoryOutlined,
   UserOutlined,
   SettingOutlined,
   BookOutlined,
@@ -231,39 +227,6 @@ const OperationLogs: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总日志数"
-              value={pagination.total}
-              prefix={<HistoryOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="今日操作"
-              value={logs.filter(l => dayjs(l.created_at).isSame(dayjs(), 'day')).length}
-              prefix={<UserOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="用户模块"
-              value={logs.filter(l => l.module === 'user').length}
-              prefix={<SettingOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

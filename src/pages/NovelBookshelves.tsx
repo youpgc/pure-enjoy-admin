@@ -11,9 +11,6 @@ import {
   Popconfirm,
   Tooltip,
   Typography,
-  Row,
-  Col,
-  Statistic,
 } from 'antd'
 import {
   SearchOutlined,
@@ -21,7 +18,6 @@ import {
   DeleteOutlined,
   BookOutlined,
   HeartOutlined,
-  ReadOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -256,39 +252,6 @@ const NovelBookshelves: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总记录数"
-              value={pagination.total}
-              prefix={<BookOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="收藏数"
-              value={bookshelves.filter(b => b.is_favorite).length}
-              prefix={<HeartOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="今日活跃"
-              value={bookshelves.filter(b => dayjs(b.last_read_at).isSame(dayjs(), 'day')).length}
-              prefix={<ReadOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

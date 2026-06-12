@@ -12,9 +12,6 @@ import {
   DatePicker,
   Select,
   Typography,
-  Row,
-  Col,
-  Statistic,
   Descriptions,
 } from 'antd'
 import {
@@ -23,7 +20,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  CalendarOutlined,
   EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -280,29 +276,6 @@ const Anniversaries: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12}>
-          <Card>
-            <Statistic
-              title="总纪念日数"
-              value={anniversaries.length}
-              prefix={<CalendarOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12}>
-          <Card>
-            <Statistic
-              title="7天内到期"
-              value={anniversaries.filter(a => getDaysUntil(a.date) <= 7).length}
-              prefix={<CalendarOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

@@ -13,9 +13,6 @@ import {
   Popconfirm,
   Badge,
   Typography,
-  Row,
-  Col,
-  Statistic,
 } from 'antd'
 import {
   SearchOutlined,
@@ -23,9 +20,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  BellOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -303,39 +297,6 @@ const Notifications: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总通知数"
-              value={pagination.total}
-              prefix={<BellOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="未读通知"
-              value={notifications.filter(n => !n.is_read).length}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#faad14' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="系统通知"
-              value={notifications.filter(n => n.type === 'system').length}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

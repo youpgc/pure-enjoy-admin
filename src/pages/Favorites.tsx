@@ -11,9 +11,6 @@ import {
   Popconfirm,
   Select,
   Typography,
-  Row,
-  Col,
-  Statistic,
   Descriptions,
 } from 'antd'
 import {
@@ -22,7 +19,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  HeartOutlined,
   EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -267,29 +263,6 @@ const Favorites: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12}>
-          <Card>
-            <Statistic
-              title="总收藏数"
-              value={favorites.length}
-              prefix={<HeartOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12}>
-          <Card>
-            <Statistic
-              title="今日收藏"
-              value={favorites.filter(f => dayjs(f.created_at).isSame(dayjs(), 'day')).length}
-              prefix={<HeartOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

@@ -12,9 +12,6 @@ import {
   Select,
   Popconfirm,
   Typography,
-  Row,
-  Col,
-  Statistic,
   InputNumber,
 } from 'antd'
 import {
@@ -25,7 +22,6 @@ import {
   DeleteOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
-  HistoryOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -269,39 +265,6 @@ const PointsManagement: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总记录数"
-              value={pagination.total}
-              prefix={<HistoryOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="获得积分"
-              value={records.filter(r => r.type === 'earn').reduce((sum, r) => sum + r.amount, 0)}
-              prefix={<ArrowUpOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="消费积分"
-              value={records.filter(r => r.type === 'spend').reduce((sum, r) => sum + Math.abs(r.amount), 0)}
-              prefix={<ArrowDownOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

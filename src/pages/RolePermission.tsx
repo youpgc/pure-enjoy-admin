@@ -10,9 +10,6 @@ import {
   Form,
   Tree,
   Typography,
-  Row,
-  Col,
-  Statistic,
   Switch,
   Tag,
 } from 'antd'
@@ -379,29 +376,6 @@ const RolePermission: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12}>
-          <Card>
-            <Statistic
-              title="总角色数"
-              value={roles.length}
-              prefix={<SafetyOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12}>
-          <Card>
-            <Statistic
-              title="平均权限数"
-              value={roles.length > 0 ? Math.round(roles.reduce((sum, r) => sum + (r.permissions || []).length, 0) / roles.length) : 0}
-              prefix={<SafetyOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>

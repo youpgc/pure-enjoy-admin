@@ -12,9 +12,6 @@ import {
   DatePicker,
   InputNumber,
   Typography,
-  Row,
-  Col,
-  Statistic,
   Descriptions,
 } from 'antd'
 import {
@@ -23,7 +20,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  LineChartOutlined,
   EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -249,46 +245,8 @@ const WeightRecords: React.FC = () => {
     },
   ]
 
-  // 计算平均体重（基于当前筛选）
-  const avgWeight = records.length > 0
-    ? (records.reduce((sum, r) => sum + r.weight, 0) / records.length).toFixed(1)
-    : '0'
-
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总记录数"
-              value={records.length}
-              prefix={<LineChartOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="平均体重"
-              value={avgWeight}
-              suffix="kg"
-              prefix={<LineChartOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="最新体重"
-              value={records[0]?.weight || 0}
-              suffix="kg"
-              prefix={<LineChartOutlined />}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
