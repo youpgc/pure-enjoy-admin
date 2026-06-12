@@ -17,6 +17,7 @@ import { EyeOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getActionColumn } from './ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { supabase } from '../utils/supabase'
 
 const { Title, Text } = Typography
 
@@ -99,6 +100,34 @@ const UserDimensionList: React.FC<{
   const recordService = new BaseService<RecordItem>(tableName, { defaultOrder: { column: 'user_id', ascending: true } })
   const detailService = new BaseService<RecordItem>(tableName, { defaultOrder: { column: 'created_at', ascending: false } })
 
+  // 用户信息缓存（从users表关联）
+  const [userMap, setUserMap] = useState<Map<string, { nickname: string; username: string }>>(new Map())
+
+  // 加载用户信息
+  const fetchUserInfo = useCallback(async (userIds: string[]) => {
+    if (userIds.length === 0) return
+    try {
+      const uniqueIds = [...new Set(userIds)]
+      // 分批查询，每批最多100个ID
+      const batchSize = 100
+      const map = new Map<string, { nickname: string; username: string }>()
+      for (let i = 0; i < uniqueIds.length; i += batchSize) {
+        const batch = uniqueIds.slice(i, i + batchSize)
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, nickname, username')
+          .in('id', batch)
+        if (error) throw error
+        for (const u of data || []) {
+          map.set(u.id, { nickname: u.nickname || '', username: u.username || '' })
+        }
+      }
+      setUserMap(map)
+    } catch (error) {
+      console.error('加载用户信息失败:', error)
+    }
+  }, [])
+
   // ==================== 数据加载（全量拉取，避免旧数据丢失） ====================
 
   const fetchData = useCallback(async () => {
@@ -171,6 +200,8 @@ const UserDimensionList: React.FC<{
       result.sort((a, b) => b.total_count - a.total_count)
 
       setData(result)
+      // 加载用户信息
+      fetchUserInfo(result.map(u => u.user_id))
     } catch (error) {
       handleApiError(error, `UserDimensionList-${title}-数据加载`)
     } finally {
@@ -244,23 +275,26 @@ const UserDimensionList: React.FC<{
 
   const columns: ColumnsType<UserSummary> = [
     {
-      title: '用户ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
+      title: '用户',
+      key: 'user',
       width: 200,
-      ellipsis: true,
-      render: (uid: string) => (
-        <Tooltip title={uid}>
-          <Text copyable={{ text: uid }}>{uid.substring(0, 16)}...</Text>
-        </Tooltip>
-      ),
-    },
-    {
-      title: '用户昵称',
-      dataIndex: 'user_nickname',
-      key: 'user_nickname',
-      width: 120,
-      render: (nickname: string) => nickname || '-',
+      render: (_, record) => {
+        const userInfo = userMap.get(record.user_id)
+        const nickname = userInfo?.nickname || record.user_nickname || ''
+        const username = userInfo?.username || ''
+        return (
+          <div>
+            <div style={{ fontWeight: 500 }}>
+              {nickname || username || `用户${record.user_id.substring(0, 6)}`}
+            </div>
+            <Tooltip title={record.user_id}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {username && username !== nickname ? `@${username}` : record.user_id.substring(0, 16)}...
+              </Text>
+            </Tooltip>
+          </div>
+        )
+      },
     },
     {
       title: '记录数',
