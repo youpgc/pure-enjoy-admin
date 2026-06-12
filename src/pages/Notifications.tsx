@@ -33,6 +33,7 @@ import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
 const { Text } = Typography
 
@@ -62,7 +63,7 @@ interface NotificationFilters {
 const Notifications: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [filters, setFilters] = useState<NotificationFilters>({
     keyword: '',
     type: undefined,
@@ -96,7 +97,7 @@ const Notifications: React.FC = () => {
       }
 
       setNotifications(result.data?.data || [])
-      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+      setTotal(result.data?.total || 0)
     } catch (error) {
       handleApiError(error, 'Notifications-加载通知')
     } finally {
@@ -110,7 +111,7 @@ const Notifications: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
     loadNotifications()
   }
 
@@ -120,7 +121,7 @@ const Notifications: React.FC = () => {
       keyword: '',
       type: undefined,
     })
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
   }
 
   // 打开新增弹窗
@@ -400,15 +401,7 @@ const Notifications: React.FC = () => {
         dataSource={notifications}
         rowKey="id"
         loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => {
-            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
-          },
-        }}
+        pagination={tablePagination}
         rowSelection={{
           selectedRowKeys,
           onChange: setSelectedRowKeys,

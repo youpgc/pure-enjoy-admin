@@ -28,6 +28,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
 const { Text, Paragraph } = Typography
 
@@ -51,7 +52,7 @@ const AppConfigs: React.FC = () => {
   const [configs, setConfigs] = useState<AppConfig[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingConfig, setEditingConfig] = useState<AppConfig | null>(null)
   const [form] = Form.useForm()
@@ -73,7 +74,7 @@ const AppConfigs: React.FC = () => {
         return
       }
       setConfigs(result.data?.data || [])
-      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+      setTotal(result.data?.total || 0)
     } catch (error) {
       handleApiError(error, 'AppConfigs-加载数据')
     } finally {
@@ -87,7 +88,7 @@ const AppConfigs: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
     loadData()
   }
 
@@ -329,15 +330,7 @@ const AppConfigs: React.FC = () => {
         dataSource={configs}
         rowKey="id"
         loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => {
-            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
-          },
-        }}
+        pagination={tablePagination}
         scroll={{ x: 1000 }}
       />
 

@@ -34,6 +34,7 @@ import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
 const { Text } = Typography
 const { Dragger } = Upload
@@ -61,7 +62,7 @@ interface FileFilters {
 const FileManagement: React.FC = () => {
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [filters, setFilters] = useState<FileFilters>({
     keyword: '',
     bucket: undefined,
@@ -94,7 +95,7 @@ const FileManagement: React.FC = () => {
       }
 
       setFiles(result.data?.data || [])
-      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+      setTotal(result.data?.total || 0)
     } catch (error) {
       handleApiError(error, 'FileManagement-加载文件')
     } finally {
@@ -108,7 +109,7 @@ const FileManagement: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
     loadFiles()
   }
 
@@ -118,7 +119,7 @@ const FileManagement: React.FC = () => {
       keyword: '',
       bucket: undefined,
     })
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
   }
 
   // 删除文件
@@ -402,15 +403,7 @@ const FileManagement: React.FC = () => {
         dataSource={files}
         rowKey="id"
         loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => {
-            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
-          },
-        }}
+        pagination={tablePagination}
         rowSelection={{
           selectedRowKeys,
           onChange: setSelectedRowKeys,

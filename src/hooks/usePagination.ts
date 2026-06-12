@@ -1,19 +1,53 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 
-export function usePagination(defaultPageSize = 20) {
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(defaultPageSize)
-  const paginate = <T>(data: T[]) => {
-    const start = (currentPage - 1) * pageSize
-    return data.slice(start, start + pageSize)
-  }
-  const resetPage = () => setCurrentPage(1)
-  const paginationConfig = {
-    current: currentPage,
-    pageSize,
+export interface PaginationState {
+  current: number
+  pageSize: number
+  total: number
+}
+
+const DEFAULT_PAGE_SIZE = 10
+
+export function usePagination(defaultPageSize: number = DEFAULT_PAGE_SIZE) {
+  const [pagination, setPagination] = useState<PaginationState>({
+    current: 1,
+    pageSize: defaultPageSize,
+    total: 0,
+  })
+
+  const handlePageChange = useCallback((page: number, pageSize?: number) => {
+    setPagination(prev => ({
+      ...prev,
+      current: page,
+      ...(pageSize ? { pageSize } : {}),
+    }))
+  }, [])
+
+  const resetPage = useCallback(() => {
+    setPagination(prev => ({ ...prev, current: 1 }))
+  }, [])
+
+  const setTotal = useCallback((total: number) => {
+    setPagination(prev => ({ ...prev, total }))
+  }, [])
+
+  // 传给 Ant Design Table 的 pagination 配置
+  const tablePagination = {
+    current: pagination.current,
+    pageSize: pagination.pageSize,
+    total: pagination.total,
     showSizeChanger: true,
+    showQuickJumper: true,
     showTotal: (total: number) => `共 ${total} 条`,
-    onChange: (page: number, size: number) => { setCurrentPage(page); setPageSize(size) }
+    onChange: handlePageChange,
   }
-  return { currentPage, pageSize, paginate, resetPage, paginationConfig, setCurrentPage, setPageSize }
+
+  return {
+    pagination,
+    setPagination,
+    handlePageChange,
+    resetPage,
+    setTotal,
+    tablePagination,
+  }
 }

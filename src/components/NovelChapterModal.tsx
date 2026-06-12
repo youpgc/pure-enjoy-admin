@@ -24,6 +24,7 @@ import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { getActionColumn } from './ActionColumn'
 import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
 const { Text } = Typography
 
@@ -53,6 +54,7 @@ const NovelChapterModal: React.FC<{
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editingChapter, setEditingChapter] = useState<NovelChapter | null>(null)
   const [form] = Form.useForm()
+  const { pagination, tablePagination, setTotal } = usePagination()
 
   const chapterService = new BaseService<NovelChapter>('novel_chapters', { defaultOrder: { column: 'chapter_number', ascending: true } })
 
@@ -61,18 +63,23 @@ const NovelChapterModal: React.FC<{
     if (!novelId) return
     setLoading(true)
     try {
-      const result = await chapterService.findAll((q) => q.eq('novel_id', novelId))
+      const result = await chapterService.paginate(
+        pagination.current,
+        pagination.pageSize,
+        (q) => q.eq('novel_id', novelId),
+      )
       if (!result.success) {
         handleApiError(result.errorMessage, 'NovelChapterModal-加载章节')
         return
       }
-      setChapters(result.data || [])
+      setChapters(result.data?.data || [])
+      setTotal(result.data?.total || 0)
     } catch (error) {
       handleApiError(error, 'NovelChapterModal-加载章节')
     } finally {
       setLoading(false)
     }
-  }, [novelId])
+  }, [novelId, pagination.current, pagination.pageSize, setTotal])
 
   useEffect(() => {
     if (open && novelId) {
@@ -286,7 +293,7 @@ const NovelChapterModal: React.FC<{
           dataSource={chapters}
           rowKey="id"
           loading={loading}
-          pagination={false}
+          pagination={tablePagination}
           size="small"
         />
       </Modal>

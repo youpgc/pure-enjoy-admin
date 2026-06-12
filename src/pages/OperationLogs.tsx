@@ -29,6 +29,7 @@ import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
@@ -59,7 +60,7 @@ interface LogFilters {
 const OperationLogs: React.FC = () => {
   const [logs, setLogs] = useState<OperationLog[]>([])
   const [loading, setLoading] = useState(false)
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [filters, setFilters] = useState<LogFilters>({
     keyword: '',
     action: undefined,
@@ -100,7 +101,7 @@ const OperationLogs: React.FC = () => {
       }
 
       setLogs(result.data?.data || [])
-      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+      setTotal(result.data?.total || 0)
     } catch (error) {
       handleApiError(error, 'OperationLogs-加载日志')
     } finally {
@@ -114,7 +115,7 @@ const OperationLogs: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
     loadLogs()
   }
 
@@ -126,7 +127,7 @@ const OperationLogs: React.FC = () => {
       module: undefined,
       dateRange: null,
     })
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
   }
 
   // 批量删除
@@ -334,15 +335,7 @@ const OperationLogs: React.FC = () => {
         dataSource={logs}
         rowKey="id"
         loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => {
-            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
-          },
-        }}
+        pagination={tablePagination}
         rowSelection={{
           selectedRowKeys,
           onChange: setSelectedRowKeys,

@@ -33,6 +33,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -78,6 +79,7 @@ const SensitiveWordAnalytics: React.FC = () => {
   const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([])
   const [dailyStats, setDailyStats] = useState<DailyStat[]>([])
   const [topWords, setTopWords] = useState<{ word: string; count: number }[]>([])
+  const { pagination, tablePagination, setTotal } = usePagination()
 
   const hitService = new BaseService<SensitiveWordHit>('sensitive_word_logs', { defaultOrder: { column: 'created_at', ascending: false } })
 
@@ -89,16 +91,19 @@ const SensitiveWordAnalytics: React.FC = () => {
       const endDate = dateRange[1].format('YYYY-MM-DD') + 'T23:59:59'
 
       // 加载命中记录
-      const result = await hitService.findAll((q) =>
-        q.gte('created_at', startDate).lte('created_at', endDate)
+      const result = await hitService.paginate(
+        pagination.current,
+        pagination.pageSize,
+        (q) => q.gte('created_at', startDate).lte('created_at', endDate),
       )
       if (!result.success) {
         handleApiError(result.errorMessage, 'SensitiveWordAnalytics-加载数据')
         return
       }
 
-      const hitData = result.data || []
+      const hitData = result.data?.data || []
       setHits(hitData)
+      setTotal(result.data?.total || 0)
 
       // 分类统计
       const categoryMap = new Map<string, number>()
@@ -143,7 +148,7 @@ const SensitiveWordAnalytics: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [dateRange])
+  }, [dateRange, pagination.current, pagination.pageSize, setTotal])
 
   useEffect(() => {
     loadAnalytics()
@@ -328,10 +333,10 @@ const SensitiveWordAnalytics: React.FC = () => {
             <Col xs={24} lg={12}>
               <Card title="最近命中记录">
                 <Table
-                  dataSource={hits.slice(0, 10)}
+                  dataSource={hits}
                   columns={columns}
                   rowKey="id"
-                  pagination={false}
+                  pagination={tablePagination}
                   size="small"
                   scroll={{ x: 600 }}
                 />

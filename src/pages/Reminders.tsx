@@ -27,6 +27,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
 const { Text } = Typography
 
@@ -66,7 +67,7 @@ const Reminders: React.FC = () => {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null)
   const [form] = Form.useForm()
@@ -88,7 +89,7 @@ const Reminders: React.FC = () => {
         return
       }
       setReminders(result.data!.data)
-      setPagination(prev => ({ ...prev, total: result.data!.total }))
+      setTotal(result.data!.total)
     } catch (error) {
       handleApiError(error, 'Reminders-加载数据')
     } finally {
@@ -102,7 +103,7 @@ const Reminders: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
   }
 
   // 打开新增弹窗
@@ -332,15 +333,7 @@ const Reminders: React.FC = () => {
         dataSource={reminders}
         rowKey="id"
         loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => {
-            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
-          },
-        }}
+        pagination={tablePagination}
         scroll={{ x: 800 }}
       />
 

@@ -89,7 +89,8 @@ const Analytics: React.FC = () => {
             .from('users')
             .select('created_at')
             .gte('created_at', startDate)
-            .lte('created_at', endDate + 'T23:59:59') as any,
+            .lte('created_at', endDate + 'T23:59:59')
+            .limit(5000) as any,
           'Analytics-用户数据'
         ),
         apiQuery(() =>
@@ -97,7 +98,8 @@ const Analytics: React.FC = () => {
             .from('novels')
             .select('created_at, category')
             .gte('created_at', startDate)
-            .lte('created_at', endDate + 'T23:59:59') as any,
+            .lte('created_at', endDate + 'T23:59:59')
+            .limit(5000) as any,
           'Analytics-小说数据'
         ),
         apiQuery(() =>
@@ -105,7 +107,8 @@ const Analytics: React.FC = () => {
             .from('novel_chapters')
             .select('created_at')
             .gte('created_at', startDate)
-            .lte('created_at', endDate + 'T23:59:59') as any,
+            .lte('created_at', endDate + 'T23:59:59')
+            .limit(5000) as any,
           'Analytics-章节数据'
         ),
         apiQuery(() =>
@@ -113,7 +116,8 @@ const Analytics: React.FC = () => {
             .from('user_feedback')
             .select('created_at')
             .gte('created_at', startDate)
-            .lte('created_at', endDate + 'T23:59:59') as any,
+            .lte('created_at', endDate + 'T23:59:59')
+            .limit(5000) as any,
           'Analytics-反馈数据'
         ),
         apiQuery(() =>

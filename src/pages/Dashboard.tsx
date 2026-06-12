@@ -111,19 +111,19 @@ const Dashboard: React.FC = () => {
         // 上周新增用户
         apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo) as any, 'Dashboard-上周新增用户'),
         // 最近7天活跃用户（包含模块信息）
-        apiQuery(() => supabase.from('operation_logs').select('user_id, module').gte('created_at', sevenDaysAgo) as any, 'Dashboard-7天活跃用户'),
+        apiQuery(() => supabase.from('operation_logs').select('user_id, module').gte('created_at', sevenDaysAgo).limit(1000) as any, 'Dashboard-7天活跃用户'),
         // 上周活跃用户
-        apiQuery(() => supabase.from('operation_logs').select('user_id').gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo) as any, 'Dashboard-上周活跃用户'),
+        apiQuery(() => supabase.from('operation_logs').select('user_id').gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo).limit(1000) as any, 'Dashboard-上周活跃用户'),
         // 用户增长趋势（30天）
-        apiQuery(() => supabase.from('users').select('created_at').gte('created_at', thirtyDaysAgo) as any, 'Dashboard-用户增长趋势'),
+        apiQuery(() => supabase.from('users').select('created_at').gte('created_at', thirtyDaysAgo).limit(1000) as any, 'Dashboard-用户增长趋势'),
         // 最近操作日志
         apiQuery(() => supabase.from('operation_logs').select('id, user_id, action, module, created_at').order('created_at', { ascending: false }).limit(20) as any, 'Dashboard-最近操作日志'),
         // 小说总数
         apiQuery(() => supabase.from('novels').select('id', { count: 'exact', head: true }) as any, 'Dashboard-小说总数'),
         // 小说总阅读量
-        apiQuery(() => supabase.from('novels').select('read_count') as any, 'Dashboard-小说阅读量'),
+        apiQuery(() => supabase.from('novels').select('read_count').limit(1000) as any, 'Dashboard-小说阅读量'),
         // 活跃读者数（user_novels 最近7天有阅读记录的用户）
-        apiQuery(() => supabase.from('user_novels').select('user_id, last_read_at').gte('last_read_at', sevenDaysAgo) as any, 'Dashboard-活跃读者'),
+        apiQuery(() => supabase.from('user_novels').select('user_id, last_read_at').gte('last_read_at', sevenDaysAgo).limit(1000) as any, 'Dashboard-活跃读者'),
       ])
 
       // ==================== 基础统计 ====================

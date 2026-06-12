@@ -32,6 +32,7 @@ import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
 const { Text } = Typography
 
@@ -69,7 +70,7 @@ interface SensitiveWordFilters {
 const SensitiveWords: React.FC = () => {
   const [words, setWords] = useState<SensitiveWord[]>([])
   const [loading, setLoading] = useState(false)
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [filters, setFilters] = useState<SensitiveWordFilters>({
     keyword: '',
     category: undefined,
@@ -107,7 +108,7 @@ const SensitiveWords: React.FC = () => {
       }
 
       setWords(result.data?.data || [])
-      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+      setTotal(result.data?.total || 0)
     } catch (error) {
       handleApiError(error, 'SensitiveWords-加载敏感词')
     } finally {
@@ -121,7 +122,7 @@ const SensitiveWords: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
     loadWords()
   }
 
@@ -132,7 +133,7 @@ const SensitiveWords: React.FC = () => {
       category: undefined,
       level: undefined,
     })
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
   }
 
   // 打开新增弹窗
@@ -454,15 +455,7 @@ const SensitiveWords: React.FC = () => {
         dataSource={words}
         rowKey="id"
         loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => {
-            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
-          },
-        }}
+        pagination={tablePagination}
         rowSelection={{
           selectedRowKeys,
           onChange: setSelectedRowKeys,

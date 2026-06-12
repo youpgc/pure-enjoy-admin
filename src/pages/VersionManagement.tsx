@@ -38,6 +38,7 @@ import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
 const { Text } = Typography
 
@@ -95,7 +96,7 @@ interface VersionFilters {
 const VersionManagement: React.FC = () => {
   const [versions, setVersions] = useState<AppVersion[]>([])
   const [loading, setLoading] = useState(false)
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [filters, setFilters] = useState<VersionFilters>({
     keyword: '',
     platform: undefined,
@@ -135,7 +136,7 @@ const VersionManagement: React.FC = () => {
       }
 
       setVersions(result.data?.data || [])
-      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+      setTotal(result.data?.total || 0)
 
       // 获取当前激活版本（is_active=true 的最新版本）
       const activeRes = await versionService.findAll((q: any) =>
@@ -157,7 +158,7 @@ const VersionManagement: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
     loadVersions()
   }
 
@@ -168,7 +169,7 @@ const VersionManagement: React.FC = () => {
       platform: undefined,
       isActive: undefined,
     })
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
   }
 
   // 打开新增弹窗
@@ -573,15 +574,7 @@ const VersionManagement: React.FC = () => {
         dataSource={versions}
         rowKey="id"
         loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => {
-            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
-          },
-        }}
+        pagination={tablePagination}
         rowSelection={{
           selectedRowKeys,
           onChange: setSelectedRowKeys,

@@ -29,6 +29,7 @@ import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
 const { Text } = Typography
 
@@ -57,7 +58,7 @@ interface NovelBookshelfFilters {
 const NovelBookshelves: React.FC = () => {
   const [bookshelves, setBookshelves] = useState<NovelBookshelf[]>([])
   const [loading, setLoading] = useState(false)
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [filters, setFilters] = useState<NovelBookshelfFilters>({
     keyword: '',
     isFavorite: undefined,
@@ -88,7 +89,7 @@ const NovelBookshelves: React.FC = () => {
       }
 
       setBookshelves(result.data?.data || [])
-      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+      setTotal(result.data?.total || 0)
     } catch (error) {
       handleApiError(error, 'NovelBookshelves-加载书架')
     } finally {
@@ -102,7 +103,7 @@ const NovelBookshelves: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
     loadBookshelves()
   }
 
@@ -112,7 +113,7 @@ const NovelBookshelves: React.FC = () => {
       keyword: '',
       isFavorite: undefined,
     })
-    setPagination(prev => ({ ...prev, current: 1 }))
+    resetPage()
   }
 
   // 删除书架记录
@@ -348,15 +349,7 @@ const NovelBookshelves: React.FC = () => {
         dataSource={bookshelves}
         rowKey="id"
         loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => {
-            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
-          },
-        }}
+        pagination={tablePagination}
         rowSelection={{
           selectedRowKeys,
           onChange: setSelectedRowKeys,
