@@ -402,13 +402,17 @@ const UserDimensionList: React.FC<{
           <>
             {/* 用户信息 */}
             <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="用户ID">
-                <Text copyable={{ text: selectedUser.user_id }}>
-                  {selectedUser.user_id}
-                </Text>
+              <Descriptions.Item label="用户名">
+                {(() => {
+                  const info = userMap.get(selectedUser.user_id)
+                  return info?.username || selectedUser.user_nickname || '-'
+                })()}
               </Descriptions.Item>
-              <Descriptions.Item label="用户昵称">
-                {selectedUser.user_nickname || '-'}
+              <Descriptions.Item label="昵称">
+                {(() => {
+                  const info = userMap.get(selectedUser.user_id)
+                  return info?.nickname || '-'
+                })()}
               </Descriptions.Item>
               <Descriptions.Item label="记录总数">
                 <Tag color="blue">{selectedUser.total_count}</Tag>
