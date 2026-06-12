@@ -25,7 +25,7 @@ interface AppVersion {
   release_notes: string
   apk_url: string | null
   apk_size: number
-  status: 'draft' | 'released' | 'revoked'
+  status: 'draft' | 'released' | 'revoked' | 'inactive'
   released_at: string | null
   revoked_at: string | null
   created_at: string
@@ -48,6 +48,7 @@ const statusMapFallback: Record<string, { label: string; color: string; icon: Re
   draft: { label: '草稿', color: 'default', icon: <ClockCircleOutlined /> },
   released: { label: '已发布', color: 'green', icon: <CheckCircleOutlined /> },
   revoked: { label: '已撤回', color: 'red', icon: <CloseCircleOutlined /> },
+  inactive: { label: '已失效', color: 'gray', icon: <CloseCircleOutlined /> },
 }
 
 const VersionManagement: React.FC = () => {
@@ -106,7 +107,7 @@ const VersionManagement: React.FC = () => {
         const releasedAt = item.released_at || item.created_at || null
         
         // 处理版本状态
-        const status = item.status || (item.is_active ? 'released' : 'draft')
+        const status = item.status || (item.is_active === false ? 'inactive' : (item.is_active ? 'released' : 'draft'))
         
         // 处理 APK 大小（确保是数字，且大于0）
         let apkSize = Number(item.apk_size || item.file_size || 0)
@@ -230,6 +231,25 @@ const VersionManagement: React.FC = () => {
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : '未知错误'
       message.error(`撤回失败: ${msg}`)
+    }
+  }
+
+  const handleDeactivate = async (record: AppVersion) => {
+    try {
+      const { error } = await supabase
+        .from('app_versions')
+        .update({
+          status: 'inactive',
+          revoked_at: new Date().toISOString(),
+        })
+        .eq('id', record.id)
+
+      if (error) throw error
+      message.success(`v${record.version} 已标记为失效`)
+      fetchVersions()
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : '未知错误'
+      message.error(`标记失效失败: ${msg}`)
     }
   }
 
@@ -361,59 +381,81 @@ const VersionManagement: React.FC = () => {
       (record) => {
         const actions: import('../components/ActionColumn').ActionButton[] = []
         
-        // 通用操作
-        if (record.apk_url) {
-          actions.push(
-            {
-              key: 'qr',
-              label: '二维码',
-              icon: <QrcodeOutlined />,
-              onClick: () => showQrCode(record),
-            },
-            {
-              key: 'download',
-              label: '下载',
-              icon: <DownloadOutlined />,
-              onClick: () => window.open(record.apk_url!, '_blank'),
+        // 失效版本：不显示下载和二维码，只显示删除（失效）按钮
+        if (record.status === 'inactive') {
+          if (canManageVersions) {
+            actions.push({
+              key: 'deactivate',
+              label: '已失效',
+              disabled: true,
+              onClick: () => {},
+            })
+          }
+        } else {
+          // 通用操作（非失效版本显示下载和二维码）
+          if (record.apk_url) {
+            actions.push(
+              {
+                key: 'qr',
+                label: '二维码',
+                icon: <QrcodeOutlined />,
+                onClick: () => showQrCode(record),
+              },
+              {
+                key: 'download',
+                label: '下载',
+                icon: <DownloadOutlined />,
+                onClick: () => window.open(record.apk_url!, '_blank'),
+              }
+            )
+          }
+          
+          // 管理操作（需要权限）
+          if (canManageVersions) {
+            if (record.status === 'draft' && record.apk_url) {
+              actions.push({
+                key: 'release',
+                label: '发布',
+                icon: <CheckCircleOutlined />,
+                type: 'primary',
+                onClick: () => handleRelease(record),
+              })
             }
-          )
-        }
-        
-        // 管理操作（需要权限）
-        if (canManageVersions) {
-          if (record.status === 'draft' && record.apk_url) {
-            actions.push({
-              key: 'release',
-              label: '发布',
-              icon: <CheckCircleOutlined />,
-              type: 'primary',
-              onClick: () => handleRelease(record),
-            })
-          }
-          if (record.status === 'released') {
-            actions.push({
-              key: 'revoke',
-              label: '撤回',
-              icon: <CloseCircleOutlined />,
-              danger: true,
-              onClick: () => handleRevoke(record),
-            })
-          }
-          if ((record.status === 'released' || record.status === 'revoked') && record.apk_url) {
-            actions.push({
-              key: 'rollback',
-              label: '回滚',
-              icon: <RollbackOutlined />,
-              onClick: () => handleRollback(record),
-            })
-          }
-          if (record.status === 'released') {
-            actions.push({
-              key: 'force',
-              label: record.release_type === 'force' ? '取消强制' : '设为强制',
-              danger: record.release_type === 'force',
-              onClick: () => handleToggleForceUpdate(record),
-            })
+            if (record.status === 'released') {
+              actions.push({
+                key: 'revoke',
+                label: '撤回',
+                icon: <CloseCircleOutlined />,
+                danger: true,
+                onClick: () => handleRevoke(record),
+              })
+            }
+            if ((record.status === 'released' || record.status === 'revoked') && record.apk_url) {
+              actions.push({
+                key: 'rollback',
+                label: '回滚',
+                icon: <RollbackOutlined />,
+                onClick: () => handleRollback(record),
+              })
+            }
+            if (record.status === 'released') {
+              actions.push({
+                key: 'force',
+                label: record.release_type === 'force' ? '取消强制' : '设为强制',
+                danger: record.release_type === 'force',
+                onClick: () => handleToggleForceUpdate(record),
+              })
+            }
+            // 已撤回版本可以标记为失效
+            if (record.status === 'revoked') {
+              actions.push({
+                key: 'deactivate',
+                label: '标记失效',
+                icon: <CloseCircleOutlined />,
+                danger: true,
+                onClick: () => handleDeactivate(record),
+              })
+            }
           }
         }
         
