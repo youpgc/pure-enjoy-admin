@@ -31,6 +31,21 @@ import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
+// ==================== 枚举映射 ====================
+
+const REPEAT_TYPE_MAP: Record<string, string> = {
+  none: '不重复',
+  daily: '每天',
+  weekly: '每周',
+  monthly: '每月',
+  yearly: '每年',
+  weekday: '工作日',
+  weekend: '周末',
+  custom: '自定义',
+}
+
+const REPEAT_TYPE_OPTIONS = Object.entries(REPEAT_TYPE_MAP).map(([code, label]) => ({ label, value: code }))
+
 // ==================== 类型定义 ====================
 
 interface Reminder {
@@ -204,7 +219,7 @@ const Reminders: React.FC = () => {
       title: '重复类型',
       dataIndex: 'repeat_type',
       key: 'repeat_type',
-      render: (type: string) => type || '-',
+      render: (type: string) => REPEAT_TYPE_MAP[type] || type || '-',
     },
     {
       title: '提醒时间',

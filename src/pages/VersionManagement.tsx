@@ -39,6 +39,24 @@ import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
+// ==================== 枚举映射 ====================
+
+const VERSION_STATUS_MAP: Record<string, string> = {
+  released: '已发布',
+  revoked: '已撤回',
+  draft: '草稿',
+}
+
+const VERSION_STATUS_OPTIONS = Object.entries(VERSION_STATUS_MAP).map(([code, label]) => ({ label, value: code }))
+
+const RELEASE_TYPE_MAP: Record<string, string> = {
+  feature: '功能更新',
+  hotfix: '热修复',
+  release: '正式发布',
+}
+
+const RELEASE_TYPE_OPTIONS = Object.entries(RELEASE_TYPE_MAP).map(([code, label]) => ({ label, value: code }))
+
 // ==================== 类型定义 ====================
 
 interface AppVersion {
@@ -257,7 +275,7 @@ const VersionManagement: React.FC = () => {
       render: (_, record) => (
         <div>
           <div style={{ fontWeight: 500 }}>版本: {record.version} (Build {record.build_number})</div>
-          {record.release_type && <Text type="secondary" style={{ fontSize: 12 }}>类型: {record.release_type}</Text>}
+          {record.release_type && <Text type="secondary" style={{ fontSize: 12 }}>类型: {RELEASE_TYPE_MAP[record.release_type] || record.release_type}</Text>}
           {record.file_name && <div><Text type="secondary" style={{ fontSize: 12 }}>{record.file_name}</Text></div>}
         </div>
       ),
@@ -292,13 +310,14 @@ const VersionManagement: React.FC = () => {
       key: 'status',
       width: 100,
       render: (status: string) => {
-        const statusMap: Record<string, { color: string; label: string }> = {
-          released: { color: 'green', label: '已发布' },
-          revoked: { color: 'red', label: '已撤回' },
-          draft: { color: 'default', label: '草稿' },
+        const statusColorMap: Record<string, string> = {
+          released: 'green',
+          revoked: 'red',
+          draft: 'default',
         }
-        const info = statusMap[status] || { color: 'default', label: status || '未知' }
-        return <Tag color={info.color}>{info.label}</Tag>
+        const color = statusColorMap[status] || 'default'
+        const label = VERSION_STATUS_MAP[status] || status || '未知'
+        return <Tag color={color}>{label}</Tag>
       },
     },
     {
@@ -525,11 +544,7 @@ const VersionManagement: React.FC = () => {
             <Select
               placeholder="请选择发布类型"
               allowClear
-              options={[
-                { label: '正式版', value: 'release' },
-                { label: '测试版', value: 'beta' },
-                { label: '灰度', value: 'canary' },
-              ]}
+              options={RELEASE_TYPE_OPTIONS}
             />
           </Form.Item>
           <Form.Item

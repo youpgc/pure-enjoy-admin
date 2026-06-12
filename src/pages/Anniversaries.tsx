@@ -30,6 +30,17 @@ import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
+// ==================== 枚举映射 ====================
+
+const ANNIVERSARY_TYPE_MAP: Record<string, string> = {
+  birthday: '生日',
+  anniversary: '纪念日',
+  holiday: '节日',
+  other: '其他',
+}
+
+const ANNIVERSARY_TYPE_OPTIONS = Object.entries(ANNIVERSARY_TYPE_MAP).map(([code, label]) => ({ label, value: code }))
+
 // ==================== 类型定义 ====================
 
 interface Anniversary {
@@ -189,15 +200,7 @@ const Anniversaries: React.FC = () => {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
-      render: (type: string) => {
-        const map: Record<string, string> = {
-          birthday: '生日',
-          wedding: '结婚纪念日',
-          work: '工作纪念日',
-          other: '其他',
-        }
-        return map[type] || type
-      },
+      render: (type: string) => ANNIVERSARY_TYPE_MAP[type] || type,
     },
     {
       title: '距离下次',
@@ -355,12 +358,7 @@ const Anniversaries: React.FC = () => {
           >
             <Select
               placeholder="请选择类型"
-              options={[
-                { label: '生日', value: 'birthday' },
-                { label: '结婚纪念日', value: 'wedding' },
-                { label: '工作纪念日', value: 'work' },
-                { label: '其他', value: 'other' },
-              ]}
+              options={ANNIVERSARY_TYPE_OPTIONS}
             />
           </Form.Item>
           <Form.Item

@@ -38,6 +38,29 @@ import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
 
 const { Text, Paragraph } = Typography
 
+// ==================== 枚举映射 ====================
+
+const FEEDBACK_CATEGORY_MAP: Record<string, string> = {
+  bug: 'Bug反馈',
+  feature: '功能建议',
+  improvement: '体验优化',
+  other: '其他',
+}
+
+const FEEDBACK_STATUS_MAP: Record<string, string> = {
+  pending: '待处理',
+  processing: '处理中',
+  confirmed: '已确认',
+  in_progress: '处理中',
+  resolved: '已解决',
+  rejected: '已拒绝',
+  delayed: '已延期',
+}
+
+const FEEDBACK_STATUS_OPTIONS = Object.entries(FEEDBACK_STATUS_MAP)
+  .filter(([code, label], index, arr) => arr.findIndex(([, l]) => l === label) === index)
+  .map(([code, label]) => ({ label, value: code }))
+
 // ==================== 类型定义 ====================
 
 interface FeedbackItem {
@@ -244,12 +267,15 @@ const Feedback: React.FC = () => {
       width: 100,
       render: (status: string) => {
         const statusMap: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
-          pending: { color: 'orange', label: '待处理', icon: <ClockCircleOutlined /> },
-          processing: { color: 'blue', label: '处理中', icon: <ExclamationCircleOutlined /> },
-          resolved: { color: 'green', label: '已解决', icon: <CheckCircleOutlined /> },
-          rejected: { color: 'red', label: '已拒绝', icon: <ExclamationCircleOutlined /> },
+          pending: { color: 'orange', label: FEEDBACK_STATUS_MAP.pending, icon: <ClockCircleOutlined /> },
+          processing: { color: 'blue', label: FEEDBACK_STATUS_MAP.processing, icon: <ExclamationCircleOutlined /> },
+          confirmed: { color: 'cyan', label: FEEDBACK_STATUS_MAP.confirmed, icon: <CheckCircleOutlined /> },
+          in_progress: { color: 'blue', label: FEEDBACK_STATUS_MAP.in_progress, icon: <ExclamationCircleOutlined /> },
+          resolved: { color: 'green', label: FEEDBACK_STATUS_MAP.resolved, icon: <CheckCircleOutlined /> },
+          rejected: { color: 'red', label: FEEDBACK_STATUS_MAP.rejected, icon: <ExclamationCircleOutlined /> },
+          delayed: { color: 'gold', label: FEEDBACK_STATUS_MAP.delayed, icon: <ClockCircleOutlined /> },
         }
-        const info = statusMap[status] || { color: 'default', label: status, icon: null }
+        const info = statusMap[status] || { color: 'default', label: FEEDBACK_STATUS_MAP[status] || status, icon: null }
         return <Tag color={info.color} icon={info.icon}>{info.label}</Tag>
       },
     },
@@ -351,12 +377,7 @@ const Feedback: React.FC = () => {
             onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
             style={{ width: 120 }}
             allowClear
-            options={[
-              { label: '待处理', value: 'pending' },
-              { label: '处理中', value: 'processing' },
-              { label: '已解决', value: 'resolved' },
-              { label: '已拒绝', value: 'rejected' },
-            ]}
+            options={FEEDBACK_STATUS_OPTIONS}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索

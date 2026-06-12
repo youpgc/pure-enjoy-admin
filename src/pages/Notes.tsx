@@ -8,6 +8,7 @@ import {
   message,
   Modal,
   Form,
+  Select,
   Popconfirm,
   Typography,
   Row,
@@ -27,6 +28,19 @@ import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text, Paragraph } = Typography
+
+// ==================== 枚举映射 ====================
+
+const NOTE_CATEGORY_MAP: Record<string, string> = {
+  work: '工作',
+  life: '生活',
+  study: '学习',
+  idea: '灵感',
+  travel: '旅行',
+  other: '其他',
+}
+
+const NOTE_CATEGORY_OPTIONS = Object.entries(NOTE_CATEGORY_MAP).map(([code, label]) => ({ label, value: code }))
 
 // ==================== 类型定义 ====================
 
@@ -174,7 +188,7 @@ const Notes: React.FC = () => {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
-      render: (category: string) => category || '-',
+      render: (category: string) => NOTE_CATEGORY_MAP[category] || category || '-',
     },
     {
       title: '创建时间',
@@ -315,7 +329,11 @@ const Notes: React.FC = () => {
             name="category"
             label="分类"
           >
-            <Input placeholder="请输入分类" />
+            <Select
+              placeholder="请选择分类"
+              allowClear
+              options={NOTE_CATEGORY_OPTIONS}
+            />
           </Form.Item>
         </Form>
       </Modal>

@@ -29,6 +29,18 @@ import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
+// ==================== 枚举映射 ====================
+
+const FAVORITE_CATEGORY_MAP: Record<string, string> = {
+  other: '其他',
+  novel: '小说',
+  note: '笔记',
+  expense: '消费',
+  mood: '心情',
+}
+
+const FAVORITE_CATEGORY_OPTIONS = Object.entries(FAVORITE_CATEGORY_MAP).map(([code, label]) => ({ label, value: code }))
+
 // ==================== 类型定义 ====================
 
 interface Favorite {
@@ -183,6 +195,7 @@ const Favorites: React.FC = () => {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
+      render: (category: string) => FAVORITE_CATEGORY_MAP[category] || category || '-',
     },
     {
       title: '置顶',
@@ -340,7 +353,11 @@ const Favorites: React.FC = () => {
             name="category"
             label="分类"
           >
-            <Input placeholder="请输入分类" />
+            <Select
+              placeholder="请选择分类"
+              allowClear
+              options={FAVORITE_CATEGORY_OPTIONS}
+            />
           </Form.Item>
         </Form>
       </Modal>

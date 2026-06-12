@@ -41,6 +41,42 @@ import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
+// ==================== 枚举映射 ====================
+
+const NOVEL_CATEGORY_MAP: Record<string, string> = {
+  xuanhuan: '玄幻',
+  xianxia: '仙侠',
+  dushi: '都市',
+  urban: '都市',
+  lishi: '历史',
+  fantasy: '玄幻',
+  wuxia: '武侠',
+  romance: '言情',
+  kehuan: '科幻',
+  scifi: '科幻',
+  youxi: '游戏',
+  history: '历史',
+  mystery: '悬疑',
+  xuanyi: '悬疑',
+  game: '游戏',
+  other: '其他',
+  lingyi: '灵异',
+  yanqing: '言情',
+  qita: '其他',
+}
+
+const NOVEL_CATEGORY_OPTIONS = Object.entries(NOVEL_CATEGORY_MAP)
+  .filter(([code, label], index, arr) => arr.findIndex(([, l]) => l === label) === index)
+  .map(([code, label]) => ({ label, value: code }))
+
+const NOVEL_STATUS_MAP: Record<string, string> = {
+  ongoing: '连载中',
+  completed: '已完结',
+  paused: '暂停更新',
+}
+
+const NOVEL_STATUS_OPTIONS = Object.entries(NOVEL_STATUS_MAP).map(([code, label]) => ({ label, value: code }))
+
 // ==================== 类型定义 ====================
 
 interface Novel {
@@ -314,7 +350,7 @@ const Novels: React.FC = () => {
       dataIndex: 'category',
       key: 'category',
       width: 100,
-      render: (category: string) => <Tag>{category}</Tag>,
+      render: (category: string) => <Tag>{NOVEL_CATEGORY_MAP[category] || category}</Tag>,
     },
     {
       title: '状态',
@@ -322,13 +358,13 @@ const Novels: React.FC = () => {
       key: 'status',
       width: 100,
       render: (status: string) => {
-        const statusMap: Record<string, { color: string; label: string }> = {
-          ongoing: { color: 'green', label: '连载中' },
-          completed: { color: 'blue', label: '已完结' },
-          paused: { color: 'orange', label: '暂停' },
+        const statusColorMap: Record<string, string> = {
+          ongoing: 'green',
+          completed: 'blue',
+          paused: 'orange',
         }
-        const info = statusMap[status] || { color: 'default', label: status }
-        return <Badge status={info.color as any} text={info.label} />
+        const info = statusColorMap[status] || 'default'
+        return <Badge status={info as any} text={NOVEL_STATUS_MAP[status] || status} />
       },
     },
     {
@@ -443,14 +479,7 @@ const Novels: React.FC = () => {
             onChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
             style={{ width: 120 }}
             allowClear
-            options={[
-              { label: '玄幻', value: '玄幻' },
-              { label: '都市', value: '都市' },
-              { label: '言情', value: '言情' },
-              { label: '科幻', value: '科幻' },
-              { label: '历史', value: '历史' },
-              { label: '悬疑', value: '悬疑' },
-            ]}
+            options={NOVEL_CATEGORY_OPTIONS}
           />
           <Select
             placeholder="状态"
@@ -458,11 +487,7 @@ const Novels: React.FC = () => {
             onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
             style={{ width: 120 }}
             allowClear
-            options={[
-              { label: '连载中', value: 'ongoing' },
-              { label: '已完结', value: 'completed' },
-              { label: '暂停', value: 'paused' },
-            ]}
+            options={NOVEL_STATUS_OPTIONS}
           />
           <Select
             placeholder="免费"
@@ -565,14 +590,7 @@ const Novels: React.FC = () => {
           >
             <Select
               placeholder="请选择分类"
-              options={[
-                { label: '玄幻', value: '玄幻' },
-                { label: '都市', value: '都市' },
-                { label: '言情', value: '言情' },
-                { label: '科幻', value: '科幻' },
-                { label: '历史', value: '历史' },
-                { label: '悬疑', value: '悬疑' },
-              ]}
+              options={NOVEL_CATEGORY_OPTIONS}
             />
           </Form.Item>
           <Form.Item
@@ -594,11 +612,7 @@ const Novels: React.FC = () => {
           >
             <Select
               placeholder="请选择状态"
-              options={[
-                { label: '连载中', value: 'ongoing' },
-                { label: '已完结', value: 'completed' },
-                { label: '暂停', value: 'paused' },
-              ]}
+              options={NOVEL_STATUS_OPTIONS}
             />
           </Form.Item>
           <Form.Item

@@ -30,6 +30,22 @@ import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
+// ==================== 枚举映射 ====================
+
+const MOOD_TYPE_MAP: Record<string, string> = {
+  happy: '开心',
+  excited: '兴奋',
+  calm: '平静',
+  neutral: '一般',
+  sad: '难过',
+  anxious: '焦虑',
+  angry: '生气',
+  tired: '疲惫',
+  grateful: '感恩',
+}
+
+const MOOD_OPTIONS = Object.entries(MOOD_TYPE_MAP).map(([code, label]) => ({ label, value: code }))
+
 // ==================== 类型定义 ====================
 
 interface MoodDiary {
@@ -182,7 +198,7 @@ const MoodDiaries: React.FC = () => {
       key: 'mood',
       render: (mood: string) => (
         <Text style={{ color: getMoodColor(mood), fontWeight: 500 }}>
-          {mood}
+          {MOOD_TYPE_MAP[mood] || mood}
         </Text>
       ),
     },
@@ -332,14 +348,7 @@ const MoodDiaries: React.FC = () => {
           >
             <Select
               placeholder="请选择心情"
-              options={[
-                { label: '开心', value: 'happy' },
-                { label: '难过', value: 'sad' },
-                { label: '生气', value: 'angry' },
-                { label: '焦虑', value: 'anxious' },
-                { label: '平静', value: 'calm' },
-                { label: '兴奋', value: 'excited' },
-              ]}
+              options={MOOD_OPTIONS}
             />
           </Form.Item>
           <Form.Item
