@@ -17,6 +17,7 @@ import {
   Col,
   Statistic,
   Switch,
+  Descriptions,
 } from 'antd'
 import {
   SearchOutlined,
@@ -28,6 +29,8 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   CloudUploadOutlined,
+  DownloadOutlined,
+  QrcodeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -102,6 +105,8 @@ const VersionManagement: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingVersion, setEditingVersion] = useState<AppVersion | null>(null)
   const [form] = Form.useForm()
+  const [currentVersion, setCurrentVersion] = useState<AppVersion | null>(null)
+  const [qrCodeVersion, setQrCodeVersion] = useState<AppVersion | null>(null)
   const { isAdmin: _isAdmin } = usePermission()
 
   const versionService = new BaseService<AppVersion>('app_versions', { defaultOrder: { column: 'created_at', ascending: false } })
@@ -131,6 +136,14 @@ const VersionManagement: React.FC = () => {
 
       setVersions(result.data?.data || [])
       setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+
+      // 获取当前激活版本（is_active=true 的最新版本）
+      const activeRes = await versionService.findAll((q: any) =>
+        q.eq('is_active', true).order('created_at', { ascending: false }).limit(1)
+      )
+      if (activeRes.data && activeRes.data.length > 0) {
+        setCurrentVersion(activeRes.data[0] as AppVersion)
+      }
     } catch (error) {
       handleApiError(error, 'VersionManagement-加载版本')
     } finally {
@@ -352,6 +365,25 @@ const VersionManagement: React.FC = () => {
           onClick: () => handleEdit(record),
         },
         {
+          key: 'qrcode',
+          label: '二维码',
+          icon: <QrcodeOutlined />,
+          onClick: () => setQrCodeVersion(record),
+        },
+        {
+          key: 'download',
+          label: '下载APK',
+          icon: <DownloadOutlined />,
+          onClick: () => {
+            const url = record.download_url || record.apk_url
+            if (url) {
+              window.open(url, '_blank')
+            } else {
+              message.warning('该版本没有下载地址')
+            }
+          },
+        },
+        {
           key: 'toggle',
           label: record.is_active ? '停用' : '激活',
           icon: record.is_active ? <CloseCircleOutlined /> : <CheckCircleOutlined />,
@@ -371,6 +403,68 @@ const VersionManagement: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
+      {/* 当前版本信息 */}
+      {currentVersion && (
+        <Card
+          title="当前发布版本"
+          style={{ marginBottom: 16 }}
+          extra={
+            <Tag color="green">已激活</Tag>
+          }
+        >
+          <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }} bordered>
+            <Descriptions.Item label="版本号">
+              <Text strong style={{ fontSize: 16, color: '#1890ff' }}>
+                v{currentVersion.version}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="构建号">
+              {currentVersion.build_number}
+            </Descriptions.Item>
+            <Descriptions.Item label="平台">
+              <Tag>{currentVersion.platform}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="发布类型">
+              {RELEASE_TYPE_MAP[currentVersion.release_type || ''] || currentVersion.release_type || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="更新说明" span={2}>
+              {currentVersion.release_notes || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="发布时间">
+              {currentVersion.released_at
+                ? dayjs(currentVersion.released_at).format('YYYY-MM-DD HH:mm')
+                : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="文件大小">
+              {currentVersion.file_size
+                ? `${(currentVersion.file_size / 1024 / 1024).toFixed(2)} MB`
+                : currentVersion.apk_size
+                  ? `${(currentVersion.apk_size / 1024 / 1024).toFixed(2)} MB`
+                  : '-'}
+            </Descriptions.Item>
+          </Descriptions>
+          <Space style={{ marginTop: 12 }}>
+            <Button
+              icon={<QrcodeOutlined />}
+              onClick={() => setQrCodeVersion(currentVersion)}
+            >
+              二维码
+            </Button>
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={() => {
+                const url = currentVersion.download_url || currentVersion.apk_url
+                if (url) window.open(url, '_blank')
+                else message.warning('该版本没有下载地址')
+              }}
+            >
+              下载APK
+            </Button>
+          </Space>
+        </Card>
+      )}
+
       {/* 统计卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={8}>
@@ -591,6 +685,63 @@ const VersionManagement: React.FC = () => {
             <Switch checkedChildren="激活" unCheckedChildren="停用" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 二维码弹窗 */}
+      <Modal
+        title="下载二维码"
+        open={!!qrCodeVersion}
+        onCancel={() => setQrCodeVersion(null)}
+        footer={null}
+        width={400}
+        centered
+      >
+        {qrCodeVersion && (
+          <div style={{ textAlign: 'center', padding: '16px 0' }}>
+            <div
+              style={{
+                width: 200,
+                height: 200,
+                margin: '0 auto 16px',
+                background: '#f5f5f5',
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 14,
+                color: '#999',
+                border: '1px dashed #d9d9d9',
+              }}
+            >
+              <div>
+                <QrcodeOutlined style={{ fontSize: 48, color: '#1890ff', marginBottom: 8 }} />
+                <div>二维码预览</div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>
+                  v{qrCodeVersion.version}+{qrCodeVersion.build_number}
+                </div>
+              </div>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <Text strong>v{qrCodeVersion.version}+{qrCodeVersion.build_number}</Text>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <Text type="secondary">
+                {(qrCodeVersion.download_url || qrCodeVersion.apk_url) || '暂无下载地址'}
+              </Text>
+            </div>
+            {(qrCodeVersion.download_url || qrCodeVersion.apk_url) && (
+              <Button
+                type="primary"
+                icon={<DownloadOutlined />}
+                onClick={() => {
+                  window.open(qrCodeVersion.download_url || qrCodeVersion.apk_url, '_blank')
+                }}
+              >
+                下载APK
+              </Button>
+            )}
+          </div>
+        )}
       </Modal>
     </div>
   )
