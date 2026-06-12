@@ -18,6 +18,7 @@ import { EyeOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { getActionColumn } from './ActionColumn'
+import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
 
 const { Title, Text } = Typography
 
@@ -97,6 +98,9 @@ const UserDimensionList: React.FC<{
   // 用 ref 防止重复请求
   const detailFetchingRef = useRef(false)
 
+  const recordService = new BaseService<RecordItem>(tableName, { defaultOrder: { column: 'user_id', ascending: true } })
+  const detailService = new BaseService<RecordItem>(tableName, { defaultOrder: { column: 'created_at', ascending: false } })
+
   // ==================== 数据加载（全量拉取，避免旧数据丢失） ====================
 
   const fetchData = useCallback(async () => {
@@ -109,14 +113,13 @@ const UserDimensionList: React.FC<{
       let hasMore = true
 
       while (hasMore) {
-        const { data: batch, error } = await supabase
-          .from(tableName)
-          .select('*')
-          .order('user_id')
-          .range(offset, offset + batchSize - 1)
-
-        if (error) throw error
-        if (!batch || batch.length === 0) {
+        const result = await recordService.findAll((q) => q.range(offset, offset + batchSize - 1))
+        if (!result.success) {
+          handleApiError(result.errorMessage, `UserDimensionList-${title}-数据加载`)
+          break
+        }
+        const batch = result.data || []
+        if (batch.length === 0) {
           hasMore = false
         } else {
           allItems.push(...batch)
@@ -171,8 +174,7 @@ const UserDimensionList: React.FC<{
 
       setData(result)
     } catch (error) {
-      console.error(`获取${title}数据失败:`, error)
-      message.error(`获取${title}数据失败`)
+      handleApiError(error, `UserDimensionList-${title}-数据加载`)
     } finally {
       setLoading(false)
     }
@@ -190,23 +192,15 @@ const UserDimensionList: React.FC<{
     detailFetchingRef.current = true
     setDetailLoading(true)
     try {
-      const from = (page - 1) * pageSize
-      const to = page * pageSize - 1
-
-      const { data: records, error, count } = await supabase
-        .from(tableName)
-        .select('*', { count: 'exact' })
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .range(from, to)
-
-      if (error) throw error
-
-      setDetailData((records || []) as RecordItem[])
-      setDetailTotal(count || 0)
+      const result = await detailService.paginate(page, pageSize, (q) => q.eq('user_id', userId))
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'UserDimensionList-详情数据')
+        return
+      }
+      setDetailData((result.data?.data || []) as RecordItem[])
+      setDetailTotal(result.data?.total || 0)
     } catch (error) {
-      console.error('获取详情数据失败:', error)
-      message.error('获取详情数据失败')
+      handleApiError(error, 'UserDimensionList-详情数据')
     } finally {
       setDetailLoading(false)
       detailFetchingRef.current = false

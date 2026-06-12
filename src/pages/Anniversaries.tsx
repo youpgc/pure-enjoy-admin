@@ -1,247 +1,356 @@
-import React, { useMemo } from 'react'
-import { Tag, message } from 'antd'
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  Table,
+  Button,
+  Input,
+  Space,
+  Card,
+  message,
+  Modal,
+  Form,
+  Popconfirm,
+  DatePicker,
+  Select,
+  Typography,
+  Row,
+  Col,
+  Statistic,
+} from 'antd'
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  CalendarOutlined,
+} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
-import { getActionColumn } from '../components/ActionColumn'
-import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
-import { supabase } from '../utils/supabase'
-import { usePermission } from '../hooks/usePermission'
-import { useEditModal } from '../hooks/useEditModal'
-import { formatDateTime } from '../utils/format'
-import NoPermission from '../components/NoPermission'
+import dayjs from 'dayjs'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
-// ==================== 常量定义 ====================
+const { Text } = Typography
 
-const TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: 'birthday', label: '生日' },
-  { value: 'anniversary', label: '纪念日' },
-]
+// ==================== 类型定义 ====================
 
-const REMIND_DAYS_OPTIONS: { value: string; label: string }[] = [
-  { value: '0', label: '当天' },
-  { value: '1', label: '提前1天' },
-  { value: '3', label: '提前3天' },
-  { value: '7', label: '提前7天' },
-  { value: '14', label: '提前14天' },
-  { value: '30', label: '提前30天' },
-]
-
-const getTypeTag = (type: string) => {
-  switch (type) {
-    case 'birthday':
-      return <Tag color="blue">🎂 生日</Tag>
-    case 'anniversary':
-      return <Tag color="purple">🎉 纪念日</Tag>
-    default:
-      return <Tag>{type || '-'}</Tag>
-  }
+interface Anniversary {
+  id: string
+  user_id: string
+  title: string
+  date: string
+  type: 'birthday' | 'wedding' | 'work' | 'other'
+  reminder_days?: number
+  created_at: string
 }
 
-// ==================== 编辑字段配置 ====================
-
-const getEditFields = (): EditFieldConfig[] => [
-  {
-    name: 'title',
-    label: '名称',
-    type: 'text',
-    required: true,
-    placeholder: '请输入名称',
-  },
-  {
-    name: 'type',
-    label: '类型',
-    type: 'select',
-    options: TYPE_OPTIONS,
-  },
-  {
-    name: 'date',
-    label: '日期',
-    type: 'date',
-  },
-  {
-    name: 'description',
-    label: '描述',
-    type: 'textarea',
-    placeholder: '请输入描述',
-  },
-  {
-    name: 'repeat_yearly',
-    label: '每年重复',
-    type: 'switch',
-  },
-  {
-    name: 'remind_enabled',
-    label: '开启提醒',
-    type: 'switch',
-  },
-  {
-    name: 'remind_days_before',
-    label: '提前提醒天数',
-    type: 'select',
-    options: REMIND_DAYS_OPTIONS,
-  },
-]
-
-// ==================== 详情列表列配置 ====================
-
-const getDetailColumns = (
-  canDelete: boolean,
-  onDelete: (id: string) => void,
-  onEdit: (record: RecordItem) => void,
-): ColumnsType<RecordItem> => [
-  {
-    title: '名称',
-    dataIndex: 'title',
-    key: 'title',
-    ellipsis: true,
-    width: 180,
-    render: (title: string) => title || '-',
-  },
-  {
-    title: '类型',
-    dataIndex: 'type',
-    key: 'type',
-    width: 120,
-    render: (type: string) => getTypeTag(type),
-  },
-  {
-    title: '日期',
-    dataIndex: 'date',
-    key: 'date',
-    width: 120,
-    render: (date: string) => date || '-',
-  },
-  {
-    title: '描述',
-    dataIndex: 'description',
-    key: 'description',
-    ellipsis: true,
-    width: 200,
-    render: (desc: string) => desc || '-',
-  },
-  {
-    title: '每年重复',
-    dataIndex: 'repeat_yearly',
-    key: 'repeat_yearly',
-    width: 100,
-    render: (repeat: boolean) => (
-      repeat ? (
-        <Tag color="success">是</Tag>
-      ) : (
-        <Tag color="default">否</Tag>
-      )
-    ),
-  },
-  {
-    title: '提醒',
-    key: 'remind',
-    width: 120,
-    render: (_: unknown, record: RecordItem) => {
-      const enabled = record.remind_enabled as boolean
-      const daysBefore = record.remind_days_before as number
-      if (!enabled) {
-        return <Tag color="default">未开启</Tag>
-      }
-      return <Tag color="warning">提前{daysBefore || 0}天</Tag>
-    },
-  },
-  {
-    title: '创建时间',
-    dataIndex: 'created_at',
-    key: 'created_at',
-    width: 160,
-    render: (date: string) => formatDateTime(date),
-  },
-  getActionColumn<any>(
-    (record) => {
-      const actions: import('../components/ActionColumn').ActionButton[] = [
-        {
-          key: 'edit',
-          label: '编辑',
-          icon: <EditOutlined />,
-          onClick: () => onEdit(record),
-        },
-      ]
-      if (canDelete) {
-        actions.push({
-          key: 'delete',
-          label: '删除',
-          icon: <DeleteOutlined />,
-          danger: true,
-          onClick: () => onDelete(record.id as string),
-        })
-      }
-      return actions
-    },
-    { width: 160, maxVisible: 2 }
-  ),
-]
-
-// ==================== 主组件 ====================
+// ==================== 组件 ====================
 
 const Anniversaries: React.FC = () => {
-  // 临时使用 feedback 权限作为替代，后续可替换为 anniversaries 专属权限
-  const { canReadFeedback, canWriteFeedback, canDeleteFeedback } = usePermission()
-  const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
+  const [anniversaries, setAnniversaries] = useState<Anniversary[]>([])
+  const [loading, setLoading] = useState(false)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [modalVisible, setModalVisible] = useState(false)
+  const [editingAnniversary, setEditingAnniversary] = useState<Anniversary | null>(null)
+  const [form] = Form.useForm()
+
+  const service = new BaseService<Anniversary>('anniversaries', { defaultOrder: { column: 'date', ascending: true } })
+
+  // 加载数据
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const result = await service.findAll((q) => {
+        if (searchKeyword) {
+          return q.or(`title.ilike.%${searchKeyword}%`)
+        }
+        return q
+      })
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'Anniversaries-加载数据')
+        return
+      }
+      setAnniversaries(result.data || [])
+    } catch (error) {
+      handleApiError(error, 'Anniversaries-加载数据')
+    } finally {
+      setLoading(false)
+    }
+  }, [searchKeyword])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  // 搜索
+  const handleSearch = () => {
+    loadData()
+  }
+
+  // 打开新增弹窗
+  const handleAdd = () => {
+    setEditingAnniversary(null)
+    form.resetFields()
+    form.setFieldsValue({ date: dayjs(), type: 'other', reminder_days: 7 })
+    setModalVisible(true)
+  }
+
+  // 打开编辑弹窗
+  const handleEdit = (record: Anniversary) => {
+    setEditingAnniversary(record)
+    form.setFieldsValue({
+      ...record,
+      date: dayjs(record.date),
+    })
+    setModalVisible(true)
+  }
 
   // 删除记录
   const handleDelete = async (id: string) => {
-    if (!canDeleteFeedback) {
-      message.warning('您没有删除纪念日的权限')
-      return
-    }
     try {
-      const { error } = await supabase.from('user_anniversaries').delete().eq('id', id)
-      if (error) throw error
+      const result = await service.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'Anniversaries-删除')
+        return
+      }
       message.success('删除成功')
+      loadData()
     } catch (error) {
-      console.error('删除失败:', error)
-      message.error('删除失败')
+      handleApiError(error, 'Anniversaries-删除')
     }
   }
 
-  // 编辑记录
-  const handleEdit = (record: RecordItem) => {
-    if (!canWriteFeedback) {
-      message.warning('您没有编辑纪念日的权限')
-      return
+  // 保存记录
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields()
+      const data = {
+        ...values,
+        date: values.date.format('YYYY-MM-DD'),
+      }
+      if (editingAnniversary) {
+        const result = await service.update(editingAnniversary.id, data)
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'Anniversaries-更新')
+          return
+        }
+        message.success('更新成功')
+      } else {
+        const result = await service.create({
+          ...data,
+          created_at: new Date().toISOString(),
+        })
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'Anniversaries-创建')
+          return
+        }
+        message.success('创建成功')
+      }
+      setModalVisible(false)
+      setEditingAnniversary(null)
+      form.resetFields()
+      loadData()
+    } catch (error) {
+      handleApiError(error, 'Anniversaries-保存')
     }
-    open(record)
   }
 
-  // 模块配置
-  const moduleConfig: ModuleConfig = useMemo(() => ({
-    key: 'anniversaries',
-    title: '纪念日/生日管理',
-    tableName: 'user_anniversaries',
-    detailTitle: '纪念日详情',
-    detailColumns: getDetailColumns(
-      canDeleteFeedback || false,
-      handleDelete,
-      handleEdit,
-    ),
-  }), [canDeleteFeedback, canWriteFeedback])
-
-  // 权限检查
-  if (!canReadFeedback) {
-    return <NoPermission module="纪念日/生日" />
+  // 计算距离下一个纪念日的天数
+  const getDaysUntil = (dateStr: string) => {
+    const today = dayjs().startOf('day')
+    const anniversary = dayjs(dateStr)
+    let next = anniversary.year(today.year())
+    if (next.isBefore(today)) {
+      next = next.add(1, 'year')
+    }
+    return next.diff(today, 'day')
   }
+
+  // 表格列定义
+  const columns: ColumnsType<Anniversary> = [
+    {
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
+      render: (title: string) => <Text strong>{title}</Text>,
+    },
+    {
+      title: '日期',
+      dataIndex: 'date',
+      key: 'date',
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
+    },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type: string) => {
+        const map: Record<string, string> = {
+          birthday: '生日',
+          wedding: '结婚纪念日',
+          work: '工作纪念日',
+          other: '其他',
+        }
+        return map[type] || type
+      },
+    },
+    {
+      title: '距离下次',
+      key: 'days_until',
+      render: (_, record: Anniversary) => {
+        const days = getDaysUntil(record.date)
+        return <Text style={{ color: days <= 7 ? '#ff4d4f' : '#52c41a' }}>{days} 天后</Text>
+      },
+    },
+    {
+      title: '提醒天数',
+      dataIndex: 'reminder_days',
+      key: 'reminder_days',
+      render: (days: number) => days ? `${days} 天前` : '-',
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 150,
+      render: (_, record) => (
+        <Space>
+          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            编辑
+          </Button>
+          <Popconfirm
+            title="确认删除"
+            onConfirm={() => handleDelete(record.id)}
+            okText="确认"
+            cancelText="取消"
+          >
+            <Button danger size="small" icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
 
   return (
-    <>
-      <UserDimensionList moduleConfig={moduleConfig} />
-      <EditRecordModal
-        open={editModalOpen}
-        record={editingRecord}
-        tableName="user_anniversaries"
-        fields={getEditFields()}
-        onClose={close}
-        onSuccess={() => {
-          window.location.reload()
-        }}
+    <div style={{ padding: 24 }}>
+      {/* 统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12}>
+          <Card>
+            <Statistic
+              title="总纪念日数"
+              value={anniversaries.length}
+              prefix={<CalendarOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Card>
+            <Statistic
+              title="7天内到期"
+              value={anniversaries.filter(a => getDaysUntil(a.date) <= 7).length}
+              prefix={<CalendarOutlined />}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 筛选栏 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Input
+            placeholder="搜索标题"
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 300 }}
+            allowClear
+          />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
+          </Button>
+        </Space>
+      </Card>
+
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          新增纪念日
+        </Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
+      </div>
+
+      {/* 数据表格 */}
+      <Table
+        columns={columns}
+        dataSource={anniversaries}
+        rowKey="id"
+        loading={loading}
+        pagination={{ pageSize: 20 }}
+        scroll={{ x: 800 }}
       />
-    </>
+
+      {/* 表单弹窗 */}
+      <Modal
+        title={editingAnniversary ? '编辑纪念日' : '新增纪念日'}
+        open={modalVisible}
+        onOk={handleSave}
+        onCancel={() => {
+          setModalVisible(false)
+          setEditingAnniversary(null)
+          form.resetFields()
+        }}
+        width={500}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="user_id"
+            label="用户ID"
+            rules={[{ required: true, message: '请输入用户ID' }]}
+          >
+            <Input placeholder="请输入用户ID" />
+          </Form.Item>
+          <Form.Item
+            name="title"
+            label="标题"
+            rules={[{ required: true, message: '请输入标题' }]}
+          >
+            <Input placeholder="请输入标题" />
+          </Form.Item>
+          <Form.Item
+            name="date"
+            label="日期"
+            rules={[{ required: true, message: '请选择日期' }]}
+          >
+            <DatePicker style={{ width: '100%' }} placeholder="请选择日期" />
+          </Form.Item>
+          <Form.Item
+            name="type"
+            label="类型"
+            rules={[{ required: true, message: '请选择类型' }]}
+          >
+            <Select
+              placeholder="请选择类型"
+              options={[
+                { label: '生日', value: 'birthday' },
+                { label: '结婚纪念日', value: 'wedding' },
+                { label: '工作纪念日', value: 'work' },
+                { label: '其他', value: 'other' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="reminder_days"
+            label="提前提醒天数"
+          >
+            <Input placeholder="请输入提前提醒天数" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
   )
 }
 

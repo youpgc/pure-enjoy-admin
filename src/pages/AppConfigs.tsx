@@ -1,283 +1,203 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Table, Button, Modal, Form, Input, InputNumber, Select, Tag, Space,
-  message, Switch, Divider, Typography
+  Table,
+  Button,
+  Input,
+  Space,
+  Tag,
+  Card,
+  message,
+  Modal,
+  Form,
+  Select,
+  Popconfirm,
+  Switch,
+  Typography,
+  Row,
+  Col,
+  Statistic,
 } from 'antd'
 import {
-  PlusOutlined, EditOutlined, ReloadOutlined, StopOutlined, EyeOutlined
+  SearchOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
-import { supabase } from '../utils/supabase'
-import { getActionColumn } from '../components/ActionColumn'
-import { formatDateTime } from '../utils/format'
+import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
-const { Title, Text, Paragraph } = Typography
+const { Text, Paragraph } = Typography
 
-const { TextArea } = Input
+// ==================== 类型定义 ====================
 
 interface AppConfig {
   id: string
-  config_key: string
-  title: string
-  content: string | null
-  config_type: string | null
-  sort_order: number
+  key: string
+  value: string
+  description?: string
+  type: 'string' | 'number' | 'boolean' | 'json'
   is_active: boolean
   created_at: string
   updated_at: string
 }
 
-const configTypeMap: Record<string, { label: string; color: string }> = {
-  rich_text: { label: '富文本', color: 'blue' },
-  html: { label: 'HTML', color: 'purple' },
-  json: { label: 'JSON', color: 'orange' },
-  text: { label: '纯文本', color: 'default' },
-}
+// ==================== 组件 ====================
 
 const AppConfigs: React.FC = () => {
   const [configs, setConfigs] = useState<AppConfig[]>([])
   const [loading, setLoading] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingRecord, setEditingRecord] = useState<AppConfig | null>(null)
-  const [submitting, setSubmitting] = useState(false)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [modalVisible, setModalVisible] = useState(false)
+  const [editingConfig, setEditingConfig] = useState<AppConfig | null>(null)
   const [form] = Form.useForm()
-  const [previewModalOpen, setPreviewModalOpen] = useState(false)
-  const [previewConfig, setPreviewConfig] = useState<AppConfig | null>(null)
+
+  const service = new BaseService<AppConfig>('app_configs', { defaultOrder: { column: 'key', ascending: true } })
+
+  // 加载数据
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const result = await service.findAll((q) => {
+        if (searchKeyword) {
+          return q.or(`key.ilike.%${searchKeyword}%,description.ilike.%${searchKeyword}%`)
+        }
+        return q
+      })
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'AppConfigs-加载数据')
+        return
+      }
+      setConfigs(result.data || [])
+    } catch (error) {
+      handleApiError(error, 'AppConfigs-加载数据')
+    } finally {
+      setLoading(false)
+    }
+  }, [searchKeyword])
 
   useEffect(() => {
-    fetchConfigs()
-  }, [])
+    loadData()
+  }, [loadData])
 
-  const fetchConfigs = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('app_configs')
-      .select('*')
-      .order('sort_order', { ascending: true })
-
-    if (error) {
-      message.error('加载配置列表失败: ' + error.message)
-    } else {
-      setConfigs(data || [])
-    }
-    setLoading(false)
+  // 搜索
+  const handleSearch = () => {
+    loadData()
   }
 
+  // 打开新增弹窗
+  const handleAdd = () => {
+    setEditingConfig(null)
+    form.resetFields()
+    form.setFieldsValue({ type: 'string', is_active: true })
+    setModalVisible(true)
+  }
+
+  // 打开编辑弹窗
+  const handleEdit = (record: AppConfig) => {
+    setEditingConfig(record)
+    form.setFieldsValue({
+      ...record,
+    })
+    setModalVisible(true)
+  }
+
+  // 删除记录
+  const handleDelete = async (id: string) => {
+    try {
+      const result = await service.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'AppConfigs-删除')
+        return
+      }
+      message.success('删除成功')
+      loadData()
+    } catch (error) {
+      handleApiError(error, 'AppConfigs-删除')
+    }
+  }
+
+  // 切换激活状态
   const handleToggleActive = async (record: AppConfig) => {
     try {
-      const { error } = await supabase
-        .from('app_configs')
-        .update({ is_active: !record.is_active })
-        .eq('id', record.id)
-
-      if (error) throw error
-      message.success(`已${record.is_active ? '停用' : '启用'}「${record.title}」`)
-      fetchConfigs()
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '未知错误'
-      message.error(`操作失败: ${msg}`)
+      const result = await service.update(record.id, {
+        is_active: !record.is_active,
+        updated_at: new Date().toISOString(),
+      })
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'AppConfigs-切换状态')
+        return
+      }
+      message.success('状态更新成功')
+      loadData()
+    } catch (error) {
+      handleApiError(error, 'AppConfigs-切换状态')
     }
   }
 
-  const handleEdit = (record: AppConfig) => {
-    setEditingRecord(record)
-    form.setFieldsValue({
-      config_key: record.config_key,
-      title: record.title,
-      content: record.content || '',
-      config_type: record.config_type || 'rich_text',
-      sort_order: record.sort_order,
-      is_active: record.is_active,
-    })
-    setModalOpen(true)
-  }
-
-  // 预览配置
-  const handlePreview = (record: AppConfig) => {
-    setPreviewConfig(record)
-    setPreviewModalOpen(true)
-  }
-
-  // 渲染预览内容
-  const renderPreviewContent = () => {
-    if (!previewConfig?.content) {
-      return <Text type="secondary">暂无内容</Text>
-    }
-
-    switch (previewConfig.config_type) {
-      case 'rich_text':
-        return (
-          <div
-            style={{
-              padding: 16,
-              background: '#fff',
-              borderRadius: 8,
-              lineHeight: 1.8,
-              maxHeight: 500,
-              overflow: 'auto',
-            }}
-            dangerouslySetInnerHTML={{ __html: previewConfig.content }}
-          />
-        )
-      case 'html':
-        return (
-          <iframe
-            srcDoc={previewConfig.content}
-            style={{
-              width: '100%',
-              height: 500,
-              border: '1px solid #d9d9d9',
-              borderRadius: 8,
-            }}
-            title="HTML Preview"
-          />
-        )
-      case 'json':
-        return (
-          <pre
-            style={{
-              padding: 16,
-              background: '#f5f5f5',
-              borderRadius: 8,
-              maxHeight: 500,
-              overflow: 'auto',
-              fontFamily: 'monospace',
-              fontSize: 13,
-            }}
-          >
-            {JSON.stringify(JSON.parse(previewConfig.content), null, 2)}
-          </pre>
-        )
-      case 'text':
-      default:
-        return (
-          <Paragraph
-            style={{
-              padding: 16,
-              background: '#fafafa',
-              borderRadius: 8,
-              maxHeight: 500,
-              overflow: 'auto',
-              whiteSpace: 'pre-wrap',
-              fontFamily: 'monospace',
-            }}
-          >
-            {previewConfig.content}
-          </Paragraph>
-        )
-    }
-  }
-
-  const handleAdd = () => {
-    setEditingRecord(null)
-    form.resetFields()
-    form.setFieldsValue({
-      config_type: 'rich_text',
-      sort_order: configs.length > 0 ? Math.max(...configs.map(c => c.sort_order)) + 1 : 0,
-      is_active: true,
-    })
-    setModalOpen(true)
-  }
-
-  const handleSubmit = async (values: {
-    config_key: string
-    title: string
-    content: string
-    config_type: string
-    sort_order: number
-    is_active: boolean
-  }) => {
-    setSubmitting(true)
+  // 保存记录
+  const handleSave = async () => {
     try {
-      if (editingRecord) {
-        // 更新
-        const { error } = await supabase
-          .from('app_configs')
-          .update({
-            title: values.title,
-            content: values.content,
-            config_type: values.config_type,
-            sort_order: values.sort_order,
-            is_active: values.is_active,
-          })
-          .eq('id', editingRecord.id)
-
-        if (error) throw error
+      const values = await form.validateFields()
+      if (editingConfig) {
+        const result = await service.update(editingConfig.id, {
+          ...values,
+          updated_at: new Date().toISOString(),
+        })
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'AppConfigs-更新')
+          return
+        }
         message.success('更新成功')
       } else {
-        // 新增
-        const { error } = await supabase
-          .from('app_configs')
-          .insert({
-            config_key: values.config_key,
-            title: values.title,
-            content: values.content,
-            config_type: values.config_type,
-            sort_order: values.sort_order,
-            is_active: values.is_active,
-          })
-
-        if (error) throw error
-        message.success('新增成功')
+        const result = await service.create({
+          ...values,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'AppConfigs-创建')
+          return
+        }
+        message.success('创建成功')
       }
-
-      setModalOpen(false)
+      setModalVisible(false)
+      setEditingConfig(null)
       form.resetFields()
-      setEditingRecord(null)
-      fetchConfigs()
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '未知错误'
-      message.error(`${editingRecord ? '更新' : '新增'}失败: ${msg}`)
-    }
-    setSubmitting(false)
-  }
-
-  const handleDelete = async (record: AppConfig) => {
-    try {
-      const { error } = await supabase
-        .from('app_configs')
-        .delete()
-        .eq('id', record.id)
-
-      if (error) throw error
-      message.success('删除成功')
-      fetchConfigs()
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '未知错误'
-      message.error(`删除失败: ${msg}`)
+      loadData()
+    } catch (error) {
+      handleApiError(error, 'AppConfigs-保存')
     }
   }
 
-  const columns = [
+  // 表格列定义
+  const columns: ColumnsType<AppConfig> = [
     {
       title: '配置键',
-      dataIndex: 'config_key',
-      key: 'config_key',
-      width: 180,
-      render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{v}</span>,
+      dataIndex: 'key',
+      key: 'key',
+      render: (key: string) => <Text strong>{key}</Text>,
     },
     {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      width: 160,
-      render: (v: string) => <strong>{v}</strong>,
-    },
-    {
-      title: '类型',
-      dataIndex: 'config_type',
-      key: 'config_type',
-      width: 100,
-      render: (type: string) => {
-        const info = configTypeMap[type]
-        return <Tag color={info?.color || 'default'}>{info?.label || type || '-'}</Tag>
+      title: '配置值',
+      dataIndex: 'value',
+      key: 'value',
+      ellipsis: true,
+      render: (value: string, record: AppConfig) => {
+        if (record.type === 'json') {
+          return <Paragraph ellipsis style={{ marginBottom: 0 }}>{value}</Paragraph>
+        }
+        return value
       },
     },
     {
-      title: '排序',
-      dataIndex: 'sort_order',
-      key: 'sort_order',
-      width: 80,
-      sorter: (a: AppConfig, b: AppConfig) => a.sort_order - b.sort_order,
+      title: '类型',
+      dataIndex: 'type',
+      key: 'type',
+      width: 100,
+      render: (type: string) => <Tag>{type}</Tag>,
     },
     {
       title: '状态',
@@ -287,189 +207,177 @@ const AppConfigs: React.FC = () => {
       render: (isActive: boolean, record: AppConfig) => (
         <Switch
           checked={isActive}
+          onChange={() => handleToggleActive(record)}
           checkedChildren="启用"
           unCheckedChildren="停用"
-          onChange={() => handleToggleActive(record)}
         />
       ),
     },
     {
-      title: '内容摘要',
-      dataIndex: 'content',
-      key: 'content',
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
       ellipsis: true,
-      width: 200,
-      render: (content: string | null) =>
-        content ? (content.length > 50 ? content.substring(0, 50) + '...' : content) : '-',
     },
     {
       title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      width: 170,
-      render: (date: string) => formatDateTime(date),
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
-    getActionColumn<any>(
-      (record: any) => [
-        {
-          key: 'preview',
-          label: '预览',
-          icon: <EyeOutlined />,
-          type: 'default' as const,
-          onClick: () => handlePreview(record),
-        },
-        {
-          key: 'edit',
-          label: '编辑',
-          icon: <EditOutlined />,
-          type: 'primary' as const,
-          onClick: () => handleEdit(record),
-        },
-        {
-          key: 'delete',
-          label: '删除',
-          icon: <StopOutlined />,
-          danger: true,
-          onClick: () => handleDelete(record),
-        },
-      ],
-      { width: 280, maxVisible: 2 }
-    ),
+    {
+      title: '操作',
+      key: 'action',
+      width: 150,
+      render: (_, record) => (
+        <Space>
+          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            编辑
+          </Button>
+          <Popconfirm
+            title="确认删除"
+            onConfirm={() => handleDelete(record.id)}
+            okText="确认"
+            cancelText="取消"
+          >
+            <Button danger size="small" icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
   ]
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <h3>内容管理</h3>
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={fetchConfigs}>
-            刷新
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-          >
-            新增配置
+    <div style={{ padding: 24 }}>
+      {/* 统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总配置数"
+              value={configs.length}
+              prefix={<SettingOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="启用配置"
+              value={configs.filter(c => c.is_active).length}
+              prefix={<SettingOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="JSON配置"
+              value={configs.filter(c => c.type === 'json').length}
+              prefix={<SettingOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 筛选栏 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Input
+            placeholder="搜索配置键/描述"
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 300 }}
+            allowClear
+          />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
           </Button>
         </Space>
+      </Card>
+
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          新增配置
+        </Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
       </div>
 
+      {/* 数据表格 */}
       <Table
         columns={columns}
         dataSource={configs}
         rowKey="id"
         loading={loading}
         pagination={{ pageSize: 20 }}
-        scroll={{ x: 1100 }}
+        scroll={{ x: 1000 }}
       />
 
+      {/* 表单弹窗 */}
       <Modal
-        title={editingRecord ? '编辑配置' : '新增配置'}
-        open={modalOpen}
+        title={editingConfig ? '编辑配置' : '新增配置'}
+        open={modalVisible}
+        onOk={handleSave}
         onCancel={() => {
-          setModalOpen(false)
+          setModalVisible(false)
+          setEditingConfig(null)
           form.resetFields()
-          setEditingRecord(null)
         }}
-        onOk={() => form.submit()}
-        confirmLoading={submitting}
-        width={720}
-        okText="保存"
-        cancelText="取消"
-        destroyOnClose
+        width={600}
       >
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Form form={form} layout="vertical">
           <Form.Item
-            name="config_key"
-            label="配置键 (config_key)"
+            name="key"
+            label="配置键"
             rules={[{ required: true, message: '请输入配置键' }]}
-            extra="唯一标识，创建后不可修改"
           >
-            <Input
-              placeholder="例如: user_agreement"
-              disabled={!!editingRecord}
+            <Input placeholder="请输入配置键" disabled={!!editingConfig} />
+          </Form.Item>
+          <Form.Item
+            name="value"
+            label="配置值"
+            rules={[{ required: true, message: '请输入配置值' }]}
+          >
+            <Input.TextArea rows={4} placeholder="请输入配置值" />
+          </Form.Item>
+          <Form.Item
+            name="type"
+            label="类型"
+            rules={[{ required: true, message: '请选择类型' }]}
+          >
+            <Select
+              placeholder="请选择类型"
+              options={[
+                { label: '字符串', value: 'string' },
+                { label: '数字', value: 'number' },
+                { label: '布尔值', value: 'boolean' },
+                { label: 'JSON', value: 'json' },
+              ]}
             />
           </Form.Item>
           <Form.Item
-            name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入标题' }]}
+            name="description"
+            label="描述"
           >
-            <Input placeholder="例如: 用户协议" />
-          </Form.Item>
-          <Form.Item
-            name="config_type"
-            label="配置类型"
-            rules={[{ required: true, message: '请选择配置类型' }]}
-          >
-            <Select placeholder="选择配置类型">
-              <Select.Option value="rich_text">富文本</Select.Option>
-              <Select.Option value="html">HTML</Select.Option>
-              <Select.Option value="json">JSON</Select.Option>
-              <Select.Option value="text">纯文本</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item
-            name="sort_order"
-            label="排序值"
-            extra="数值越小越靠前"
-          >
-            <InputNumber min={0} style={{ width: '100%' }} placeholder="0" />
+            <Input.TextArea rows={2} placeholder="请输入描述" />
           </Form.Item>
           <Form.Item
             name="is_active"
-            label="是否启用"
+            label="状态"
             valuePropName="checked"
           >
             <Switch checkedChildren="启用" unCheckedChildren="停用" />
           </Form.Item>
-          <Form.Item
-            name="content"
-            label="内容"
-          >
-            <TextArea
-              rows={12}
-              placeholder="请输入配置内容..."
-              style={{ fontFamily: 'monospace' }}
-            />
-          </Form.Item>
         </Form>
-      </Modal>
-
-      {/* 配置预览弹窗 */}
-      <Modal
-        title={
-          <Space>
-            <EyeOutlined />
-            <span>配置预览</span>
-            {previewConfig && (
-              <Tag color={configTypeMap[previewConfig.config_type || '']?.color || 'default'}>
-                {configTypeMap[previewConfig.config_type || '']?.label || '纯文本'}
-              </Tag>
-            )}
-          </Space>
-        }
-        open={previewModalOpen}
-        onCancel={() => {
-          setPreviewModalOpen(false)
-          setPreviewConfig(null)
-        }}
-        footer={null}
-        width={800}
-      >
-        {previewConfig && (
-          <div>
-            <Title level={5}>{previewConfig.title}</Title>
-            <Text type="secondary" style={{ marginBottom: 16, display: 'block' }}>
-              配置键: <code>{previewConfig.config_key}</code>
-            </Text>
-            <Divider style={{ margin: '12px 0' }} />
-            <div style={{ marginTop: 16 }}>
-              {renderPreviewContent()}
-            </div>
-          </div>
-        )}
       </Modal>
     </div>
   )

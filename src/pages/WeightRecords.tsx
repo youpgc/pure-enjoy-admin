@@ -1,485 +1,325 @@
-import React, { useMemo, useState, useEffect } from 'react'
-import { Tag, message, Card, Row, Col, Statistic, DatePicker } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
-import { DeleteOutlined, EditOutlined, LineChartOutlined, DashboardOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts'
-import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
-import { getActionColumn } from '../components/ActionColumn'
-import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
-import { supabase } from '../utils/supabase'
-import { usePermission } from '../hooks/usePermission'
-import { useEditModal } from '../hooks/useEditModal'
-import { formatDateTime, formatDate } from '../utils/format'
-import NoPermission from '../components/NoPermission'
+  Table,
+  Button,
+  Input,
+  Space,
+  Card,
+  message,
+  Modal,
+  Form,
+  Popconfirm,
+  DatePicker,
+  InputNumber,
+  Typography,
+  Row,
+  Col,
+  Statistic,
+} from 'antd'
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  LineChartOutlined,
+} from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
-// ==================== 常量定义 ====================
+const { Text } = Typography
 
-const getWeightColor = (weight: number): string => {
-  if (weight < 50) return 'cyan'
-  if (weight < 70) return 'green'
-  if (weight < 90) return 'gold'
-  return 'orange'
+// ==================== 类型定义 ====================
+
+interface WeightRecord {
+  id: string
+  user_id: string
+  weight: number
+  record_date: string
+  note?: string
+  created_at: string
 }
 
-const getBMIColor = (bmi: number): string => {
-  if (bmi < 18.5) return 'cyan'
-  if (bmi < 24) return 'green'
-  if (bmi < 28) return 'gold'
-  return 'red'
-}
+// ==================== 组件 ====================
 
-const { RangePicker } = DatePicker
-
-// ==================== 编辑字段配置 ====================
-
-const EDIT_FIELDS: EditFieldConfig[] = [
-  {
-    name: 'weight',
-    label: '体重(kg)',
-    type: 'number',
-    required: true,
-    min: 0,
-    step: 0.1,
-    placeholder: '请输入体重',
-  },
-  {
-    name: 'body_fat',
-    label: '体脂率(%)',
-    type: 'number',
-    min: 0,
-    max: 100,
-    step: 0.1,
-    placeholder: '请输入体脂率',
-  },
-  {
-    name: 'bmi',
-    label: 'BMI',
-    type: 'number',
-    min: 0,
-    step: 0.1,
-    placeholder: '请输入BMI',
-  },
-  {
-    name: 'date',
-    label: '日期',
-    type: 'date',
-    required: true,
-  },
-  {
-    name: 'note',
-    label: '备注',
-    type: 'textarea',
-    placeholder: '请输入备注信息',
-  },
-]
-
-// ==================== 详情列表列配置 ====================
-
-const getDetailColumns = (
-  canDelete: boolean,
-  onDelete: (id: string) => void,
-  onEdit: (record: RecordItem) => void
-): ColumnsType<RecordItem> => [
-  {
-    title: '体重(kg)',
-    dataIndex: 'weight',
-    key: 'weight',
-    width: 120,
-    sorter: (a, b) => {
-      const wA = (a.weight as number) || 0
-      const wB = (b.weight as number) || 0
-      return wB - wA
-    },
-    render: (weight: number) => (
-      <Tag color={getWeightColor(typeof weight === 'number' ? weight : 0)} icon={<LineChartOutlined />}>
-        {typeof weight === 'number' ? weight.toFixed(1) : weight} kg
-      </Tag>
-    ),
-  },
-  {
-    title: 'BMI',
-    dataIndex: 'bmi',
-    key: 'bmi',
-    width: 100,
-    sorter: (a, b) => {
-      const bA = (a.bmi as number) || 0
-      const bB = (b.bmi as number) || 0
-      return bB - bA
-    },
-    render: (bmi: number) => {
-      if (!bmi) return '-'
-      const color = getBMIColor(bmi)
-      return <Tag color={color}>{bmi.toFixed(1)}</Tag>
-    },
-  },
-  {
-    title: '体脂率(%)',
-    dataIndex: 'body_fat',
-    key: 'body_fat',
-    width: 100,
-    sorter: (a, b) => {
-      const fA = (a.body_fat as number) || 0
-      const fB = (b.body_fat as number) || 0
-      return fB - fA
-    },
-    render: (bodyFat: number) => {
-      if (!bodyFat) return '-'
-      const color = bodyFat < 15 ? 'cyan' : bodyFat < 25 ? 'green' : 'orange'
-      return <Tag color={color}>{bodyFat.toFixed(1)}%</Tag>
-    },
-  },
-  {
-    title: '记录日期',
-    dataIndex: 'date',
-    key: 'date',
-    width: 120,
-    sorter: (a, b) => {
-      const dateA = (a.date as string) || ''
-      const dateB = (b.date as string) || ''
-      return dateA.localeCompare(dateB)
-    },
-    render: (date: string) => formatDate(date),
-  },
-  {
-    title: '备注',
-    dataIndex: 'note',
-    key: 'note',
-    ellipsis: true,
-    width: 200,
-    render: (note: string) => note || '-',
-  },
-  {
-    title: '创建时间',
-    dataIndex: 'created_at',
-    key: 'created_at',
-    width: 160,
-    render: (date: string) => formatDateTime(date),
-  },
-    getActionColumn<any>(
-      (record) => {
-        const actions: import('../components/ActionColumn').ActionButton[] = [
-          {
-            key: 'edit',
-            label: '编辑',
-            icon: <EditOutlined />,
-            onClick: () => onEdit(record),
-          },
-        ]
-        if (canDelete) {
-          actions.push({
-            key: 'delete',
-            label: '删除',
-            icon: <DeleteOutlined />,
-            danger: true,
-            onClick: () => onDelete(record.id as string),
-          })
-        }
-        return actions
-      },
-      { width: 240, maxVisible: 2 }
-    ),
-]
-
-// ==================== 统计图表组件 ====================
-
-interface WeightStatsProps {
-  userId?: string
-  dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null]
-}
-
-const WeightStats: React.FC<WeightStatsProps> = ({ userId, dateRange }) => {
-  const [stats, setStats] = useState({
-    currentWeight: 0,
-    minWeight: 0,
-    maxWeight: 0,
-    avgWeight: 0,
-    avgBMI: 0,
-    avgBodyFat: 0,
-    trendData: [] as { date: string; weight: number; bmi: number; bodyFat: number }[],
-  })
+const WeightRecords: React.FC = () => {
+  const [records, setRecords] = useState<WeightRecord[]>([])
   const [loading, setLoading] = useState(false)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [modalVisible, setModalVisible] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<WeightRecord | null>(null)
+  const [form] = Form.useForm()
 
-  useEffect(() => {
-    if (!userId) return
-    loadStats()
-  }, [userId, dateRange])
+  const service = new BaseService<WeightRecord>('weight_records', { defaultOrder: { column: 'record_date', ascending: false } })
 
-  const loadStats = async () => {
+  // 加载数据
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      let query = supabase
-        .from('weight_records')
-        .select('*')
-        .eq('user_id', userId)
-
-      // 日期范围筛选
-      if (dateRange[0] && dateRange[1]) {
-        query = query
-          .gte('date', dateRange[0].format('YYYY-MM-DD'))
-          .lte('date', dateRange[1].format('YYYY-MM-DD'))
-      }
-
-      const { data, error } = await query.order('date', { ascending: true })
-
-      if (error) throw error
-
-      const records = data || []
-      
-      if (records.length === 0) {
-        setStats({
-          currentWeight: 0,
-          minWeight: 0,
-          maxWeight: 0,
-          avgWeight: 0,
-          avgBMI: 0,
-          avgBodyFat: 0,
-          trendData: [],
-        })
+      const result = await service.findAll((q) => {
+        if (searchKeyword) {
+          return q.or(`user_id.ilike.%${searchKeyword}%,note.ilike.%${searchKeyword}%`)
+        }
+        return q
+      })
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'WeightRecords-加载数据')
         return
       }
-
-      const weights = records.map(r => r.weight || 0)
-      const bmis = records.map(r => r.bmi || 0).filter(b => b > 0)
-      const bodyFats = records.map(r => r.body_fat || 0).filter(f => f > 0)
-
-      const currentWeight = weights[weights.length - 1] || 0
-      const minWeight = Math.min(...weights)
-      const maxWeight = Math.max(...weights)
-      const avgWeight = weights.reduce((a, b) => a + b, 0) / weights.length
-      const avgBMI = bmis.length > 0 ? bmis.reduce((a, b) => a + b, 0) / bmis.length : 0
-      const avgBodyFat = bodyFats.length > 0 ? bodyFats.reduce((a, b) => a + b, 0) / bodyFats.length : 0
-
-      const trendData = records.map(r => ({
-        date: dayjs(r.date).format('MM-DD'),
-        weight: r.weight || 0,
-        bmi: r.bmi || 0,
-        bodyFat: r.body_fat || 0,
-      }))
-
-      setStats({
-        currentWeight,
-        minWeight,
-        maxWeight,
-        avgWeight,
-        avgBMI,
-        avgBodyFat,
-        trendData,
-      })
+      setRecords(result.data || [])
     } catch (error) {
-      console.error('加载统计数据失败:', error)
+      handleApiError(error, 'WeightRecords-加载数据')
     } finally {
       setLoading(false)
     }
+  }, [searchKeyword])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  // 搜索
+  const handleSearch = () => {
+    loadData()
   }
 
+  // 打开新增弹窗
+  const handleAdd = () => {
+    setEditingRecord(null)
+    form.resetFields()
+    form.setFieldsValue({ record_date: dayjs() })
+    setModalVisible(true)
+  }
+
+  // 打开编辑弹窗
+  const handleEdit = (record: WeightRecord) => {
+    setEditingRecord(record)
+    form.setFieldsValue({
+      ...record,
+      record_date: dayjs(record.record_date),
+    })
+    setModalVisible(true)
+  }
+
+  // 删除记录
+  const handleDelete = async (id: string) => {
+    try {
+      const result = await service.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'WeightRecords-删除')
+        return
+      }
+      message.success('删除成功')
+      loadData()
+    } catch (error) {
+      handleApiError(error, 'WeightRecords-删除')
+    }
+  }
+
+  // 保存记录
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields()
+      const data = {
+        ...values,
+        record_date: values.record_date.format('YYYY-MM-DD'),
+      }
+      if (editingRecord) {
+        const result = await service.update(editingRecord.id, data)
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'WeightRecords-更新')
+          return
+        }
+        message.success('更新成功')
+      } else {
+        const result = await service.create(data)
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'WeightRecords-创建')
+          return
+        }
+        message.success('创建成功')
+      }
+      setModalVisible(false)
+      setEditingRecord(null)
+      form.resetFields()
+      loadData()
+    } catch (error) {
+      handleApiError(error, 'WeightRecords-保存')
+    }
+  }
+
+  // 表格列定义
+  const columns: ColumnsType<WeightRecord> = [
+    {
+      title: '用户ID',
+      dataIndex: 'user_id',
+      key: 'user_id',
+      ellipsis: true,
+    },
+    {
+      title: '体重(kg)',
+      dataIndex: 'weight',
+      key: 'weight',
+      render: (weight: number) => <Text strong>{weight}</Text>,
+    },
+    {
+      title: '记录日期',
+      dataIndex: 'record_date',
+      key: 'record_date',
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
+    },
+    {
+      title: '备注',
+      dataIndex: 'note',
+      key: 'note',
+      ellipsis: true,
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 150,
+      render: (_, record) => (
+        <Space>
+          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            编辑
+          </Button>
+          <Popconfirm
+            title="确认删除"
+            onConfirm={() => handleDelete(record.id)}
+            okText="确认"
+            cancelText="取消"
+          >
+            <Button danger size="small" icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  // 计算平均体重
+  const avgWeight = records.length > 0
+    ? (records.reduce((sum, r) => sum + r.weight, 0) / records.length).toFixed(1)
+    : '0'
+
   return (
-    <div style={{ marginBottom: 24 }}>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={4}>
-          <Card size="small" loading={loading}>
+    <div style={{ padding: 24 }}>
+      {/* 统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
             <Statistic
-              title="当前体重"
-              value={stats.currentWeight}
-              precision={1}
-              suffix="kg"
-              valueStyle={{ color: getWeightColor(stats.currentWeight) }}
+              title="总记录数"
+              value={records.length}
+              prefix={<LineChartOutlined />}
             />
           </Card>
         </Col>
-        <Col span={4}>
-          <Card size="small" loading={loading}>
-            <Statistic
-              title="最低体重"
-              value={stats.minWeight}
-              precision={1}
-              suffix="kg"
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card size="small" loading={loading}>
-            <Statistic
-              title="最高体重"
-              value={stats.maxWeight}
-              precision={1}
-              suffix="kg"
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card size="small" loading={loading}>
+        <Col xs={24} sm={8}>
+          <Card>
             <Statistic
               title="平均体重"
-              value={stats.avgWeight}
-              precision={1}
+              value={avgWeight}
               suffix="kg"
+              prefix={<LineChartOutlined />}
             />
           </Card>
         </Col>
-        <Col span={4}>
-          <Card size="small" loading={loading}>
+        <Col xs={24} sm={8}>
+          <Card>
             <Statistic
-              title="平均BMI"
-              value={stats.avgBMI}
-              precision={1}
-              valueStyle={{ color: getBMIColor(stats.avgBMI) }}
-              prefix={<DashboardOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card size="small" loading={loading}>
-            <Statistic
-              title="平均体脂"
-              value={stats.avgBodyFat}
-              precision={1}
-              suffix="%"
+              title="最新体重"
+              value={records[0]?.weight || 0}
+              suffix="kg"
+              prefix={<LineChartOutlined />}
             />
           </Card>
         </Col>
       </Row>
 
-      <Card
-        size="small"
-        title={<><LineChartOutlined /> 体重变化趋势</>}
-        loading={loading}
-      >
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={stats.trendData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" />
-            <YAxis yAxisId="left" domain={['dataMin - 2', 'dataMax + 2']} />
-            <YAxis yAxisId="right" orientation="right" domain={[0, 50]} hide />
-            <RechartsTooltip
-              formatter={(value: number, name: string) => {
-                if (name === 'weight') return [`${value.toFixed(1)} kg`, '体重']
-                if (name === 'bmi') return [`${value.toFixed(1)}`, 'BMI']
-                if (name === 'bodyFat') return [`${value.toFixed(1)}%`, '体脂率']
-                return [value, name]
-              }}
-            />
-            <ReferenceLine yAxisId="left" y={stats.avgWeight} stroke="#999" strokeDasharray="3 3" label="平均" />
-            <Line
-              yAxisId="left"
-              type="monotone"
-              dataKey="weight"
-              stroke="#1890ff"
-              strokeWidth={2}
-              dot={{ fill: '#1890ff' }}
-              activeDot={{ r: 6 }}
-            />
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="bmi"
-              stroke="#52c41a"
-              strokeWidth={2}
-              dot={false}
-              strokeDasharray="5 5"
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </Card>
-    </div>
-  )
-}
-
-// ==================== 主组件 ====================
-
-const WeightRecords: React.FC = () => {
-  const { canReadWeights, canWriteWeights, canDeleteWeights } = usePermission()
-  const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
-  const [selectedUserId, setSelectedUserId] = useState<string>()
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null])
-
-  // 删除记录
-  const handleDelete = async (id: string) => {
-    if (!canDeleteWeights) {
-      message.warning('您没有删除体重记录的权限')
-      return
-    }
-    try {
-      const { error } = await supabase.from('weight_records').delete().eq('id', id)
-      if (error) throw error
-      message.success('删除成功')
-    } catch (error) {
-      console.error('删除失败:', error)
-      message.error('删除失败')
-    }
-  }
-
-  // 编辑记录
-  const handleEdit = (record: RecordItem) => {
-    if (!canWriteWeights) {
-      message.warning('您没有编辑体重记录的权限')
-      return
-    }
-    open(record)
-  }
-
-  // 处理用户选择变化
-  const handleUserSelect = (userId: string) => {
-    setSelectedUserId(userId)
-  }
-
-  // 模块配置
-  const moduleConfig: ModuleConfig = useMemo(() => ({
-    key: 'weight_records',
-    title: '体重记录管理',
-    tableName: 'weight_records',
-    detailTitle: '体重记录详情',
-    detailColumns: getDetailColumns(canDeleteWeights || false, handleDelete, handleEdit),
-    onUserSelect: handleUserSelect,
-  }), [canDeleteWeights, canWriteWeights])
-
-  // 权限检查
-  if (!canReadWeights) {
-    return <NoPermission module="体重记录" />
-  }
-
-  return (
-    <>
       {/* 筛选栏 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
-        <RangePicker
-          placeholder={['开始日期', '结束日期']}
-          value={dateRange}
-          onChange={(dates) => setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null])}
-        />
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Input
+            placeholder="搜索用户ID/备注"
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
+          </Button>
+        </Space>
       </Card>
 
-      {/* 统计图表 */}
-      {selectedUserId && (
-        <WeightStats
-          userId={selectedUserId}
-          dateRange={dateRange}
-        />
-      )}
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          新增记录
+        </Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
+      </div>
 
-      <UserDimensionList moduleConfig={moduleConfig} />
-      <EditRecordModal
-        open={editModalOpen}
-        record={editingRecord}
-        tableName="weight_records"
-        fields={EDIT_FIELDS}
-        onClose={close}
-        onSuccess={() => {
-          window.location.reload()
-        }}
+      {/* 数据表格 */}
+      <Table
+        columns={columns}
+        dataSource={records}
+        rowKey="id"
+        loading={loading}
+        pagination={{ pageSize: 20 }}
+        scroll={{ x: 800 }}
       />
-    </>
+
+      {/* 表单弹窗 */}
+      <Modal
+        title={editingRecord ? '编辑体重记录' : '新增体重记录'}
+        open={modalVisible}
+        onOk={handleSave}
+        onCancel={() => {
+          setModalVisible(false)
+          setEditingRecord(null)
+          form.resetFields()
+        }}
+        width={500}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="user_id"
+            label="用户ID"
+            rules={[{ required: true, message: '请输入用户ID' }]}
+          >
+            <Input placeholder="请输入用户ID" />
+          </Form.Item>
+          <Form.Item
+            name="weight"
+            label="体重(kg)"
+            rules={[{ required: true, message: '请输入体重' }]}
+          >
+            <InputNumber style={{ width: '100%' }} placeholder="请输入体重" min={0} step={0.1} />
+          </Form.Item>
+          <Form.Item
+            name="record_date"
+            label="记录日期"
+            rules={[{ required: true, message: '请选择记录日期' }]}
+          >
+            <DatePicker style={{ width: '100%' }} placeholder="请选择记录日期" />
+          </Form.Item>
+          <Form.Item
+            name="note"
+            label="备注"
+          >
+            <Input.TextArea rows={2} placeholder="请输入备注" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
   )
 }
 

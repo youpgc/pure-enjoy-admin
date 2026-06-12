@@ -1,437 +1,273 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Card,
   Table,
   Button,
-  Modal,
-  Form,
   Input,
-  Select,
-  Upload,
   Space,
-  message,
   Tag,
-  Image,
-  Descriptions,
-  Alert,
-  Progress,
+  Card,
+  message,
+  Modal,
+  Upload,
+  Popconfirm,
   Tooltip,
+  Select,
+  Typography,
+  Row,
+  Col,
+  Statistic,
+  Progress,
 } from 'antd'
 import {
-  PlusOutlined,
-  DeleteOutlined,
-  EyeOutlined,
-  LinkOutlined,
-  UploadOutlined,
-  FileTextOutlined,
-  FileZipOutlined,
-  FilePdfOutlined,
-  FileExcelOutlined,
-  FileWordOutlined,
-  FilePptOutlined,
-  FileImageOutlined,
-  FileUnknownOutlined,
-  ReloadOutlined,
   SearchOutlined,
+  ReloadOutlined,
+  UploadOutlined,
+  DeleteOutlined,
+  FileOutlined,
+  PictureOutlined,
+  FileTextOutlined,
+  VideoCameraOutlined,
+  AudioOutlined,
+  InboxOutlined,
 } from '@ant-design/icons'
-import { supabase, logOperation } from '../utils/supabase'
-import { getActionColumn } from '../components/ActionColumn'
-import type { UploadFile, UploadProps } from 'antd/es/upload'
+import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
+import { supabase } from '../utils/supabase'
+import { usePermission } from '../hooks/usePermission'
+import { getActionColumn } from '../components/ActionColumn'
+import { BaseService, apiQuery, apiExecute, handleApiError } from '../utils/apiClient'
 
-const { Option } = Select
+const { Text } = Typography
+const { Dragger } = Upload
 
 // ==================== 类型定义 ====================
 
-interface FileRecord {
+interface FileItem {
   id: string
-  file_name: string
-  original_name: string
-  file_type: string
-  file_category: string
-  mime_type: string
+  name: string
+  bucket: string
+  path: string
   size: number
+  mime_type: string
   url: string
-  thumbnail_url?: string
-  description?: string
-  uploaded_by?: string
-  created_at: string
-  updated_at: string
-}
-
-interface FileTypeDict {
-  code: string
-  label: string
-  value: string
-  extra?: {
-    icon?: string
-    color?: string
-    accept?: string
-    maxSize?: number
-  }
-}
-
-interface FileAssociation {
-  id: string
-  file_id: string
-  entity_type: string
-  entity_id: string
-  entity_title?: string
   created_at: string
 }
 
-// ==================== 文件图标映射 ====================
-
-const getFileIcon = (mimeType: string, fileName: string) => {
-  if (mimeType.startsWith('image/')) return <FileImageOutlined style={{ color: '#52c41a' }} />
-  if (mimeType.includes('pdf')) return <FilePdfOutlined style={{ color: '#ff4d4f' }} />
-  if (mimeType.includes('word') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
-    return <FileWordOutlined style={{ color: '#1890ff' }} />
-  }
-  if (mimeType.includes('excel') || fileName.endsWith('.xls') || fileName.endsWith('.xlsx')) {
-    return <FileExcelOutlined style={{ color: '#52c41a' }} />
-  }
-  if (mimeType.includes('powerpoint') || fileName.endsWith('.ppt') || fileName.endsWith('.pptx')) {
-    return <FilePptOutlined style={{ color: '#fa8c16' }} />
-  }
-  if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z')) {
-    return <FileZipOutlined style={{ color: '#722ed1' }} />
-  }
-  if (mimeType.startsWith('text/')) return <FileTextOutlined style={{ color: '#8c8c8c' }} />
-  return <FileUnknownOutlined style={{ color: '#8c8c8c' }} />
+interface FileFilters {
+  keyword: string
+  bucket: string | undefined
 }
 
-// ==================== 格式化文件大小 ====================
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
-
-// ==================== 主组件 ====================
+// ==================== 组件 ====================
 
 const FileManagement: React.FC = () => {
-  // 状态
-  const [files, setFiles] = useState<FileRecord[]>([])
+  const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(false)
-  const [fileTypes, setFileTypes] = useState<FileTypeDict[]>([])
-  const [uploadModalVisible, setUploadModalVisible] = useState(false)
-  const [previewModalVisible, setPreviewModalVisible] = useState(false)
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false)
-  const [selectedFile, setSelectedFile] = useState<FileRecord | null>(null)
-  const [associations, setAssociations] = useState<FileAssociation[]>([])
-  const [checkingAssociations, setCheckingAssociations] = useState(false)
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const [filters, setFilters] = useState<FileFilters>({
+    keyword: '',
+    bucket: undefined,
+  })
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0)
-  const [searchText, setSearchText] = useState('')
-  const [filterType, setFilterType] = useState<string>('')
-  const [form] = Form.useForm()
-  const [fileList, setFileList] = useState<UploadFile[]>([])
+  const { isAdmin } = usePermission()
 
-  // 加载文件类型字典
-  const loadFileTypes = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('dict_items')
-        .select('code, label, value, extra')
-        .eq('type_id', (
-          await supabase
-            .from('dict_types')
-            .select('id')
-            .eq('code', 'file_type')
-            .single()
-        ).data?.id || '')
-        .eq('status', 'active')
-        .order('sort_order', { ascending: true })
-
-      if (error) throw error
-      setFileTypes(data || [])
-    } catch (error: any) {
-      console.error('加载文件类型失败:', error)
-      // 设置默认类型
-      setFileTypes([
-        { code: 'novel_cover', label: '小说封面', value: 'novel_cover' },
-        { code: 'user_avatar', label: '用户头像', value: 'user_avatar' },
-        { code: 'other', label: '其他', value: 'other' },
-      ])
-    }
-  }, [])
+  const fileService = new BaseService<FileItem>('files', { defaultOrder: { column: 'created_at', ascending: false } })
 
   // 加载文件列表
   const loadFiles = useCallback(async () => {
     setLoading(true)
     try {
-      let query = supabase
-        .from('files')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const result = await fileService.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
+        if (filters.keyword) {
+          query = query.ilike('name', `%${filters.keyword}%`)
+        }
+        if (filters.bucket) {
+          query = query.eq('bucket', filters.bucket)
+        }
+        return query
+      })
 
-      if (filterType) {
-        query = query.eq('file_type', filterType)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'FileManagement-加载文件')
+        return
       }
-      if (searchText) {
-        query = query.or(`file_name.ilike.%${searchText}%,original_name.ilike.%${searchText}%`)
-      }
 
-      const { data, error } = await query
-
-      if (error) throw error
-      setFiles(data || [])
-    } catch (error: any) {
-      message.error('加载文件列表失败: ' + error.message)
+      setFiles(result.data?.data || [])
+      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+    } catch (error) {
+      handleApiError(error, 'FileManagement-加载文件')
     } finally {
       setLoading(false)
     }
-  }, [filterType, searchText])
-
-  interface NovelRef {
-    id: string
-    title: string
-    cover_url: string
-  }
-  interface UserRef {
-    id: string
-    nickname: string
-    avatar_url: string
-  }
-
-  // 检查文件关联
-  const checkFileAssociations = async (file: FileRecord): Promise<FileAssociation[]> => {
-    try {
-      const fileUrl = file.url
-
-      // 查询小说封面关联（匹配完整URL）
-      const { data: novels, error: novelError } = await supabase
-        .from('novels')
-        .select('id, title, cover_url')
-        .eq('cover_url', fileUrl)
-
-      if (novelError) throw novelError
-
-      // 查询用户头像关联（匹配完整URL）
-      const { data: users, error: userError } = await supabase
-        .from('users')
-        .select('id, nickname, avatar_url')
-        .eq('avatar_url', fileUrl)
-
-      if (userError) throw userError
-
-      const associations: FileAssociation[] = []
-
-      novels?.forEach((novel: NovelRef) => {
-        associations.push({
-          id: `novel_${novel.id}`,
-          file_id: file.id,
-          entity_type: 'novel',
-          entity_id: novel.id,
-          entity_title: novel.title,
-          created_at: new Date().toISOString(),
-        })
-      })
-
-      users?.forEach((user: UserRef) => {
-        associations.push({
-          id: `user_${user.id}`,
-          file_id: file.id,
-          entity_type: 'user',
-          entity_id: user.id,
-          entity_title: user.nickname || user.id,
-          created_at: new Date().toISOString(),
-        })
-      })
-
-      return associations
-    } catch (error) {
-      console.error('检查关联失败:', error)
-      return []
-    }
-  }
+  }, [pagination.current, pagination.pageSize, filters])
 
   useEffect(() => {
-    loadFileTypes()
     loadFiles()
-  }, [loadFileTypes, loadFiles])
+  }, [loadFiles])
 
-  interface UploadFormValues {
-    file_type?: string
-    file_category?: string
-    description?: string
+  // 搜索
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, current: 1 }))
+    loadFiles()
   }
 
-  // 上传文件到 Supabase Storage
-  const handleUpload = async (values: UploadFormValues) => {
-    if (fileList.length === 0) {
-      message.error('请选择要上传的文件')
-      return
-    }
-
-    const file = fileList[0]?.originFileObj
-    if (!file) {
-      message.error('文件对象无效')
-      return
-    }
-
-    setUploading(true)
-    setUploadProgress(0)
-
-    try {
-      // 生成唯一文件名
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${fileExt}`
-      const filePath = `${values.file_type || 'other'}/${fileName}`
-
-      // 上传到 Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('files')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-        })
-
-      if (uploadError) throw uploadError
-
-      setUploadProgress(50)
-
-      // 获取文件URL
-      const { data: urlData } = supabase.storage.from('files').getPublicUrl(filePath)
-      const fileUrl = urlData.publicUrl
-
-      // 生成缩略图（如果是图片）
-      let thumbnailUrl = ''
-      if (file.type.startsWith('image/')) {
-        thumbnailUrl = fileUrl
-      }
-
-      setUploadProgress(80)
-
-      // 写入文件元数据表
-      const { error: dbError } = await supabase
-        .from('files')
-        .insert({
-          file_name: fileName,
-          original_name: file.name,
-          file_type: values.file_type || 'other',
-          file_category: values.file_category || 'other',
-          mime_type: file.type || 'application/octet-stream',
-          size: file.size,
-          url: fileUrl,
-          thumbnail_url: thumbnailUrl,
-          description: values.description || '',
-        })
-
-      if (dbError) throw dbError
-
-      setUploadProgress(100)
-      message.success('文件上传成功')
-      logOperation({ action: 'create', module: 'files', detail: `上传文件: ${file.name}` })
-
-      setUploadModalVisible(false)
-      setFileList([])
-      form.resetFields()
-      loadFiles()
-    } catch (error: any) {
-      message.error('上传失败: ' + error.message)
-    } finally {
-      setUploading(false)
-      setUploadProgress(0)
-    }
-  }
-
-  // 打开删除确认弹窗
-  const openDeleteModal = async (file: FileRecord) => {
-    setSelectedFile(file)
-    setCheckingAssociations(true)
-    setDeleteModalVisible(true)
-
-    const assocs = await checkFileAssociations(file)
-    setAssociations(assocs)
-    setCheckingAssociations(false)
+  // 重置筛选
+  const handleReset = () => {
+    setFilters({
+      keyword: '',
+      bucket: undefined,
+    })
+    setPagination(prev => ({ ...prev, current: 1 }))
   }
 
   // 删除文件
-  const handleDelete = async () => {
-    if (!selectedFile) return
-
+  const handleDelete = async (record: FileItem) => {
     try {
-      // 1. 删除 Storage 中的文件
-      const filePath = `${selectedFile.file_type}/${selectedFile.file_name}`
-      const { error: storageError } = await supabase.storage
-        .from('files')
-        .remove([filePath])
-
-      if (storageError) {
-        console.warn('删除存储文件失败:', storageError)
+      // 先删除存储
+      const storageResult = await apiExecute(
+        () => supabase.storage.from(record.bucket).remove([record.path]),
+        'FileManagement-删除存储'
+      )
+      if (!storageResult.success) {
+        handleApiError(storageResult.errorMessage, 'FileManagement-删除存储')
+        return
       }
 
-      // 2. 删除数据库记录
-      const { error: dbError } = await supabase
-        .from('files')
-        .delete()
-        .eq('id', selectedFile.id)
-
-      if (dbError) throw dbError
-
-      message.success('文件删除成功')
-      logOperation({ action: 'delete', module: 'files', detail: `删除文件: ${selectedFile.original_name}` })
-
-      setDeleteModalVisible(false)
-      setSelectedFile(null)
-      setAssociations([])
+      // 再删除数据库记录
+      const result = await fileService.delete(record.id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'FileManagement-删除记录')
+        return
+      }
+      message.success('删除成功')
       loadFiles()
-    } catch (error: any) {
-      message.error('删除失败: ' + error.message)
+    } catch (error) {
+      handleApiError(error, 'FileManagement-删除')
     }
   }
 
-  // 预览文件
-  const handlePreview = (file: FileRecord) => {
-    setSelectedFile(file)
-    setPreviewModalVisible(true)
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要删除的文件')
+      return
+    }
+    try {
+      const selectedFiles = files.filter(f => selectedRowKeys.includes(f.id))
+      // 按 bucket 分组删除存储
+      const bucketGroups = selectedFiles.reduce((acc, file) => {
+        const b = file.bucket
+        if (!acc[b]) acc[b] = []
+        acc[b].push(file.path)
+        return acc
+      }, {} as Record<string, string[]>)
+
+      for (const [bucket, paths] of Object.entries(bucketGroups)) {
+        await apiExecute(
+          () => supabase.storage.from(bucket).remove(paths as string[]),
+          'FileManagement-批量删除存储'
+        )
+      }
+
+      const { error } = await supabase
+        .from('files')
+        .delete()
+        .in('id', selectedRowKeys as string[])
+      if (error) {
+        handleApiError(error, 'FileManagement-批量删除记录')
+        return
+      }
+      message.success(`成功删除 ${selectedRowKeys.length} 个文件`)
+      setSelectedRowKeys([])
+      loadFiles()
+    } catch (error) {
+      handleApiError(error, 'FileManagement-批量删除')
+    }
   }
 
-  // 上传配置
-  const uploadProps: UploadProps = {
-    onRemove: () => {
-      setFileList([])
-    },
-    beforeUpload: (file) => {
-      setFileList([{ uid: file.uid, name: file.name, status: 'done', originFileObj: file }])
+  // 上传文件
+  const handleUpload = async (file: File) => {
+    try {
+      setUploading(true)
+      const bucket = filters.bucket || 'public'
+      const fileExt = file.name.split('.').pop()
+      const filePath = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
+
+      const uploadResult = await apiExecute(
+        () => supabase.storage.from(bucket).upload(filePath, file),
+        'FileManagement-上传文件'
+      )
+
+      if (!uploadResult.success) {
+        message.error('上传失败')
+        return false
+      }
+
+      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath)
+
+      // 保存文件记录
+      const saveResult = await fileService.create({
+        name: file.name,
+        bucket,
+        path: filePath,
+        size: file.size,
+        mime_type: file.type,
+        url: publicUrl,
+        created_at: new Date().toISOString(),
+      } as any)
+
+      if (!saveResult.success) {
+        handleApiError(saveResult.errorMessage, 'FileManagement-保存记录')
+        return false
+      }
+
+      message.success('上传成功')
+      loadFiles()
       return false
-    },
-    fileList,
-    maxCount: 1,
+    } catch (error) {
+      handleApiError(error, 'FileManagement-上传')
+      return false
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  // 格式化文件大小
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  // 获取文件图标
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) return <PictureOutlined style={{ color: '#1890ff' }} />
+    if (mimeType.startsWith('video/')) return <VideoCameraOutlined style={{ color: '#ff4d4f' }} />
+    if (mimeType.startsWith('audio/')) return <AudioOutlined style={{ color: '#52c41a' }} />
+    if (mimeType.startsWith('text/')) return <FileTextOutlined style={{ color: '#faad14' }} />
+    return <FileOutlined style={{ color: '#999' }} />
   }
 
   // 表格列定义
-  const columns = [
+  const columns: ColumnsType<FileItem> = [
     {
-      title: '文件',
-      dataIndex: 'original_name',
-      key: 'original_name',
+      title: '文件名',
+      key: 'name',
       width: 300,
-      render: (text: string, record: FileRecord) => (
+      render: (_, record) => (
         <Space>
-          {getFileIcon(record.mime_type, text)}
-          <Tooltip title={text}>
-            <span style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }}>
-              {text}
-            </span>
-          </Tooltip>
+          {getFileIcon(record.mime_type)}
+          <div>
+            <div style={{ fontWeight: 500 }}>{record.name}</div>
+            <Text type="secondary" style={{ fontSize: 12 }}>{record.bucket}</Text>
+          </div>
         </Space>
       ),
-    },
-    {
-      title: '类型',
-      dataIndex: 'file_type',
-      key: 'file_type',
-      width: 120,
-      render: (type: string) => {
-        const typeInfo = fileTypes.find(t => t.value === type)
-        return <Tag color="blue">{typeInfo?.label || type}</Tag>
-      },
     },
     {
       title: '大小',
@@ -441,273 +277,172 @@ const FileManagement: React.FC = () => {
       render: (size: number) => formatFileSize(size),
     },
     {
-      title: '预览',
-      dataIndex: 'url',
-      key: 'preview',
-      width: 80,
-      render: (url: string, record: FileRecord) => {
-        if (record.mime_type?.startsWith('image/') && url) {
-          return (
-            <Image
-              src={url}
-              alt="预览"
-              width={50}
-              height={50}
-              style={{ objectFit: 'cover', borderRadius: 4, cursor: 'pointer' }}
-            />
-          )
-        }
-        return <Tag>无预览</Tag>
-      },
+      title: '类型',
+      dataIndex: 'mime_type',
+      key: 'mime_type',
+      width: 150,
+      render: (mime: string) => <Tag>{mime}</Tag>,
     },
     {
-      title: '关联',
-      key: 'associations',
-      width: 100,
-      render: (_: any, record: FileRecord) => (
-        <Button
-          type="link"
-          icon={<LinkOutlined />}
-          onClick={async () => {
-            const assocs = await checkFileAssociations(record)
-            if (assocs.length > 0) {
-              Modal.info({
-                title: '文件关联',
-                content: (
-                  <div>
-                    {assocs.map((assoc) => (
-                      <Tag key={assoc.id} color="green">
-                        {assoc.entity_type === 'novel' ? '📖' : '👤'} {assoc.entity_title}
-                      </Tag>
-                    ))}
-                  </div>
-                ),
-              })
-            } else {
-              message.info('暂无关联')
-            }
-          }}
-        >
-          查看
-        </Button>
-      ),
-    },
-    {
-      title: '上传时间',
+      title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 180,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      width: 170,
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
-    getActionColumn<FileRecord>(
+    getActionColumn<FileItem>(
       (record) => [
-        {
-          key: 'preview',
-          label: '预览',
-          icon: <EyeOutlined />,
-          onClick: () => handlePreview(record),
-        },
         {
           key: 'delete',
           label: '删除',
           icon: <DeleteOutlined />,
           danger: true,
-          onClick: () => openDeleteModal(record),
+          onClick: () => handleDelete(record),
         },
       ],
-      { width: 180, maxVisible: 2 }
+      { width: 120, maxVisible: 1 }
     ),
   ]
 
+  // 总存储大小
+  const totalSize = files.reduce((sum, f) => sum + f.size, 0)
+
   return (
-    <Card>
-      {/* 工具栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Space>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setUploadModalVisible(true)}>
-            上传文件
-          </Button>
+    <div style={{ padding: 24 }}>
+      {/* 统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总文件数"
+              value={pagination.total}
+              prefix={<FileOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总存储"
+              value={formatFileSize(totalSize)}
+              prefix={<InboxOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="图片文件"
+              value={files.filter(f => f.mime_type.startsWith('image/')).length}
+              prefix={<PictureOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 筛选栏 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
           <Input
             placeholder="搜索文件名"
+            value={filters.keyword}
+            onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+            onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onPressEnter={loadFiles}
-            style={{ width: 200 }}
+            style={{ width: 220 }}
+            allowClear
           />
           <Select
-            placeholder="文件类型"
+            placeholder="存储桶"
+            value={filters.bucket}
+            onChange={(value) => setFilters(prev => ({ ...prev, bucket: value }))}
+            style={{ width: 120 }}
             allowClear
-            style={{ width: 150 }}
-            value={filterType}
-            onChange={(value) => setFilterType(value)}
-          >
-            {fileTypes.map((type) => (
-              <Option key={type.value} value={type.value}>{type.label}</Option>
-            ))}
-          </Select>
-          <Button icon={<ReloadOutlined />} onClick={loadFiles}>
-            刷新
+            options={[
+              { label: 'public', value: 'public' },
+              { label: 'private', value: 'private' },
+            ]}
+          />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
           </Button>
         </Space>
-        <Tag>共 {files.length} 个文件</Tag>
+      </Card>
+
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Space>
+          <Button type="primary" icon={<UploadOutlined />} onClick={() => setUploadModalOpen(true)}>
+            上传文件
+          </Button>
+          {selectedRowKeys.length > 0 && (
+            <Popconfirm
+              title="确认批量删除"
+              description={`确定要删除选中的 ${selectedRowKeys.length} 个文件吗？`}
+              onConfirm={handleBatchDelete}
+              okText="确认"
+              cancelText="取消"
+            >
+              <Button danger icon={<DeleteOutlined />}>
+                批量删除 ({selectedRowKeys.length})
+              </Button>
+            </Popconfirm>
+          )}
+        </Space>
+        <Button icon={<ReloadOutlined />} onClick={loadFiles} loading={loading}>
+          刷新
+        </Button>
       </div>
 
-      {/* 文件列表 */}
+      {/* 文件表格 */}
       <Table
         columns={columns}
         dataSource={files}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `共 ${total} 条` }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
+        scroll={{ x: 1000 }}
       />
 
       {/* 上传弹窗 */}
       <Modal
         title="上传文件"
-        open={uploadModalVisible}
-        onOk={() => form.submit()}
-        onCancel={() => {
-          setUploadModalVisible(false)
-          setFileList([])
-          form.resetFields()
-        }}
-        confirmLoading={uploading}
-        width={600}
+        open={uploadModalOpen}
+        onCancel={() => setUploadModalOpen(false)}
+        footer={null}
+        width={500}
       >
-        <Form form={form} layout="vertical" onFinish={handleUpload}>
-          <Form.Item
-            name="file"
-            label="选择文件"
-            rules={[{ required: true, message: '请选择文件' }]}
-          >
-            <Upload {...uploadProps}>
-              <Button icon={<UploadOutlined />}>选择文件</Button>
-            </Upload>
-          </Form.Item>
-
-          <Form.Item
-            name="file_type"
-            label="文件类型"
-            rules={[{ required: true, message: '请选择文件类型' }]}
-          >
-            <Select placeholder="选择文件类型">
-              {fileTypes.map((type) => (
-                <Option key={type.value} value={type.value}>{type.label}</Option>
-              ))}
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="file_category" label="文件分类">
-            <Select placeholder="选择文件分类" allowClear>
-              <Option value="image">图片</Option>
-              <Option value="document">文档</Option>
-              <Option value="other">其他</Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={3} placeholder="文件描述（可选）" />
-          </Form.Item>
-
-          {uploading && (
-            <Form.Item>
-              <Progress percent={uploadProgress} status="active" />
-            </Form.Item>
-          )}
-        </Form>
+        <Dragger
+          beforeUpload={handleUpload}
+          showUploadList={false}
+          multiple
+        >
+          <p className="ant-upload-drag-icon">
+            <InboxOutlined />
+          </p>
+          <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
+          <p className="ant-upload-hint">
+            支持单个或批量上传
+          </p>
+        </Dragger>
       </Modal>
-
-      {/* 预览弹窗 */}
-      <Modal
-        title="文件预览"
-        open={previewModalVisible}
-        onCancel={() => setPreviewModalVisible(false)}
-        footer={[
-          <Button key="close" onClick={() => setPreviewModalVisible(false)}>
-            关闭
-          </Button>,
-          <Button
-            key="download"
-            type="primary"
-            onClick={() => {
-              if (selectedFile?.url) {
-                window.open(selectedFile.url, '_blank')
-              }
-            }}
-          >
-            下载
-          </Button>,
-        ]}
-        width={800}
-      >
-        {selectedFile && (
-          <Descriptions bordered column={2}>
-            <Descriptions.Item label="文件名" span={2}>{selectedFile.original_name}</Descriptions.Item>
-            <Descriptions.Item label="文件类型">{selectedFile.file_type}</Descriptions.Item>
-            <Descriptions.Item label="文件大小">{formatFileSize(selectedFile.size)}</Descriptions.Item>
-            <Descriptions.Item label="MIME类型">{selectedFile.mime_type}</Descriptions.Item>
-            <Descriptions.Item label="上传时间">{dayjs(selectedFile.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
-            <Descriptions.Item label="描述" span={2}>{selectedFile.description || '-'}</Descriptions.Item>
-          </Descriptions>
-        )}
-        {selectedFile?.mime_type?.startsWith('image/') && (
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <Image src={selectedFile.url} alt={selectedFile.original_name} style={{ maxWidth: '100%' }} />
-          </div>
-        )}
-      </Modal>
-
-      {/* 删除确认弹窗 */}
-      <Modal
-        title="确认删除"
-        open={deleteModalVisible}
-        onOk={handleDelete}
-        onCancel={() => {
-          setDeleteModalVisible(false)
-          setSelectedFile(null)
-          setAssociations([])
-        }}
-        confirmLoading={checkingAssociations}
-        okButtonProps={{ danger: true, disabled: associations.length > 0 }}
-        okText="删除"
-      >
-        {checkingAssociations ? (
-          <div style={{ textAlign: 'center', padding: 20 }}>
-            <div>正在检查文件关联...</div>
-          </div>
-        ) : (
-          <>
-            {associations.length > 0 ? (
-              <Alert
-                type="error"
-                message="无法删除"
-                description={
-                  <div>
-                    <p>该文件正在被以下资源使用，无法删除：</p>
-                    <ul>
-                      {associations.map((assoc) => (
-                        <li key={assoc.id}>
-                          {assoc.entity_type === 'novel' ? '📖 小说' : '👤 用户'}：
-                          <strong>{assoc.entity_title}</strong>
-                        </li>
-                      ))}
-                    </ul>
-                    <p>请先解除关联后再删除文件。</p>
-                  </div>
-                }
-              />
-            ) : (
-              <Alert
-                type="warning"
-                message="确认删除"
-                description={`确定要删除文件 "${selectedFile?.original_name}" 吗？此操作不可恢复。`}
-              />
-            )}
-          </>
-        )}
-      </Modal>
-    </Card>
+    </div>
   )
 }
 

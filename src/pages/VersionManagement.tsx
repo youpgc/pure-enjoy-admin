@@ -1,636 +1,527 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Table, Button, Modal, Form, Input, Select, Upload, Tag, Space,
-  message, QRCode, Card, Descriptions, Typography
+  Table,
+  Button,
+  Input,
+  Space,
+  Tag,
+  Card,
+  message,
+  Modal,
+  Form,
+  Select,
+  Popconfirm,
+  Tooltip,
+  Badge,
+  Typography,
+  Row,
+  Col,
+  Statistic,
+  Switch,
 } from 'antd'
 import {
-  UploadOutlined, DownloadOutlined, RollbackOutlined,
-  QrcodeOutlined, PlusOutlined, HistoryOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined
+  SearchOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  AppstoreOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  CloudUploadOutlined,
 } from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
-import { formatDateTime } from '../utils/format'
-import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
+import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
 
-const { TextArea } = Input
 const { Text } = Typography
 
+// ==================== 类型定义 ====================
+
 interface AppVersion {
-  id: number
+  id: string
+  app_name: string
+  platform: 'ios' | 'android' | 'web'
   version: string
   build_number: number
-  release_type: 'hotfix' | 'feature' | 'force'
-  release_notes: string
-  apk_url: string | null
-  apk_size: number
-  status: 'draft' | 'released' | 'revoked' | 'inactive'
-  released_at: string | null
-  revoked_at: string | null
+  force_update: boolean
+  update_url?: string
+  release_notes?: string
+  is_active: boolean
   created_at: string
-  created_by: string | null
-  // 兼容字段（GitHub Actions 工作流创建的记录使用这些字段名）
-  download_url?: string | null
-  file_size?: number
-  file_name?: string
-  checksum?: string
-  platform?: string
+  updated_at: string
 }
 
-const releaseTypeMapFallback: Record<string, { label: string; color: string }> = {
-  hotfix: { label: '热更新', color: 'orange' },
-  feature: { label: '功能迭代', color: 'blue' },
-  force: { label: '强制更新', color: 'red' },
+interface VersionFilters {
+  keyword: string
+  platform: string | undefined
+  isActive: boolean | undefined
 }
 
-const statusMapFallback: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  draft: { label: '草稿', color: 'default', icon: <ClockCircleOutlined /> },
-  released: { label: '已发布', color: 'green', icon: <CheckCircleOutlined /> },
-  revoked: { label: '已撤回', color: 'red', icon: <CloseCircleOutlined /> },
-  inactive: { label: '已失效', color: 'gray', icon: <CloseCircleOutlined /> },
-}
+// ==================== 组件 ====================
 
 const VersionManagement: React.FC = () => {
-  const { canManageVersions } = usePermission()
   const [versions, setVersions] = useState<AppVersion[]>([])
   const [loading, setLoading] = useState(false)
-  const [uploadModalOpen, setUploadModalOpen] = useState(false)
-  const [qrModalOpen, setQrModalOpen] = useState(false)
-  const [selectedVersion, setSelectedVersion] = useState<AppVersion | null>(null)
-  const [uploading, setUploading] = useState(false)
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const [filters, setFilters] = useState<VersionFilters>({
+    keyword: '',
+    platform: undefined,
+    isActive: undefined,
+  })
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const [modalVisible, setModalVisible] = useState(false)
+  const [editingVersion, setEditingVersion] = useState<AppVersion | null>(null)
   const [form] = Form.useForm()
+  const { isAdmin } = usePermission()
 
-  // 字典查询
-  const { options: releaseTypeOptions } = useDictOptions('release_type', [])
-  const { options: versionStatusOptions } = useDictOptions('version_status', [])
-  const { getColor: getReleaseTypeColor } = useDictColors('release_type')
-  const { getColor: getVersionStatusColor } = useDictColors('version_status')
+  const versionService = new BaseService<AppVersion>('app_versions', { defaultOrder: { column: 'created_at', ascending: false } })
+
+  // 加载版本列表
+  const loadVersions = useCallback(async () => {
+    setLoading(true)
+    try {
+      const result = await versionService.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
+        if (filters.keyword) {
+          query = query.or(`app_name.ilike.%${filters.keyword}%,version.ilike.%${filters.keyword}%`)
+        }
+        if (filters.platform) {
+          query = query.eq('platform', filters.platform)
+        }
+        if (filters.isActive !== undefined) {
+          query = query.eq('is_active', filters.isActive)
+        }
+        return query
+      })
+
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'VersionManagement-加载版本')
+        return
+      }
+
+      setVersions(result.data?.data || [])
+      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+    } catch (error) {
+      handleApiError(error, 'VersionManagement-加载版本')
+    } finally {
+      setLoading(false)
+    }
+  }, [pagination.current, pagination.pageSize, filters])
 
   useEffect(() => {
-    fetchVersions()
-  }, [])
+    loadVersions()
+  }, [loadVersions])
 
-  const fetchVersions = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('app_versions')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (error) {
-      console.error('Error fetching versions:', error)
-      message.error('加载版本列表失败: ' + error.message)
-    } else {
-      // 映射字段：将 GitHub Actions 创建的字段名转换为前端使用的字段名
-      interface RawVersionRecord {
-        id: number
-        version?: string
-        build_number?: number
-        release_type?: 'hotfix' | 'feature' | 'force'
-        release_notes?: string
-        apk_url?: string | null
-        download_url?: string | null
-        apk_size?: number
-        file_size?: number | string
-        status?: 'draft' | 'released' | 'revoked'
-        is_active?: boolean
-        released_at?: string | null
-        created_at?: string
-        revoked_at?: string | null
-        created_by?: string | null
-        file_name?: string
-        checksum?: string
-        platform?: string
+  // 搜索
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, current: 1 }))
+    loadVersions()
+  }
+
+  // 重置筛选
+  const handleReset = () => {
+    setFilters({
+      keyword: '',
+      platform: undefined,
+      isActive: undefined,
+    })
+    setPagination(prev => ({ ...prev, current: 1 }))
+  }
+
+  // 打开新增弹窗
+  const handleAdd = () => {
+    setEditingVersion(null)
+    form.resetFields()
+    setModalVisible(true)
+  }
+
+  // 打开编辑弹窗
+  const handleEdit = (record: AppVersion) => {
+    setEditingVersion(record)
+    form.setFieldsValue({
+      ...record,
+    })
+    setModalVisible(true)
+  }
+
+  // 删除版本
+  const handleDelete = async (id: string) => {
+    try {
+      const result = await versionService.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'VersionManagement-删除')
+        return
       }
-      const mappedData: AppVersion[] = (data || []).map((item: RawVersionRecord) => {
-        // 处理发布时间：优先使用 released_at，否则使用 created_at
-        const releasedAt = item.released_at || item.created_at || null
-        
-        // 处理版本状态
-        const status = item.status || (item.is_active === false ? 'inactive' : (item.is_active ? 'released' : 'draft'))
-        
-        // 处理 APK 大小（确保是数字，且大于0）
-        let apkSize = Number(item.apk_size || item.file_size || 0)
-        // 如果 file_size 是字符串，尝试转换
-        if (typeof item.file_size === 'string') {
-          apkSize = parseInt(item.file_size, 10) || 0
-        }
-        
-        return {
-          id: item.id,
-          version: item.version || '1.0.0',
-          build_number: Number(item.build_number) || 1,
-          release_type: (item.release_type as 'hotfix' | 'feature' | 'force') || 'feature',
-          release_notes: item.release_notes || '无更新说明',
-          apk_url: item.apk_url || item.download_url || null,
-          apk_size: apkSize,
-          status: status as 'draft' | 'released' | 'revoked',
-          released_at: releasedAt,
-          revoked_at: item.revoked_at || null,
-          created_at: item.created_at || new Date().toISOString(),
-          created_by: item.created_by || null,
-        }
+      message.success('删除成功')
+      loadVersions()
+    } catch (error) {
+      handleApiError(error, 'VersionManagement-删除')
+    }
+  }
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要删除的版本')
+      return
+    }
+    try {
+      const { error } = await supabase
+        .from('app_versions')
+        .delete()
+        .in('id', selectedRowKeys as string[])
+      if (error) {
+        handleApiError(error, 'VersionManagement-批量删除')
+        return
+      }
+      message.success(`成功删除 ${selectedRowKeys.length} 个版本`)
+      setSelectedRowKeys([])
+      loadVersions()
+    } catch (error) {
+      handleApiError(error, 'VersionManagement-批量删除')
+    }
+  }
+
+  // 切换激活状态
+  const handleToggleActive = async (record: AppVersion) => {
+    try {
+      const result = await versionService.update(record.id, {
+        is_active: !record.is_active,
+        updated_at: new Date().toISOString(),
       })
-      
-      setVersions(mappedData)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'VersionManagement-切换状态')
+        return
+      }
+      message.success(`版本已${!record.is_active ? '激活' : '停用'}`)
+      loadVersions()
+    } catch (error) {
+      handleApiError(error, 'VersionManagement-切换状态')
     }
-    setLoading(false)
   }
 
-  const handleUpload = async (values: { version: string; build_number: number; release_type: string; release_notes: string; apk: { originFileObj: File }[] }) => {
-    setUploading(true)
+  // 保存版本
+  const handleSave = async () => {
     try {
-      const file = values.apk?.[0]?.originFileObj
-      let apkUrl: string | null = null
-      let apkSize = 0
-
-      if (file) {
-        const fileName = `pure-enjoy-v${values.version}-build${values.build_number}.apk`
-        const { error: uploadError } = await supabase.storage
-          .from('apk-releases')
-          .upload(fileName, file, { upsert: true })
-
-        if (uploadError) throw uploadError
-
-        const { data: urlData } = supabase.storage
-          .from('apk-releases')
-          .getPublicUrl(fileName)
-        apkUrl = urlData.publicUrl
-        apkSize = file.size
-      }
-
-      const { error: insertError } = await supabase
-        .from('app_versions')
-        .insert({
-          version: values.version,
-          build_number: values.build_number,
-          release_type: values.release_type,
-          release_notes: values.release_notes || '',
-          apk_url: apkUrl,
-          apk_size: apkSize,
-          status: 'draft',
+      const values = await form.validateFields()
+      if (editingVersion) {
+        const result = await versionService.update(editingVersion.id, {
+          ...values,
+          updated_at: new Date().toISOString(),
         })
-
-      if (insertError) throw insertError
-
-      message.success('版本上传成功')
-      setUploadModalOpen(false)
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'VersionManagement-更新')
+          return
+        }
+        message.success('更新成功')
+      } else {
+        const result = await versionService.create({
+          ...values,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as any)
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'VersionManagement-创建')
+          return
+        }
+        message.success('创建成功')
+      }
+      setModalVisible(false)
+      setEditingVersion(null)
       form.resetFields()
-      fetchVersions()
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '未知错误'
-      message.error(`上传失败: ${msg}`)
-    }
-    setUploading(false)
-  }
-
-  const handleRelease = async (record: AppVersion) => {
-    try {
-      // 先将其他所有已发布版本改为已下架
-      const otherReleased = versions.filter(v => v.status === 'released' && v.id !== record.id)
-      if (otherReleased.length > 0) {
-        const otherIds = otherReleased.map(v => v.id)
-        const { error: updateError } = await supabase
-          .from('app_versions')
-          .update({ status: 'revoked', revoked_at: new Date().toISOString() })
-          .in('id', otherIds)
-        if (updateError) console.error('下架旧版本失败:', updateError)
-      }
-
-      // 发布当前版本
-      const { error } = await supabase
-        .from('app_versions')
-        .update({
-          status: 'released',
-          released_at: new Date().toISOString(),
-        })
-        .eq('id', record.id)
-
-      if (error) throw error
-      message.success(`v${record.version} 已发布，其他版本已下架`)
-      fetchVersions()
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '未知错误'
-      message.error(`发布失败: ${msg}`)
+      loadVersions()
+    } catch (error) {
+      handleApiError(error, 'VersionManagement-保存')
     }
   }
 
-  const handleRevoke = async (record: AppVersion) => {
-    try {
-      const { error } = await supabase
-        .from('app_versions')
-        .update({
-          status: 'revoked',
-          revoked_at: new Date().toISOString(),
-        })
-        .eq('id', record.id)
-
-      if (error) throw error
-      message.success(`v${record.version} 已撤回`)
-      fetchVersions()
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '未知错误'
-      message.error(`撤回失败: ${msg}`)
-    }
-  }
-
-  const handleDeactivate = async (record: AppVersion) => {
-    try {
-      const { error } = await supabase
-        .from('app_versions')
-        .update({
-          status: 'inactive',
-          revoked_at: new Date().toISOString(),
-        })
-        .eq('id', record.id)
-
-      if (error) throw error
-      message.success(`v${record.version} 已标记为失效`)
-      fetchVersions()
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '未知错误'
-      message.error(`标记失效失败: ${msg}`)
-    }
-  }
-
-  const handleRollback = async (record: AppVersion) => {
-    try {
-      const currentReleased = versions.find(v => v.status === 'released')
-      if (currentReleased) {
-        await supabase
-          .from('app_versions')
-          .update({ status: 'revoked', revoked_at: new Date().toISOString() })
-          .eq('id', currentReleased.id)
-      }
-
-      const { error } = await supabase
-        .from('app_versions')
-        .update({
-          status: 'released',
-          released_at: new Date().toISOString(),
-          revoked_at: null,
-        })
-        .eq('id', record.id)
-
-      if (error) throw error
-      message.success(`已回滚到 v${record.version}`)
-      fetchVersions()
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '未知错误'
-      message.error(`回滚失败: ${msg}`)
-    }
-  }
-
-  const handleToggleForceUpdate = async (record: AppVersion) => {
-    try {
-      // release_type 为 'force' 时表示强制更新，切换为 'feature'
-      // 否则切换为 'force'
-      const newReleaseType = record.release_type === 'force' ? 'feature' : 'force'
-      const { error } = await supabase
-        .from('app_versions')
-        .update({
-          release_type: newReleaseType,
-        })
-        .eq('id', record.id)
-
-      if (error) throw error
-      message.success(`v${record.version} 已${newReleaseType === 'force' ? '设为' : '取消'}强制更新`)
-      fetchVersions()
-    } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : '未知错误'
-      message.error(`设置失败: ${msg}`)
-    }
-  }
-
-  const showQrCode = (record: AppVersion) => {
-    setSelectedVersion(record)
-    setQrModalOpen(true)
-  }
-
-  const formatSize = (bytes: number) => {
-    if (bytes === 0) return '-'
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  }
-
-  const columns = [
+  // 表格列定义
+  const columns: ColumnsType<AppVersion> = [
     {
-      title: '版本号',
-      dataIndex: 'version',
-      key: 'version',
-      render: (v: string) => (
-        <Text strong>v{v}</Text>
+      title: '应用信息',
+      key: 'app',
+      width: 250,
+      render: (_, record) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{record.app_name}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            版本: {record.version} (Build {record.build_number})
+          </Text>
+        </div>
       ),
     },
     {
-      title: '构建号',
-      dataIndex: 'build_number',
-      key: 'build_number',
+      title: '平台',
+      dataIndex: 'platform',
+      key: 'platform',
+      width: 100,
+      render: (platform: string) => {
+        const platformMap: Record<string, { color: string; label: string }> = {
+          ios: { color: 'blue', label: 'iOS' },
+          android: { color: 'green', label: 'Android' },
+          web: { color: 'purple', label: 'Web' },
+        }
+        const info = platformMap[platform] || { color: 'default', label: platform }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
     },
     {
-      title: '更新类型',
-      dataIndex: 'release_type',
-      key: 'release_type',
-      render: (type: string) => {
-        const dictOpt = releaseTypeOptions.find(opt => opt.value === type)
-        const fallback = releaseTypeMapFallback[type]
-        const label = dictOpt?.label || fallback?.label || type
-        const color = getReleaseTypeColor(type) || fallback?.color || 'default'
-        return <Tag color={color}>{label}</Tag>
-      },
+      title: '强制更新',
+      dataIndex: 'force_update',
+      key: 'force_update',
+      width: 100,
+      render: (force: boolean) => (
+        <Tag color={force ? 'red' : 'default'}>{force ? '是' : '否'}</Tag>
+      ),
     },
     {
       title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => {
-        const dictOpt = versionStatusOptions.find(opt => opt.value === status)
-        const fallback = statusMapFallback[status]
-        const label = dictOpt?.label || fallback?.label || status
-        const color = getVersionStatusColor(status) || fallback?.color || 'default'
-        return <Tag icon={fallback?.icon} color={color}>{label}</Tag>
-      },
-    },
-    {
-      title: 'APK大小',
-      dataIndex: 'apk_size',
-      key: 'apk_size',
-      render: (size: number) => formatSize(size),
-    },
-    {
-      title: '更新内容',
-      dataIndex: 'release_notes',
-      key: 'release_notes',
-      ellipsis: true,
-      width: 200,
-    },
-    {
-      title: '发布时间',
-      dataIndex: 'released_at',
-      key: 'released_at',
-      render: (date: string | null) =>
-        date ? formatDateTime(date) : '-',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 100,
+      render: (isActive: boolean) => (
+        <Badge status={isActive ? 'success' : 'default'} text={isActive ? '激活' : '停用'} />
+      ),
     },
     {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (date: string) => formatDateTime(date),
+      width: 170,
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
     getActionColumn<AppVersion>(
-      (record) => {
-        const actions: import('../components/ActionColumn').ActionButton[] = []
-        
-        // 失效版本：不显示下载和二维码，只显示删除（失效）按钮
-        if (record.status === 'inactive') {
-          if (canManageVersions) {
-            actions.push({
-              key: 'deactivate',
-              label: '已失效',
-              disabled: true,
-              onClick: () => {},
-            })
-          }
-        } else {
-          // 通用操作（非失效版本显示下载和二维码）
-          if (record.apk_url) {
-            actions.push(
-              {
-                key: 'qr',
-                label: '二维码',
-                icon: <QrcodeOutlined />,
-                onClick: () => showQrCode(record),
-              },
-              {
-                key: 'download',
-                label: '下载',
-                icon: <DownloadOutlined />,
-                onClick: () => window.open(record.apk_url!, '_blank'),
-              }
-            )
-          }
-          
-          // 管理操作（需要权限）
-          if (canManageVersions) {
-            if (record.status === 'draft' && record.apk_url) {
-              actions.push({
-                key: 'release',
-                label: '发布',
-                icon: <CheckCircleOutlined />,
-                type: 'primary',
-                onClick: () => handleRelease(record),
-              })
-            }
-            if (record.status === 'released') {
-              actions.push({
-                key: 'revoke',
-                label: '撤回',
-                icon: <CloseCircleOutlined />,
-                danger: true,
-                onClick: () => handleRevoke(record),
-              })
-            }
-            if ((record.status === 'released' || record.status === 'revoked') && record.apk_url) {
-              actions.push({
-                key: 'rollback',
-                label: '回滚',
-                icon: <RollbackOutlined />,
-                onClick: () => handleRollback(record),
-              })
-            }
-            if (record.status === 'released') {
-              actions.push({
-                key: 'force',
-                label: record.release_type === 'force' ? '取消强制' : '设为强制',
-                danger: record.release_type === 'force',
-                onClick: () => handleToggleForceUpdate(record),
-              })
-            }
-            // 已撤回版本可以标记为失效
-            if (record.status === 'revoked') {
-              actions.push({
-                key: 'deactivate',
-                label: '标记失效',
-                icon: <CloseCircleOutlined />,
-                danger: true,
-                onClick: () => handleDeactivate(record),
-              })
-            }
-          }
-        }
-        
-        return actions
-      },
-      { width: 240, maxVisible: 2 }
+      (record) => [
+        {
+          key: 'edit',
+          label: '编辑',
+          icon: <EditOutlined />,
+          type: 'primary',
+          onClick: () => handleEdit(record),
+        },
+        {
+          key: 'toggle',
+          label: record.is_active ? '停用' : '激活',
+          icon: record.is_active ? <CloseCircleOutlined /> : <CheckCircleOutlined />,
+          onClick: () => handleToggleActive(record),
+        },
+        {
+          key: 'delete',
+          label: '删除',
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => handleDelete(record.id),
+        },
+      ],
+      { width: 240, maxVisible: 3 }
     ),
   ]
 
   return (
-    <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <h3>版本管理</h3>
-        <Space>
-          <Button icon={<HistoryOutlined />} onClick={fetchVersions}>
-            刷新
+    <div style={{ padding: 24 }}>
+      {/* 统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总版本数"
+              value={pagination.total}
+              prefix={<AppstoreOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="激活版本"
+              value={versions.filter(v => v.is_active).length}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="强制更新"
+              value={versions.filter(v => v.force_update).length}
+              prefix={<CloudUploadOutlined />}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 筛选栏 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Input
+            placeholder="搜索应用名/版本号"
+            value={filters.keyword}
+            onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Select
+            placeholder="平台"
+            value={filters.platform}
+            onChange={(value) => setFilters(prev => ({ ...prev, platform: value }))}
+            style={{ width: 120 }}
+            allowClear
+            options={[
+              { label: 'iOS', value: 'ios' },
+              { label: 'Android', value: 'android' },
+              { label: 'Web', value: 'web' },
+            ]}
+          />
+          <Select
+            placeholder="状态"
+            value={filters.isActive}
+            onChange={(value) => setFilters(prev => ({ ...prev, isActive: value }))}
+            style={{ width: 120 }}
+            allowClear
+            options={[
+              { label: '激活', value: true },
+              { label: '停用', value: false },
+            ]}
+          />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
           </Button>
-          {canManageVersions && (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setUploadModalOpen(true)}
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
+          </Button>
+        </Space>
+      </Card>
+
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+            新增版本
+          </Button>
+          {selectedRowKeys.length > 0 && (
+            <Popconfirm
+              title="确认批量删除"
+              description={`确定要删除选中的 ${selectedRowKeys.length} 个版本吗？`}
+              onConfirm={handleBatchDelete}
+              okText="确认"
+              cancelText="取消"
             >
-              上传新版本
-            </Button>
+              <Button danger icon={<DeleteOutlined />}>
+                批量删除 ({selectedRowKeys.length})
+              </Button>
+            </Popconfirm>
           )}
         </Space>
+        <Button icon={<ReloadOutlined />} onClick={loadVersions} loading={loading}>
+          刷新
+        </Button>
       </div>
 
-      {(() => {
-        const releasedVersion = versions
-          .filter(v => v.status === 'released')
-          .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())[0]
-        if (!releasedVersion) return null
-        return (
-          <Card
-            style={{ marginBottom: 16, background: '#f6ffed', borderColor: '#b7eb8f' }}
-            size="small"
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <Descriptions
-                size="small"
-                column={4}
-                title="当前线上版本"
-                style={{ flex: 1 }}
-              >
-                <Descriptions.Item label="版本号">
-                  <Text strong>v{releasedVersion.version}</Text>
-                </Descriptions.Item>
-                <Descriptions.Item label="更新类型">
-                  {(() => {
-                    const dictOpt = releaseTypeOptions.find(opt => opt.value === releasedVersion.release_type)
-                    const fallback = releaseTypeMapFallback[releasedVersion.release_type]
-                    const label = dictOpt?.label || fallback?.label || releasedVersion.release_type
-                    const color = getReleaseTypeColor(releasedVersion.release_type) || fallback?.color || 'default'
-                    return <Tag color={color}>{label}</Tag>
-                  })()}
-                </Descriptions.Item>
-                <Descriptions.Item label="发布时间">
-                  {formatDateTime(releasedVersion.released_at)}
-                </Descriptions.Item>
-                <Descriptions.Item label="APK大小">
-                  {formatSize(releasedVersion.apk_size || 0)}
-                </Descriptions.Item>
-              </Descriptions>
-              {releasedVersion.apk_url && (
-                <div style={{ marginLeft: 24, textAlign: 'center', flexShrink: 0 }}>
-                  <QRCode
-                    value={releasedVersion.apk_url}
-                    size={120}
-                    style={{ borderRadius: 4 }}
-                  />
-                  <div style={{ marginTop: 4 }}>
-                    <Text type="secondary" style={{ fontSize: 12 }}>扫码下载</Text>
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card>
-        )
-      })()}
-
+      {/* 版本表格 */}
       <Table
         columns={columns}
         dataSource={versions}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 10 }}
-        scroll={{ x: 1200 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
+        scroll={{ x: 1000 }}
       />
 
-      {canManageVersions && (
-        <Modal
-          title="上传新版本"
-          open={uploadModalOpen}
-          onCancel={() => { setUploadModalOpen(false); form.resetFields() }}
-          onOk={() => form.submit()}
-          confirmLoading={uploading}
-          width={600}
-          okText="上传"
-        >
-          <Form form={form} layout="vertical" onFinish={handleUpload}>
-            <Form.Item
-              name="version"
-              label="版本号"
-              rules={[{ required: true, message: '请输入版本号' }]}
-            >
-              <Input placeholder="例如: 1.0.1" />
-            </Form.Item>
-            <Form.Item
-              name="build_number"
-              label="构建号"
-              rules={[{ required: true, message: '请输入构建号' }]}
-              extra="每次构建递增，用于版本比较"
-            >
-              <Input type="number" placeholder="例如: 2" />
-            </Form.Item>
-            <Form.Item
-              name="release_type"
-              label="更新类型"
-              rules={[{ required: true, message: '请选择更新类型' }]}
-            >
-              <Select placeholder="选择更新类型" options={releaseTypeOptions} />
-            </Form.Item>
-            <Form.Item
-              name="release_notes"
-              label="更新内容"
-            >
-              <TextArea
-                rows={4}
-                placeholder="请描述本次更新内容..."
-              />
-            </Form.Item>
-            <Form.Item
-              name="apk"
-              label="APK文件"
-              rules={[{ required: true, message: '请上传APK文件' }]}
-            >
-              <Upload
-                maxCount={1}
-                accept=".apk"
-                beforeUpload={() => false}
-              >
-                <Button icon={<UploadOutlined />}>选择APK文件</Button>
-              </Upload>
-            </Form.Item>
-          </Form>
-        </Modal>
-      )}
-
+      {/* 版本表单弹窗 */}
       <Modal
-        title="扫码下载"
-        open={qrModalOpen}
-        onCancel={() => setQrModalOpen(false)}
-        footer={null}
-        width={400}
+        title={editingVersion ? '编辑版本' : '新增版本'}
+        open={modalVisible}
+        onOk={handleSave}
+        onCancel={() => {
+          setModalVisible(false)
+          setEditingVersion(null)
+          form.resetFields()
+        }}
+        width={600}
       >
-        {selectedVersion && (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <QRCode
-              value={selectedVersion.apk_url || ''}
-              size={240}
-              style={{ marginBottom: 16 }}
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="app_name"
+            label="应用名称"
+            rules={[{ required: true, message: '请输入应用名称' }]}
+          >
+            <Input placeholder="请输入应用名称" />
+          </Form.Item>
+          <Form.Item
+            name="platform"
+            label="平台"
+            rules={[{ required: true, message: '请选择平台' }]}
+          >
+            <Select
+              placeholder="请选择平台"
+              options={[
+                { label: 'iOS', value: 'ios' },
+                { label: 'Android', value: 'android' },
+                { label: 'Web', value: 'web' },
+              ]}
             />
-            <p>
-              <Text strong>v{selectedVersion.version}</Text>
-              <Text type="secondary" style={{ marginLeft: 8 }}>
-                ({formatSize(selectedVersion.apk_size)})
-              </Text>
-            </p>
-            <p>
-              <Text type="secondary">使用手机扫描二维码下载安装</Text>
-            </p>
-          </div>
-        )}
+          </Form.Item>
+          <Form.Item
+            name="version"
+            label="版本号"
+            rules={[{ required: true, message: '请输入版本号' }]}
+          >
+            <Input placeholder="如: 1.0.0" />
+          </Form.Item>
+          <Form.Item
+            name="build_number"
+            label="构建号"
+            rules={[{ required: true, message: '请输入构建号' }]}
+          >
+            <Input type="number" placeholder="请输入构建号" />
+          </Form.Item>
+          <Form.Item
+            name="update_url"
+            label="更新地址"
+          >
+            <Input placeholder="请输入更新下载地址" />
+          </Form.Item>
+          <Form.Item
+            name="release_notes"
+            label="更新说明"
+          >
+            <Input.TextArea rows={4} placeholder="请输入更新说明" />
+          </Form.Item>
+          <Form.Item
+            name="force_update"
+            label="强制更新"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="是" unCheckedChildren="否" />
+          </Form.Item>
+          <Form.Item
+            name="is_active"
+            label="激活状态"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="激活" unCheckedChildren="停用" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   )

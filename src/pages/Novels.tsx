@@ -1,823 +1,616 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Tag,
-  Button,
-  Space,
-  Popconfirm,
-  message,
-  Dropdown,
   Table,
+  Button,
+  Input,
+  Space,
+  Tag,
   Card,
+  message,
+  Modal,
+  Form,
+  Select,
+  Popconfirm,
+  Tooltip,
+  Switch,
+  Badge,
   Typography,
-  Image,
+  Row,
+  Col,
+  Statistic,
 } from 'antd'
-import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
-import type { Key } from 'react'
 import {
+  SearchOutlined,
+  ReloadOutlined,
   PlusOutlined,
-  ExportOutlined,
-  DeleteOutlined,
   EditOutlined,
-  DownOutlined,
+  DeleteOutlined,
   BookOutlined,
   EyeOutlined,
-  StarOutlined,
+  FileTextOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
 } from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import DataFormModal, { FormField } from '../components/DataFormModal'
-import FilterBar, { FilterField } from '../components/FilterBar'
-import NovelChapterModal from '../components/NovelChapterModal'
-import { exportToCSV, exportToExcel } from '../utils/export'
-import { supabase, handleSupabaseError } from '../utils/supabase'
+import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
-import NoPermission from '../components/NoPermission'
-import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
+import NovelChapterModal from '../components/NovelChapterModal'
+import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
 
-const { Title } = Typography
+const { Text } = Typography
 
 // ==================== 类型定义 ====================
 
-interface NovelRecord {
+interface Novel {
   id: string
-  key: string
   title: string
-  author: string | null
-  cover_url: string | null
-  description: string | null
-  category: string | null
-  source: string | null
-  source_url: string | null
-  tags: string[] | null
-  chapter_count: number
-  word_count: number
-  status: string
-  is_free: boolean
-  price: number
-  rating: number
+  author: string
+  category: string
+  description: string
+  cover_url: string
+  status: 'ongoing' | 'completed' | 'paused'
   read_count: number
-  collect_count: number
+  chapter_count: number
+  is_vip: boolean
   created_at: string
   updated_at: string
 }
 
-// ==================== 常量定义 ====================
-
-// 格式化字数显示
-const formatWordCount = (num: number): string => {
-  if (num >= 10000) {
-    return (num / 10000).toFixed(1) + '万字'
-  }
-  return num.toLocaleString() + '字'
+interface NovelFilters {
+  keyword: string
+  category: string | undefined
+  status: string | undefined
+  isVip: boolean | undefined
 }
 
-// ==================== 主组件 ====================
+// ==================== 组件 ====================
 
 const Novels: React.FC = () => {
-  const {
-    canReadNovels,
-    canWriteNovels,
-    canDeleteNovels,
-    canExportNovels,
-  } = usePermission()
-
-  // 字典查询
-  const { options: categoryOptions } = useDictOptions('novel_category')
-  const { options: statusOptions } = useDictOptions('novel_status')
-  const { getColor: getCategoryColor } = useDictColors('novel_category')
-  const { getColor: getStatusColor } = useDictColors('novel_status')
-
-  // 状态
-  const [data, setData] = useState<NovelRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchText, setSearchText] = useState('')
-  const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
-  const [selectedRowKeys, setSelectedRowKeys] = useState<Key[]>([])
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
-    current: 1,
-    pageSize: 20,
-    showSizeChanger: true,
-    showQuickJumper: true,
-    pageSizeOptions: ['10', '20', '50', '100'],
-    showTotal: (total) => `共 ${total} 条`,
+  const [novels, setNovels] = useState<Novel[]>([])
+  const [loading, setLoading] = useState(false)
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const [filters, setFilters] = useState<NovelFilters>({
+    keyword: '',
+    category: undefined,
+    status: undefined,
+    isVip: undefined,
   })
-
-  // 弹窗状态
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
-  const [editingRecord, setEditingRecord] = useState<NovelRecord | null>(null)
-  const [confirmLoading, setConfirmLoading] = useState(false)
-
-  // 章节管理弹窗状态
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const [modalVisible, setModalVisible] = useState(false)
+  const [editingNovel, setEditingNovel] = useState<Novel | null>(null)
   const [chapterModalOpen, setChapterModalOpen] = useState(false)
-  const [selectedNovel, setSelectedNovel] = useState<NovelRecord | null>(null)
+  const [selectedNovelId, setSelectedNovelId] = useState<string>('')
+  const [form] = Form.useForm()
+  const { isAdmin } = usePermission()
 
-  // 加载数据
-  const fetchNovels = useCallback(async () => {
+  const novelService = new BaseService<Novel>('novels', { defaultOrder: { column: 'created_at', ascending: false } })
+
+  // 加载小说列表
+  const loadNovels = useCallback(async () => {
     setLoading(true)
-    
     try {
-      const { data: novels, error } = await supabase
-        .from('novels')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const result = await novelService.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
+        if (filters.keyword) {
+          query = query.or(`title.ilike.%${filters.keyword}%,author.ilike.%${filters.keyword}%`)
+        }
+        if (filters.category) {
+          query = query.eq('category', filters.category)
+        }
+        if (filters.status) {
+          query = query.eq('status', filters.status)
+        }
+        if (filters.isVip !== undefined) {
+          query = query.eq('is_vip', filters.isVip)
+        }
+        return query
+      })
 
-      if (error) {
-        console.error('[Novels] 获取小说列表失败:', error)
-        const userMessage = handleSupabaseError(error, '获取小说列表')
-        message.error(userMessage)
-        setData([])
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'Novels-加载小说列表')
         return
       }
 
-      if (!novels || novels.length === 0) {
-        setData([])
-        return
-      }
-
-      // 映射数据库英文状态到中文显示
-      const displayStatusMap: Record<string, string> = {
-        'ongoing': '连载',
-        'completed': '完结',
-      }
-
-      const records: NovelRecord[] = novels.map((novel: any) => ({
-        id: novel.id,
-        key: novel.id,
-        title: novel.title || '',
-        author: novel.author || null,
-        cover_url: novel.cover_url || null,
-        description: novel.description || null,
-        category: novel.category || null,
-        source: novel.source || null,
-        source_url: novel.source_url || null,
-        tags: novel.tags || null,
-        chapter_count: novel.chapter_count || 0,
-        word_count: novel.word_count || 0,
-        status: displayStatusMap[novel.status] || novel.status || '连载',
-        is_free: novel.is_free !== false,
-        price: novel.price || 0,
-        rating: novel.rating || 0,
-        read_count: novel.read_count || 0,
-        collect_count: novel.collect_count || 0,
-        created_at: novel.created_at || '',
-        updated_at: novel.updated_at || '',
-      }))
-
-      setData(records)
+      setNovels(result.data?.data || [])
+      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
     } catch (error) {
-      console.error('[Novels] 获取小说列表异常:', error)
-      message.error('获取小说列表失败，请检查网络连接后重试')
-      setData([])
+      handleApiError(error, 'Novels-加载小说列表')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [pagination.current, pagination.pageSize, filters])
 
   useEffect(() => {
-    fetchNovels()
-  }, [fetchNovels])
+    loadNovels()
+  }, [loadNovels])
 
-  // ==================== 筛选配置 ====================
+  // 搜索
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, current: 1 }))
+    loadNovels()
+  }
 
-  const filterFields: FilterField[] = [
-    {
-      name: 'category',
-      label: '分类',
-      type: 'select',
-      options: categoryOptions,
-      placeholder: '选择分类',
-    },
-    {
-      name: 'status',
-      label: '状态',
-      type: 'select',
-      options: statusOptions,
-      placeholder: '选择状态',
-    },
-    // is_published 筛选已移除
-  ]
+  // 重置筛选
+  const handleReset = () => {
+    setFilters({
+      keyword: '',
+      category: undefined,
+      status: undefined,
+      isVip: undefined,
+    })
+    setPagination(prev => ({ ...prev, current: 1 }))
+  }
 
-  // ==================== 表单配置 ====================
+  // 打开新增弹窗
+  const handleAdd = () => {
+    setEditingNovel(null)
+    form.resetFields()
+    setModalVisible(true)
+  }
 
-  const formFields: FormField[] = [
-    {
-      name: 'title',
-      label: '标题',
-      type: 'text',
-      required: true,
-      placeholder: '请输入小说标题',
-    },
-    {
-      name: 'author',
-      label: '作者',
-      type: 'text',
-      required: true,
-      placeholder: '请输入作者',
-    },
-    {
-      name: 'category',
-      label: '分类',
-      type: 'select',
-      options: categoryOptions,
-      placeholder: '选择分类',
-    },
-    {
-      name: 'cover_url',
-      label: '封面URL',
-      type: 'text',
-      placeholder: '请输入封面图片URL',
-    },
-    {
-      name: 'description',
-      label: '简介',
-      type: 'textarea',
-      rows: 4,
-      placeholder: '请输入小说简介',
-    },
-    {
-      name: 'status',
-      label: '状态',
-      type: 'select',
-      options: statusOptions,
-      placeholder: '选择状态',
-      defaultValue: '连载',
-    },
-    {
-      name: 'word_count',
-      label: '字数',
-      type: 'number',
-      placeholder: '请输入字数',
-      min: 0,
-      precision: 0,
-    },
-    {
-      name: 'chapter_count',
-      label: '章节数',
-      type: 'number',
-      placeholder: '请输入章节数',
-      min: 0,
-      precision: 0,
-    },
-  ]
+  // 打开编辑弹窗
+  const handleEdit = (record: Novel) => {
+    setEditingNovel(record)
+    form.setFieldsValue({
+      ...record,
+      // 确保表单字段正确映射
+    })
+    setModalVisible(true)
+  }
 
-  // ==================== 数据处理 ====================
-
-  const filteredData = useMemo(() => {
-    let result = [...data]
-
-    // 关键词搜索
-    if (searchText.trim()) {
-      const keyword = searchText.trim().toLowerCase()
-      result = result.filter((record) => {
-        return (
-          record.title?.toLowerCase().includes(keyword) ||
-          record.author?.toLowerCase().includes(keyword)
-        )
-      })
-    }
-
-    // 分类筛选
-    if (filterValues.category) {
-      result = result.filter((record) => record.category === filterValues.category)
-    }
-
-    // 状态筛选
-    if (filterValues.status) {
-      result = result.filter((record) => record.status === filterValues.status)
-    }
-
-    // is_published 筛选已移除
-
-    return result
-  }, [data, searchText, filterValues])
-
-  // ==================== 操作处理 ====================
-
-  // 新增
-  const handleCreate = useCallback(() => {
-    if (!canWriteNovels) {
-      message.warning('您没有新增小说的权限')
-      return
-    }
-    setModalMode('create')
-    setEditingRecord(null)
-    setModalOpen(true)
-  }, [canWriteNovels])
-
-  // 编辑
-  const handleEdit = useCallback(
-    (record: NovelRecord) => {
-      if (!canWriteNovels) {
-        message.warning('您没有编辑小说的权限')
+  // 删除小说
+  const handleDelete = async (id: string) => {
+    try {
+      const result = await novelService.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'Novels-删除小说')
         return
       }
-      setModalMode('edit')
-      setEditingRecord(record)
-      setModalOpen(true)
-    },
-    [canWriteNovels]
-  )
-
-  // 删除单条（级联删除章节）
-  const handleDelete = useCallback(
-    async (id: string) => {
-      if (!canDeleteNovels) {
-        message.warning('您没有删除小说的权限')
-        return
-      }
-      try {
-        // 先删除关联章节
-        const { error: chapterError } = await supabase
-          .from('novel_chapters')
-          .delete()
-          .eq('novel_id', id)
-
-        if (chapterError) throw chapterError
-
-        // 再删除小说
-        const { error } = await supabase.from('novels').delete().eq('id', id)
-        if (error) throw error
-
-        setData((prev) => prev.filter((item) => item.id !== id))
-        message.success('删除成功（已级联删除关联章节）')
-      } catch (error) {
-        console.error('删除失败:', error)
-        message.error('删除失败')
-      }
-    },
-    [canDeleteNovels]
-  )
+      message.success('删除成功')
+      loadNovels()
+    } catch (error) {
+      handleApiError(error, 'Novels-删除小说')
+    }
+  }
 
   // 批量删除
-  const handleBatchDelete = useCallback(async () => {
-    if (!canDeleteNovels) {
-      message.warning('您没有删除小说的权限')
-      return
-    }
+  const handleBatchDelete = async () => {
     if (selectedRowKeys.length === 0) {
-      message.warning('请先选择要删除的数据')
+      message.warning('请先选择要删除的小说')
       return
     }
     try {
-      // 批量删除关联章节
-      const { error: chapterError } = await supabase
-        .from('novel_chapters')
-        .delete()
-        .in('novel_id', selectedRowKeys as string[])
-
-      if (chapterError) throw chapterError
-
-      // 批量删除小说
       const { error } = await supabase
         .from('novels')
         .delete()
         .in('id', selectedRowKeys as string[])
-      if (error) throw error
-
-      setData((prev) => prev.filter((item) => !selectedRowKeys.includes(item.id)))
-      setSelectedRowKeys([])
-      message.success(`成功删除 ${selectedRowKeys.length} 条数据（已级联删除关联章节）`)
-    } catch (error) {
-      console.error('批量删除失败:', error)
-      message.error('批量删除失败')
-    }
-  }, [selectedRowKeys, canDeleteNovels])
-
-  // 表单提交
-  const handleFormSubmit = useCallback(
-    async (values: Record<string, unknown>) => {
-      setConfirmLoading(true)
-      try {
-        // 映射中文状态到数据库英文值
-        const statusMap: Record<string, string> = {
-          '连载': 'ongoing',
-          '完结': 'completed',
-        }
-        const dbStatus = statusMap[values.status as string] || 'ongoing'
-
-        const novelData = {
-          title: values.title as string,
-          author: (values.author as string) || null,
-          category: (values.category as string) || null,
-          cover_url: (values.cover_url as string) || null,
-          description: (values.description as string) || null,
-          status: dbStatus,
-          word_count: (values.word_count as number) || 0,
-          chapter_count: (values.chapter_count as number) || 0,
-          is_free: true, // 默认免费
-          read_count: 0,
-          collect_count: 0,
-        }
-
-        if (modalMode === 'create') {
-          const { data: newNovel, error } = await supabase
-            .from('novels')
-            .insert(novelData)
-            .select()
-            .single()
-
-          if (error) throw error
-
-          // 映射数据库英文状态到中文显示
-          const displayStatusMap: Record<string, string> = {
-            'ongoing': '连载',
-            'completed': '完结',
-          }
-          const newRecord: NovelRecord = {
-            ...newNovel,
-            key: newNovel.id,
-            status: displayStatusMap[newNovel.status] || '连载',
-          } as NovelRecord
-
-          setData((prev) => [newRecord, ...prev])
-          message.success('新增成功')
-        } else {
-          const { error } = await supabase
-            .from('novels')
-            .update({
-              ...novelData,
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', editingRecord?.id)
-
-          if (error) throw error
-
-          // 映射数据库英文状态到中文显示
-          const displayStatusMap: Record<string, string> = {
-            'ongoing': '连载',
-            'completed': '完结',
-          }
-          setData((prev) =>
-            prev.map((item) =>
-              item.id === editingRecord?.id
-                ? {
-                    ...item,
-                    ...novelData,
-                    status: (displayStatusMap[novelData.status] || '连载') as '连载' | '完结',
-                    updated_at: new Date().toISOString(),
-                  }
-                : item
-            )
-          )
-          message.success('更新成功')
-        }
-        setModalOpen(false)
-      } catch (error) {
-        console.error('操作失败:', error)
-        message.error('操作失败，请重试')
-      } finally {
-        setConfirmLoading(false)
+      if (error) {
+        handleApiError(error, 'Novels-批量删除')
+        return
       }
-    },
-    [modalMode, editingRecord]
-  )
-
-  // 查看章节 - 打开章节管理弹窗
-  const handleViewChapters = useCallback(
-    (record: NovelRecord) => {
-      setSelectedNovel(record)
-      setChapterModalOpen(true)
-    },
-    []
-  )
-
-  // 关闭章节管理弹窗
-  const handleCloseChapterModal = useCallback(() => {
-    setChapterModalOpen(false)
-    setSelectedNovel(null)
-  }, [])
-
-  // 导出
-  const handleExportCSV = useCallback(() => {
-    if (!canExportNovels) {
-      message.warning('您没有导出小说的权限')
-      return
+      message.success(`成功删除 ${selectedRowKeys.length} 本小说`)
+      setSelectedRowKeys([])
+      loadNovels()
+    } catch (error) {
+      handleApiError(error, 'Novels-批量删除')
     }
-    const columns = [
-      { title: '标题', dataIndex: 'title' },
-      { title: '作者', dataIndex: 'author' },
-      { title: '分类', dataIndex: 'category' },
-      { title: '字数', dataIndex: 'word_count', render: (val: unknown) => formatWordCount(val as number) },
-      { title: '章节数', dataIndex: 'chapter_count' },
-      { title: '状态', dataIndex: 'status' },
-      { title: '创建时间', dataIndex: 'created_at', render: (val: unknown) => dayjs(val as string).format('YYYY-MM-DD HH:mm') },
-    ]
-    exportToCSV<NovelRecord>(filteredData, columns, '小说管理')
-    message.success('CSV 导出成功')
-  }, [filteredData, canExportNovels])
+  }
 
-  const handleExportExcel = useCallback(() => {
-    if (!canExportNovels) {
-      message.warning('您没有导出小说的权限')
-      return
+  // 切换小说状态
+  const handleToggleStatus = async (record: Novel) => {
+    try {
+      const newStatus = record.status === 'ongoing' ? 'paused' : 'ongoing'
+      const result = await novelService.update(record.id, { status: newStatus })
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'Novels-切换状态')
+        return
+      }
+      message.success(`小说已${newStatus === 'ongoing' ? '恢复连载' : '暂停连载'}`)
+      loadNovels()
+    } catch (error) {
+      handleApiError(error, 'Novels-切换状态')
     }
-    const columns = [
-      { title: '标题', dataIndex: 'title' },
-      { title: '作者', dataIndex: 'author' },
-      { title: '分类', dataIndex: 'category' },
-      { title: '字数', dataIndex: 'word_count', render: (val: unknown) => formatWordCount(val as number) },
-      { title: '章节数', dataIndex: 'chapter_count' },
-      { title: '状态', dataIndex: 'status' },
-      { title: '创建时间', dataIndex: 'created_at', render: (val: unknown) => dayjs(val as string).format('YYYY-MM-DD HH:mm') },
-    ]
-    exportToExcel<NovelRecord>(filteredData, columns, '小说管理')
-    message.success('Excel 导出成功')
-  }, [filteredData, canExportNovels])
+  }
 
-  // 重置
-  const handleReset = useCallback(() => {
-    setSearchText('')
-    setFilterValues({})
-    setSelectedRowKeys([])
-    setPagination((prev) => ({ ...prev, current: 1 }))
-  }, [])
+  // 切换VIP状态
+  const handleToggleVip = async (record: Novel) => {
+    try {
+      const result = await novelService.update(record.id, { is_vip: !record.is_vip })
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'Novels-切换VIP')
+        return
+      }
+      message.success(`已${!record.is_vip ? '设为' : '取消'}VIP`)
+      loadNovels()
+    } catch (error) {
+      handleApiError(error, 'Novels-切换VIP')
+    }
+  }
 
-  // ==================== 表格列配置 ====================
+  // 处理弹窗提交
+  const handleModalSubmit = async () => {
+    try {
+      const values = await form.validateFields()
+      if (editingNovel) {
+        // 更新小说
+        const result = await novelService.update(editingNovel.id, {
+          ...values,
+          updated_at: new Date().toISOString(),
+        })
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'Novels-更新小说')
+          return
+        }
+        message.success('更新成功')
+      } else {
+        // 创建小说
+        const result = await novelService.create({
+          ...values,
+          read_count: 0,
+          chapter_count: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as any)
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'Novels-创建小说')
+          return
+        }
+        message.success('创建成功')
+      }
+      setModalVisible(false)
+      setEditingNovel(null)
+      form.resetFields()
+      loadNovels()
+    } catch (error) {
+      handleApiError(error, 'Novels-保存小说')
+    }
+  }
 
-  const columns: ColumnsType<NovelRecord> = [
+  // 打开章节管理弹窗
+  const handleManageChapters = (novelId: string) => {
+    setSelectedNovelId(novelId)
+    setChapterModalOpen(true)
+  }
+
+  // 表格列定义
+  const columns: ColumnsType<Novel> = [
     {
-      title: '封面',
-      dataIndex: 'cover_url',
-      key: 'cover_url',
-      width: 80,
-      render: (coverUrl: string | null) => (
-        coverUrl ? (
-          <Image
-            src={coverUrl}
-            alt="封面"
-            width={50}
-            height={70}
-            style={{ objectFit: 'cover', borderRadius: 4 }}
-            preview={false}
-            fallback="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
-          />
-        ) : (
-          <div
-            style={{
-              width: 50,
-              height: 70,
-              background: '#f0f0f0',
-              borderRadius: 4,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <BookOutlined style={{ color: '#999', fontSize: 20 }} />
+      title: '小说信息',
+      key: 'novel',
+      width: 300,
+      render: (_, record) => (
+        <Space>
+          {record.cover_url ? (
+            <img
+              src={record.cover_url}
+              alt={record.title}
+              style={{ width: 50, height: 70, objectFit: 'cover', borderRadius: 4 }}
+            />
+          ) : (
+            <div style={{ width: 50, height: 70, background: '#f0f0f0', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BookOutlined style={{ fontSize: 20, color: '#999' }} />
+            </div>
+          )}
+          <div>
+            <div style={{ fontWeight: 500 }}>{record.title}</div>
+            <Text type="secondary" style={{ fontSize: 12 }}>{record.author}</Text>
+            {record.is_vip && <Tag color="gold" style={{ marginLeft: 4 }}>VIP</Tag>}
           </div>
-        )
+        </Space>
       ),
-    },
-    {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      width: 180,
-      sorter: (a, b) => a.title.localeCompare(b.title),
-      ellipsis: true,
-      render: (title: string) => (
-        <span style={{ fontWeight: 500 }}>{title}</span>
-      ),
-    },
-    {
-      title: '作者',
-      dataIndex: 'author',
-      key: 'author',
-      width: 100,
-      render: (author: string) => author || '-',
     },
     {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
-      width: 80,
-      filters: categoryOptions.map((opt) => ({ text: opt.label, value: opt.value })),
-      onFilter: (value, record) => record.category === value,
-      render: (category: string) => (
-        category ? (
-          <Tag color={getCategoryColor(category) || 'default'}>{categoryOptions.find(opt => opt.value === category)?.label || category}</Tag>
-        ) : '-'
-      ),
-    },
-    {
-      title: '字数',
-      dataIndex: 'word_count',
-      key: 'word_count',
       width: 100,
-      sorter: (a, b) => a.word_count - b.word_count,
-      render: (wordCount: number) => formatWordCount(wordCount),
-    },
-    {
-      title: '章节数',
-      dataIndex: 'chapter_count',
-      key: 'chapter_count',
-      width: 80,
-      sorter: (a, b) => a.chapter_count - b.chapter_count,
-      render: (chapterCount: number) => `${chapterCount}章`,
-    },
-    {
-      title: '来源',
-      dataIndex: 'source',
-      key: 'source',
-      width: 80,
-      render: (source: string) => source || '-',
+      render: (category: string) => <Tag>{category}</Tag>,
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 80,
-      filters: statusOptions.map((opt) => ({ text: opt.label, value: opt.value })),
-      onFilter: (value, record) => record.status === value,
-      render: (status: string) => (
-        <Tag color={getStatusColor(status) || 'default'}>
-          {statusOptions.find(opt => opt.value === status)?.label || status || '连载'}
-        </Tag>
-      ),
-    },
-    {
-      title: '收藏量',
-      dataIndex: 'collect_count',
-      key: 'collect_count',
-      width: 90,
-      sorter: (a, b) => a.collect_count - b.collect_count,
-      render: (count: number) => (
-        <Space>
-          <StarOutlined style={{ color: '#faad14' }} />
-          <span>{count.toLocaleString()}</span>
-        </Space>
-      ),
-    },
-    {
-      title: '评分',
-      dataIndex: 'rating',
-      key: 'rating',
-      width: 80,
-      sorter: (a, b) => a.rating - b.rating,
-      render: (rating: number) => (
-        <span style={{ color: rating >= 4 ? '#52c41a' : rating >= 3 ? '#faad14' : '#ff4d4f', fontWeight: 500 }}>
-          {rating > 0 ? rating.toFixed(1) : '-'}
-        </span>
-      ),
-    },
-    // is_published 列已移除，所有公开小说都对用户可见
-    getActionColumn<NovelRecord>(
-      (record) => {
-        const actions: import('../components/ActionColumn').ActionButton[] = [
-          {
-            key: 'chapters',
-            label: '章节',
-            icon: <EyeOutlined />,
-            onClick: () => handleViewChapters(record),
-          },
-        ]
-        if (canWriteNovels) {
-          actions.push({
-            key: 'edit',
-            label: '编辑',
-            icon: <EditOutlined />,
-            onClick: () => handleEdit(record),
-          })
+      width: 100,
+      render: (status: string) => {
+        const statusMap: Record<string, { color: string; label: string }> = {
+          ongoing: { color: 'green', label: '连载中' },
+          completed: { color: 'blue', label: '已完结' },
+          paused: { color: 'orange', label: '暂停' },
         }
-        if (canDeleteNovels) {
-          actions.push({
-            key: 'delete',
-            label: '删除',
-            icon: <DeleteOutlined />,
-            danger: true,
-            onClick: () => handleDelete(record.id),
-          })
-        }
-        return actions
+        const info = statusMap[status] || { color: 'default', label: status }
+        return <Badge status={info.color as any} text={info.label} />
       },
-      { width: 240, maxVisible: 2 }
+    },
+    {
+      title: '阅读量',
+      dataIndex: 'read_count',
+      key: 'read_count',
+      width: 100,
+      sorter: (a, b) => a.read_count - b.read_count,
+    },
+    {
+      title: '章节数',
+      dataIndex: 'chapter_count',
+      key: 'chapter_count',
+      width: 100,
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 170,
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+    },
+    getActionColumn<Novel>(
+      (record) => [
+        {
+          key: 'chapters',
+          label: '章节管理',
+          icon: <FileTextOutlined />,
+          type: 'primary',
+          onClick: () => handleManageChapters(record.id),
+        },
+        {
+          key: 'edit',
+          label: '编辑',
+          icon: <EditOutlined />,
+          onClick: () => handleEdit(record),
+        },
+        {
+          key: 'status',
+          label: record.status === 'ongoing' ? '暂停' : '恢复',
+          icon: record.status === 'ongoing' ? <StopOutlined /> : <CheckCircleOutlined />,
+          onClick: () => handleToggleStatus(record),
+        },
+        {
+          key: 'vip',
+          label: record.is_vip ? '取消VIP' : '设为VIP',
+          icon: <EyeOutlined />,
+          onClick: () => handleToggleVip(record),
+        },
+        {
+          key: 'delete',
+          label: '删除',
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => handleDelete(record.id),
+        },
+      ],
+      { width: 240, maxVisible: 3 }
     ),
   ]
 
-  // ==================== 导出菜单 ====================
-
-  const exportMenuItems = [
-    { key: 'csv', label: '导出 CSV', icon: <ExportOutlined /> },
-    { key: 'excel', label: '导出 Excel', icon: <ExportOutlined /> },
-  ]
-
-  const handleExportMenuClick = useCallback(
-    ({ key }: { key: string }) => {
-      if (key === 'csv') handleExportCSV()
-      else if (key === 'excel') handleExportExcel()
-    },
-    [handleExportCSV, handleExportExcel]
-  )
-
-  // ==================== 渲染 ====================
-
-  if (!canReadNovels) {
-    return <NoPermission module="小说" />
-  }
-
   return (
-    <div>
-      {/* 页面标题 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={4} style={{ margin: 0 }}>
-          小说管理
-        </Title>
-        <Space>
-          {canWriteNovels && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-              新增小说
-            </Button>
-          )}
-          {canExportNovels && (
-            <Dropdown menu={{ items: exportMenuItems, onClick: handleExportMenuClick }}>
-              <Button icon={<ExportOutlined />}>
-                导出 <DownOutlined />
-              </Button>
-            </Dropdown>
-          )}
-        </Space>
-      </div>
+    <div style={{ padding: 24 }}>
+      {/* 统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总小说数"
+              value={pagination.total}
+              prefix={<BookOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="连载中"
+              value={novels.filter(n => n.status === 'ongoing').length}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="VIP小说"
+              value={novels.filter(n => n.is_vip).length}
+              prefix={<EyeOutlined />}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* 筛选栏 */}
-      <FilterBar
-        fields={filterFields}
-        values={filterValues}
-        onChange={setFilterValues}
-        onReset={handleReset}
-        searchPlaceholder="搜索标题、作者"
-        searchText={searchText}
-        onSearchTextChange={setSearchText}
-        loading={loading}
-      />
-
-      {/* 批量操作栏 */}
-      {selectedRowKeys.length > 0 && canDeleteNovels && (
-        <div style={{ marginBottom: 16 }}>
-          <Space>
-            <span>已选择 {selectedRowKeys.length} 条数据</span>
-            <Popconfirm
-              title="批量删除"
-              description={`确认删除选中的 ${selectedRowKeys.length} 条数据？关联章节也将被一并删除。`}
-              onConfirm={handleBatchDelete}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <Button danger icon={<DeleteOutlined />}>
-                批量删除
-              </Button>
-            </Popconfirm>
-            <Button onClick={() => setSelectedRowKeys([])}>取消选择</Button>
-          </Space>
-        </div>
-      )}
-
-      {/* 数据表格 */}
-      <Card>
-        <Table<NovelRecord>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            ...pagination,
-            total: filteredData.length,
-          }}
-          onChange={(pag) => setPagination(pag)}
-          scroll={{ x: 1200 }}
-          rowSelection={
-            canDeleteNovels
-              ? {
-                  selectedRowKeys,
-                  onChange: (keys) => setSelectedRowKeys(keys),
-                }
-              : undefined
-          }
-          size="middle"
-          bordered
-        />
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Input
+            placeholder="搜索书名/作者"
+            value={filters.keyword}
+            onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Select
+            placeholder="分类"
+            value={filters.category}
+            onChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
+            style={{ width: 120 }}
+            allowClear
+            options={[
+              { label: '玄幻', value: '玄幻' },
+              { label: '都市', value: '都市' },
+              { label: '言情', value: '言情' },
+              { label: '科幻', value: '科幻' },
+              { label: '历史', value: '历史' },
+              { label: '悬疑', value: '悬疑' },
+            ]}
+          />
+          <Select
+            placeholder="状态"
+            value={filters.status}
+            onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
+            style={{ width: 120 }}
+            allowClear
+            options={[
+              { label: '连载中', value: 'ongoing' },
+              { label: '已完结', value: 'completed' },
+              { label: '暂停', value: 'paused' },
+            ]}
+          />
+          <Select
+            placeholder="VIP"
+            value={filters.isVip}
+            onChange={(value) => setFilters(prev => ({ ...prev, isVip: value }))}
+            style={{ width: 120 }}
+            allowClear
+            options={[
+              { label: 'VIP', value: true },
+              { label: '免费', value: false },
+            ]}
+          />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
+          </Button>
+        </Space>
       </Card>
 
-      {/* 表单弹窗 */}
-      <DataFormModal
-        open={modalOpen}
-        title={modalMode === 'create' ? '新增小说' : '编辑小说'}
-        mode={modalMode}
-        fields={formFields}
-        initialValues={editingRecord ? { ...editingRecord } : undefined}
-        onOk={handleFormSubmit}
-        onCancel={() => setModalOpen(false)}
-        confirmLoading={confirmLoading}
-        width={600}
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+            新增小说
+          </Button>
+          {selectedRowKeys.length > 0 && (
+            <Popconfirm
+              title="确认批量删除"
+              description={`确定要删除选中的 ${selectedRowKeys.length} 本小说吗？`}
+              onConfirm={handleBatchDelete}
+              okText="确认"
+              cancelText="取消"
+            >
+              <Button danger icon={<DeleteOutlined />}>
+                批量删除 ({selectedRowKeys.length})
+              </Button>
+            </Popconfirm>
+          )}
+        </Space>
+        <Button icon={<ReloadOutlined />} onClick={loadNovels} loading={loading}>
+          刷新
+        </Button>
+      </div>
+
+      {/* 小说表格 */}
+      <Table
+        columns={columns}
+        dataSource={novels}
+        rowKey="id"
+        loading={loading}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
+        scroll={{ x: 1200 }}
       />
+
+      {/* 小说表单弹窗 */}
+      <Modal
+        title={editingNovel ? '编辑小说' : '新增小说'}
+        open={modalVisible}
+        onOk={handleModalSubmit}
+        onCancel={() => {
+          setModalVisible(false)
+          setEditingNovel(null)
+          form.resetFields()
+        }}
+        width={600}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="title"
+            label="书名"
+            rules={[{ required: true, message: '请输入书名' }]}
+          >
+            <Input placeholder="请输入书名" />
+          </Form.Item>
+          <Form.Item
+            name="author"
+            label="作者"
+            rules={[{ required: true, message: '请输入作者' }]}
+          >
+            <Input placeholder="请输入作者" />
+          </Form.Item>
+          <Form.Item
+            name="category"
+            label="分类"
+            rules={[{ required: true, message: '请选择分类' }]}
+          >
+            <Select
+              placeholder="请选择分类"
+              options={[
+                { label: '玄幻', value: '玄幻' },
+                { label: '都市', value: '都市' },
+                { label: '言情', value: '言情' },
+                { label: '科幻', value: '科幻' },
+                { label: '历史', value: '历史' },
+                { label: '悬疑', value: '悬疑' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="简介"
+          >
+            <Input.TextArea rows={4} placeholder="请输入简介" />
+          </Form.Item>
+          <Form.Item
+            name="cover_url"
+            label="封面URL"
+          >
+            <Input placeholder="请输入封面图片URL" />
+          </Form.Item>
+          <Form.Item
+            name="status"
+            label="状态"
+            rules={[{ required: true, message: '请选择状态' }]}
+          >
+            <Select
+              placeholder="请选择状态"
+              options={[
+                { label: '连载中', value: 'ongoing' },
+                { label: '已完结', value: 'completed' },
+                { label: '暂停', value: 'paused' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="is_vip"
+            label="VIP"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="是" unCheckedChildren="否" />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* 章节管理弹窗 */}
       <NovelChapterModal
         open={chapterModalOpen}
-        novelId={selectedNovel?.id || ''}
-        novelTitle={selectedNovel?.title || ''}
-        onClose={handleCloseChapterModal}
+        novelId={selectedNovelId}
+        onClose={() => {
+          setChapterModalOpen(false)
+          setSelectedNovelId('')
+        }}
       />
     </div>
   )

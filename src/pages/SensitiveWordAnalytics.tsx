@@ -6,107 +6,61 @@ import {
   Statistic,
   Table,
   Tag,
-  Typography,
-  Space,
-  DatePicker,
   Spin,
   Empty,
-  Tabs,
-  Select,
-  Badge,
+  DatePicker,
+  Button,
+  Space,
+  Typography,
 } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
 import {
-  SafetyCertificateOutlined,
-  FileTextOutlined,
-  ExclamationCircleOutlined,
-  AlertOutlined,
-  UserOutlined,
-  FireOutlined,
-} from '@ant-design/icons'
-import {
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip as RechartsTooltip,
+  Tooltip,
   Legend,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
 } from 'recharts'
+import {
+  WarningOutlined,
+  ReloadOutlined,
+  FileTextOutlined,
+  CheckCircleOutlined,
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
-import { usePermission } from '../hooks/usePermission'
 
-const { Text } = Typography
+const { Text, Title } = Typography
 const { RangePicker } = DatePicker
+
+const COLORS = ['#ff4d4f', '#faad14', '#52c41a', '#1890ff', '#722ed1']
 
 // ==================== 类型定义 ====================
 
-interface LogRecord {
+interface SensitiveWordHit {
   id: string
-  word_id: string
   word: string
   category: string
-  source: string
-  source_id: string | null
-  user_id: string | null
-  content_snippet: string | null
-  action_taken: string
-  ip_address: string | null
+  level: string
+  content_type: string
+  content_id: string
   created_at: string
 }
 
-interface TrendItem {
-  date: string
-  novel: number
-  system: number
-  total: number
-}
-
-interface SourceItem {
-  name: string
-  value: number
-  color: string
-}
-
-interface TopWordItem {
-  word: string
+interface CategoryStat {
   category: string
-  hit_count: number
+  count: number
 }
 
-// ==================== 常量 ====================
-
-const SOURCE_COLORS: Record<string, string> = {
-  novel_content: '#722ed1',
-  user_comment: '#13c2c2',
-  user_nickname: '#1890ff',
-  user_bio: '#52c41a',
-  other: '#faad14',
-}
-
-const SOURCE_LABELS: Record<string, string> = {
-  novel_content: '小说内容',
-  user_comment: '用户评论',
-  user_nickname: '用户昵称',
-  user_bio: '用户简介',
-  other: '其他',
-}
-
-const ACTION_COLORS: Record<string, string> = {
-  blocked: '#ff4d4f',
-  replaced: '#faad14',
-  warned: '#1890ff',
-}
-
-const ACTION_LABELS: Record<string, string> = {
-  blocked: '已屏蔽',
-  replaced: '已替换',
-  warned: '已警告',
+interface DailyStat {
+  date: string
+  count: number
 }
 
 // ==================== 组件 ====================
@@ -114,260 +68,124 @@ const ACTION_LABELS: Record<string, string> = {
 const SensitiveWordAnalytics: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().subtract(7, 'day'),
+    dayjs().subtract(30, 'day'),
     dayjs(),
   ])
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [hits, setHits] = useState<SensitiveWordHit[]>([])
+  const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([])
+  const [dailyStats, setDailyStats] = useState<DailyStat[]>([])
+  const [topWords, setTopWords] = useState<{ word: string; count: number }[]>([])
 
-  // 数据
-  const [totalLogs, setTotalLogs] = useState(0)
-  const [todayLogs, setTodayLogs] = useState(0)
-  const [novelLogs, setNovelLogs] = useState(0)
-  const [systemLogs, setSystemLogs] = useState(0)
-  const [uniqueUsers, setUniqueUsers] = useState(0)
-  const [blockedCount, setBlockedCount] = useState(0)
-  const [trendData, setTrendData] = useState<TrendItem[]>([])
-  const [sourceData, setSourceData] = useState<SourceItem[]>([])
-  const [topWords, setTopWords] = useState<TopWordItem[]>([])
-  const [recentLogs, setRecentLogs] = useState<LogRecord[]>([])
+  const hitService = new BaseService<SensitiveWordHit>('sensitive_word_hits', { defaultOrder: { column: 'created_at', ascending: false } })
 
-  const { isAdmin } = usePermission()
-
-  // ==================== 数据加载 ====================
-
-  const fetchAnalytics = useCallback(async () => {
-    if (!isAdmin) return
+  // 加载统计数据
+  const loadAnalytics = useCallback(async () => {
     setLoading(true)
-
-    const startDate = dateRange[0].format('YYYY-MM-DD')
-    const endDate = dateRange[1].format('YYYY-MM-DD')
-
     try {
-      // 基础查询条件
-      const baseQuery = supabase
-        .from('sensitive_word_logs')
-        .select('*')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate + 'T23:59:59')
-        .order('created_at', { ascending: false })
+      const startDate = dateRange[0].format('YYYY-MM-DD')
+      const endDate = dateRange[1].format('YYYY-MM-DD') + 'T23:59:59'
 
-      // 分类筛选
-      const query = categoryFilter === 'all'
-        ? baseQuery
-        : baseQuery.eq('category', categoryFilter)
-
-      const { data: logs, error } = await query
-
-      if (error) throw error
-
-      const allLogs = logs || []
-
-      // 基础统计
-      setTotalLogs(allLogs.length)
-      const today = dayjs().format('YYYY-MM-DD')
-      setTodayLogs(allLogs.filter(l => l.created_at.startsWith(today)).length)
-      setNovelLogs(allLogs.filter(l => l.category === 'novel').length)
-      setSystemLogs(allLogs.filter(l => l.category === 'system').length)
-      setUniqueUsers(new Set(allLogs.filter(l => l.user_id).map(l => l.user_id)).size)
-      setBlockedCount(allLogs.filter(l => l.action_taken === 'blocked').length)
-
-      // 趋势数据（按天聚合）
-      const trendMap = new Map<string, { novel: number; system: number }>()
-      allLogs.forEach(log => {
-        const date = log.created_at.split('T')[0]
-        const existing = trendMap.get(date) || { novel: 0, system: 0 }
-        if (log.category === 'novel') existing.novel++
-        else existing.system++
-        trendMap.set(date, existing)
-      })
-
-      // 生成完整日期范围
-      const trend: TrendItem[] = []
-      let current = dayjs(startDate)
-      const end = dayjs(endDate)
-      while (current.isBefore(end) || current.isSame(end, 'day')) {
-        const dateStr = current.format('YYYY-MM-DD')
-        const dayData = trendMap.get(dateStr) || { novel: 0, system: 0 }
-        trend.push({
-          date: dateStr.substring(5), // MM-DD
-          novel: dayData.novel,
-          system: dayData.system,
-          total: dayData.novel + dayData.system,
-        })
-        current = current.add(1, 'day')
+      // 加载命中记录
+      const result = await hitService.findAll((q) =>
+        q.gte('created_at', startDate).lte('created_at', endDate)
+      )
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'SensitiveWordAnalytics-加载数据')
+        return
       }
-      setTrendData(trend)
 
-      // 来源分布
-      const sourceMap = new Map<string, number>()
-      allLogs.forEach(log => {
-        const count = sourceMap.get(log.source) || 0
-        sourceMap.set(log.source, count + 1)
+      const hitData = result.data || []
+      setHits(hitData)
+
+      // 分类统计
+      const categoryMap = new Map<string, number>()
+      hitData.forEach((hit) => {
+        const cat = hit.category || '未分类'
+        categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1)
       })
-      setSourceData(
-        Array.from(sourceMap.entries())
-          .map(([name, value]) => ({
-            name: SOURCE_LABELS[name] || name,
-            value,
-            color: SOURCE_COLORS[name] || '#999',
-          }))
-          .sort((a, b) => b.value - a.value)
+      setCategoryStats(
+        Array.from(categoryMap.entries()).map(([category, count]) => ({ category, count }))
       )
 
-      // Top 敏感词
-      const wordMap = new Map<string, { word: string; category: string; count: number }>()
-      allLogs.forEach(log => {
-        const existing = wordMap.get(log.word) || { word: log.word, category: log.category, count: 0 }
-        existing.count++
-        wordMap.set(log.word, existing)
+      // 每日统计
+      const dateMap = new Map<string, number>()
+      const days = dateRange[1].diff(dateRange[0], 'day') + 1
+      for (let i = 0; i < days; i++) {
+        const date = dateRange[0].add(i, 'day').format('MM-DD')
+        dateMap.set(date, 0)
+      }
+      hitData.forEach((hit) => {
+        const date = dayjs(hit.created_at).format('MM-DD')
+        if (dateMap.has(date)) {
+          dateMap.set(date, (dateMap.get(date) || 0) + 1)
+        }
+      })
+      setDailyStats(
+        Array.from(dateMap.entries()).map(([date, count]) => ({ date, count }))
+      )
+
+      // 热门敏感词
+      const wordMap = new Map<string, number>()
+      hitData.forEach((hit) => {
+        wordMap.set(hit.word, (wordMap.get(hit.word) || 0) + 1)
       })
       setTopWords(
-        Array.from(wordMap.values())
+        Array.from(wordMap.entries())
+          .map(([word, count]) => ({ word, count }))
           .sort((a, b) => b.count - a.count)
-          .slice(0, 20)
-          .map(item => ({ word: item.word, category: item.category, hit_count: item.count }))
+          .slice(0, 10)
       )
-
-      // 最近日志
-      setRecentLogs(allLogs.slice(0, 50))
-    } catch (error: any) {
-      console.error('加载统计数据失败:', error)
+    } catch (error) {
+      handleApiError(error, 'SensitiveWordAnalytics-加载统计')
     } finally {
       setLoading(false)
     }
-  }, [isAdmin, dateRange, categoryFilter])
+  }, [dateRange])
 
   useEffect(() => {
-    fetchAnalytics()
-  }, [fetchAnalytics])
+    loadAnalytics()
+  }, [loadAnalytics])
 
-  // ==================== 表格列 ====================
-
-  const logColumns: ColumnsType<LogRecord> = [
+  // 表格列定义
+  const columns = [
     {
       title: '敏感词',
       dataIndex: 'word',
       key: 'word',
-      width: 150,
-      render: (word: string) => <Text style={{ color: '#ff4d4f' }}>{word}</Text>,
-    },
-    {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-      width: 80,
-      render: (cat: string) => (
-        <Tag color={cat === 'novel' ? 'purple' : 'cyan'}>
-          {cat === 'novel' ? '小说' : '系统'}
-        </Tag>
-      ),
-    },
-    {
-      title: '来源',
-      dataIndex: 'source',
-      key: 'source',
-      width: 100,
-      render: (source: string) => (
-        <Tag color={SOURCE_COLORS[source] || 'default'}>
-          {SOURCE_LABELS[source] || source}
-        </Tag>
-      ),
-    },
-    {
-      title: '处理动作',
-      dataIndex: 'action_taken',
-      key: 'action_taken',
-      width: 90,
-      render: (action: string) => (
-        <Tag color={ACTION_COLORS[action]}>{ACTION_LABELS[action] || action}</Tag>
-      ),
-    },
-    {
-      title: '内容片段',
-      dataIndex: 'content_snippet',
-      key: 'content_snippet',
-      width: 250,
-      ellipsis: true,
-      render: (text: string | null) => text || '-',
-    },
-    {
-      title: '用户ID',
-      dataIndex: 'user_id',
-      key: 'user_id',
-      width: 120,
-      render: (id: string | null) => id ? (
-        <Text copyable style={{ fontSize: 12 }}>{id.substring(0, 16)}...</Text>
-      ) : '-',
-    },
-    {
-      title: '时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 160,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
-    },
-  ]
-
-  const topWordColumns: ColumnsType<TopWordItem> = [
-    {
-      title: '排名',
-      key: 'rank',
-      width: 60,
-      render: (_, __, index) => (
-        <Badge
-          count={index + 1}
-          style={{
-            backgroundColor: index < 3 ? '#ff4d4f' : '#d9d9d9',
-          }}
-        />
-      ),
-    },
-    {
-      title: '敏感词',
-      dataIndex: 'word',
-      key: 'word',
-      width: 200,
       render: (word: string) => <Text strong style={{ color: '#ff4d4f' }}>{word}</Text>,
     },
     {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
-      width: 80,
-      render: (cat: string) => (
-        <Tag color={cat === 'novel' ? 'purple' : 'cyan'}>
-          {cat === 'novel' ? '小说' : '系统'}
-        </Tag>
-      ),
+      render: (category: string) => <Tag>{category}</Tag>,
     },
     {
-      title: '命中次数',
-      dataIndex: 'hit_count',
-      key: 'hit_count',
-      width: 100,
-      sorter: (a, b) => a.hit_count - b.hit_count,
-      render: (count: number) => (
-        <Text strong style={{ color: count > 10 ? '#ff4d4f' : count > 5 ? '#faad14' : '#52c41a' }}>
-          {count}
-        </Text>
-      ),
+      title: '等级',
+      dataIndex: 'level',
+      key: 'level',
+      render: (level: string) => {
+        const color = level === 'high' ? 'purple' : level === 'medium' ? 'red' : 'orange'
+        return <Tag color={color}>{level}</Tag>
+      },
+    },
+    {
+      title: '内容类型',
+      dataIndex: 'content_type',
+      key: 'content_type',
+    },
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
   ]
 
-  // ==================== 渲染 ====================
-
-  if (!isAdmin) {
-    return <Empty description="仅管理员可查看" />
-  }
-
-  if (loading) {
-    return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />
-  }
-
   return (
-    <div>
-      {/* 顶部操作栏 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+    <div style={{ padding: 24 }}>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={4} style={{ margin: 0 }}>敏感词分析</Title>
         <Space>
           <RangePicker
             value={dateRange}
@@ -376,182 +194,130 @@ const SensitiveWordAnalytics: React.FC = () => {
                 setDateRange([dates[0], dates[1]])
               }
             }}
-            presets={[
-              { label: '近7天', value: [dayjs().subtract(7, 'day'), dayjs()] },
-              { label: '近30天', value: [dayjs().subtract(30, 'day'), dayjs()] },
-              { label: '近90天', value: [dayjs().subtract(90, 'day'), dayjs()] },
-            ]}
           />
-          <Select
-            value={categoryFilter}
-            onChange={setCategoryFilter}
-            style={{ width: 140 }}
-            options={[
-              { label: '全部分类', value: 'all' },
-              { label: '小说敏感词', value: 'novel' },
-              { label: '系统敏感词', value: 'system' },
-            ]}
-          />
+          <Button icon={<ReloadOutlined />} onClick={loadAnalytics} loading={loading}>
+            刷新
+          </Button>
         </Space>
-      </Card>
+      </div>
 
       {/* 统计卡片 */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={4}>
-          <Card size="small">
-            <Statistic title="总命中次数" value={totalLogs} prefix={<AlertOutlined />} />
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总命中数"
+              value={hits.length}
+              prefix={<WarningOutlined />}
+            />
           </Card>
         </Col>
-        <Col span={4}>
-          <Card size="small">
-            <Statistic title="今日命中" value={todayLogs} valueStyle={{ color: '#ff4d4f' }} prefix={<FireOutlined />} />
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="涉及分类"
+              value={categoryStats.length}
+              prefix={<FileTextOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
           </Card>
         </Col>
-        <Col span={4}>
-          <Card size="small">
-            <Statistic title="小说命中" value={novelLogs} valueStyle={{ color: '#722ed1' }} prefix={<FileTextOutlined />} />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card size="small">
-            <Statistic title="系统命中" value={systemLogs} valueStyle={{ color: '#13c2c2' }} prefix={<ExclamationCircleOutlined />} />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card size="small">
-            <Statistic title="涉及用户" value={uniqueUsers} prefix={<UserOutlined />} />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card size="small">
-            <Statistic title="已屏蔽" value={blockedCount} valueStyle={{ color: '#ff4d4f' }} prefix={<SafetyCertificateOutlined />} />
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="今日命中"
+              value={hits.filter(h => dayjs(h.created_at).isSame(dayjs(), 'day')).length}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
           </Card>
         </Col>
       </Row>
 
-      {/* 图表区域 */}
-      <Tabs
-        defaultActiveKey="trend"
-        items={[
-          {
-            key: 'trend',
-            label: '命中趋势',
-            children: (
-              <Row gutter={16}>
-                <Col span={16}>
-                  <Card title="命中趋势（按天）" size="small">
-                    <ResponsiveContainer width="100%" height={350}>
-                      <LineChart data={trendData}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" fontSize={12} />
-                        <YAxis fontSize={12} />
-                        <RechartsTooltip />
-                        <Legend />
-                        <Line type="monotone" dataKey="novel" name="小说" stroke="#722ed1" strokeWidth={2} />
-                        <Line type="monotone" dataKey="system" name="系统" stroke="#13c2c2" strokeWidth={2} />
-                        <Line type="monotone" dataKey="total" name="总计" stroke="#ff4d4f" strokeWidth={2} strokeDasharray="5 5" />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </Card>
-                </Col>
-                <Col span={8}>
-                  <Card title="来源分布" size="small">
-                    <ResponsiveContainer width="100%" height={350}>
-                      <PieChart>
-                        <Pie
-                          data={sourceData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
-                          dataKey="value"
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          labelLine={false}
-                        >
-                          {sourceData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <RechartsTooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    {sourceData.length === 0 && (
-                      <div style={{ textAlign: 'center', marginTop: 80 }}>
-                        <Text type="secondary">暂无数据</Text>
-                      </div>
-                    )}
-                  </Card>
-                </Col>
-              </Row>
-            ),
-          },
-          {
-            key: 'topWords',
-            label: '高频敏感词',
-            children: (
-              <Card title="命中次数 Top 20" size="small">
-                <Row gutter={16}>
-                  <Col span={16}>
-                    <Table
-                      columns={topWordColumns}
-                      dataSource={topWords}
-                      rowKey="word"
-                      pagination={false}
-                      size="small"
-                      scroll={{ y: 500 }}
-                    />
-                  </Col>
-                  <Col span={8}>
-                    <Card title="分类占比" size="small" style={{ marginTop: 0 }}>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                          <Pie
-                            data={[
-                              { name: '小说', value: novelLogs },
-                              { name: '系统', value: systemLogs },
-                            ].filter(d => d.value > 0)}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={40}
-                            outerRadius={70}
-                            dataKey="value"
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          >
-                            <Cell fill="#722ed1" />
-                            <Cell fill="#13c2c2" />
-                          </Pie>
-                          <RechartsTooltip />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </Card>
-                  </Col>
-                </Row>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 100 }}>
+          <Spin size="large" />
+        </div>
+      ) : (
+        <>
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={24} lg={12}>
+              <Card title="分类分布">
+                {categoryStats.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={categoryStats}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        dataKey="count"
+                        nameKey="category"
+                        label={({ category, count }) => `${category}: ${count}`}
+                      >
+                        {categoryStats.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Empty description="暂无数据" />
+                )}
               </Card>
-            ),
-          },
-          {
-            key: 'logs',
-            label: '命中日志',
-            children: (
-              <Card title="最近命中日志" size="small">
+            </Col>
+            <Col xs={24} lg={12}>
+              <Card title="每日命中趋势">
+                {dailyStats.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={dailyStats}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip />
+                      <Bar dataKey="count" name="命中数" fill="#ff4d4f" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Empty description="暂无数据" />
+                )}
+              </Card>
+            </Col>
+          </Row>
+
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={24} lg={12}>
+              <Card title="热门敏感词 Top 10">
                 <Table
-                  columns={logColumns}
-                  dataSource={recentLogs}
-                  rowKey="id"
+                  dataSource={topWords}
+                  columns={[
+                    { title: '排名', key: 'rank', width: 60, render: (_: any, __: any, index: number) => index + 1 },
+                    { title: '敏感词', dataIndex: 'word', key: 'word' },
+                    { title: '命中次数', dataIndex: 'count', key: 'count' },
+                  ]}
+                  rowKey="word"
+                  pagination={false}
                   size="small"
-                  scroll={{ x: 1000 }}
-                  pagination={{
-                    defaultPageSize: 20,
-                    showTotal: (total) => `共 ${total} 条`,
-                    showSizeChanger: true,
-                    pageSizeOptions: ['10', '20', '50'],
-                  }}
                 />
               </Card>
-            ),
-          },
-        ]}
-      />
+            </Col>
+            <Col xs={24} lg={12}>
+              <Card title="最近命中记录">
+                <Table
+                  dataSource={hits.slice(0, 10)}
+                  columns={columns}
+                  rowKey="id"
+                  pagination={false}
+                  size="small"
+                  scroll={{ x: 600 }}
+                />
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
     </div>
   )
 }

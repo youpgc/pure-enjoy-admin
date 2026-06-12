@@ -1,633 +1,284 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Card,
   Table,
   Button,
+  Input,
   Space,
   Tag,
-  Input,
-  Popconfirm,
+  Card,
   message,
-  Switch,
   Modal,
   Form,
   Select,
-  Typography,
+  Popconfirm,
   Tooltip,
   Badge,
-  Tabs,
-  Divider,
+  Typography,
   Row,
   Col,
   Statistic,
+  Switch,
 } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
 import {
-  PlusOutlined,
-  DeleteOutlined,
-  EditOutlined,
+  SearchOutlined,
   ReloadOutlined,
-  ExclamationCircleOutlined,
-  SafetyCertificateOutlined,
-  FileTextOutlined,
-  SettingOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  WarningOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
 } from '@ant-design/icons'
-import DataFormModal, { FormField } from '../components/DataFormModal'
-import FilterBar, { FilterField } from '../components/FilterBar'
-import { supabase, logOperation } from '../utils/supabase'
+import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
+import { supabase } from '../utils/supabase'
+import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
-import { formatDateTime } from '../utils/format'
-import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
+import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
-const { TextArea } = Input
 
 // ==================== 类型定义 ====================
 
 interface SensitiveWord {
   id: string
   word: string
-  category: 'novel' | 'system'
-  level: 'block' | 'replace' | 'warn'
-  replace_word: string | null
-  description: string | null
-  match_mode: 'exact' | 'contains' | 'regex'
+  category: string
+  level: 'low' | 'medium' | 'high'
   is_active: boolean
-  hit_count: number
-  created_by: string | null
   created_at: string
-  updated_at: string
 }
 
-interface CategorySwitch {
-  key: string
-  label: string
-  description: string
-  enabled: boolean
-}
-
-// ==================== 常量 ====================
-
-const CATEGORY_OPTIONS_FALLBACK = [
-  { label: '小说敏感词', value: 'novel' },
-  { label: '系统敏感词', value: 'system' },
-]
-
-const LEVEL_OPTIONS_FALLBACK = [
-  { label: '屏蔽', value: 'block' },
-  { label: '替换', value: 'replace' },
-  { label: '警告', value: 'warn' },
-]
-
-const MATCH_MODE_OPTIONS_FALLBACK = [
-  { label: '精确匹配', value: 'exact' },
-  { label: '包含匹配', value: 'contains' },
-  { label: '正则匹配', value: 'regex' },
-]
-
-const LEVEL_COLORS_FALLBACK: Record<string, string> = {
-  block: 'red',
-  replace: 'orange',
-  warn: 'blue',
-}
-
-const LEVEL_LABELS_FALLBACK: Record<string, string> = {
-  block: '屏蔽',
-  replace: '替换',
-  warn: '警告',
-}
-
-const MATCH_MODE_LABELS_FALLBACK: Record<string, string> = {
-  exact: '精确',
-  contains: '包含',
-  regex: '正则',
-}
-
-const CATEGORY_LABELS_FALLBACK: Record<string, string> = {
-  novel: '小说',
-  system: '系统',
+interface SensitiveWordFilters {
+  keyword: string
+  category: string | undefined
+  level: string | undefined
 }
 
 // ==================== 组件 ====================
 
 const SensitiveWords: React.FC = () => {
-  const [data, setData] = useState<SensitiveWord[]>([])
+  const [words, setWords] = useState<SensitiveWord[]>([])
   const [loading, setLoading] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingRecord, setEditingRecord] = useState<SensitiveWord | null>(null)
-  const [saving, setSaving] = useState(false)
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const [filters, setFilters] = useState<SensitiveWordFilters>({
+    keyword: '',
+    category: undefined,
+    level: undefined,
+  })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
-  const [searchText, setSearchText] = useState('')
-  const [filterValues, setFilterValues] = useState<Record<string, unknown>>({})
-  const [activeTab, setActiveTab] = useState<string>('all')
+  const [modalVisible, setModalVisible] = useState(false)
+  const [editingWord, setEditingWord] = useState<SensitiveWord | null>(null)
+  const [form] = Form.useForm()
+  const { isAdmin } = usePermission()
 
-  // 字典查询
-  const { options: categoryOptions } = useDictOptions('sensitive_word_category', CATEGORY_OPTIONS_FALLBACK)
-  const { options: levelOptions } = useDictOptions('sensitive_word_level', LEVEL_OPTIONS_FALLBACK)
-  const { options: matchModeOptions } = useDictOptions('match_mode', MATCH_MODE_OPTIONS_FALLBACK)
-  const { getColor: getLevelColor } = useDictColors('sensitive_word_level')
-  const { getColor: getCategoryColor } = useDictColors('sensitive_word_category')
+  const wordService = new BaseService<SensitiveWord>('sensitive_words', { defaultOrder: { column: 'created_at', ascending: false } })
 
-  // 分类开关状态
-  const [switches, setSwitches] = useState<CategorySwitch[]>([
-    { key: 'sensitive_word_novel_enabled', label: '小说敏感词拦截', description: '开启后将对小说内容进行敏感词检测', enabled: false },
-    { key: 'sensitive_word_system_enabled', label: '系统敏感词拦截', description: '开启后将对用户交流内容进行敏感词检测', enabled: false },
-  ])
-  const [switchLoading, setSwitchLoading] = useState(false)
-
-  // 统计数据
-  const [stats, setStats] = useState({ total: 0, novelCount: 0, systemCount: 0, activeCount: 0 })
-
-  // 测试功能状态
-  const [testText, setTestText] = useState('')
-  const [testResults, setTestResults] = useState<{ word: string; level: string; matchType: string }[]>([])
-  const [testLoading, setTestLoading] = useState(false)
-
-  // ==================== 数据加载 ====================
-
-  const fetchData = useCallback(async () => {
+  // 加载敏感词列表
+  const loadWords = useCallback(async () => {
     setLoading(true)
     try {
-      let query = supabase
-        .from('sensitive_words')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const result = await wordService.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
+        if (filters.keyword) {
+          query = query.ilike('word', `%${filters.keyword}%`)
+        }
+        if (filters.category) {
+          query = query.eq('category', filters.category)
+        }
+        if (filters.level) {
+          query = query.eq('level', filters.level)
+        }
+        return query
+      })
 
-      // Tab 筛选
-      if (activeTab === 'novel') {
-        query = query.eq('category', 'novel')
-      } else if (activeTab === 'system') {
-        query = query.eq('category', 'system')
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'SensitiveWords-加载敏感词')
+        return
       }
 
-      const { data: words, error } = await query
-
-      if (error) throw error
-      setData(words || [])
-
-      // 计算统计
-      const all = words || []
-      setStats({
-        total: all.length,
-        novelCount: all.filter(w => w.category === 'novel').length,
-        systemCount: all.filter(w => w.category === 'system').length,
-        activeCount: all.filter(w => w.is_active).length,
-      })
-    } catch (error: any) {
-      message.error('加载敏感词失败: ' + error.message)
+      setWords(result.data?.data || [])
+      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+    } catch (error) {
+      handleApiError(error, 'SensitiveWords-加载敏感词')
     } finally {
       setLoading(false)
     }
-  }, [activeTab])
-
-  // 加载开关状态
-  const fetchSwitches = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sensitive_word_configs')
-        .select('config_key, config_value')
-
-      if (error) throw error
-
-      setSwitches(prev => prev.map(sw => {
-        const config = data?.find((d: any) => d.config_key === sw.key)
-        return { ...sw, enabled: config?.config_value === 'true' }
-      }))
-    } catch (error: any) {
-      console.error('加载开关状态失败:', error)
-    }
-  }, [])
+  }, [pagination.current, pagination.pageSize, filters])
 
   useEffect(() => {
-    fetchData()
-    fetchSwitches()
-  }, [fetchData, fetchSwitches])
+    loadWords()
+  }, [loadWords])
 
-  // ==================== 筛选逻辑 ====================
+  // 搜索
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, current: 1 }))
+    loadWords()
+  }
 
-  const filteredData = (() => {
-    let result = [...data]
+  // 重置筛选
+  const handleReset = () => {
+    setFilters({
+      keyword: '',
+      category: undefined,
+      level: undefined,
+    })
+    setPagination(prev => ({ ...prev, current: 1 }))
+  }
 
-    if (searchText.trim()) {
-      const keyword = searchText.trim().toLowerCase()
-      result = result.filter(item =>
-        item.word.toLowerCase().includes(keyword) ||
-        (item.description && item.description.toLowerCase().includes(keyword))
-      )
+  // 打开新增弹窗
+  const handleAdd = () => {
+    setEditingWord(null)
+    form.resetFields()
+    form.setFieldsValue({ level: 'medium', is_active: true })
+    setModalVisible(true)
+  }
+
+  // 打开编辑弹窗
+  const handleEdit = (record: SensitiveWord) => {
+    setEditingWord(record)
+    form.setFieldsValue({
+      ...record,
+    })
+    setModalVisible(true)
+  }
+
+  // 删除敏感词
+  const handleDelete = async (id: string) => {
+    try {
+      const result = await wordService.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'SensitiveWords-删除')
+        return
+      }
+      message.success('删除成功')
+      loadWords()
+    } catch (error) {
+      handleApiError(error, 'SensitiveWords-删除')
     }
+  }
 
-    if (filterValues.category) {
-      result = result.filter(item => item.category === filterValues.category)
-    }
-    if (filterValues.level) {
-      result = result.filter(item => item.level === filterValues.level)
-    }
-    if (filterValues.match_mode) {
-      result = result.filter(item => item.match_mode === filterValues.match_mode)
-    }
-    if (filterValues.is_active !== undefined) {
-      result = result.filter(item => item.is_active === filterValues.is_active)
-    }
-
-    return result
-  })()
-
-  // ==================== 敏感词测试 ====================
-
-  const handleTestWords = useCallback(() => {
-    if (!testText.trim()) {
-      message.warning('请输入测试文本')
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要删除的敏感词')
       return
     }
-
-    setTestLoading(true)
-    const results: { word: string; level: string; matchType: string }[] = []
-
-    // 只测试已启用的敏感词
-    const activeWords = data.filter(w => w.is_active)
-
-    activeWords.forEach(word => {
-      let matched = false
-      let matchType = ''
-
-      switch (word.match_mode) {
-        case 'exact':
-          // 精确匹配：文本中完全包含敏感词
-          if (testText === word.word || testText.split(/\s+/).includes(word.word)) {
-            matched = true
-            matchType = '精确匹配'
-          }
-          break
-        case 'contains':
-          // 包含匹配：文本中包含敏感词
-          if (testText.includes(word.word)) {
-            matched = true
-            matchType = '包含匹配'
-          }
-          break
-        case 'regex':
-          // 正则匹配
-          try {
-            const regex = new RegExp(word.word, 'gi')
-            if (regex.test(testText)) {
-              matched = true
-              matchType = '正则匹配'
-            }
-          } catch (e) {
-            // 正则表达式无效，跳过
-          }
-          break
-      }
-
-      if (matched) {
-        const levelDictOpt = levelOptions.find(opt => opt.value === word.level)
-        results.push({
-          word: word.word,
-          level: levelDictOpt?.label || LEVEL_LABELS_FALLBACK[word.level] || word.level,
-          matchType,
-        })
-      }
-    })
-
-    setTestResults(results)
-    setTestLoading(false)
-
-    if (results.length === 0) {
-      message.success('测试通过，未命中任何敏感词')
-    } else {
-      message.warning(`命中 ${results.length} 个敏感词`)
-    }
-  }, [testText, data])
-
-  // ==================== CRUD 操作 ====================
-
-  const handleSave = useCallback(async (values: Record<string, unknown>) => {
-    setSaving(true)
-    try {
-      const saveData: Record<string, string | boolean | null | number> = {
-        word: String(values.word || ''),
-        category: String(values.category || 'novel'),
-        level: String(values.level || 'block'),
-        replace_word: values.level === 'replace' ? String(values.replace_word || '***') : null,
-        description: values.description ? String(values.description) : null,
-        match_mode: String(values.match_mode || 'exact'),
-        is_active: values.is_active !== undefined ? Boolean(values.is_active) : true,
-        updated_at: new Date().toISOString(),
-      }
-
-      if (editingRecord) {
-        const { error } = await supabase
-          .from('sensitive_words')
-          .update(saveData)
-          .eq('id', editingRecord.id)
-        if (error) throw error
-        message.success('更新敏感词成功')
-        logOperation({ action: 'update', module: 'sensitive_words', detail: `更新敏感词: ${saveData.word}` })
-      } else {
-        saveData.created_by = 'admin'
-        saveData.hit_count = 0
-        saveData.created_at = new Date().toISOString()
-        const { error } = await supabase
-          .from('sensitive_words')
-          .insert(saveData)
-        if (error) throw error
-        message.success('添加敏感词成功')
-        logOperation({ action: 'create', module: 'sensitive_words', detail: `添加敏感词: ${saveData.word}` })
-      }
-
-      setModalOpen(false)
-      setEditingRecord(null)
-      fetchData()
-    } catch (error: any) {
-      message.error('保存失败: ' + error.message)
-    } finally {
-      setSaving(false)
-    }
-  }, [editingRecord, fetchData])
-
-  const handleDelete = useCallback(async (ids: string[]) => {
     try {
       const { error } = await supabase
         .from('sensitive_words')
         .delete()
-        .in('id', ids)
-      if (error) throw error
-      message.success(`成功删除 ${ids.length} 条敏感词`)
-      for (const id of ids) {
-        logOperation({ action: 'delete', module: 'sensitive_words', detail: `删除敏感词 ID: ${id}` })
+        .in('id', selectedRowKeys as string[])
+      if (error) {
+        handleApiError(error, 'SensitiveWords-批量删除')
+        return
       }
+      message.success(`成功删除 ${selectedRowKeys.length} 个敏感词`)
       setSelectedRowKeys([])
-      fetchData()
-    } catch (error: any) {
-      message.error('删除失败: ' + error.message)
+      loadWords()
+    } catch (error) {
+      handleApiError(error, 'SensitiveWords-批量删除')
     }
-  }, [fetchData])
+  }
 
-  // 切换单条启用/禁用
-  const handleToggleActive = useCallback(async (record: SensitiveWord) => {
+  // 切换激活状态
+  const handleToggleActive = async (record: SensitiveWord) => {
     try {
-      const { error } = await supabase
-        .from('sensitive_words')
-        .update({ is_active: !record.is_active, updated_at: new Date().toISOString() })
-        .eq('id', record.id)
-      if (error) throw error
-      message.success(record.is_active ? '已禁用' : '已启用')
-      fetchData()
-    } catch (error: any) {
-      message.error('操作失败: ' + error.message)
-    }
-  }, [fetchData])
-
-  // 切换分类开关
-  const handleToggleSwitch = useCallback(async (sw: CategorySwitch) => {
-    setSwitchLoading(true)
-    try {
-      const newValue = !sw.enabled
-      const { error } = await supabase
-        .from('sensitive_word_configs')
-        .update({ config_value: String(newValue), updated_at: new Date().toISOString() })
-        .eq('config_key', sw.key)
-      if (error) throw error
-
-      setSwitches(prev => prev.map(s => s.key === sw.key ? { ...s, enabled: newValue } : s))
-      message.success(`${sw.label} 已${newValue ? '开启' : '关闭'}`)
-      logOperation({
-        action: 'update',
-        module: 'sensitive_words',
-        detail: `${sw.label} 开关: ${newValue ? '开启' : '关闭'}`,
+      const result = await wordService.update(record.id, {
+        is_active: !record.is_active,
       })
-    } catch (error: any) {
-      message.error('切换开关失败: ' + error.message)
-    } finally {
-      setSwitchLoading(false)
-    }
-  }, [])
-
-  // ==================== 批量导入弹窗 ====================
-
-  const [importModalOpen, setImportModalOpen] = useState(false)
-  const [importText, setImportText] = useState('')
-  const [importCategory, setImportCategory] = useState<'novel' | 'system'>('novel')
-  const [importing, setImporting] = useState(false)
-
-  const handleBatchImport = useCallback(async () => {
-    if (!importText.trim()) {
-      message.warning('请输入敏感词内容')
-      return
-    }
-
-    setImporting(true)
-    try {
-      // 按行分割，支持逗号、换行、顿号分隔
-      const words = importText
-        .split(/[\n,，、;；\t]+/)
-        .map(w => w.trim())
-        .filter(w => w.length > 0)
-
-      if (words.length === 0) {
-        message.warning('未检测到有效敏感词')
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'SensitiveWords-切换状态')
         return
       }
-
-      if (words.length > 500) {
-        message.warning('单次导入不能超过 500 条')
-        return
-      }
-
-      const records = words.map(word => ({
-        word,
-        category: importCategory,
-        level: 'block',
-        replace_word: null,
-        description: `批量导入`,
-        match_mode: 'contains',
-        is_active: true,
-        hit_count: 0,
-        created_by: 'admin',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }))
-
-      const { error } = await supabase.from('sensitive_words').insert(records)
-      if (error) throw error
-
-      message.success(`成功导入 ${words.length} 条敏感词`)
-      logOperation({
-        action: 'create',
-        module: 'sensitive_words',
-        detail: `批量导入 ${words.length} 条${importCategory === 'novel' ? '小说' : '系统'}敏感词`,
-      })
-
-      setImportModalOpen(false)
-      setImportText('')
-      fetchData()
-    } catch (error: any) {
-      message.error('导入失败: ' + error.message)
-    } finally {
-      setImporting(false)
+      message.success(`敏感词已${!record.is_active ? '激活' : '停用'}`)
+      loadWords()
+    } catch (error) {
+      handleApiError(error, 'SensitiveWords-切换状态')
     }
-  }, [importText, importCategory, fetchData])
+  }
 
-  // ==================== 表单字段配置 ====================
+  // 保存敏感词
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields()
+      if (editingWord) {
+        const result = await wordService.update(editingWord.id, values)
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'SensitiveWords-更新')
+          return
+        }
+        message.success('更新成功')
+      } else {
+        const result = await wordService.create({
+          ...values,
+          created_at: new Date().toISOString(),
+        })
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'SensitiveWords-创建')
+          return
+        }
+        message.success('创建成功')
+      }
+      setModalVisible(false)
+      setEditingWord(null)
+      form.resetFields()
+      loadWords()
+    } catch (error) {
+      handleApiError(error, 'SensitiveWords-保存')
+    }
+  }
 
-  const formFields: FormField[] = [
-    {
-      name: 'word',
-      label: '敏感词',
-      type: 'text',
-      required: true,
-      placeholder: '请输入敏感词或词组',
-      span: 24,
-    },
-    {
-      name: 'category',
-      label: '分类',
-      type: 'select',
-      required: true,
-      options: categoryOptions,
-      defaultValue: activeTab === 'novel' || activeTab === 'system' ? activeTab : 'novel',
-      span: 12,
-    },
-    {
-      name: 'level',
-      label: '处理级别',
-      type: 'select',
-      required: true,
-      options: levelOptions,
-      defaultValue: 'block',
-      span: 12,
-    },
-    {
-      name: 'replace_word',
-      label: '替换词',
-      type: 'text',
-      placeholder: '处理级别为"替换"时生效，默认 ***',
-      span: 12,
-      dependencies: ['level'],
-      tooltip: '仅当处理级别为"替换"时生效',
-    },
-    {
-      name: 'match_mode',
-      label: '匹配模式',
-      type: 'select',
-      required: true,
-      options: matchModeOptions,
-      defaultValue: 'contains',
-      span: 12,
-      tooltip: '精确: 完全匹配; 包含: 文本中包含即命中; 正则: 使用正则表达式匹配',
-    },
-    {
-      name: 'description',
-      label: '备注',
-      type: 'textarea',
-      placeholder: '可选，添加备注说明',
-      rows: 2,
-      span: 24,
-    },
-    {
-      name: 'is_active',
-      label: '启用',
-      type: 'switch',
-      defaultValue: true,
-      span: 24,
-    },
-  ]
-
-  // ==================== 表格列定义 ====================
-
+  // 表格列定义
   const columns: ColumnsType<SensitiveWord> = [
     {
       title: '敏感词',
       dataIndex: 'word',
       key: 'word',
-      width: 200,
-      ellipsis: true,
-      render: (word: string) => (
-        <Tooltip title={word}>
-          <Text strong style={{ color: '#ff4d4f' }}>{word}</Text>
-        </Tooltip>
-      ),
+      render: (word: string) => <Text strong style={{ color: '#ff4d4f' }}>{word}</Text>,
     },
     {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
-      width: 100,
-      render: (category: string) => {
-        const catDictOpt = categoryOptions.find(opt => opt.value === category)
-        const catFallback = CATEGORY_LABELS_FALLBACK[category]
-        const label = catDictOpt?.label || catFallback || category
-        const color = getCategoryColor(category) || (category === 'novel' ? 'purple' : 'cyan')
-        return <Tag color={color}>{label}</Tag>
-      },
+      width: 120,
+      render: (category: string) => <Tag>{category}</Tag>,
     },
     {
-      title: '处理级别',
+      title: '等级',
       dataIndex: 'level',
       key: 'level',
-      width: 90,
-      render: (level: string) => {
-        const levelDictOpt = levelOptions.find(opt => opt.value === level)
-        const label = levelDictOpt?.label || LEVEL_LABELS_FALLBACK[level] || level
-        const color = getLevelColor(level) || LEVEL_COLORS_FALLBACK[level] || 'default'
-        return <Tag color={color}>{label}</Tag>
-      },
-    },
-    {
-      title: '替换词',
-      dataIndex: 'replace_word',
-      key: 'replace_word',
       width: 100,
-      render: (word: string | null) => word || <Text type="secondary">-</Text>,
-    },
-    {
-      title: '匹配模式',
-      dataIndex: 'match_mode',
-      key: 'match_mode',
-      width: 90,
-      render: (mode: string) => {
-        const dictOpt = matchModeOptions.find(opt => opt.value === mode)
-        return dictOpt?.label || MATCH_MODE_LABELS_FALLBACK[mode] || mode
+      render: (level: string) => {
+        const levelMap: Record<string, { color: string; label: string }> = {
+          low: { color: 'orange', label: '低' },
+          medium: { color: 'red', label: '中' },
+          high: { color: 'purple', label: '高' },
+        }
+        const info = levelMap[level] || { color: 'default', label: level }
+        return <Tag color={info.color}>{info.label}</Tag>
       },
-    },
-    {
-      title: '命中次数',
-      dataIndex: 'hit_count',
-      key: 'hit_count',
-      width: 90,
-      sorter: (a, b) => a.hit_count - b.hit_count,
-      render: (count: number) => (
-        <Badge count={count} showZero style={{ backgroundColor: count > 0 ? '#ff4d4f' : '#d9d9d9' }} />
-      ),
     },
     {
       title: '状态',
       dataIndex: 'is_active',
       key: 'is_active',
-      width: 80,
-      render: (active: boolean, record) => (
+      width: 100,
+      render: (isActive: boolean, record: SensitiveWord) => (
         <Switch
-          checked={active}
-          size="small"
+          checked={isActive}
           onChange={() => handleToggleActive(record)}
+          checkedChildren="启用"
+          unCheckedChildren="停用"
         />
       ),
-    },
-    {
-      title: '备注',
-      dataIndex: 'description',
-      key: 'description',
-      width: 150,
-      ellipsis: true,
-      render: (desc: string | null) => desc || <Text type="secondary">-</Text>,
     },
     {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 160,
-      sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      render: (date: string) => formatDateTime(date),
+      width: 170,
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
     getActionColumn<SensitiveWord>(
       (record) => [
@@ -635,289 +286,206 @@ const SensitiveWords: React.FC = () => {
           key: 'edit',
           label: '编辑',
           icon: <EditOutlined />,
-          onClick: () => {
-            setEditingRecord(record)
-            setModalOpen(true)
-          },
+          type: 'primary',
+          onClick: () => handleEdit(record),
         },
         {
           key: 'delete',
           label: '删除',
           icon: <DeleteOutlined />,
           danger: true,
-          onClick: () => handleDelete([record.id]),
+          onClick: () => handleDelete(record.id),
         },
       ],
-      { width: 240, maxVisible: 2 }
+      { width: 200, maxVisible: 2 }
     ),
   ]
 
-  // ==================== 筛选字段 ====================
-
-  const filterFields: FilterField[] = [
-    { name: 'category', label: '分类', type: 'select', options: categoryOptions },
-    { name: 'level', label: '处理级别', type: 'select', options: levelOptions },
-    { name: 'match_mode', label: '匹配模式', type: 'select', options: matchModeOptions },
-  ]
-
-  // ==================== 渲染 ====================
-
   return (
-    <div>
-      {/* 分类开关卡片 */}
-      <Card
-        style={{ marginBottom: 16 }}
-        title={
-          <Space>
-            <SettingOutlined />
-            <span>拦截开关</span>
-          </Space>
-        }
-        size="small"
-      >
-        <Row gutter={24}>
-          {switches.map(sw => (
-            <Col span={12} key={sw.key}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: 8,
-                background: sw.enabled ? '#f6ffed' : '#fff2f0',
-                border: `1px solid ${sw.enabled ? '#b7eb8f' : '#ffccc7'}`,
-              }}>
-                <div>
-                  <Text strong>{sw.label}</Text>
-                  <br />
-                  <Text type="secondary" style={{ fontSize: 12 }}>{sw.description}</Text>
-                </div>
-                <Switch
-                  checked={sw.enabled}
-                  loading={switchLoading}
-                  onChange={() => handleToggleSwitch(sw)}
-                  checkedChildren="开"
-                  unCheckedChildren="关"
-                />
-              </div>
-            </Col>
-          ))}
-        </Row>
-      </Card>
-
+    <div style={{ padding: 24 }}>
       {/* 统计卡片 */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic title="敏感词总数" value={stats.total} prefix={<SafetyCertificateOutlined />} />
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总敏感词数"
+              value={pagination.total}
+              prefix={<WarningOutlined />}
+            />
           </Card>
         </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic title="小说敏感词" value={stats.novelCount} valueStyle={{ color: '#722ed1' }} prefix={<FileTextOutlined />} />
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="启用中"
+              value={words.filter(w => w.is_active).length}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
           </Card>
         </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic title="系统敏感词" value={stats.systemCount} valueStyle={{ color: '#13c2c2' }} prefix={<ExclamationCircleOutlined />} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic title="已启用" value={stats.activeCount} valueStyle={{ color: '#52c41a' }} />
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="高风险"
+              value={words.filter(w => w.level === 'high').length}
+              prefix={<WarningOutlined />}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
           </Card>
         </Col>
       </Row>
 
-      {/* 敏感词测试面板 */}
-      <Card
-        style={{ marginBottom: 16 }}
-        title={
-          <Space>
-            <SafetyCertificateOutlined />
-            <span>敏感词测试</span>
-          </Space>
-        }
-        size="small"
-      >
-        <Row gutter={16}>
-          <Col span={16}>
-            <TextArea
-              placeholder="输入要测试的文本内容..."
-              rows={4}
-              value={testText}
-              onChange={(e) => setTestText(e.target.value)}
-            />
-          </Col>
-          <Col span={8}>
-            <Button
-              type="primary"
-              onClick={handleTestWords}
-              loading={testLoading}
-              style={{ marginBottom: 12 }}
-            >
-              开始测试
-            </Button>
-            <Button
-              onClick={() => {
-                setTestText('')
-                setTestResults([])
-              }}
-            >
-              清空
-            </Button>
-          </Col>
-        </Row>
-        {testResults.length > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <Divider style={{ margin: '8px 0' }} />
-            <Text strong>命中结果：</Text>
-            <div style={{ marginTop: 8 }}>
-              {testResults.map((result, index) => (
-                <Tag
-                  key={index}
-                  color={result.level === '屏蔽' ? 'red' : result.level === '替换' ? 'orange' : 'blue'}
-                  style={{ marginBottom: 4 }}
-                >
-                  {result.word} ({result.matchType} - {result.level})
-                </Tag>
-              ))}
-            </div>
-          </div>
-        )}
+      {/* 筛选栏 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Input
+            placeholder="搜索敏感词"
+            value={filters.keyword}
+            onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Select
+            placeholder="分类"
+            value={filters.category}
+            onChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
+            style={{ width: 120 }}
+            allowClear
+            options={[
+              { label: '政治', value: 'political' },
+              { label: '色情', value: 'pornographic' },
+              { label: '暴力', value: 'violence' },
+              { label: '广告', value: 'advertising' },
+              { label: '其他', value: 'other' },
+            ]}
+          />
+          <Select
+            placeholder="等级"
+            value={filters.level}
+            onChange={(value) => setFilters(prev => ({ ...prev, level: value }))}
+            style={{ width: 120 }}
+            allowClear
+            options={[
+              { label: '低', value: 'low' },
+              { label: '中', value: 'medium' },
+              { label: '高', value: 'high' },
+            ]}
+          />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
+          </Button>
+        </Space>
       </Card>
 
-      {/* 主内容区 */}
-      <Card>
-        <Tabs
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          items={[
-            { key: 'all', label: '全部' },
-            { key: 'novel', label: '小说敏感词' },
-            { key: 'system', label: '系统敏感词' },
-          ]}
-          tabBarExtraContent={
-            <Space>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={fetchData}
-                loading={loading}
-              >
-                刷新
-              </Button>
-            </Space>
-          }
-        />
-
-        <FilterBar
-          fields={filterFields}
-          values={filterValues}
-          onChange={setFilterValues}
-          searchText={searchText}
-          onSearchTextChange={setSearchText}
-        />
-
-        <Divider style={{ margin: '12px 0 16px' }} />
-
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-          <Space>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => {
-                setEditingRecord(null)
-                setModalOpen(true)
-              }}
-            >
-              添加敏感词
-            </Button>
-            <Button
-              icon={<PlusOutlined />}
-              onClick={() => setImportModalOpen(true)}
-            >
-              批量导入
-            </Button>
-          </Space>
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+            新增敏感词
+          </Button>
           {selectedRowKeys.length > 0 && (
             <Popconfirm
-              title={`确定删除选中的 ${selectedRowKeys.length} 条敏感词？`}
-              onConfirm={() => handleDelete(selectedRowKeys.map(String))}
+              title="确认批量删除"
+              description={`确定要删除选中的 ${selectedRowKeys.length} 个敏感词吗？`}
+              onConfirm={handleBatchDelete}
+              okText="确认"
+              cancelText="取消"
             >
               <Button danger icon={<DeleteOutlined />}>
                 批量删除 ({selectedRowKeys.length})
               </Button>
             </Popconfirm>
           )}
-        </div>
+        </Space>
+        <Button icon={<ReloadOutlined />} onClick={loadWords} loading={loading}>
+          刷新
+        </Button>
+      </div>
 
-        <Table
-          rowSelection={{
-            selectedRowKeys,
-            onChange: setSelectedRowKeys,
-          }}
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1200 }}
-          pagination={{
-            defaultPageSize: 20,
-            pageSizeOptions: ['10', '20', '50', '100'],
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条`,
-          }}
-          size="middle"
-        />
-      </Card>
-
-      {/* 新增/编辑弹窗 */}
-      <DataFormModal
-        open={modalOpen}
-        title={editingRecord ? '编辑敏感词' : '添加敏感词'}
-        mode={editingRecord ? 'edit' : 'create'}
-        fields={formFields}
-        initialValues={editingRecord ? { ...editingRecord } : undefined}
-        onOk={handleSave}
-        onCancel={() => {
-          setModalOpen(false)
-          setEditingRecord(null)
+      {/* 敏感词表格 */}
+      <Table
+        columns={columns}
+        dataSource={words}
+        rowKey="id"
+        loading={loading}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
         }}
-        confirmLoading={saving}
-        width={600}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
+        scroll={{ x: 1000 }}
       />
 
-      {/* 批量导入弹窗 */}
+      {/* 敏感词表单弹窗 */}
       <Modal
-        title="批量导入敏感词"
-        open={importModalOpen}
-        onOk={handleBatchImport}
+        title={editingWord ? '编辑敏感词' : '新增敏感词'}
+        open={modalVisible}
+        onOk={handleSave}
         onCancel={() => {
-          setImportModalOpen(false)
-          setImportText('')
+          setModalVisible(false)
+          setEditingWord(null)
+          form.resetFields()
         }}
-        confirmLoading={importing}
-        okText="导入"
         width={500}
       >
-        <Form layout="vertical">
-          <Form.Item label="分类">
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="word"
+            label="敏感词"
+            rules={[{ required: true, message: '请输入敏感词' }]}
+          >
+            <Input placeholder="请输入敏感词" />
+          </Form.Item>
+          <Form.Item
+            name="category"
+            label="分类"
+            rules={[{ required: true, message: '请选择分类' }]}
+          >
             <Select
-              value={importCategory}
-              onChange={setImportCategory}
-              options={categoryOptions}
+              placeholder="请选择分类"
+              options={[
+                { label: '政治', value: 'political' },
+                { label: '色情', value: 'pornographic' },
+                { label: '暴力', value: 'violence' },
+                { label: '广告', value: 'advertising' },
+                { label: '其他', value: 'other' },
+              ]}
             />
           </Form.Item>
           <Form.Item
-            label="敏感词列表"
-            extra="每行一个敏感词，也支持用逗号、顿号分隔。单次最多导入 500 条。"
+            name="level"
+            label="等级"
+            rules={[{ required: true, message: '请选择等级' }]}
           >
-            <TextArea
-              rows={10}
-              value={importText}
-              onChange={e => setImportText(e.target.value)}
-              placeholder={`示例：\n敏感词1\n敏感词2\n敏感词3\n或：敏感词1,敏感词2,敏感词3`}
+            <Select
+              placeholder="请选择等级"
+              options={[
+                { label: '低', value: 'low' },
+                { label: '中', value: 'medium' },
+                { label: '高', value: 'high' },
+              ]}
             />
+          </Form.Item>
+          <Form.Item
+            name="is_active"
+            label="状态"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="启用" unCheckedChildren="停用" />
           </Form.Item>
         </Form>
       </Modal>

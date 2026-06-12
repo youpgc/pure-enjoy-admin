@@ -1,318 +1,234 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react'
-import { Card, Table, Select, Button, Tag, Space, Spin, Empty, Tooltip, message, Modal, Form, Input, Popconfirm, Radio } from 'antd'
-import { ReloadOutlined, DeleteOutlined, PlusOutlined, BellOutlined, CheckCircleOutlined, EyeOutlined, EyeInvisibleOutlined, SoundOutlined } from '@ant-design/icons'
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  Table,
+  Button,
+  Input,
+  Space,
+  Tag,
+  Card,
+  message,
+  Modal,
+  Form,
+  Select,
+  Popconfirm,
+  Tooltip,
+  Badge,
+  Typography,
+  Row,
+  Col,
+  Statistic,
+  Switch,
+} from 'antd'
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  BellOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  SendOutlined,
+} from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
-import { usePagination } from '../hooks/usePagination'
-import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
+import { usePermission } from '../hooks/usePermission'
+import { getActionColumn } from '../components/ActionColumn'
+import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+
+const { Text } = Typography
 
 // ==================== 类型定义 ====================
 
-interface NotificationItem {
+interface Notification {
   id: string
-  user_id: string
-  type: string
   title: string
-  body: string
-  icon: string
-  color: string
-  payload: string
+  content: string
+  type: 'system' | 'user' | 'novel' | 'activity'
+  target_users?: string[]
   is_read: boolean
-  read_at: string | null
   created_at: string
+  updated_at: string
 }
 
-interface UserOption {
-  value: string
-  label: string
+interface NotificationFilters {
+  keyword: string
+  type: string | undefined
 }
 
-// ==================== 常量定义 ====================
-
-const TYPE_OPTIONS_FALLBACK = [
-  { label: '系统通知', value: 'system' },
-  { label: '版本更新', value: 'version_update' },
-  { label: '提醒', value: 'reminder' },
-  { label: '习惯', value: 'habit' },
-  { label: '小说', value: 'novel' },
-  { label: '消费', value: 'expense' },
-]
-
-const READ_STATUS_OPTIONS = [
-  { label: '未读', value: 'unread' },
-  { label: '已读', value: 'read' },
-]
-
-// ==================== 主组件 ====================
+// ==================== 组件 ====================
 
 const Notifications: React.FC = () => {
-  const [loading, setLoading] = useState(true)
-  const [notifications, setNotifications] = useState<NotificationItem[]>([])
-  const [filterType, setFilterType] = useState<string | undefined>(undefined)
-  const [filterReadStatus, setFilterReadStatus] = useState<string | undefined>(undefined)
-  const { currentPage, pageSize, paginate, resetPage, setCurrentPage, setPageSize } = usePagination()
-
-  // 字典查询
-  const { options: typeOptions } = useDictOptions('notification_type', TYPE_OPTIONS_FALLBACK)
-  const { getColor: getTypeColor } = useDictColors('notification_type')
-
-  // 发送通知弹窗
-  const [sendModalOpen, setSendModalOpen] = useState(false)
-  const [sendLoading, setSendLoading] = useState(false)
-  const [userOptions, setUserOptions] = useState<UserOption[]>([])
-  const [sendMode, setSendMode] = useState<'notification' | 'announcement'>('notification')
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(false)
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const [filters, setFilters] = useState<NotificationFilters>({
+    keyword: '',
+    type: undefined,
+  })
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const [modalVisible, setModalVisible] = useState(false)
+  const [editingNotification, setEditingNotification] = useState<Notification | null>(null)
   const [form] = Form.useForm()
+  const { isAdmin } = usePermission()
 
-  // ==================== 数据加载 ====================
+  const notificationService = new BaseService<Notification>('notifications', { defaultOrder: { column: 'created_at', ascending: false } })
 
-  const fetchNotifications = useCallback(async () => {
+  // 加载通知列表
+  const loadNotifications = useCallback(async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(500)
+      const result = await notificationService.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
+        if (filters.keyword) {
+          query = query.or(`title.ilike.%${filters.keyword}%,content.ilike.%${filters.keyword}%`)
+        }
+        if (filters.type) {
+          query = query.eq('type', filters.type)
+        }
+        return query
+      })
 
-      if (error) {
-        console.error('加载通知失败:', error)
-        message.error(`加载通知失败: ${error.message}`)
-        setNotifications([])
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'Notifications-加载通知')
         return
       }
 
-      setNotifications((data as NotificationItem[]) || [])
-    } catch (err) {
-      console.error('加载通知异常:', err)
-      message.error('加载通知异常，请稍后重试')
-      setNotifications([])
+      setNotifications(result.data?.data || [])
+      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+    } catch (error) {
+      handleApiError(error, 'Notifications-加载通知')
     } finally {
       setLoading(false)
     }
-  }, [])
-
-  const fetchUsers = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, nickname')
-        .order('nickname', { ascending: true })
-
-      if (error) throw error
-
-      setUserOptions(
-        (data || []).map((u: any) => ({
-          value: u.id,
-          label: u.nickname || u.id,
-        }))
-      )
-    } catch (err) {
-      console.error('加载用户列表失败:', err)
-    }
-  }, [])
+  }, [pagination.current, pagination.pageSize, filters])
 
   useEffect(() => {
-    fetchNotifications()
-  }, [fetchNotifications])
+    loadNotifications()
+  }, [loadNotifications])
 
-  // ==================== 筛选逻辑 ====================
-
-  const filteredNotifications = useMemo(() => {
-    return notifications.filter((item) => {
-      if (filterType && item.type !== filterType) return false
-      if (filterReadStatus === 'read' && !item.is_read) return false
-      if (filterReadStatus === 'unread' && item.is_read) return false
-      return true
-    })
-  }, [notifications, filterType, filterReadStatus])
-
-  const paginatedNotifications = useMemo(() => paginate(filteredNotifications), [filteredNotifications, currentPage, pageSize, paginate])
-
-  // ==================== 操作处理 ====================
-
-  // 标记已读/未读
-  const handleToggleRead = async (record: NotificationItem) => {
-    const newReadStatus = !record.is_read
-    try {
-      const updateData: any = {
-        is_read: newReadStatus,
-      }
-      if (newReadStatus) {
-        updateData.read_at = new Date().toISOString()
-      } else {
-        updateData.read_at = null
-      }
-
-      const { error } = await supabase
-        .from('notifications')
-        .update(updateData)
-        .eq('id', record.id)
-
-      if (error) throw error
-
-      message.success(newReadStatus ? '已标记为已读' : '已标记为未读')
-      fetchNotifications()
-    } catch (err) {
-      console.error('操作失败:', err)
-      message.error('操作失败')
-    }
+  // 搜索
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, current: 1 }))
+    loadNotifications()
   }
 
-  // 批量标记已读
-  const handleMarkAllRead = async () => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true, read_at: new Date().toISOString() })
-        .eq('is_read', false)
+  // 重置筛选
+  const handleReset = () => {
+    setFilters({
+      keyword: '',
+      type: undefined,
+    })
+    setPagination(prev => ({ ...prev, current: 1 }))
+  }
 
-      if (error) throw error
+  // 打开新增弹窗
+  const handleAdd = () => {
+    setEditingNotification(null)
+    form.resetFields()
+    setModalVisible(true)
+  }
 
-      message.success('已全部标记为已读')
-      fetchNotifications()
-    } catch (err) {
-      console.error('批量标记失败:', err)
-      message.error('批量标记失败')
-    }
+  // 打开编辑弹窗
+  const handleEdit = (record: Notification) => {
+    setEditingNotification(record)
+    form.setFieldsValue({
+      ...record,
+    })
+    setModalVisible(true)
   }
 
   // 删除通知
   const handleDelete = async (id: string) => {
     try {
+      const result = await notificationService.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'Notifications-删除')
+        return
+      }
+      message.success('删除成功')
+      loadNotifications()
+    } catch (error) {
+      handleApiError(error, 'Notifications-删除')
+    }
+  }
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要删除的通知')
+      return
+    }
+    try {
       const { error } = await supabase
         .from('notifications')
         .delete()
-        .eq('id', id)
-
-      if (error) throw error
-
-      message.success('删除成功')
-      fetchNotifications()
-    } catch (err) {
-      console.error('删除失败:', err)
-      message.error('删除失败')
+        .in('id', selectedRowKeys as string[])
+      if (error) {
+        handleApiError(error, 'Notifications-批量删除')
+        return
+      }
+      message.success(`成功删除 ${selectedRowKeys.length} 条通知`)
+      setSelectedRowKeys([])
+      loadNotifications()
+    } catch (error) {
+      handleApiError(error, 'Notifications-批量删除')
     }
   }
 
-  // 发送通知/公告
-  const handleSendNotification = async () => {
+  // 保存通知
+  const handleSave = async () => {
     try {
       const values = await form.validateFields()
-      setSendLoading(true)
-
-      if (sendMode === 'announcement') {
-        // 发送公告：插入 announcements 表，user_id 为 null 表示所有用户
-        const { error } = await supabase
-          .from('announcements')
-          .insert({
-            title: values.title,
-            content: values.body,
-            type: '系统公告',
-            priority: '高',
-            is_published: true,
-            publish_at: new Date().toISOString(),
-          })
-
-        if (error) throw error
-        message.success('公告发送成功，所有用户可见')
+      if (editingNotification) {
+        const result = await notificationService.update(editingNotification.id, {
+          ...values,
+          updated_at: new Date().toISOString(),
+        })
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'Notifications-更新')
+          return
+        }
+        message.success('更新成功')
       } else {
-        // 发送普通通知
-        const insertData: any = {
-          title: values.title,
-          body: values.body,
-          type: values.type,
+        const result = await notificationService.create({
+          ...values,
           is_read: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as any)
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'Notifications-创建')
+          return
         }
-
-        if (values.user_id === 'all') {
-          // 发送给所有用户：先查询所有用户，然后逐个插入
-          const { data: users, error: usersError } = await supabase
-            .from('users')
-            .select('id')
-
-          if (usersError) throw usersError
-
-          const records = (users || []).map((u: any) => ({
-            ...insertData,
-            user_id: u.id,
-          }))
-
-          const { error } = await supabase
-            .from('notifications')
-            .insert(records)
-
-          if (error) throw error
-
-          message.success(`已向 ${records.length} 位用户发送通知`)
-        } else {
-          insertData.user_id = values.user_id
-          const { error } = await supabase
-            .from('notifications')
-            .insert(insertData)
-
-          if (error) throw error
-
-          message.success('通知发送成功')
-        }
+        message.success('创建成功')
       }
-
-      setSendModalOpen(false)
+      setModalVisible(false)
+      setEditingNotification(null)
       form.resetFields()
-      fetchNotifications()
-    } catch (err: any) {
-      if (err.errorFields) return // 表单校验失败，不提示
-      console.error('发送失败:', err)
-      message.error('发送失败')
-    } finally {
-      setSendLoading(false)
+      loadNotifications()
+    } catch (error) {
+      handleApiError(error, 'Notifications-保存')
     }
   }
 
-  // 重置筛选
-  const handleReset = () => {
-    setFilterType(undefined)
-    setFilterReadStatus(undefined)
-    resetPage()
-  }
-
-  // 打开发送弹窗时加载用户列表
-  const handleOpenSendModal = () => {
-    if (userOptions.length === 0) {
-      fetchUsers()
-    }
-    setSendMode('notification')
-    form.resetFields()
-    setSendModalOpen(true)
-  }
-
-  // ==================== 表格列定义 ====================
-
-  const columns = [
+  // 表格列定义
+  const columns: ColumnsType<Notification> = [
     {
-      title: '标题',
-      dataIndex: 'title',
-      key: 'title',
-      width: 200,
-      ellipsis: true,
-      render: (title: string, record: NotificationItem) => (
-        <Tooltip title={title}>
-          <Space>
-            {!record.is_read && (
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  backgroundColor: '#ff4d4f',
-                }}
-              />
-            )}
-            <span style={{ fontWeight: record.is_read ? 'normal' : 600 }}>
-              {title || '-'}
-            </span>
-          </Space>
-        </Tooltip>
+      title: '通知信息',
+      key: 'info',
+      width: 300,
+      render: (_, record) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{record.title}</div>
+          <Text type="secondary" style={{ fontSize: 12 }} ellipsis>
+            {record.content}
+          </Text>
+          <div>
+            <Tag>{record.type}</Tag>
+          </div>
+        </div>
       ),
     },
     {
@@ -321,264 +237,211 @@ const Notifications: React.FC = () => {
       key: 'type',
       width: 100,
       render: (type: string) => {
-        const dictOpt = typeOptions.find(opt => opt.value === type)
-        return <Tag color={getTypeColor(type) || 'default'}>{dictOpt?.label || type || '-'}</Tag>
+        const typeMap: Record<string, { color: string; label: string }> = {
+          system: { color: 'blue', label: '系统' },
+          user: { color: 'green', label: '用户' },
+          novel: { color: 'purple', label: '小说' },
+          activity: { color: 'orange', label: '活动' },
+        }
+        const info = typeMap[type] || { color: 'default', label: type }
+        return <Tag color={info.color}>{info.label}</Tag>
       },
     },
     {
-      title: '内容',
-      dataIndex: 'body',
-      key: 'body',
-      ellipsis: true,
-      width: 280,
-      render: (body: string) => (
-        <Tooltip title={body}>
-          <span>{body || '-'}</span>
-        </Tooltip>
-      ),
-    },
-    {
-      title: '状态',
+      title: '已读',
       dataIndex: 'is_read',
       key: 'is_read',
       width: 80,
       render: (isRead: boolean) => (
-        isRead ? (
-          <Tag color="green" icon={<CheckCircleOutlined />}>已读</Tag>
-        ) : (
-          <Tag color="orange" icon={<BellOutlined />}>未读</Tag>
-        )
+        <Badge status={isRead ? 'success' : 'processing'} text={isRead ? '已读' : '未读'} />
       ),
     },
     {
-      title: '时间',
+      title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      sorter: (a: NotificationItem, b: NotificationItem) =>
-        dayjs(a.created_at).unix() - dayjs(b.created_at).unix(),
-      defaultSortOrder: 'descend' as const,
-      render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm:ss') : '-',
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 220,
-      render: (_: any, record: NotificationItem) => (
-        <Space size="small">
-          <Tooltip title={record.is_read ? '标记为未读' : '标记为已读'}>
-            <Button
-              type="text"
-              size="small"
-              icon={record.is_read ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-              onClick={() => handleToggleRead(record)}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="确认删除"
-            description="确定要删除这条通知吗？"
-            onConfirm={() => handleDelete(record.id)}
-            okText="确认"
-            cancelText="取消"
-          >
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<DeleteOutlined />}
-            />
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    getActionColumn<Notification>(
+      (record) => [
+        {
+          key: 'edit',
+          label: '编辑',
+          icon: <EditOutlined />,
+          type: 'primary',
+          onClick: () => handleEdit(record),
+        },
+        {
+          key: 'delete',
+          label: '删除',
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => handleDelete(record.id),
+        },
+      ],
+      { width: 200, maxVisible: 2 }
+    ),
   ]
 
-  // ==================== 渲染 ====================
-
-  if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: 100 }}>
-        <Spin size="large" tip="加载通知..." />
-      </div>
-    )
-  }
-
   return (
-    <div>
+    <div style={{ padding: 24 }}>
+      {/* 统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总通知数"
+              value={pagination.total}
+              prefix={<BellOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="未读通知"
+              value={notifications.filter(n => !n.is_read).length}
+              prefix={<ClockCircleOutlined />}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="系统通知"
+              value={notifications.filter(n => n.type === 'system').length}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
       {/* 筛选栏 */}
-      <Card style={{ borderRadius: 8, marginBottom: 16 }}>
-        <Space wrap style={{ width: '100%' }} size="middle">
-          <Select
-            placeholder="通知类型"
-            value={filterType}
-            onChange={(val) => { setFilterType(val); setCurrentPage(1) }}
-            options={typeOptions}
-            style={{ width: 140 }}
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Input
+            placeholder="搜索标题/内容"
+            value={filters.keyword}
+            onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
             allowClear
           />
           <Select
-            placeholder="阅读状态"
-            value={filterReadStatus}
-            onChange={(val) => { setFilterReadStatus(val); setCurrentPage(1) }}
-            options={READ_STATUS_OPTIONS}
+            placeholder="类型"
+            value={filters.type}
+            onChange={(value) => setFilters(prev => ({ ...prev, type: value }))}
             style={{ width: 120 }}
             allowClear
+            options={[
+              { label: '系统', value: 'system' },
+              { label: '用户', value: 'user' },
+              { label: '小说', value: 'novel' },
+              { label: '活动', value: 'activity' },
+            ]}
           />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
+          </Button>
           <Button icon={<ReloadOutlined />} onClick={handleReset}>
             重置
           </Button>
-          <Button icon={<ReloadOutlined />} onClick={fetchNotifications}>
-            刷新
-          </Button>
-          <Popconfirm
-            title="确认操作"
-            description="确定要将所有未读通知标记为已读吗？"
-            onConfirm={handleMarkAllRead}
-            okText="确认"
-            cancelText="取消"
-          >
-            <Button type="primary" ghost icon={<CheckCircleOutlined />}>
-              全部已读
-            </Button>
-          </Popconfirm>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenSendModal}>
-            发送通知
-          </Button>
-          <Button type="primary" icon={<SoundOutlined />} onClick={() => {
-            if (userOptions.length === 0) fetchUsers()
-            setSendMode('announcement')
-            form.resetFields()
-            setSendModalOpen(true)
-          }}>
-            发送公告
-          </Button>
         </Space>
-        <div style={{ marginTop: 8, color: '#8c8c8c', fontSize: 13 }}>
-          共 {filteredNotifications.length} 条通知
-          {notifications.filter((n) => !n.is_read).length > 0 && (
-            <span style={{ marginLeft: 12, color: '#ff4d4f' }}>
-              {notifications.filter((n) => !n.is_read).length} 条未读
-            </span>
+      </Card>
+
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Space>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+            新增通知
+          </Button>
+          {selectedRowKeys.length > 0 && (
+            <Popconfirm
+              title="确认批量删除"
+              description={`确定要删除选中的 ${selectedRowKeys.length} 条通知吗？`}
+              onConfirm={handleBatchDelete}
+              okText="确认"
+              cancelText="取消"
+            >
+              <Button danger icon={<DeleteOutlined />}>
+                批量删除 ({selectedRowKeys.length})
+              </Button>
+            </Popconfirm>
           )}
-        </div>
-      </Card>
+        </Space>
+        <Button icon={<ReloadOutlined />} onClick={loadNotifications} loading={loading}>
+          刷新
+        </Button>
+      </div>
 
-      {/* 通知列表 */}
-      <Card style={{ borderRadius: 8 }}>
-        <Table
-          dataSource={paginatedNotifications}
-          columns={columns}
-          rowKey="id"
-          pagination={{
-            current: currentPage,
-            pageSize,
-            total: filteredNotifications.length,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} / 共 ${total} 条`,
-            onChange: (page, size) => {
-              setCurrentPage(page)
-              setPageSize(size)
-            },
-          }}
-          scroll={{ x: 1000 }}
-          size="middle"
-          locale={{
-            emptyText: <Empty description="暂无通知" />,
-          }}
-        />
-      </Card>
+      {/* 通知表格 */}
+      <Table
+        columns={columns}
+        dataSource={notifications}
+        rowKey="id"
+        loading={loading}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
+        scroll={{ x: 1000 }}
+      />
 
-      {/* 发送通知/公告弹窗 */}
+      {/* 通知表单弹窗 */}
       <Modal
-        title={sendMode === 'announcement' ? '发送公告' : '发送新通知'}
-        open={sendModalOpen}
+        title={editingNotification ? '编辑通知' : '新增通知'}
+        open={modalVisible}
+        onOk={handleSave}
         onCancel={() => {
-          setSendModalOpen(false)
+          setModalVisible(false)
+          setEditingNotification(null)
           form.resetFields()
         }}
-        onOk={handleSendNotification}
-        okText="发送"
-        cancelText="取消"
-        confirmLoading={sendLoading}
-        width={520}
-        destroyOnClose
+        width={600}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          style={{ marginTop: 16 }}
-        >
-          <Form.Item label="发送模式" style={{ marginBottom: 16 }}>
-            <Radio.Group
-              value={sendMode}
-              onChange={(e) => {
-                setSendMode(e.target.value)
-                form.resetFields()
-              }}
-            >
-              <Radio.Button value="notification">普通通知</Radio.Button>
-              <Radio.Button value="announcement">公告</Radio.Button>
-            </Radio.Group>
-          </Form.Item>
-
+        <Form form={form} layout="vertical">
           <Form.Item
             name="title"
             label="标题"
             rules={[{ required: true, message: '请输入标题' }]}
           >
-            <Input placeholder="请输入标题" maxLength={100} />
+            <Input placeholder="请输入标题" />
           </Form.Item>
           <Form.Item
-            name="body"
+            name="content"
             label="内容"
             rules={[{ required: true, message: '请输入内容' }]}
           >
-            <Input.TextArea
-              placeholder="请输入内容"
-              rows={4}
-              maxLength={1000}
-              showCount
+            <Input.TextArea rows={4} placeholder="请输入内容" />
+          </Form.Item>
+          <Form.Item
+            name="type"
+            label="类型"
+            rules={[{ required: true, message: '请选择类型' }]}
+          >
+            <Select
+              placeholder="请选择类型"
+              options={[
+                { label: '系统', value: 'system' },
+                { label: '用户', value: 'user' },
+                { label: '小说', value: 'novel' },
+                { label: '活动', value: 'activity' },
+              ]}
             />
           </Form.Item>
-
-          {sendMode === 'notification' && (
-            <>
-              <Form.Item
-                name="type"
-                label="类型"
-                rules={[{ required: true, message: '请选择通知类型' }]}
-              >
-                <Select placeholder="请选择通知类型" options={typeOptions} />
-              </Form.Item>
-              <Form.Item
-                name="user_id"
-                label="目标用户"
-                rules={[{ required: true, message: '请选择目标用户' }]}
-              >
-                <Select
-                  placeholder="请选择目标用户"
-                  showSearch
-                  optionFilterProp="label"
-                  options={[
-                    { value: 'all', label: '所有用户' },
-                    ...userOptions,
-                  ]}
-                  filterOption={(input, option) =>
-                    (option?.label as string)?.toLowerCase().includes(input.toLowerCase())
-                  }
-                />
-              </Form.Item>
-            </>
-          )}
-
-          {sendMode === 'announcement' && (
-            <Form.Item>
-              <div style={{ color: '#8c8c8c', fontSize: 13 }}>
-                公告将发送给所有用户，并在公告管理页面中显示。
-              </div>
-            </Form.Item>
-          )}
         </Form>
       </Modal>
     </div>

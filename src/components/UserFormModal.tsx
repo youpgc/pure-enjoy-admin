@@ -19,6 +19,7 @@ import { UploadOutlined, UserOutlined } from '@ant-design/icons'
 import type { User, UserFormData, UserRole, MemberLevel, UserStatus } from '../types/user'
 import { supabase } from '../utils/supabase'
 import { useDictOptions } from '../hooks/useDictOptions'
+import { apiExecute, handleApiError } from '../utils/apiClient'
 
 interface UserFormModalProps {
   open: boolean
@@ -107,12 +108,14 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
       const fileName = `avatars/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
 
       // 上传到 Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('public')
-        .upload(fileName, file)
+      const uploadResult = await apiExecute(
+        () => supabase.storage.from('public').upload(fileName, file),
+        'UserFormModal-头像上传'
+      )
 
-      if (uploadError) {
-        throw uploadError
+      if (!uploadResult.success) {
+        message.error('头像上传失败')
+        return false
       }
 
       // 获取公开 URL
@@ -125,8 +128,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
       message.success('头像上传成功')
       return false // 阻止默认上传行为
     } catch (error) {
-      console.error('头像上传失败:', error)
-      message.error('头像上传失败')
+      handleApiError(error, 'UserFormModal-头像上传')
       return false
     } finally {
       setUploading(false)

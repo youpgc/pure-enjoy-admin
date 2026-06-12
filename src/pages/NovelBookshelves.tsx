@@ -1,619 +1,376 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Card,
   Table,
-  Typography,
-  Space,
-  Modal,
-  List,
-  Tag,
-  Progress,
-  Tooltip,
-  message,
-  Spin,
-  Empty,
-  Badge,
+  Button,
   Input,
+  Space,
+  Tag,
+  Card,
+  message,
+  Modal,
+  Form,
+  Select,
+  Popconfirm,
+  Tooltip,
+  Badge,
+  Typography,
   Row,
   Col,
   Statistic,
 } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
 import {
-  BookOutlined,
-  EyeOutlined,
-  UserOutlined,
-  ClockCircleOutlined,
-  CalendarOutlined,
-  ReadOutlined,
   SearchOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  BookOutlined,
+  HeartOutlined,
+  ReadOutlined,
 } from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
+import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
-import { formatDateTime } from '../utils/format'
+import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
 
-const { Title, Text } = Typography
+const { Text } = Typography
 
 // ==================== 类型定义 ====================
 
-interface UserBookshelf {
+interface NovelBookshelf {
+  id: string
   user_id: string
-  user_name: string
-  user_email: string
-  total_books: number
-  last_read_at: string | null
+  novel_id: string
+  novel_title?: string
+  last_read_chapter_id?: string
+  last_read_chapter_title?: string
+  last_read_at?: string
+  is_favorite: boolean
   created_at: string
+  updated_at: string
 }
 
-interface BookshelfDetail {
-  id: string
-  novel_id: string
-  title: string
-  author: string
-  cover_url: string | null
-  progress: number
-  last_chapter: number
-  last_read_at: string | null
-  created_at: string
-  category: string | null
-  chapter_count: number
+interface NovelBookshelfFilters {
+  keyword: string
+  isFavorite: boolean | undefined
 }
 
 // ==================== 组件 ====================
 
 const NovelBookshelves: React.FC = () => {
+  const [bookshelves, setBookshelves] = useState<NovelBookshelf[]>([])
   const [loading, setLoading] = useState(false)
-  const [bookshelves, setBookshelves] = useState<UserBookshelf[]>([])
-  const [filteredBookshelves, setFilteredBookshelves] = useState<UserBookshelf[]>([])
-  const [searchText, setSearchText] = useState('')
-  const [detailVisible, setDetailVisible] = useState(false)
-  const [detailLoading, setDetailLoading] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<UserBookshelf | null>(null)
-  const [detailList, setDetailList] = useState<BookshelfDetail[]>([])
-  // 小说信息缓存，用于详情页
-  const [novelsCache, setNovelsCache] = useState<Map<string, any>>(new Map())
-  // 所有 user_novels 原始数据，用于统计计算
-  const [allUserNovels, setAllUserNovels] = useState<any[]>([])
-  // 热门书架小说 Top 5
-  const [topShelfNovels, setTopShelfNovels] = useState<{ title: string; author: string; count: number }[]>([])
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const [filters, setFilters] = useState<NovelBookshelfFilters>({
+    keyword: '',
+    isFavorite: undefined,
+  })
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const [modalVisible, setModalVisible] = useState(false)
+  const [editingBookshelf, setEditingBookshelf] = useState<NovelBookshelf | null>(null)
+  const [form] = Form.useForm()
+  const { isAdmin } = usePermission()
 
-  // 加载书架列表 - 联合 user_novels + novels + users 表查询
+  const bookshelfService = new BaseService<NovelBookshelf>('user_novels', { defaultOrder: { column: 'updated_at', ascending: false } })
+
+  // 加载书架列表
   const loadBookshelves = useCallback(async () => {
     setLoading(true)
-    
     try {
-      // 分别查询三个表，然后在客户端合并数据
-      // 这样避免依赖外键关系定义
-
-      // 1. 查询 user_novels
-      const { data: userNovels, error: unError } = await supabase
-        .from('user_novels')
-        .select('id, user_id, novel_id, progress, last_chapter, last_read_at, created_at')
-        .order('created_at', { ascending: false })
-
-      if (unError) {
-        console.error('[NovelBookshelves] 查询 user_novels 失败:', unError)
-        throw unError
-      }
-
-      // 2. 查询 novels 表获取书名和作者
-      const novelIds = [...new Set(userNovels?.map((item: any) => item.novel_id) || [])]
-      let novelsMap = new Map<string, any>()
-      
-      if (novelIds.length > 0) {
-        const { data: novels, error: nError } = await supabase
-          .from('novels')
-          .select('id, title, author, cover_url, category, chapter_count')
-          .in('id', novelIds)
-
-        if (nError) {
-          console.error('[NovelBookshelves] 查询 novels 失败:', nError)
-          throw nError
+      const result = await bookshelfService.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
+        if (filters.keyword) {
+          query = query.or(`novel_title.ilike.%${filters.keyword}%,user_id.ilike.%${filters.keyword}%`)
         }
-
-        novelsMap = new Map(novels?.map((n: any) => [n.id, n]) || [])
-        setNovelsCache(novelsMap) // 缓存起来供详情页使用
-      }
-
-      // 3. 查询 users 表获取用户信息
-      const userIds = [...new Set(userNovels?.map((item: any) => item.user_id) || [])]
-      let usersMap = new Map<string, any>()
-      
-      if (userIds.length > 0) {
-        const { data: users, error: uError } = await supabase
-          .from('users')
-          .select('id, nickname, email')
-          .in('id', userIds)
-
-        if (uError) {
-          console.error('[NovelBookshelves] 查询 users 失败:', uError)
-          throw uError
+        if (filters.isFavorite !== undefined) {
+          query = query.eq('is_favorite', filters.isFavorite)
         }
-
-        usersMap = new Map(users?.map((u: any) => [u.id, u]) || [])
-      }
-
-      // 按用户分组统计
-      const userMap = new Map<string, UserBookshelf>()
-      
-      userNovels?.forEach((item: any) => {
-        const userId = item.user_id
-        const user = usersMap.get(userId)
-        
-        if (!userMap.has(userId)) {
-          userMap.set(userId, {
-            user_id: userId,
-            user_name: user?.nickname || '未知用户',
-            user_email: user?.email || '-',
-            total_books: 0,
-            last_read_at: null,
-            created_at: item.created_at,
-          })
-        }
-        
-        const shelf = userMap.get(userId)!
-        shelf.total_books++
-        
-        // 更新最后阅读时间
-        if (item.last_read_at) {
-          const itemTime = new Date(item.last_read_at).getTime()
-          const currentTime = shelf.last_read_at ? new Date(shelf.last_read_at).getTime() : 0
-          if (itemTime > currentTime) {
-            shelf.last_read_at = item.last_read_at
-          }
-        }
+        return query
       })
 
-      const result = Array.from(userMap.values())
-      
-      setBookshelves(result)
-      setFilteredBookshelves(result)
-      setAllUserNovels(userNovels || [])
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'NovelBookshelves-加载书架')
+        return
+      }
 
-      // 热门书架小说 Top 5：被最多用户加入书架的小说
-      const novelCountMap: Record<string, number> = {}
-      ;(userNovels || []).forEach((item: any) => {
-        novelCountMap[item.novel_id] = (novelCountMap[item.novel_id] || 0) + 1
-      })
-      const topNovels = Object.entries(novelCountMap)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([novelId, count]) => {
-          const novel = novelsMap.get(novelId)
-          return {
-            title: novel?.title || '未知书名',
-            author: novel?.author || '未知作者',
-            count,
-          }
-        })
-      setTopShelfNovels(topNovels)
-    } catch (error: any) {
-      console.error('[NovelBookshelves] 加载书架列表失败:', error)
-      message.error('加载书架列表失败：' + error.message)
+      setBookshelves(result.data?.data || [])
+      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+    } catch (error) {
+      handleApiError(error, 'NovelBookshelves-加载书架')
     } finally {
       setLoading(false)
     }
-  }, [])
-
-  // 搜索过滤
-  useEffect(() => {
-    if (!searchText.trim()) {
-      setFilteredBookshelves(bookshelves)
-      return
-    }
-    
-    const keyword = searchText.toLowerCase()
-    const filtered = bookshelves.filter(
-      (item) =>
-        item.user_name.toLowerCase().includes(keyword) ||
-        item.user_email.toLowerCase().includes(keyword) ||
-        item.user_id.toLowerCase().includes(keyword)
-    )
-    setFilteredBookshelves(filtered)
-  }, [searchText, bookshelves])
-
-  // 加载详情 - 使用缓存的小说信息展示书名、作者、阅读进度、最后阅读时间
-  const loadDetail = useCallback(async (userId: string) => {
-    setDetailLoading(true)
-    
-    try {
-      const { data: userNovels, error } = await supabase
-        .from('user_novels')
-        .select('id, novel_id, progress, last_chapter, last_read_at, created_at')
-        .eq('user_id', userId)
-        .order('last_read_at', { ascending: false })
-
-      if (error) {
-        console.error('[NovelBookshelves] 加载详情失败:', error)
-        throw error
-      }
-
-      // 使用缓存的小说信息（loadBookshelves 已加载）
-      const details: BookshelfDetail[] = userNovels?.map((item: any) => {
-        const novel = novelsCache.get(item.novel_id)
-        return {
-          id: item.id,
-          novel_id: item.novel_id,
-          title: novel?.title || '未知书名',
-          author: novel?.author || '未知作者',
-          cover_url: novel?.cover_url,
-          progress: item.progress || 0,
-          last_chapter: item.last_chapter || 0,
-          last_read_at: item.last_read_at,
-          created_at: item.created_at,
-          category: novel?.category,
-          chapter_count: novel?.chapter_count || 0,
-        }
-      }) || []
-
-      setDetailList(details)
-    } catch (error: any) {
-      console.error('[NovelBookshelves] 加载详情失败:', error)
-      message.error('加载详情失败：' + error.message)
-    } finally {
-      setDetailLoading(false)
-    }
-  }, [novelsCache])
-
-  // 查看详情
-  const handleViewDetail = (record: UserBookshelf) => {
-    setSelectedUser(record)
-    setDetailVisible(true)
-    loadDetail(record.user_id)
-  }
+  }, [pagination.current, pagination.pageSize, filters])
 
   useEffect(() => {
     loadBookshelves()
   }, [loadBookshelves])
 
+  // 搜索
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, current: 1 }))
+    loadBookshelves()
+  }
+
+  // 重置筛选
+  const handleReset = () => {
+    setFilters({
+      keyword: '',
+      isFavorite: undefined,
+    })
+    setPagination(prev => ({ ...prev, current: 1 }))
+  }
+
+  // 删除书架记录
+  const handleDelete = async (id: string) => {
+    try {
+      const result = await bookshelfService.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'NovelBookshelves-删除')
+        return
+      }
+      message.success('删除成功')
+      loadBookshelves()
+    } catch (error) {
+      handleApiError(error, 'NovelBookshelves-删除')
+    }
+  }
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要删除的记录')
+      return
+    }
+    try {
+      const { error } = await supabase
+        .from('user_novels')
+        .delete()
+        .in('id', selectedRowKeys as string[])
+      if (error) {
+        handleApiError(error, 'NovelBookshelves-批量删除')
+        return
+      }
+      message.success(`成功删除 ${selectedRowKeys.length} 条记录`)
+      setSelectedRowKeys([])
+      loadBookshelves()
+    } catch (error) {
+      handleApiError(error, 'NovelBookshelves-批量删除')
+    }
+  }
+
+  // 切换收藏状态
+  const handleToggleFavorite = async (record: NovelBookshelf) => {
+    try {
+      const result = await bookshelfService.update(record.id, {
+        is_favorite: !record.is_favorite,
+        updated_at: new Date().toISOString(),
+      })
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'NovelBookshelves-切换收藏')
+        return
+      }
+      message.success(`已${!record.is_favorite ? '加入' : '取消'}收藏`)
+      loadBookshelves()
+    } catch (error) {
+      handleApiError(error, 'NovelBookshelves-切换收藏')
+    }
+  }
+
   // 表格列定义
-  const columns: ColumnsType<UserBookshelf> = [
+  const columns: ColumnsType<NovelBookshelf> = [
+    {
+      title: '小说',
+      key: 'novel',
+      width: 250,
+      render: (_, record) => (
+        <Space>
+          <BookOutlined style={{ fontSize: 20, color: '#1890ff' }} />
+          <div>
+            <div style={{ fontWeight: 500 }}>{record.novel_title || '未知小说'}</div>
+            <Text type="secondary" style={{ fontSize: 12 }}>ID: {record.novel_id}</Text>
+          </div>
+        </Space>
+      ),
+    },
     {
       title: '用户ID',
       dataIndex: 'user_id',
       key: 'user_id',
-      width: 220,
+      width: 200,
       ellipsis: true,
-      render: (text) => (
-        <Tooltip title={text}>
-          <Text code copyable={{ text }}>{text.slice(0, 16)}...</Text>
+      render: (uid: string) => (
+        <Tooltip title={uid}>
+          <Text copyable={{ text: uid }}>{uid.substring(0, 16)}...</Text>
         </Tooltip>
       ),
     },
     {
-      title: '用户名',
-      dataIndex: 'user_name',
-      key: 'user_name',
-      width: 150,
-      render: (text) => (
-        <Space>
-          <UserOutlined />
-          <Text strong>{text}</Text>
-        </Space>
+      title: '最后阅读章节',
+      key: 'last_read',
+      width: 200,
+      render: (_, record) => (
+        <div>
+          <div>{record.last_read_chapter_title || '-'}</div>
+          {record.last_read_at && (
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {dayjs(record.last_read_at).format('YYYY-MM-DD HH:mm')}
+            </Text>
+          )}
+        </div>
       ),
     },
     {
-      title: '用户邮箱',
-      dataIndex: 'user_email',
-      key: 'user_email',
-      width: 220,
-      ellipsis: true,
-    },
-    {
-      title: '书架小说数',
-      dataIndex: 'total_books',
-      key: 'total_books',
-      width: 120,
-      align: 'center',
-      sorter: (a, b) => a.total_books - b.total_books,
-      render: (count) => (
-        <Badge
-          count={count}
-          showZero
-          style={{ backgroundColor: count > 0 ? '#52c41a' : '#d9d9d9' }}
-        />
+      title: '收藏',
+      dataIndex: 'is_favorite',
+      key: 'is_favorite',
+      width: 100,
+      render: (isFavorite: boolean) => (
+        <Tag color={isFavorite ? 'red' : 'default'}>
+          {isFavorite ? '已收藏' : '未收藏'}
+        </Tag>
       ),
     },
     {
-      title: '最后阅读时间',
-      dataIndex: 'last_read_at',
-      key: 'last_read_at',
-      width: 180,
-      sorter: (a, b) => {
-        if (!a.last_read_at) return 1
-        if (!b.last_read_at) return -1
-        return new Date(b.last_read_at).getTime() - new Date(a.last_read_at).getTime()
-      },
-      render: (date) => date ? (
-        <Space>
-          <ClockCircleOutlined />
-          <Text>{formatDateTime(date)}</Text>
-        </Space>
-      ) : (
-        <Text type="secondary">未阅读</Text>
-      ),
+      title: '更新时间',
+      dataIndex: 'updated_at',
+      key: 'updated_at',
+      width: 170,
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
-    getActionColumn<UserBookshelf>(
+    getActionColumn<NovelBookshelf>(
       (record) => [
         {
-          key: 'view',
-          label: '查看详情',
-          icon: <EyeOutlined />,
-          type: 'primary',
-          disabled: record.total_books === 0,
-          onClick: () => handleViewDetail(record),
+          key: 'favorite',
+          label: record.is_favorite ? '取消收藏' : '收藏',
+          icon: <HeartOutlined />,
+          type: record.is_favorite ? 'default' : 'primary',
+          onClick: () => handleToggleFavorite(record),
+        },
+        {
+          key: 'delete',
+          label: '删除',
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => handleDelete(record.id),
         },
       ],
-      { width: 240, maxVisible: 2 }
+      { width: 200, maxVisible: 2 }
     ),
   ]
 
-  // 统计信息
-  const totalBooks = bookshelves.reduce((sum, item) => sum + item.total_books, 0)
-  const stats = {
-    totalUsers: bookshelves.length,
-    totalBooks,
-    activeReaders: bookshelves.filter(item => item.last_read_at).length,
-    avgProgress: allUserNovels.length > 0
-      ? parseFloat((allUserNovels.reduce((sum: number, n: any) => sum + (n.progress || 0), 0) / allUserNovels.length * 100).toFixed(1))
-      : 0,
-    completionRate: allUserNovels.length > 0
-      ? parseFloat((allUserNovels.filter((n: any) => (n.progress || 0) >= 1).length / allUserNovels.length * 100).toFixed(1))
-      : 0,
-    avgBooksPerUser: bookshelves.length > 0
-      ? parseFloat((totalBooks / bookshelves.length).toFixed(1))
-      : 0,
-  }
-
   return (
     <div style={{ padding: 24 }}>
-      <Card>
-        <div style={{ marginBottom: 24 }}>
-          <Title level={4}>
-            <BookOutlined style={{ marginRight: 8 }} />
-            书架管理
-          </Title>
-          <Text type="secondary">
-            展示所有用户的书架统计信息，联合 user_novels + novels + users 表查询
-          </Text>
-        </div>
+      {/* 统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总记录数"
+              value={pagination.total}
+              prefix={<BookOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="收藏数"
+              value={bookshelves.filter(b => b.is_favorite).length}
+              prefix={<HeartOutlined />}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="今日活跃"
+              value={bookshelves.filter(b => dayjs(b.last_read_at).isSame(dayjs(), 'day')).length}
+              prefix={<ReadOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-        {/* 统计信息 */}
-        <Row gutter={16} style={{ marginBottom: 24 }}>
-          <Col xs={12} sm={8} md={4}>
-            <Card size="small" style={{ background: '#e6f7ff' }}>
-              <Statistic
-                title="总用户数"
-                value={stats.totalUsers}
-                suffix="人"
-                valueStyle={{ color: '#1890ff' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={8} md={4}>
-            <Card size="small" style={{ background: '#f6ffed' }}>
-              <Statistic
-                title="书架总藏书"
-                value={stats.totalBooks}
-                suffix="本"
-                valueStyle={{ color: '#52c41a' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={8} md={4}>
-            <Card size="small" style={{ background: '#fff7e6' }}>
-              <Statistic
-                title="活跃读者"
-                value={stats.activeReaders}
-                suffix="人"
-                valueStyle={{ color: '#fa8c16' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={8} md={4}>
-            <Card size="small" style={{ background: '#f9f0ff' }}>
-              <Statistic
-                title="平均阅读进度"
-                value={stats.avgProgress}
-                suffix="%"
-                valueStyle={{ color: '#722ed1' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={8} md={4}>
-            <Card size="small" style={{ background: '#e6fffb' }}>
-              <Statistic
-                title="阅读完成率"
-                value={stats.completionRate}
-                suffix="%"
-                valueStyle={{ color: '#13c2c2' }}
-              />
-            </Card>
-          </Col>
-          <Col xs={12} sm={8} md={4}>
-            <Card size="small" style={{ background: '#fff1f0' }}>
-              <Statistic
-                title="人均藏书量"
-                value={stats.avgBooksPerUser}
-                suffix="本"
-                valueStyle={{ color: '#ff4d4f' }}
-              />
-            </Card>
-          </Col>
-        </Row>
-
-        {/* 热门书架小说 Top 5 */}
-        {topShelfNovels.length > 0 && (
-          <Row gutter={16} style={{ marginBottom: 24 }}>
-            <Col span={24}>
-              <Card size="small" title="热门书架小说 Top 5" style={{ background: '#fafafa' }}>
-                <Row gutter={16}>
-                  {topShelfNovels.map((novel, index) => (
-                    <Col xs={12} sm={8} md={4} key={index}>
-                      <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                        <div>
-                          <Tag color={index === 0 ? 'gold' : index === 1 ? 'orange' : index === 2 ? 'cyan' : 'default'}>
-                            Top {index + 1}
-                          </Tag>
-                        </div>
-                        <div style={{ marginTop: 4, fontWeight: 500, fontSize: 14 }}>{novel.title}</div>
-                        <div style={{ fontSize: 12, color: '#999' }}>{novel.author}</div>
-                        <div style={{ marginTop: 4, fontSize: 16, fontWeight: 600, color: '#1890ff' }}>
-                          {novel.count} <span style={{ fontSize: 12, color: '#999' }}>人收藏</span>
-                        </div>
-                      </div>
-                    </Col>
-                  ))}
-                </Row>
-              </Card>
-            </Col>
-          </Row>
-        )}
-
-        {/* 搜索栏 */}
-        <div style={{ marginBottom: 16 }}>
+      {/* 筛选栏 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
           <Input
-            placeholder="搜索用户ID、用户名或邮箱"
+            placeholder="搜索小说标题/用户ID"
+            value={filters.keyword}
+            onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+            onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 220 }}
             allowClear
-            style={{ maxWidth: 400 }}
           />
-        </div>
-
-        <Table
-          columns={columns}
-          dataSource={filteredBookshelves}
-          rowKey="user_id"
-          loading={loading}
-          scroll={{ x: 1000 }}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 位用户`,
-          }}
-        />
+          <Select
+            placeholder="收藏状态"
+            value={filters.isFavorite}
+            onChange={(value) => setFilters(prev => ({ ...prev, isFavorite: value }))}
+            style={{ width: 120 }}
+            allowClear
+            options={[
+              { label: '已收藏', value: true },
+              { label: '未收藏', value: false },
+            ]}
+          />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
+          </Button>
+        </Space>
       </Card>
 
-      {/* 详情弹窗 - 展示：书名、作者、阅读进度、最后阅读时间 */}
-      <Modal
-        title={
-          <Space>
-            <ReadOutlined />
-            <span>{selectedUser?.user_name} 的书架详情</span>
-            <Tag color="blue">共 {selectedUser?.total_books} 本</Tag>
-          </Space>
-        }
-        open={detailVisible}
-        onCancel={() => setDetailVisible(false)}
-        footer={null}
-        width={900}
-      >
-        <Spin spinning={detailLoading}>
-          {detailList.length === 0 ? (
-            <Empty description="暂无书架数据" />
-          ) : (
-            <List
-              dataSource={detailList}
-              renderItem={(item) => (
-                <List.Item>
-                  <Card style={{ width: '100%' }} size="small">
-                    <div style={{ display: 'flex', gap: 16 }}>
-                      {/* 封面 */}
-                      <div style={{ flexShrink: 0 }}>
-                        {item.cover_url ? (
-                          <img
-                            src={item.cover_url}
-                            alt={item.title}
-                            style={{
-                              width: 80,
-                              height: 110,
-                              objectFit: 'cover',
-                              borderRadius: 4,
-                            }}
-                          />
-                        ) : (
-                          <div
-                            style={{
-                              width: 80,
-                              height: 110,
-                              backgroundColor: '#f0f0f0',
-                              borderRadius: 4,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            <BookOutlined style={{ fontSize: 24, color: '#999' }} />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* 信息 */}
-                      <div style={{ flex: 1 }}>
-                        <div style={{ marginBottom: 8 }}>
-                          <Text strong style={{ fontSize: 16 }}>{item.title}</Text>
-                          {item.category && (
-                            <Tag color="blue" style={{ marginLeft: 8 }}>
-                              {item.category}
-                            </Tag>
-                          )}
-                        </div>
-
-                        <div style={{ marginBottom: 8 }}>
-                          <Text type="secondary">作者：{item.author}</Text>
-                        </div>
-
-                        <div style={{ marginBottom: 8 }}>
-                          <Progress
-                            percent={Math.round(item.progress * 100)}
-                            size="small"
-                            status={item.progress >= 1 ? 'success' : 'active'}
-                            format={(percent) => `阅读进度 ${percent}%`}
-                          />
-                        </div>
-
-                        <div style={{ display: 'flex', gap: 24, fontSize: 12 }}>
-                          <Tooltip title="最新阅读章节">
-                            <Space>
-                              <ClockCircleOutlined />
-                              <Text type="secondary">
-                                第 {item.last_chapter} / {item.chapter_count} 章
-                              </Text>
-                            </Space>
-                          </Tooltip>
-
-                          <Tooltip title="最后阅读时间">
-                            <Space>
-                              <CalendarOutlined />
-                              <Text type="secondary">
-                                {item.last_read_at
-                                  ? formatDateTime(item.last_read_at)
-                                  : '未阅读'}
-                              </Text>
-                            </Space>
-                          </Tooltip>
-
-                          <Tooltip title="加入书架时间">
-                            <Space>
-                              <BookOutlined />
-                              <Text type="secondary">
-                                加入：{dayjs(item.created_at).format('YYYY-MM-DD')}
-                              </Text>
-                            </Space>
-                          </Tooltip>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </List.Item>
-              )}
-            />
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Space>
+          {selectedRowKeys.length > 0 && (
+            <Popconfirm
+              title="确认批量删除"
+              description={`确定要删除选中的 ${selectedRowKeys.length} 条记录吗？`}
+              onConfirm={handleBatchDelete}
+              okText="确认"
+              cancelText="取消"
+            >
+              <Button danger icon={<DeleteOutlined />}>
+                批量删除 ({selectedRowKeys.length})
+              </Button>
+            </Popconfirm>
           )}
-        </Spin>
-      </Modal>
+        </Space>
+        <Button icon={<ReloadOutlined />} onClick={loadBookshelves} loading={loading}>
+          刷新
+        </Button>
+      </div>
+
+      {/* 书架表格 */}
+      <Table
+        columns={columns}
+        dataSource={bookshelves}
+        rowKey="id"
+        loading={loading}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
+        scroll={{ x: 1000 }}
+      />
     </div>
   )
 }

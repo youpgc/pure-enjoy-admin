@@ -1,439 +1,347 @@
-import React, { useMemo, useState, useEffect } from 'react'
-import { Tag, message, Card, Row, Col, Statistic, DatePicker, Select, Space as AntSpace } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
-import { DeleteOutlined, EditOutlined, PieChartOutlined, DollarOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-  Tooltip as RechartsTooltip,
-  Legend,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from 'recharts'
-import UserDimensionList, { ModuleConfig, RecordItem } from '../components/UserDimensionList'
-import { getActionColumn } from '../components/ActionColumn'
-import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
-import { supabase } from '../utils/supabase'
-import { usePermission } from '../hooks/usePermission'
-import { useEditModal } from '../hooks/useEditModal'
-import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
-import { formatDateTime, formatDate } from '../utils/format'
-import NoPermission from '../components/NoPermission'
+  Table,
+  Button,
+  Input,
+  Space,
+  Card,
+  message,
+  Modal,
+  Form,
+  Popconfirm,
+  DatePicker,
+  InputNumber,
+  Select,
+  Typography,
+  Row,
+  Col,
+  Statistic,
+} from 'antd'
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  DollarOutlined,
+} from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
-// ==================== 常量定义 ====================
+const { Text } = Typography
 
-const CATEGORY_OPTIONS_FALLBACK = [
-  { value: '餐饮', label: '餐饮' },
-  { value: '交通', label: '交通' },
-  { value: '购物', label: '购物' },
-  { value: '娱乐', label: '娱乐' },
-  { value: '其他', label: '其他' },
-]
+// ==================== 类型定义 ====================
 
-const { RangePicker } = DatePicker
-
-// ==================== 编辑字段配置 ====================
-
-const getEditFields = (categoryOptions: { value: string; label: string }[]): EditFieldConfig[] => [
-  {
-    name: 'amount',
-    label: '金额',
-    type: 'number',
-    required: true,
-    min: 0,
-    step: 0.01,
-    placeholder: '请输入消费金额',
-  },
-  {
-    name: 'category',
-    label: '分类',
-    type: 'select',
-    required: true,
-    options: categoryOptions,
-  },
-  {
-    name: 'date',
-    label: '日期',
-    type: 'date',
-    required: true,
-  },
-  {
-    name: 'note',
-    label: '备注',
-    type: 'textarea',
-    placeholder: '请输入备注信息',
-  },
-]
-
-// ==================== 详情列表列配置 ====================
-
-const getDetailColumns = (
-  canDelete: boolean,
-  onDelete: (id: string) => void,
-  onEdit: (record: RecordItem) => void,
-  getColor: (code: string) => string
-): ColumnsType<RecordItem> => [
-  {
-    title: '金额',
-    dataIndex: 'amount',
-    key: 'amount',
-    width: 100,
-    render: (amount: number) => (
-      <Tag color="red">¥{typeof amount === 'number' ? amount.toFixed(2) : amount}</Tag>
-    ),
-  },
-  {
-    title: '分类',
-    dataIndex: 'category',
-    key: 'category',
-    width: 100,
-    render: (category: string) => (
-      <Tag color={getColor(category || '') || 'default'}>{category || '-'}</Tag>
-    ),
-  },
-  {
-    title: '备注',
-    dataIndex: 'note',
-    key: 'note',
-    ellipsis: true,
-    width: 200,
-    render: (note: string) => note || '-',
-  },
-  {
-    title: '日期',
-    dataIndex: 'date',
-    key: 'date',
-    width: 120,
-    sorter: (a, b) => {
-      const dateA = (a.date as string) || ''
-      const dateB = (b.date as string) || ''
-      return dateA.localeCompare(dateB)
-    },
-    render: (date: string) => formatDate(date),
-  },
-  {
-    title: '创建时间',
-    dataIndex: 'created_at',
-    key: 'created_at',
-    width: 160,
-    render: (date: string) => formatDateTime(date),
-  },
-  getActionColumn<any>(
-    (record) => {
-      const actions: import('../components/ActionColumn').ActionButton[] = [
-        {
-          key: 'edit',
-          label: '编辑',
-          icon: <EditOutlined />,
-          onClick: () => onEdit(record),
-        },
-      ]
-      if (canDelete) {
-        actions.push({
-          key: 'delete',
-          label: '删除',
-          icon: <DeleteOutlined />,
-          danger: true,
-          onClick: () => onDelete(record.id as string),
-        })
-      }
-      return actions
-    },
-    { width: 240, maxVisible: 2 }
-  ),
-]
-
-// ==================== 统计卡片组件 ====================
-
-interface StatsCardsProps {
-  userId?: string
-  dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null]
-  categoryFilter: string | null
-  getColor: (code: string) => string
+interface Expense {
+  id: string
+  user_id: string
+  amount: number
+  category: string
+  description?: string
+  expense_date: string
+  created_at: string
 }
 
-const StatsCards: React.FC<StatsCardsProps> = ({ userId, dateRange, categoryFilter, getColor }) => {
-  const [stats, setStats] = useState({
-    totalAmount: 0,
-    totalCount: 0,
-    avgAmount: 0,
-    categoryData: [] as { name: string; value: number; color: string }[],
-    dailyData: [] as { date: string; amount: number }[],
-  })
+// ==================== 组件 ====================
+
+const Expenses: React.FC = () => {
+  const [records, setRecords] = useState<Expense[]>([])
   const [loading, setLoading] = useState(false)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [modalVisible, setModalVisible] = useState(false)
+  const [editingRecord, setEditingRecord] = useState<Expense | null>(null)
+  const [form] = Form.useForm()
 
-  useEffect(() => {
-    if (!userId) return
-    loadStats()
-  }, [userId, dateRange, categoryFilter])
+  const service = new BaseService<Expense>('expenses', { defaultOrder: { column: 'expense_date', ascending: false } })
 
-  const loadStats = async () => {
+  // 加载数据
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      let query = supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', userId)
-
-      // 日期范围筛选
-      if (dateRange[0] && dateRange[1]) {
-        query = query
-          .gte('date', dateRange[0].format('YYYY-MM-DD'))
-          .lte('date', dateRange[1].format('YYYY-MM-DD'))
+      const result = await service.findAll((q) => {
+        if (searchKeyword) {
+          return q.or(`user_id.ilike.%${searchKeyword}%,description.ilike.%${searchKeyword}%,category.ilike.%${searchKeyword}%`)
+        }
+        return q
+      })
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'Expenses-加载数据')
+        return
       }
-
-      // 分类筛选
-      if (categoryFilter) {
-        query = query.eq('category', categoryFilter)
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-
-      const records = data || []
-      const totalAmount = records.reduce((sum, r) => sum + (r.amount || 0), 0)
-      const totalCount = records.length
-      const avgAmount = totalCount > 0 ? totalAmount / totalCount : 0
-
-      // 分类统计
-      const categoryMap = new Map<string, number>()
-      records.forEach((r) => {
-        const cat = r.category || '其他'
-        categoryMap.set(cat, (categoryMap.get(cat) || 0) + (r.amount || 0))
-      })
-      const categoryData = Array.from(categoryMap.entries()).map(([name, value]) => ({
-        name,
-        value,
-        color: getColor(name) || '#999',
-      }))
-
-      // 每日统计
-      const dailyMap = new Map<string, number>()
-      records.forEach((r) => {
-        const date = r.date
-        dailyMap.set(date, (dailyMap.get(date) || 0) + (r.amount || 0))
-      })
-      const dailyData = Array.from(dailyMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([date, amount]) => ({ date: dayjs(date).format('MM-DD'), amount }))
-
-      setStats({
-        totalAmount,
-        totalCount,
-        avgAmount,
-        categoryData,
-        dailyData,
-      })
+      setRecords(result.data || [])
     } catch (error) {
-      console.error('加载统计数据失败:', error)
+      handleApiError(error, 'Expenses-加载数据')
     } finally {
       setLoading(false)
     }
+  }, [searchKeyword])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  // 搜索
+  const handleSearch = () => {
+    loadData()
   }
 
-  return (
-    <div style={{ marginBottom: 24 }}>
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
-          <Card size="small" loading={loading}>
-            <Statistic
-              title="总支出"
-              value={stats.totalAmount}
-              precision={2}
-              valueStyle={{ color: '#ff4d4f' }}
-              prefix={<><DollarOutlined /> ¥</>}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small" loading={loading}>
-            <Statistic
-              title="记录数"
-              value={stats.totalCount}
-              suffix="笔"
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small" loading={loading}>
-            <Statistic
-              title="平均消费"
-              value={stats.avgAmount}
-              precision={2}
-              prefix="¥"
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small" loading={loading}>
-            <Statistic
-              title="分类数"
-              value={stats.categoryData.length}
-              suffix="类"
-            />
-          </Card>
-        </Col>
-      </Row>
+  // 打开新增弹窗
+  const handleAdd = () => {
+    setEditingRecord(null)
+    form.resetFields()
+    form.setFieldsValue({ expense_date: dayjs() })
+    setModalVisible(true)
+  }
 
-      <Row gutter={16}>
-        <Col span={12}>
-          <Card
-            size="small"
-            title={<><PieChartOutlined /> 分类占比</>}
-            loading={loading}
-          >
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={stats.categoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {stats.categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <RechartsTooltip formatter={(value: number) => `¥${value.toFixed(2)}`} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </Card>
-        </Col>
-        <Col span={12}>
-          <Card
-            size="small"
-            title="每日消费趋势"
-            loading={loading}
-          >
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={stats.dailyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <RechartsTooltip formatter={(value: number) => `¥${value.toFixed(2)}`} />
-                <Bar dataKey="amount" fill="#1890ff" />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        </Col>
-      </Row>
-    </div>
-  )
-}
-
-// ==================== 主组件 ====================
-
-const Expenses: React.FC = () => {
-  const { canReadExpenses, canWriteExpenses, canDeleteExpenses } = usePermission()
-  const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
-  const [selectedUserId, setSelectedUserId] = useState<string>()
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null])
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
-  const { options: categoryOptions } = useDictOptions('expense_category', CATEGORY_OPTIONS_FALLBACK)
-  const { getColor } = useDictColors('expense_category')
-
-  // ==================== 操作处理 ====================
+  // 打开编辑弹窗
+  const handleEdit = (record: Expense) => {
+    setEditingRecord(record)
+    form.setFieldsValue({
+      ...record,
+      expense_date: dayjs(record.expense_date),
+    })
+    setModalVisible(true)
+  }
 
   // 删除记录
   const handleDelete = async (id: string) => {
-    if (!canDeleteExpenses) {
-      message.warning('您没有删除消费记录的权限')
-      return
-    }
     try {
-      const { error } = await supabase.from('expenses').delete().eq('id', id)
-      if (error) throw error
+      const result = await service.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'Expenses-删除')
+        return
+      }
       message.success('删除成功')
+      loadData()
     } catch (error) {
-      console.error('删除失败:', error)
-      message.error('删除失败')
+      handleApiError(error, 'Expenses-删除')
     }
   }
 
-  // 编辑记录
-  const handleEdit = (record: RecordItem) => {
-    if (!canWriteExpenses) {
-      message.warning('您没有编辑消费记录的权限')
-      return
+  // 保存记录
+  const handleSave = async () => {
+    try {
+      const values = await form.validateFields()
+      const data = {
+        ...values,
+        expense_date: values.expense_date.format('YYYY-MM-DD'),
+      }
+      if (editingRecord) {
+        const result = await service.update(editingRecord.id, data)
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'Expenses-更新')
+          return
+        }
+        message.success('更新成功')
+      } else {
+        const result = await service.create(data)
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'Expenses-创建')
+          return
+        }
+        message.success('创建成功')
+      }
+      setModalVisible(false)
+      setEditingRecord(null)
+      form.resetFields()
+      loadData()
+    } catch (error) {
+      handleApiError(error, 'Expenses-保存')
     }
-    open(record)
   }
 
-  // 处理用户选择变化
-  const handleUserSelect = (userId: string) => {
-    setSelectedUserId(userId)
-  }
+  // 表格列定义
+  const columns: ColumnsType<Expense> = [
+    {
+      title: '用户ID',
+      dataIndex: 'user_id',
+      key: 'user_id',
+      ellipsis: true,
+    },
+    {
+      title: '金额',
+      dataIndex: 'amount',
+      key: 'amount',
+      render: (amount: number) => <Text strong style={{ color: '#ff4d4f' }}>¥{amount.toFixed(2)}</Text>,
+    },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      key: 'category',
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+    },
+    {
+      title: '日期',
+      dataIndex: 'expense_date',
+      key: 'expense_date',
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 150,
+      render: (_, record) => (
+        <Space>
+          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+            编辑
+          </Button>
+          <Popconfirm
+            title="确认删除"
+            onConfirm={() => handleDelete(record.id)}
+            okText="确认"
+            cancelText="取消"
+          >
+            <Button danger size="small" icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
 
-  // 模块配置
-  const moduleConfig: ModuleConfig = useMemo(() => ({
-    key: 'expenses',
-    title: '消费记录管理',
-    tableName: 'expenses',
-    detailTitle: '消费记录详情',
-    detailColumns: getDetailColumns(canDeleteExpenses || false, handleDelete, handleEdit, getColor),
-    onUserSelect: handleUserSelect,
-  }), [canDeleteExpenses, canWriteExpenses])
-
-  // 权限检查
-  if (!canReadExpenses) {
-    return <NoPermission module="消费记录" />
-  }
+  // 计算总支出
+  const totalAmount = records.reduce((sum, r) => sum + r.amount, 0)
 
   return (
-    <>
+    <div style={{ padding: 24 }}>
+      {/* 统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总记录数"
+              value={records.length}
+              prefix={<DollarOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总支出"
+              value={totalAmount.toFixed(2)}
+              prefix="¥"
+              valueStyle={{ color: '#ff4d4f' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="今日支出"
+              value={records.filter(r => dayjs(r.expense_date).isSame(dayjs(), 'day')).reduce((sum, r) => sum + r.amount, 0).toFixed(2)}
+              prefix="¥"
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
       {/* 筛选栏 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
-        <AntSpace>
-          <RangePicker
-            placeholder={['开始日期', '结束日期']}
-            value={dateRange}
-            onChange={(dates) => setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null])}
-          />
-          <Select
-            placeholder="选择分类"
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Input
+            placeholder="搜索用户ID/描述/分类"
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 300 }}
             allowClear
-            style={{ width: 120 }}
-            value={categoryFilter}
-            onChange={setCategoryFilter}
-            options={categoryOptions}
           />
-        </AntSpace>
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
+          </Button>
+        </Space>
       </Card>
 
-      {/* 统计图表 */}
-      {selectedUserId && (
-        <StatsCards
-          userId={selectedUserId}
-          dateRange={dateRange}
-          categoryFilter={categoryFilter}
-          getColor={getColor}
-        />
-      )}
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          新增支出
+        </Button>
+        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
+          刷新
+        </Button>
+      </div>
 
-      <UserDimensionList moduleConfig={moduleConfig} />
-      <EditRecordModal
-        open={editModalOpen}
-        record={editingRecord}
-        tableName="expenses"
-        fields={getEditFields(categoryOptions)}
-        onClose={close}
-        onSuccess={() => {
-          // 刷新列表
-          window.location.reload()
-        }}
+      {/* 数据表格 */}
+      <Table
+        columns={columns}
+        dataSource={records}
+        rowKey="id"
+        loading={loading}
+        pagination={{ pageSize: 20 }}
+        scroll={{ x: 800 }}
       />
-    </>
+
+      {/* 表单弹窗 */}
+      <Modal
+        title={editingRecord ? '编辑支出' : '新增支出'}
+        open={modalVisible}
+        onOk={handleSave}
+        onCancel={() => {
+          setModalVisible(false)
+          setEditingRecord(null)
+          form.resetFields()
+        }}
+        width={500}
+      >
+        <Form form={form} layout="vertical">
+          <Form.Item
+            name="user_id"
+            label="用户ID"
+            rules={[{ required: true, message: '请输入用户ID' }]}
+          >
+            <Input placeholder="请输入用户ID" />
+          </Form.Item>
+          <Form.Item
+            name="amount"
+            label="金额"
+            rules={[{ required: true, message: '请输入金额' }]}
+          >
+            <InputNumber style={{ width: '100%' }} placeholder="请输入金额" min={0} step={0.01} prefix="¥" />
+          </Form.Item>
+          <Form.Item
+            name="category"
+            label="分类"
+            rules={[{ required: true, message: '请选择分类' }]}
+          >
+            <Select
+              placeholder="请选择分类"
+              options={[
+                { label: '餐饮', value: 'food' },
+                { label: '交通', value: 'transport' },
+                { label: '购物', value: 'shopping' },
+                { label: '娱乐', value: 'entertainment' },
+                { label: '医疗', value: 'medical' },
+                { label: '其他', value: 'other' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="描述"
+          >
+            <Input.TextArea rows={2} placeholder="请输入描述" />
+          </Form.Item>
+          <Form.Item
+            name="expense_date"
+            label="日期"
+            rules={[{ required: true, message: '请选择日期' }]}
+          >
+            <DatePicker style={{ width: '100%' }} placeholder="请选择日期" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
   )
 }
 

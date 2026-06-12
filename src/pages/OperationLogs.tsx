@@ -1,426 +1,338 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react'
-import { Card, Table, Input, Select, DatePicker, Button, Tag, Space, Spin, Empty, Tooltip, message, Modal, Popconfirm, Row, Col, Statistic } from 'antd'
-import { SearchOutlined, ExportOutlined, ReloadOutlined, DeleteOutlined, WarningOutlined } from '@ant-design/icons'
-import type { Dayjs } from 'dayjs'
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  Table,
+  Button,
+  Input,
+  Space,
+  Tag,
+  Card,
+  message,
+  Select,
+  DatePicker,
+  Tooltip,
+  Badge,
+  Typography,
+  Row,
+  Col,
+  Statistic,
+} from 'antd'
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  DeleteOutlined,
+  HistoryOutlined,
+  UserOutlined,
+  SettingOutlined,
+  BookOutlined,
+  FileTextOutlined,
+} from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { usePermission } from '../hooks/usePermission'
-import { usePagination } from '../hooks/usePagination'
-import { exportToCSV } from '../utils/export'
 import { supabase } from '../utils/supabase'
-import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
+import { usePermission } from '../hooks/usePermission'
+import { getActionColumn } from '../components/ActionColumn'
+import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
 
-// 操作日志数据类型（与 operation_logs 表字段对应）
-interface OperationLogItem {
-  id: string
-  time: string
-  user_name: string
-  action: string
-  module: string
-  target: string
-  ip: string
-  detail: string
-}
-
+const { Text } = Typography
 const { RangePicker } = DatePicker
 
+// ==================== 类型定义 ====================
 
+interface OperationLog {
+  id: string
+  user_id: string
+  user_email?: string
+  action: string
+  module: string
+  description?: string
+  ip_address?: string
+  created_at: string
+}
 
+interface LogFilters {
+  keyword: string
+  action: string | undefined
+  module: string | undefined
+  dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null
+}
 
-
-
+// ==================== 组件 ====================
 
 const OperationLogs: React.FC = () => {
+  const [logs, setLogs] = useState<OperationLog[]>([])
+  const [loading, setLoading] = useState(false)
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const [filters, setFilters] = useState<LogFilters>({
+    keyword: '',
+    action: undefined,
+    module: undefined,
+    dateRange: null,
+  })
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const { isAdmin } = usePermission()
-  const [loading, setLoading] = useState(true)
-  const [logs, setLogs] = useState<OperationLogItem[]>([])
-  const [searchUser, setSearchUser] = useState('')
-  const [filterModule, setFilterModule] = useState<string | undefined>(undefined)
-  const [filterAction, setFilterAction] = useState<string | undefined>(undefined)
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
-  const { currentPage, pageSize, paginate, resetPage, setCurrentPage, setPageSize } = usePagination()
 
-  // 字典查询
-  const { options: moduleOptions } = useDictOptions('operation_module')
-  const { options: actionOptions } = useDictOptions('operation_action')
-  const { getColor: getModuleColor } = useDictColors('operation_module')
-  const { getColor: getActionColor } = useDictColors('operation_action')
+  const logService = new BaseService<OperationLog>('operation_logs', { defaultOrder: { column: 'created_at', ascending: false } })
 
-  // 日志清理功能
-  const [cleanModalOpen, setCleanModalOpen] = useState(false)
-  const [cleanDays, setCleanDays] = useState<number>(30)
-  const [cleanLoading, setCleanLoading] = useState(false)
-  const [cleanStats, setCleanStats] = useState({ total: 0, toDelete: 0 })
-
-  // 从 Supabase 加载操作日志
-  const fetchLogs = useCallback(async () => {
+  // 加载日志列表
+  const loadLogs = useCallback(async () => {
     setLoading(true)
     try {
-      // 查询 operation_logs 表，关联 users 表获取用户昵称
-      const { data, error } = await supabase
-        .from('operation_logs')
-        .select('id, user_id, action, module, target_id, details, ip, user_agent, created_at, users:user_id(nickname)')
-        .order('created_at', { ascending: false })
-        .limit(500)
+      const result = await logService.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
+        if (filters.keyword) {
+          query = query.or(`user_email.ilike.%${filters.keyword}%,description.ilike.%${filters.keyword}%`)
+        }
+        if (filters.action) {
+          query = query.eq('action', filters.action)
+        }
+        if (filters.module) {
+          query = query.eq('module', filters.module)
+        }
+        if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
+          query = query
+            .gte('created_at', filters.dateRange[0].format('YYYY-MM-DD'))
+            .lte('created_at', filters.dateRange[1].format('YYYY-MM-DD') + 'T23:59:59')
+        }
+        return query
+      })
 
-      if (error) {
-        console.error('加载操作日志失败:', error)
-        message.error(`加载操作日志失败: ${error.message}`)
-        setLogs([])
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'OperationLogs-加载日志')
         return
       }
 
-      // 映射数据库字段到界面展示字段
-      const items: OperationLogItem[] = (data as any[] || []).map((row: any) => ({
-        id: String(row.id),
-        time: dayjs(row.created_at).format('YYYY-MM-DD HH:mm:ss'),
-        user_name: row.users?.nickname || '未知用户',
-        action: row.action || '',
-        module: row.module || '',
-        target: row.target_id || '',
-        ip: row.ip || '',
-        detail: typeof row.details === 'object' && row.details !== null
-          ? JSON.stringify(row.details)
-          : (row.details as string) || '',
-      }))
-      setLogs(items)
-    } catch (err) {
-      console.error('加载操作日志异常:', err)
-      message.error('加载操作日志异常，请稍后重试')
-      setLogs([])
+      setLogs(result.data?.data || [])
+      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
+    } catch (error) {
+      handleApiError(error, 'OperationLogs-加载日志')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [pagination.current, pagination.pageSize, filters])
 
   useEffect(() => {
-    fetchLogs()
-  }, [fetchLogs])
+    loadLogs()
+  }, [loadLogs])
 
-  // 筛选后的数据
-  const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
-      // 用户搜索
-      if (searchUser && !log.user_name.includes(searchUser)) return false
-      // 模块筛选
-      if (filterModule && log.module !== filterModule) return false
-      // 操作类型筛选
-      if (filterAction && log.action !== filterAction) return false
-      // 时间范围筛选
-      if (dateRange && dateRange[0] && dateRange[1]) {
-        const logTime = dayjs(log.time)
-        if (logTime.isBefore(dateRange[0], 'day') || logTime.isAfter(dateRange[1], 'day')) return false
-      }
-      return true
-    })
-  }, [logs, searchUser, filterModule, filterAction, dateRange])
-
-  // 分页后的数据
-  const paginatedLogs = useMemo(() => paginate(filteredLogs), [filteredLogs, currentPage, pageSize, paginate])
+  // 搜索
+  const handleSearch = () => {
+    setPagination(prev => ({ ...prev, current: 1 }))
+    loadLogs()
+  }
 
   // 重置筛选
   const handleReset = () => {
-    setSearchUser('')
-    setFilterModule(undefined)
-    setFilterAction(undefined)
-    setDateRange(null)
-    resetPage()
+    setFilters({
+      keyword: '',
+      action: undefined,
+      module: undefined,
+      dateRange: null,
+    })
+    setPagination(prev => ({ ...prev, current: 1 }))
   }
 
-  // 计算清理预览
-  const handlePreviewClean = useCallback(async () => {
-    try {
-      const beforeDate = dayjs().subtract(cleanDays, 'day').format('YYYY-MM-DD')
-
-      // 查询将要删除的日志数量
-      const { count, error } = await supabase
-        .from('operation_logs')
-        .select('*', { count: 'exact', head: true })
-        .lt('created_at', beforeDate)
-
-      if (error) throw error
-
-      setCleanStats({
-        total: logs.length,
-        toDelete: count || 0,
-      })
-    } catch (err) {
-      console.error('计算清理数量失败:', err)
-      message.error('计算清理数量失败')
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要删除的日志')
+      return
     }
-  }, [cleanDays, logs.length])
-
-  // 执行清理
-  const handleCleanLogs = async () => {
-    setCleanLoading(true)
     try {
-      const beforeDate = dayjs().subtract(cleanDays, 'day').format('YYYY-MM-DD')
-
       const { error } = await supabase
         .from('operation_logs')
         .delete()
-        .lt('created_at', beforeDate)
-
-      if (error) throw error
-
-      message.success(`成功清理 ${cleanStats.toDelete} 条历史日志`)
-      setCleanModalOpen(false)
-      fetchLogs() // 刷新列表
-    } catch (err) {
-      console.error('清理日志失败:', err)
-      message.error('清理日志失败')
-    } finally {
-      setCleanLoading(false)
+        .in('id', selectedRowKeys as string[])
+      if (error) {
+        handleApiError(error, 'OperationLogs-批量删除')
+        return
+      }
+      message.success(`成功删除 ${selectedRowKeys.length} 条日志`)
+      setSelectedRowKeys([])
+      loadLogs()
+    } catch (error) {
+      handleApiError(error, 'OperationLogs-批量删除')
     }
   }
 
-  // 导出 CSV
-  const handleExport = () => {
-    exportToCSV(
-      filteredLogs,
-      [
-        { title: '时间', dataIndex: 'time' },
-        { title: '用户', dataIndex: 'user_name' },
-        { title: '操作', dataIndex: 'action' },
-        { title: '模块', dataIndex: 'module' },
-        { title: '目标', dataIndex: 'target' },
-        { title: 'IP', dataIndex: 'ip' },
-        { title: '详情', dataIndex: 'detail' },
-      ],
-      `操作日志_${dayjs().format('YYYYMMDD_HHmmss')}`
-    )
-  }
-
   // 表格列定义
-  const columns = [
-    {
-      title: '时间',
-      dataIndex: 'time',
-      key: 'time',
-      width: 170,
-      sorter: (a: OperationLogItem, b: OperationLogItem) => dayjs(a.time).unix() - dayjs(b.time).unix(),
-      defaultSortOrder: 'descend' as const,
-    },
+  const columns: ColumnsType<OperationLog> = [
     {
       title: '用户',
-      dataIndex: 'user_name',
-      key: 'user_name',
-      width: 100,
+      key: 'user',
+      width: 200,
+      render: (_, record) => (
+        <div>
+          <div>{record.user_email || record.user_id}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>ID: {record.user_id}</Text>
+        </div>
+      ),
     },
     {
       title: '操作',
       dataIndex: 'action',
       key: 'action',
       width: 100,
-      render: (action: string) => (
-        <Tag color={getActionColor(action) || 'default'}>{actionOptions.find(opt => opt.value === action)?.label || action}</Tag>
-      ),
+      render: (action: string) => <Tag color="blue">{action}</Tag>,
     },
     {
       title: '模块',
       dataIndex: 'module',
       key: 'module',
-      width: 100,
-      render: (module: string) => (
-        <Tag color={getModuleColor(module) || 'default'}>{moduleOptions.find(opt => opt.value === module)?.label || module}</Tag>
-      ),
+      width: 120,
+      render: (module: string) => {
+        const moduleMap: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
+          user: { color: 'blue', label: '用户', icon: <UserOutlined /> },
+          system: { color: 'purple', label: '系统', icon: <SettingOutlined /> },
+          novel: { color: 'green', label: '小说', icon: <BookOutlined /> },
+          content: { color: 'orange', label: '内容', icon: <FileTextOutlined /> },
+        }
+        const info = moduleMap[module] || { color: 'default', label: module, icon: null }
+        return <Tag color={info.color} icon={info.icon}>{info.label}</Tag>
+      },
     },
     {
-      title: '目标',
-      dataIndex: 'target',
-      key: 'target',
-      width: 180,
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
       ellipsis: true,
     },
     {
-      title: 'IP',
-      dataIndex: 'ip',
-      key: 'ip',
-      width: 140,
+      title: 'IP地址',
+      dataIndex: 'ip_address',
+      key: 'ip_address',
+      width: 130,
+      render: (ip: string) => ip || '-',
     },
     {
-      title: '详情',
-      dataIndex: 'detail',
-      key: 'detail',
-      ellipsis: true,
-      render: (detail: string) => (
-        <Tooltip title={detail}>
-          <span>{detail}</span>
-        </Tooltip>
-      ),
+      title: '时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 170,
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
   ]
 
-  if (!isAdmin) {
-    return (
-      <div style={{ textAlign: 'center', padding: 100 }}>
-        <Empty description="无权限访问此页面" />
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: 100 }}>
-        <Spin size="large" tip="加载操作日志..." />
-      </div>
-    )
-  }
-
   return (
-    <div>
-      {/* 搜索和筛选 */}
-      <Card style={{ borderRadius: 8, marginBottom: 16 }}>
-        <Space wrap style={{ width: '100%' }} size="middle">
+    <div style={{ padding: 24 }}>
+      {/* 统计卡片 */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="总日志数"
+              value={pagination.total}
+              prefix={<HistoryOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="今日操作"
+              value={logs.filter(l => dayjs(l.created_at).isSame(dayjs(), 'day')).length}
+              prefix={<UserOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="用户模块"
+              value={logs.filter(l => l.module === 'user').length}
+              prefix={<SettingOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 筛选栏 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
           <Input
-            placeholder="搜索用户名"
+            placeholder="搜索用户/描述"
+            value={filters.keyword}
+            onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+            onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            value={searchUser}
-            onChange={e => { setSearchUser(e.target.value); setCurrentPage(1) }}
-            style={{ width: 180 }}
+            style={{ width: 220 }}
             allowClear
           />
           <Select
             placeholder="操作类型"
-            value={filterAction}
-            onChange={val => { setFilterAction(val); setCurrentPage(1) }}
-            options={actionOptions}
-            style={{ width: 140 }}
+            value={filters.action}
+            onChange={(value) => setFilters(prev => ({ ...prev, action: value }))}
+            style={{ width: 120 }}
             allowClear
+            options={[
+              { label: '创建', value: 'create' },
+              { label: '更新', value: 'update' },
+              { label: '删除', value: 'delete' },
+              { label: '查询', value: 'read' },
+            ]}
           />
           <Select
             placeholder="模块"
-            value={filterModule}
-            onChange={val => { setFilterModule(val); setCurrentPage(1) }}
-            options={moduleOptions}
-            style={{ width: 140 }}
+            value={filters.module}
+            onChange={(value) => setFilters(prev => ({ ...prev, module: value }))}
+            style={{ width: 120 }}
             allowClear
+            options={[
+              { label: '用户', value: 'user' },
+              { label: '系统', value: 'system' },
+              { label: '小说', value: 'novel' },
+              { label: '内容', value: 'content' },
+            ]}
           />
           <RangePicker
-            value={dateRange as [Dayjs, Dayjs] | null}
-            onChange={(dates) => { setDateRange(dates as [Dayjs | null, Dayjs | null] | null); setCurrentPage(1) }}
-            placeholder={['开始日期', '结束日期']}
+            value={filters.dateRange}
+            onChange={(dates) => setFilters(prev => ({ ...prev, dateRange: dates as any }))}
           />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
+          </Button>
           <Button icon={<ReloadOutlined />} onClick={handleReset}>
             重置
           </Button>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={fetchLogs}
-          >
-            刷新
-          </Button>
-          <Button
-            type="primary"
-            icon={<ExportOutlined />}
-            onClick={handleExport}
-            disabled={filteredLogs.length === 0}
-          >
-            导出
-          </Button>
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => {
-              setCleanModalOpen(true)
-              handlePreviewClean()
-            }}
-          >
-            清理历史
-          </Button>
         </Space>
-        <div style={{ marginTop: 8, color: '#8c8c8c', fontSize: 13 }}>
-          共 {filteredLogs.length} 条记录
-        </div>
       </Card>
 
-      {/* 日志列表 */}
-      <Card style={{ borderRadius: 8 }}>
-        <Table
-          dataSource={paginatedLogs}
-          columns={columns}
-          rowKey="id"
-          pagination={{
-            current: currentPage,
-            pageSize,
-            total: filteredLogs.length,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} / 共 ${total} 条`,
-            onChange: (page, size) => {
-              setCurrentPage(page)
-              setPageSize(size)
-            },
-          }}
-          scroll={{ x: 1000 }}
-          size="middle"
-        />
-      </Card>
-
-      {/* 日志清理弹窗 */}
-      <Modal
-        title={
-          <Space>
-            <WarningOutlined style={{ color: '#faad14' }} />
-            <span>清理历史日志</span>
-          </Space>
-        }
-        open={cleanModalOpen}
-        onCancel={() => setCleanModalOpen(false)}
-        footer={[
-          <Button key="cancel" onClick={() => setCleanModalOpen(false)}>
-            取消
-          </Button>,
-          <Popconfirm
-            key="confirm"
-            title="确认清理"
-            description={`确定要删除 ${cleanDays} 天前的所有历史日志吗？此操作不可恢复！`}
-            onConfirm={handleCleanLogs}
-            okText="确认清理"
-            cancelText="取消"
-            okButtonProps={{ danger: true, loading: cleanLoading }}
-          >
-            <Button type="primary" danger loading={cleanLoading}>
-              确认清理
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Space>
+          {selectedRowKeys.length > 0 && (
+            <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete}>
+              批量删除 ({selectedRowKeys.length})
             </Button>
-          </Popconfirm>,
-        ]}
-        width={500}
-      >
-        <div style={{ padding: '16px 0' }}>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Statistic title="当前日志总数" value={cleanStats.total} />
-            </Col>
-            <Col span={12}>
-              <Statistic
-                title={`${cleanDays} 天前日志数`}
-                value={cleanStats.toDelete}
-                valueStyle={{ color: '#ff4d4f' }}
-              />
-            </Col>
-          </Row>
-          <div style={{ marginTop: 24 }}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <span>清理策略：删除指定天数之前的所有操作日志</span>
-              <Select
-                value={cleanDays}
-                onChange={setCleanDays}
-                style={{ width: '100%' }}
-                options={[
-                  { label: '7 天前的日志', value: 7 },
-                  { label: '30 天前的日志', value: 30 },
-                  { label: '90 天前的日志', value: 90 },
-                  { label: '180 天前的日志', value: 180 },
-                  { label: '365 天前的日志', value: 365 },
-                ]}
-              />
-              <Button block onClick={handlePreviewClean}>
-                刷新预览
-              </Button>
-            </Space>
-          </div>
-        </div>
-      </Modal>
+          )}
+        </Space>
+        <Button icon={<ReloadOutlined />} onClick={loadLogs} loading={loading}>
+          刷新
+        </Button>
+      </div>
+
+      {/* 日志表格 */}
+      <Table
+        columns={columns}
+        dataSource={logs}
+        rowKey="id"
+        loading={loading}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
+        scroll={{ x: 1000 }}
+      />
     </div>
   )
 }
