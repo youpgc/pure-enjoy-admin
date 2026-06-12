@@ -1,466 +1,604 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Table,
-  Button,
-  Input,
-  Space,
-  Tag,
-  Card,
-  message,
-  Modal,
-  Form,
-  Select,
-  Popconfirm,
-  Tooltip,
-  Typography,
-  Descriptions,
+  Table, Tag, Button, Modal, Input, Space, message, Tooltip, Timeline, Popconfirm, Badge, Empty
 } from 'antd'
-import {
-  SearchOutlined,
-  ReloadOutlined,
-  EyeOutlined,
-  DeleteOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
-import { BaseService, handleApiError } from '../utils/apiClient'
-import { usePagination } from '../hooks/usePagination'
-import { getActionColumn } from '../components/ActionColumn'
-
-const { Text, Paragraph } = Typography
+import {
+  CheckOutlined, CloseOutlined, ClockCircleOutlined,
+  DeleteOutlined, HistoryOutlined,
+  ExclamationCircleOutlined, SyncOutlined, CheckCircleOutlined
+} from '@ant-design/icons'
+import { supabase } from '../utils/supabase'
+import { usePermission } from '../hooks/usePermission'
+import { formatDateTime } from '../utils/format'
+import NoPermission from '../components/NoPermission'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 // ==================== 类型定义 ====================
 
-interface FeedbackItem {
+interface FeedbackRecord {
   id: string
   user_id: string
+  user_nickname: string | null
   title: string
-  description: string
+  description: string | null
   category: string
   status: string
-  admin_reply?: string
-  user_nickname?: string
+  admin_reply: string | null
   created_at: string
-  updated_at: string
+  updated_at: string | null
 }
 
-interface FeedbackFilters {
-  keyword: string
-  category: string | undefined
-  status: string | undefined
+interface FlowRecord {
+  id: string
+  feedback_id: string
+  action: string
+  remark: string | null
+  operator_id: string | null
+  operator_name: string | null
+  created_at: string
 }
 
-// ==================== 状态映射 ====================
+// ==================== 常量定义 ====================
 
-const FEEDBACK_STATUS_MAP: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
-  pending: { color: 'orange', label: '待处理', icon: <ClockCircleOutlined /> },
-  confirmed: { color: 'cyan', label: '已确认', icon: <CheckCircleOutlined /> },
-  in_progress: { color: 'blue', label: '处理中', icon: <ExclamationCircleOutlined /> },
-  resolved: { color: 'green', label: '已解决', icon: <CheckCircleOutlined /> },
+const STATUS_TAG_MAP_FALLBACK: Record<string, { color: string; label: string }> = {
+  pending: { color: 'default', label: '待确认' },
+  confirmed: { color: 'processing', label: '已确认' },
+  in_progress: { color: 'warning', label: '处理中' },
+  resolved: { color: 'success', label: '已完结' },
+  rejected: { color: 'error', label: '已拒绝' },
+  delayed: { color: 'orange', label: '已滞后' },
 }
 
-// ==================== 组件 ====================
+const ACTION_TAG_MAP_FALLBACK: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
+  confirmed: { color: 'blue', label: '确认', icon: <CheckOutlined /> },
+  in_progress: { color: 'orange', label: '处理中', icon: <SyncOutlined spin /> },
+  resolved: { color: 'green', label: '完成', icon: <CheckCircleOutlined /> },
+  rejected: { color: 'red', label: '拒绝', icon: <CloseOutlined /> },
+  delayed: { color: 'gold', label: '滞后', icon: <ClockCircleOutlined /> },
+  deleted: { color: 'default', label: '删除', icon: <DeleteOutlined /> },
+}
+
+const CATEGORY_TAG_MAP_FALLBACK: Record<string, { color: string; label: string }> = {
+  bug: { color: 'error', label: 'Bug' },
+  feature: { color: 'processing', label: '功能建议' },
+  improvement: { color: 'warning', label: '体验优化' },
+  other: { color: 'default', label: '其他' },
+}
+
+// 状态流转规则：当前状态 -> 可执行的操作列表
+const STATUS_ACTIONS: Record<string, string[]> = {
+  pending: ['confirmed', 'rejected'],
+  confirmed: ['in_progress', 'delayed', 'rejected'],
+  in_progress: ['resolved', 'delayed', 'rejected'],
+  resolved: [],
+  rejected: [],
+  delayed: ['in_progress', 'resolved', 'rejected'],
+}
+
+// ==================== 状态流转弹窗 ====================
+
+const ActionModal: React.FC<{
+  open: boolean
+  record: FeedbackRecord | null
+  action: string | null
+  onClose: () => void
+  onConfirm: (remark: string) => void
+  loading: boolean
+}> = ({ open, record, action, onClose, onConfirm, loading }) => {
+  const [remark, setRemark] = useState('')
+  const { options: actionOptions } = useDictOptions('feedback_action', [])
+  const { options: statusOptions } = useDictOptions('feedback_status', [])
+  const { getColor: getActionColor } = useDictColors('feedback_action')
+  const { getColor: getStatusColor } = useDictColors('feedback_status')
+  const actionConfig = action
+    ? (() => {
+        const dictOpt = actionOptions.find(opt => opt.value === action)
+        const fallback = ACTION_TAG_MAP_FALLBACK[action]
+        if (!dictOpt && !fallback) return null
+        return {
+          color: getActionColor(action) || fallback?.color || 'default',
+          label: dictOpt?.label || fallback?.label || action,
+          icon: fallback?.icon || null,
+        }
+      })()
+    : null
+
+  const getStatusLabel = (status: string) => {
+    const dictOpt = statusOptions.find(opt => opt.value === status)
+    const fallback = STATUS_TAG_MAP_FALLBACK[status]
+    return dictOpt?.label || fallback?.label || status
+  }
+  const getStatusColorValue = (status: string) => {
+    return getStatusColor(status) || STATUS_TAG_MAP_FALLBACK[status]?.color || 'default'
+  }
+
+  useEffect(() => {
+    if (open) setRemark('')
+  }, [open])
+
+  if (!record || !action || !actionConfig) return null
+
+  return (
+    <Modal
+      title={
+        <Space>
+          {actionConfig.icon}
+          <span>{actionConfig.label}反馈</span>
+          <Tag color={getStatusColorValue(record.status)}>
+            {getStatusLabel(record.status)}
+          </Tag>
+          <span style={{ color: '#999' }}>→</span>
+          <Tag color={action === 'deleted' ? getStatusColorValue(record.status) : getStatusColorValue(action)}>
+            {action === 'deleted' ? '删除' : getStatusLabel(action)}
+          </Tag>
+        </Space>
+      }
+      open={open}
+      onCancel={onClose}
+      onOk={() => onConfirm(remark)}
+      confirmLoading={loading}
+      okText="确认"
+      cancelText="取消"
+      width={480}
+    >
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>{record.title}</div>
+        {record.description && (
+          <div style={{ color: '#666', fontSize: 13 }}>{record.description}</div>
+        )}
+      </div>
+      <div style={{ marginBottom: 8, fontWeight: 500 }}>
+        <ExclamationCircleOutlined style={{ marginRight: 4, color: '#faad14' }} />
+        备注说明（必填）
+      </div>
+      <Input.TextArea
+        rows={3}
+        placeholder={`请输入${actionConfig.label}原因/备注...`}
+        value={remark}
+        onChange={(e) => setRemark(e.target.value)}
+        maxLength={500}
+        showCount
+      />
+    </Modal>
+  )
+}
+
+// ==================== 流转记录弹窗 ====================
+
+const FlowHistoryModal: React.FC<{
+  open: boolean
+  record: FeedbackRecord | null
+  onClose: () => void
+}> = ({ open, record, onClose }) => {
+  const [records, setRecords] = useState<FlowRecord[]>([])
+  const [loading, setLoading] = useState(false)
+  const { options: actionOptions } = useDictOptions('feedback_action', [])
+  const { options: statusOptions } = useDictOptions('feedback_status', [])
+  const { getColor: getActionColor } = useDictColors('feedback_action')
+  const { getColor: getStatusColor } = useDictColors('feedback_status')
+
+  const getStatusLabel = (status: string) => {
+    const dictOpt = statusOptions.find(opt => opt.value === status)
+    const fallback = STATUS_TAG_MAP_FALLBACK[status]
+    return dictOpt?.label || fallback?.label || status
+  }
+  const getStatusColorValue = (status: string) => {
+    return getStatusColor(status) || STATUS_TAG_MAP_FALLBACK[status]?.color || 'default'
+  }
+
+  useEffect(() => {
+    if (open && record) {
+      setLoading(true)
+      supabase
+        .from('feedback_flow_records')
+        .select('*')
+        .eq('feedback_id', record.id)
+        .order('created_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (error) console.error('获取流转记录失败:', error)
+          setRecords(data || [])
+          setLoading(false)
+        })
+    }
+  }, [open, record])
+
+  return (
+    <Modal
+      title={
+        <Space>
+          <HistoryOutlined />
+          <span>流转记录</span>
+          {record && <Tag color={getStatusColorValue(record.status)}>{getStatusLabel(record.status)}</Tag>}
+        </Space>
+      }
+      open={open}
+      onCancel={onClose}
+      footer={<Button onClick={onClose}>关闭</Button>}
+      width={560}
+    >
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40 }}>加载中...</div>
+      ) : records.length === 0 ? (
+        <Empty description="暂无流转记录" />
+      ) : (
+        <Timeline
+          items={records.map((r) => {
+            const dictOpt = actionOptions.find(opt => opt.value === r.action)
+            const fallback = ACTION_TAG_MAP_FALLBACK[r.action]
+            const config = {
+              color: getActionColor(r.action) || fallback?.color || 'default',
+              label: dictOpt?.label || fallback?.label || r.action,
+              icon: fallback?.icon || null,
+            }
+            return {
+              color: config.color,
+              children: (
+                <div key={r.id}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                    <Tag color={config.color} style={{ margin: 0 }}>
+                      {config.icon} {config.label}
+                    </Tag>
+                    <span style={{ color: '#999', fontSize: 12 }}>{formatDateTime(r.created_at)}</span>
+                    {r.operator_name && (
+                      <span style={{ color: '#666', fontSize: 12 }}>操作人: {r.operator_name}</span>
+                    )}
+                  </div>
+                  {r.remark && (
+                    <div style={{
+                      background: '#f5f5f5', padding: '8px 12px', borderRadius: 6,
+                      fontSize: 13, color: '#333', marginTop: 4
+                    }}>
+                      {r.remark}
+                    </div>
+                  )}
+                </div>
+              ),
+            }
+          })}
+        />
+      )}
+    </Modal>
+  )
+}
+
+// ==================== 主组件 ====================
 
 const Feedback: React.FC = () => {
-  const [feedbackList, setFeedbackList] = useState<FeedbackItem[]>([])
+  const { canReadFeedback, canWriteFeedback, canDeleteFeedback } = usePermission()
+
+  // 列表数据
+  const [data, setData] = useState<FeedbackRecord[]>([])
   const [loading, setLoading] = useState(false)
-  const [filters, setFilters] = useState<FeedbackFilters>({
-    keyword: '',
-    category: undefined,
-    status: undefined,
-  })
-  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
-  const [detailModalOpen, setDetailModalOpen] = useState(false)
-  const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null)
-  const [replyForm] = Form.useForm()
-  const { pagination, resetPage, setTotal, tablePagination } = usePagination()
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
 
-  const feedbackService = new BaseService<FeedbackItem>('user_feedback', {
-    defaultOrder: { column: 'created_at', ascending: false },
-  })
+  // 字典查询
+  const { options: statusOptions } = useDictOptions('feedback_status', [])
+  const { options: categoryOptions } = useDictOptions('feedback_category', [])
+  const { options: actionOptions } = useDictOptions('feedback_action', [])
+  const { getColor: getStatusColor } = useDictColors('feedback_status')
+  const { getColor: getCategoryColor } = useDictColors('feedback_category')
+  const { getColor: getActionColor } = useDictColors('feedback_action')
 
-  // 加载反馈列表
-  const loadFeedback = useCallback(async () => {
+  // 弹窗状态
+  const [actionModalOpen, setActionModalOpen] = useState(false)
+  const [flowModalOpen, setFlowModalOpen] = useState(false)
+  const [selectedRecord, setSelectedRecord] = useState<FeedbackRecord | null>(null)
+  const [selectedAction, setSelectedAction] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
+
+  // 加载数据
+  const fetchData = useCallback(async (page = 1, pageSize = 20) => {
     setLoading(true)
     try {
-      const result = await feedbackService.paginate(pagination.current, pagination.pageSize, (q) => {
-        let query = q
-        if (filters.keyword) {
-          query = query.or(`title.ilike.%${filters.keyword}%,description.ilike.%${filters.keyword}%,user_nickname.ilike.%${filters.keyword}%`)
-        }
-        if (filters.category) {
-          query = query.eq('category', filters.category)
-        }
-        if (filters.status) {
-          query = query.eq('status', filters.status)
-        }
-        return query
-      })
+      // 先获取总数
+      const { count, error: countError } = await supabase
+        .from('user_feedback')
+        .select('*', { count: 'exact', head: true })
+      if (countError) throw countError
 
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'Feedback-加载反馈')
-        return
-      }
+      // 分页查询
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      const { data: items, error } = await supabase
+        .from('user_feedback')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(from, to)
 
-      setFeedbackList(result.data?.data || [])
-      setTotal(result.data?.total || 0)
+      if (error) throw error
+      setData(items || [])
+      setPagination({ current: page, pageSize, total: count || 0 })
     } catch (error) {
-      handleApiError(error, 'Feedback-加载反馈')
+      console.error('获取反馈列表失败:', error)
+      message.error('获取反馈列表失败')
     } finally {
       setLoading(false)
     }
-  }, [pagination.current, pagination.pageSize, filters])
+  }, [])
 
   useEffect(() => {
-    loadFeedback()
-  }, [loadFeedback])
+    if (canReadFeedback) fetchData()
+  }, [canReadFeedback, fetchData])
 
-  // 搜索
-  const handleSearch = () => {
-    resetPage()
-    loadFeedback()
-  }
+  // 执行状态流转
+  const handleAction = async (remark: string) => {
+    if (!selectedRecord || !selectedAction) return
 
-  // 重置筛选
-  const handleReset = () => {
-    setFilters({
-      keyword: '',
-      category: undefined,
-      status: undefined,
-    })
-    resetPage()
-  }
-
-  // 删除反馈
-  const handleDelete = async (id: string) => {
-    try {
-      const result = await feedbackService.delete(id)
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'Feedback-删除')
-        return
-      }
-      message.success('删除成功')
-      loadFeedback()
-    } catch (error) {
-      handleApiError(error, 'Feedback-删除')
-    }
-  }
-
-  // 批量删除
-  const handleBatchDelete = async () => {
-    if (selectedRowKeys.length === 0) {
-      message.warning('请先选择要删除的反馈')
+    // 删除操作不需要 remark（但弹窗中已设为必填）
+    if (!remark.trim() && selectedAction !== 'deleted') {
+      message.warning('请输入备注说明')
       return
     }
+
+    setActionLoading(true)
     try {
-      const result = await feedbackService.batchDelete(selectedRowKeys as string[])
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'Feedback-批量删除')
-        return
+      // 获取操作人信息
+      const adminUserStr = localStorage.getItem('admin_user')
+      const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
+      const operatorId = adminUser?.id || adminUser?.user_id || 'system'
+      const operatorName = adminUser?.nickname || adminUser?.username || '管理员'
+
+      if (selectedAction === 'deleted') {
+        // 删除：先记录流转，再删除
+        await supabase.from('feedback_flow_records').insert({
+          feedback_id: selectedRecord.id,
+          action: 'deleted',
+          remark: remark.trim() || '删除反馈记录',
+          operator_id: operatorId,
+          operator_name: operatorName,
+        })
+        const { error } = await supabase.from('user_feedback').delete().eq('id', selectedRecord.id)
+        if (error) throw error
+        message.success('删除成功')
+      } else {
+        // 状态流转：记录流转 + 更新状态
+        await supabase.from('feedback_flow_records').insert({
+          feedback_id: selectedRecord.id,
+          action: selectedAction,
+          remark: remark.trim(),
+          operator_id: operatorId,
+          operator_name: operatorName,
+        })
+        const { error } = await supabase
+          .from('user_feedback')
+          .update({ status: selectedAction, admin_reply: remark.trim() })
+          .eq('id', selectedRecord.id)
+        if (error) throw error
+        const actionLabel = (() => {
+        const dictOpt = actionOptions.find(opt => opt.value === selectedAction)
+        const fallback = ACTION_TAG_MAP_FALLBACK[selectedAction]
+        return dictOpt?.label || fallback?.label || selectedAction
+      })()
+      message.success(`${actionLabel}成功`)
       }
-      message.success(`成功删除 ${selectedRowKeys.length} 条反馈`)
-      setSelectedRowKeys([])
-      loadFeedback()
-    } catch (error) {
-      handleApiError(error, 'Feedback-批量删除')
+
+      setActionModalOpen(false)
+      setSelectedRecord(null)
+      setSelectedAction(null)
+      fetchData(pagination.current, pagination.pageSize)
+    } catch (error: any) {
+      console.error('操作失败:', error)
+      message.error(`操作失败: ${error?.message || '未知错误'}`)
+    } finally {
+      setActionLoading(false)
     }
   }
 
-  // 更新反馈状态
-  const handleUpdateStatus = async (id: string, status: string) => {
-    try {
-      const result = await feedbackService.update(id, {
-        status,
-        updated_at: new Date().toISOString(),
-      })
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'Feedback-更新状态')
-        return
-      }
-      message.success('状态更新成功')
-      loadFeedback()
-    } catch (error) {
-      handleApiError(error, 'Feedback-更新状态')
+  // 打开操作弹窗
+  const openActionModal = (record: FeedbackRecord, action: string) => {
+    if (!canWriteFeedback) {
+      message.warning('您没有操作反馈的权限')
+      return
     }
+    setSelectedRecord(record)
+    setSelectedAction(action)
+    setActionModalOpen(true)
   }
 
-  // 提交回复
-  const handleReply = async () => {
-    try {
-      const values = await replyForm.validateFields()
-      if (!selectedFeedback) return
-
-      const result = await feedbackService.update(selectedFeedback.id, {
-        admin_reply: values.admin_reply,
-        status: 'resolved',
-        updated_at: new Date().toISOString(),
-      })
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'Feedback-回复')
-        return
-      }
-      message.success('回复成功')
-      setDetailModalOpen(false)
-      setSelectedFeedback(null)
-      replyForm.resetFields()
-      loadFeedback()
-    } catch (error) {
-      handleApiError(error, 'Feedback-回复')
-    }
-  }
-
-  // 查看详情
-  const handleViewDetail = (record: FeedbackItem) => {
-    setSelectedFeedback(record)
-    replyForm.setFieldsValue({ admin_reply: record.admin_reply || '' })
-    setDetailModalOpen(true)
-  }
-
-  // 表格列定义
-  const columns: ColumnsType<FeedbackItem> = [
+  // 列配置
+  const columns: ColumnsType<FeedbackRecord> = useMemo(() => [
     {
-      title: '反馈信息',
-      key: 'info',
-      width: 300,
-      render: (_, record) => (
-        <div>
-          <div style={{ fontWeight: 500 }}>{record.title}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.user_nickname || record.user_id}
-          </Text>
-          <div>
-            <Tag>{record.category || '-'}</Tag>
-          </div>
-        </div>
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 90,
+      fixed: 'left',
+      filters: statusOptions.length > 0
+        ? statusOptions.map(opt => ({ text: opt.label, value: opt.value }))
+        : Object.entries(STATUS_TAG_MAP_FALLBACK).map(([value, { label }]) => ({ text: label, value })),
+      onFilter: (value, record) => record.status === value,
+      render: (status: string) => {
+        const dictOpt = statusOptions.find(opt => opt.value === status)
+        const fallback = STATUS_TAG_MAP_FALLBACK[status]
+        const label = dictOpt?.label || fallback?.label || status
+        const color = getStatusColor(status) || fallback?.color || 'default'
+        return <Tag color={color}>{label}</Tag>
+      },
+    },
+    {
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: true,
+      width: 180,
+      render: (title: string, record) => (
+        <Tooltip title={`用户: ${record.user_nickname || record.user_id?.substring(0, 6)}`}>
+          {title || '-'}
+        </Tooltip>
       ),
+    },
+    {
+      title: '用户',
+      dataIndex: 'user_nickname',
+      key: 'user_nickname',
+      width: 120,
+      render: (nickname: string, record) => nickname || `用户${record.user_id?.substring(0, 6)}`,
+    },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      key: 'category',
+      width: 100,
+      filters: categoryOptions.length > 0
+        ? categoryOptions.map(opt => ({ text: opt.label, value: opt.value }))
+        : Object.entries(CATEGORY_TAG_MAP_FALLBACK).map(([value, { label }]) => ({ text: label, value })),
+      onFilter: (value, record) => record.category === value,
+      render: (category: string) => {
+        const dictOpt = categoryOptions.find(opt => opt.value === category)
+        const fallback = CATEGORY_TAG_MAP_FALLBACK[category]
+        const label = dictOpt?.label || fallback?.label || category
+        const color = getCategoryColor(category) || fallback?.color || 'default'
+        return <Tag color={color}>{label}</Tag>
+      },
     },
     {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
-      render: (content: string) => (
-        <Tooltip title={content}>
-          <span>{content}</span>
-        </Tooltip>
-      ),
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status: string) => {
-        const info = FEEDBACK_STATUS_MAP[status] || { color: 'default', label: status, icon: null }
-        return <Tag color={info.color} icon={info.icon}>{info.label}</Tag>
-      },
-    },
-    {
-      title: '管理员回复',
-      dataIndex: 'admin_reply',
-      key: 'admin_reply',
-      width: 150,
-      ellipsis: true,
-      render: (v: string) => v || '-',
+      width: 220,
+      render: (desc: string) => desc || '-',
     },
     {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      width: 160,
+      render: (date: string) => formatDateTime(date),
     },
-    getActionColumn<FeedbackItem>(
-      (record) => [
-        {
-          key: 'view',
-          label: '查看',
-          icon: <EyeOutlined />,
-          type: 'primary',
-          onClick: () => handleViewDetail(record),
-        },
-        {
-          key: 'resolve',
-          label: '标记已解决',
-          icon: <CheckCircleOutlined />,
-          onClick: () => handleUpdateStatus(record.id, 'resolved'),
-          disabled: record.status === 'resolved',
-        },
-        {
-          key: 'delete',
-          label: '删除',
-          icon: <DeleteOutlined />,
-          danger: true,
-          onClick: () => handleDelete(record.id),
-        },
-      ],
-      { width: 240, maxVisible: 3 }
-    ),
-  ]
+    {
+      title: '操作',
+      key: 'actions',
+      width: 280,
+      fixed: 'right',
+      render: (_: any, record: FeedbackRecord) => {
+        const actions = STATUS_ACTIONS[record.status] || []
+        return (
+          <Space size={4} wrap>
+            {actions.map((action) => {
+              const dictOpt = actionOptions.find(opt => opt.value === action)
+              const fallback = ACTION_TAG_MAP_FALLBACK[action]
+              if (!dictOpt && !fallback) return null
+              const config = {
+                color: getActionColor(action) || fallback?.color || 'default',
+                label: dictOpt?.label || fallback?.label || action,
+                icon: fallback?.icon || null,
+              }
+              return (
+                <Button
+                  key={action}
+                  type="link"
+                  size="small"
+                  icon={config.icon}
+                  onClick={() => openActionModal(record, action)}
+                  style={{ padding: '0 6px' }}
+                >
+                  {config.label}
+                </Button>
+              )
+            })}
+            <Tooltip title="流转记录">
+              <Button
+                type="link"
+                size="small"
+                icon={<HistoryOutlined />}
+                onClick={() => {
+                  setSelectedRecord(record)
+                  setFlowModalOpen(true)
+                }}
+                style={{ padding: '0 6px' }}
+              />
+            </Tooltip>
+            {canDeleteFeedback && (
+              <Popconfirm
+                title="确定删除此反馈？"
+                description="删除后将记录流转历史"
+                onConfirm={() => openActionModal(record, 'deleted')}
+                okText="删除"
+                cancelText="取消"
+                okButtonProps={{ danger: true }}
+              >
+                <Button type="link" size="small" danger icon={<DeleteOutlined />} style={{ padding: '0 6px' }}>
+                  删除
+                </Button>
+              </Popconfirm>
+            )}
+          </Space>
+        )
+      },
+    },
+  ], [canWriteFeedback, canDeleteFeedback, pagination])
+
+  // 权限检查
+  if (!canReadFeedback) {
+    return <NoPermission module="反馈" />
+  }
 
   return (
-    <div style={{ padding: 24 }}>
-      {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Space wrap>
-          <Input
-            placeholder="搜索标题/描述/用户"
-            value={filters.keyword}
-            onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
-            onPressEnter={handleSearch}
-            prefix={<SearchOutlined />}
-            style={{ width: 220 }}
-            allowClear
-          />
-          <Select
-            placeholder="分类"
-            value={filters.category}
-            onChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
-            style={{ width: 120 }}
-            allowClear
-            options={[
-              { label: '功能建议', value: 'feature' },
-              { label: 'Bug反馈', value: 'bug' },
-              { label: '投诉', value: 'complaint' },
-              { label: '其他', value: 'other' },
-            ]}
-          />
-          <Select
-            placeholder="状态"
-            value={filters.status}
-            onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
-            style={{ width: 120 }}
-            allowClear
-            options={[
-              { label: '待处理', value: 'pending' },
-              { label: '已确认', value: 'confirmed' },
-              { label: '处理中', value: 'in_progress' },
-              { label: '已解决', value: 'resolved' },
-            ]}
-          />
-          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
-            搜索
-          </Button>
-          <Button icon={<ReloadOutlined />} onClick={handleReset}>
-            重置
-          </Button>
-        </Space>
-      </Card>
-
-      {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+    <>
+      <div style={{ padding: '0 0 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ margin: 0 }}>问题反馈</h3>
         <Space>
-          {selectedRowKeys.length > 0 && (
-            <Popconfirm
-              title="确认批量删除"
-              description={`确定要删除选中的 ${selectedRowKeys.length} 条反馈吗？`}
-              onConfirm={handleBatchDelete}
-              okText="确认"
-              cancelText="取消"
-            >
-              <Button danger icon={<DeleteOutlined />}>
-                批量删除 ({selectedRowKeys.length})
-              </Button>
-            </Popconfirm>
+          {statusOptions.length > 0 ? statusOptions.map(opt => (
+            <Badge key={opt.value} count={data.filter(d => d.status === opt.value).length} offset={[0, 0]}>
+              <Tag color={getStatusColor(opt.value) || 'default'}>{opt.label}</Tag>
+            </Badge>
+          )) : (
+            <>
+              <Badge count={data.filter(d => d.status === 'pending').length} offset={[0, 0]}>
+                <Tag color="default">待确认</Tag>
+              </Badge>
+              <Badge count={data.filter(d => d.status === 'in_progress').length} offset={[0, 0]}>
+                <Tag color="warning">处理中</Tag>
+              </Badge>
+              <Badge count={data.filter(d => d.status === 'delayed').length} offset={[0, 0]}>
+                <Tag color="orange">已滞后</Tag>
+              </Badge>
+            </>
           )}
         </Space>
-        <Button icon={<ReloadOutlined />} onClick={loadFeedback} loading={loading}>
-          刷新
-        </Button>
       </div>
 
-      {/* 反馈表格 */}
       <Table
         columns={columns}
-        dataSource={feedbackList}
+        dataSource={data}
         rowKey="id"
         loading={loading}
-        pagination={tablePagination}
-        rowSelection={{
-          selectedRowKeys,
-          onChange: setSelectedRowKeys,
+        scroll={{ x: 1200 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          pageSizeOptions: ['10', '20', '50'],
+          showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+          onChange: (page, pageSize) => fetchData(page, pageSize),
         }}
-        scroll={{ x: 'max-content' }}
+        size="middle"
       />
 
-      {/* 详情弹窗 */}
-      <Modal
-        title="反馈详情"
-        open={detailModalOpen}
-        onCancel={() => {
-          setDetailModalOpen(false)
-          setSelectedFeedback(null)
-          replyForm.resetFields()
+      <ActionModal
+        open={actionModalOpen}
+        record={selectedRecord}
+        action={selectedAction}
+        onClose={() => {
+          setActionModalOpen(false)
+          setSelectedRecord(null)
+          setSelectedAction(null)
         }}
-        footer={[
-          <Button key="close" onClick={() => {
-            setDetailModalOpen(false)
-            setSelectedFeedback(null)
-            replyForm.resetFields()
-          }}>
-            关闭
-          </Button>,
-          <Button key="reply" type="primary" onClick={handleReply}>
-            提交回复
-          </Button>,
-        ]}
-        width={700}
-      >
-        {selectedFeedback && (
-          <>
-            <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
-              <Descriptions.Item label="标题">{selectedFeedback.title}</Descriptions.Item>
-              <Descriptions.Item label="用户">{selectedFeedback.user_nickname || selectedFeedback.user_id}</Descriptions.Item>
-              <Descriptions.Item label="分类">
-                <Tag>{selectedFeedback.category || '-'}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <Tag color={
-                  selectedFeedback.status === 'pending' ? 'orange' :
-                  selectedFeedback.status === 'confirmed' ? 'cyan' :
-                  selectedFeedback.status === 'in_progress' ? 'blue' :
-                  selectedFeedback.status === 'resolved' ? 'green' : 'default'
-                }>
-                  {FEEDBACK_STATUS_MAP[selectedFeedback.status]?.label || selectedFeedback.status}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {dayjs(selectedFeedback.created_at).format('YYYY-MM-DD HH:mm')}
-              </Descriptions.Item>
-            </Descriptions>
+        onConfirm={handleAction}
+        loading={actionLoading}
+      />
 
-            <div style={{ marginBottom: 16 }}>
-              <Text strong>反馈内容：</Text>
-              <Paragraph style={{ marginTop: 8, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
-                {selectedFeedback.description}
-              </Paragraph>
-            </div>
-
-            {selectedFeedback.admin_reply && (
-              <div style={{ marginBottom: 16 }}>
-                <Text strong>历史回复：</Text>
-                <Paragraph style={{ marginTop: 8, padding: 12, background: '#f6ffed', borderRadius: 4 }}>
-                  {selectedFeedback.admin_reply}
-                </Paragraph>
-              </div>
-            )}
-
-            <Form form={replyForm} layout="vertical">
-              <Form.Item
-                name="admin_reply"
-                label="回复内容"
-                rules={[{ required: true, message: '请输入回复内容' }]}
-              >
-                <Input.TextArea rows={4} placeholder="请输入回复内容" />
-              </Form.Item>
-            </Form>
-          </>
-        )}
-      </Modal>
-    </div>
+      <FlowHistoryModal
+        open={flowModalOpen}
+        record={selectedRecord}
+        onClose={() => {
+          setFlowModalOpen(false)
+          setSelectedRecord(null)
+        }}
+      />
+    </>
   )
 }
 
