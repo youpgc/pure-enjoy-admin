@@ -33,7 +33,7 @@ const { Text } = Typography
 interface NovelChapter {
   id: string
   novel_id: string
-  chapter_number: number
+  chapter_num: number
   title: string
   content: string
   word_count: number
@@ -56,7 +56,7 @@ const NovelChapterModal: React.FC<{
   const [form] = Form.useForm()
   const { pagination, tablePagination, setTotal } = usePagination()
 
-  const chapterService = new BaseService<NovelChapter>('novel_chapters', { defaultOrder: { column: 'chapter_number', ascending: true } })
+  const chapterService = new BaseService<NovelChapter>('novel_chapters', { defaultOrder: { column: 'chapter_num', ascending: true } })
 
   // 加载章节列表
   const loadChapters = useCallback(async () => {
@@ -93,9 +93,9 @@ const NovelChapterModal: React.FC<{
     form.resetFields()
     // 自动设置章节号
     const nextNumber = chapters.length > 0
-      ? Math.max(...chapters.map(c => c.chapter_number)) + 1
+      ? Math.max(...chapters.map(c => c.chapter_num)) + 1
       : 1
-    form.setFieldsValue({ chapter_number: nextNumber })
+    form.setFieldsValue({ chapter_num: nextNumber })
     setEditModalOpen(true)
   }
 
@@ -176,11 +176,11 @@ const NovelChapterModal: React.FC<{
       // 交换章节号
       const [update1, update2] = await Promise.all([
         apiExecute(
-          () => supabase.from('novel_chapters').update({ chapter_number: targetChapter.chapter_number }).eq('id', chapter.id) as any,
+          () => supabase.from('novel_chapters').update({ chapter_num: targetChapter.chapter_num }).eq('id', chapter.id) as any,
           'NovelChapterModal-调整顺序1'
         ),
         apiExecute(
-          () => supabase.from('novel_chapters').update({ chapter_number: chapter.chapter_number }).eq('id', targetChapter.id) as any,
+          () => supabase.from('novel_chapters').update({ chapter_num: chapter.chapter_num }).eq('id', targetChapter.id) as any,
           'NovelChapterModal-调整顺序2'
         ),
       ])
@@ -201,10 +201,10 @@ const NovelChapterModal: React.FC<{
   const columns: ColumnsType<NovelChapter> = [
     {
       title: '章节号',
-      dataIndex: 'chapter_number',
-      key: 'chapter_number',
+      dataIndex: 'chapter_num',
+      key: 'chapter_num',
       width: 80,
-      sorter: (a, b) => a.chapter_number - b.chapter_number,
+      sorter: (a, b) => a.chapter_num - b.chapter_num,
     },
     {
       title: '标题',
@@ -312,7 +312,7 @@ const NovelChapterModal: React.FC<{
       >
         <Form form={form} layout="vertical">
           <Form.Item
-            name="chapter_number"
+            name="chapter_num"
             label="章节号"
             rules={[{ required: true, message: '请输入章节号' }]}
           >

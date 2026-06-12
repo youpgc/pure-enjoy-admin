@@ -57,12 +57,9 @@ interface FeedbackFilters {
 
 const FEEDBACK_STATUS_MAP: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
   pending: { color: 'orange', label: '待处理', icon: <ClockCircleOutlined /> },
-  processing: { color: 'blue', label: '处理中', icon: <ExclamationCircleOutlined /> },
   confirmed: { color: 'cyan', label: '已确认', icon: <CheckCircleOutlined /> },
   in_progress: { color: 'blue', label: '处理中', icon: <ExclamationCircleOutlined /> },
   resolved: { color: 'green', label: '已解决', icon: <CheckCircleOutlined /> },
-  rejected: { color: 'red', label: '已拒绝', icon: <ExclamationCircleOutlined /> },
-  delayed: { color: 'gold', label: '已延期', icon: <ClockCircleOutlined /> },
 }
 
 // ==================== 组件 ====================
@@ -339,11 +336,9 @@ const Feedback: React.FC = () => {
             allowClear
             options={[
               { label: '待处理', value: 'pending' },
-              { label: '处理中', value: 'processing' },
               { label: '已确认', value: 'confirmed' },
+              { label: '处理中', value: 'in_progress' },
               { label: '已解决', value: 'resolved' },
-              { label: '已拒绝', value: 'rejected' },
-              { label: '已延期', value: 'delayed' },
             ]}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
@@ -425,10 +420,9 @@ const Feedback: React.FC = () => {
               <Descriptions.Item label="状态">
                 <Tag color={
                   selectedFeedback.status === 'pending' ? 'orange' :
-                  selectedFeedback.status === 'processing' ? 'blue' :
                   selectedFeedback.status === 'confirmed' ? 'cyan' :
-                  selectedFeedback.status === 'resolved' ? 'green' :
-                  selectedFeedback.status === 'rejected' ? 'red' : 'gold'
+                  selectedFeedback.status === 'in_progress' ? 'blue' :
+                  selectedFeedback.status === 'resolved' ? 'green' : 'default'
                 }>
                   {FEEDBACK_STATUS_MAP[selectedFeedback.status]?.label || selectedFeedback.status}
                 </Tag>

@@ -85,7 +85,7 @@ const OperationLogs: React.FC = () => {
       const result = await logService.paginate(pagination.current, pagination.pageSize, (q) => {
         let query = q
         if (filters.keyword) {
-          query = query.or(`action.ilike.%${filters.keyword}%,details.ilike.%${filters.keyword}%`)
+          query = query.or(`action.ilike.%${filters.keyword}%,module.ilike.%${filters.keyword}%,user_id.ilike.%${filters.keyword}%`)
         }
         if (filters.action) {
           query = query.eq('action', filters.action)

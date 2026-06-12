@@ -81,13 +81,11 @@ const NOVEL_CATEGORY_OPTIONS = [
 const NOVEL_STATUS_MAP: Record<string, string> = {
   ongoing: '连载中',
   completed: '已完结',
-  paused: '暂停更新',
 }
 
 const NOVEL_STATUS_OPTIONS = [
   { label: '连载中', value: 'ongoing' },
   { label: '已完结', value: 'completed' },
-  { label: '暂停更新', value: 'paused' },
 ]
 
 // ==================== 类型定义 ====================
@@ -100,7 +98,7 @@ interface Novel {
   category: string
   description: string
   cover_url: string
-  status: 'ongoing' | 'completed' | 'paused'
+  status: 'ongoing' | 'completed'
   read_count: number
   chapter_count: number
   is_free: boolean
@@ -258,13 +256,13 @@ const Novels: React.FC = () => {
   // 切换小说状态
   const handleToggleStatus = async (record: Novel) => {
     try {
-      const newStatus = record.status === 'ongoing' ? 'paused' : 'ongoing'
+      const newStatus = record.status === 'completed' ? 'ongoing' : 'completed'
       const result = await novelService.update(record.id, { status: newStatus })
       if (!result.success) {
         handleApiError(result.errorMessage, 'Novels-切换状态')
         return
       }
-      message.success(`小说已${newStatus === 'ongoing' ? '恢复连载' : '暂停连载'}`)
+      message.success(`小说已${newStatus === 'completed' ? '标记完结' : '恢复连载'}`)
       loadNovels()
     } catch (error) {
       handleApiError(error, 'Novels-切换状态')
@@ -374,7 +372,6 @@ const Novels: React.FC = () => {
         const statusColorMap: Record<string, string> = {
           ongoing: 'green',
           completed: 'blue',
-          paused: 'orange',
         }
         const info = statusColorMap[status] || 'default'
         return <Badge status={info as any} text={NOVEL_STATUS_MAP[status] || status} />
@@ -417,8 +414,8 @@ const Novels: React.FC = () => {
         },
         {
           key: 'status',
-          label: record.status === 'ongoing' ? '暂停' : '恢复',
-          icon: record.status === 'ongoing' ? <StopOutlined /> : <CheckCircleOutlined />,
+          label: record.status === 'completed' ? '恢复连载' : '标记完结',
+          icon: record.status === 'completed' ? <CheckCircleOutlined /> : <StopOutlined />,
           onClick: () => handleToggleStatus(record),
         },
         {

@@ -18,8 +18,8 @@ const detailColumns: ColumnsType<RecordItem> = [
   },
   {
     title: '阅读进度',
-    dataIndex: 'current_chapter',
-    key: 'current_chapter',
+    dataIndex: 'last_chapter',
+    key: 'last_chapter',
     width: 100,
     render: (v: string) => v || '-',
   },
