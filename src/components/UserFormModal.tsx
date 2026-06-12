@@ -17,8 +17,8 @@ import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import { UploadOutlined, UserOutlined } from '@ant-design/icons'
 import type { User, UserFormData, UserRole, MemberLevel, UserStatus } from '../types/user'
-import { USER_ROLE_OPTIONS, MEMBER_LEVEL_OPTIONS, USER_STATUS_OPTIONS } from '../types/user'
 import { supabase } from '../utils/supabase'
+import { useDictOptions } from '../hooks/useDictOptions'
 
 interface UserFormModalProps {
   open: boolean
@@ -41,6 +41,11 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
   const [submitting, setSubmitting] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string>('')
   const [uploading, setUploading] = useState(false)
+
+  // 字典查询
+  const { options: roleOptions } = useDictOptions('user_role')
+  const { options: levelOptions } = useDictOptions('member_level')
+  const { options: statusOptions } = useDictOptions('user_status')
 
   // 初始化表单值
   useEffect(() => {
@@ -337,7 +342,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           label="角色"
           rules={[{ required: true, message: '请选择角色' }]}
         >
-          <Select options={USER_ROLE_OPTIONS} placeholder="请选择角色" />
+          <Select options={roleOptions} placeholder="请选择角色" />
         </Form.Item>
 
         <Form.Item
@@ -345,7 +350,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           label="会员等级"
           rules={[{ required: true, message: '请选择会员等级' }]}
         >
-          <Select options={MEMBER_LEVEL_OPTIONS} placeholder="请选择会员等级" />
+          <Select options={levelOptions} placeholder="请选择会员等级" />
         </Form.Item>
 
         <Form.Item
@@ -353,7 +358,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           label="状态"
           rules={[{ required: true, message: '请选择状态' }]}
         >
-          <Select options={USER_STATUS_OPTIONS} placeholder="请选择状态" />
+          <Select options={statusOptions} placeholder="请选择状态" />
         </Form.Item>
 
         <Form.Item

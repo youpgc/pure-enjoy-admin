@@ -28,15 +28,8 @@ import {
   GlobalOutlined,
 } from '@ant-design/icons'
 import type { User, UserStats, OperationLog } from '../types/user'
-import {
-  USER_ROLE_LABELS,
-  USER_ROLE_COLORS,
-  MEMBER_LEVEL_LABELS,
-  MEMBER_LEVEL_COLORS,
-  USER_STATUS_LABELS,
-  USER_STATUS_COLORS,
-} from '../types/user'
 import dayjs from 'dayjs'
+import { useDictOptions } from '../hooks/useDictOptions'
 
 const { Text, Title } = Typography
 
@@ -57,6 +50,11 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
   loading = false,
   onClose,
 }) => {
+  // 字典查询
+  const { options: roleOptions, colors: roleColors } = useDictOptions('user_role')
+  const { options: levelOptions, colors: levelColors } = useDictOptions('member_level')
+  const { options: statusOptions, colors: statusColors } = useDictOptions('user_status')
+
   if (!user) return null
 
   return (
@@ -84,14 +82,14 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
 
         {/* 状态标签 */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Tag color={USER_ROLE_COLORS[user.role]} style={{ marginRight: 8 }}>
-            {USER_ROLE_LABELS[user.role]}
+          <Tag color={roleColors[user.role] || 'default'} style={{ marginRight: 8 }}>
+            {roleOptions.find(opt => opt.value === user.role)?.label || user.role}
           </Tag>
-          <Tag color={MEMBER_LEVEL_COLORS[user.member_level]} style={{ marginRight: 8 }}>
-            {MEMBER_LEVEL_LABELS[user.member_level]}
+          <Tag color={levelColors[user.member_level] || 'default'} style={{ marginRight: 8 }}>
+            {levelOptions.find(opt => opt.value === user.member_level)?.label || user.member_level}
           </Tag>
-          <Tag color={USER_STATUS_COLORS[user.status]}>
-            {USER_STATUS_LABELS[user.status]}
+          <Tag color={statusColors[user.status] || 'default'}>
+            {statusOptions.find(opt => opt.value === user.status)?.label || user.status}
           </Tag>
         </div>
 

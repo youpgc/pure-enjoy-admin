@@ -327,6 +327,7 @@ const PointsManagement: React.FC = () => {
   // 字典查询
   const { options: roleOptions } = useDictOptions('user_role', [])
   const { getColor: getRoleColor } = useDictColors('user_role')
+  const { options: memberLevelOptions } = useDictOptions('member_level', [])
 
   // 弹窗状态
   const [recordsModalOpen, setRecordsModalOpen] = useState(false)
@@ -414,7 +415,7 @@ const PointsManagement: React.FC = () => {
       key: 'member_level',
       width: 90,
       render: (level: string) => {
-        const dictOption = roleOptions.find(opt => opt.value === level)
+        const dictOption = memberLevelOptions.find(opt => opt.value === level)
         const levelMap: Record<string, string> = {
           normal: '普通会员',
           member: '会员',

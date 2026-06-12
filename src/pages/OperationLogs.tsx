@@ -7,6 +7,7 @@ import { usePermission } from '../hooks/usePermission'
 import { usePagination } from '../hooks/usePagination'
 import { exportToCSV } from '../utils/export'
 import { supabase } from '../utils/supabase'
+import { useDictOptions } from '../hooks/useDictOptions'
 
 // 操作日志数据类型（与 operation_logs 表字段对应）
 interface OperationLogItem {
@@ -22,53 +23,7 @@ interface OperationLogItem {
 
 const { RangePicker } = DatePicker
 
-const MODULE_OPTIONS = [
-  { label: '用户管理', value: '用户管理' },
-  { label: '消费记录', value: '消费记录' },
-  { label: '心情日记', value: '心情日记' },
-  { label: '体重记录', value: '体重记录' },
-  { label: '笔记', value: '笔记' },
-  { label: '小说', value: '小说' },
-  { label: '版本管理', value: '版本管理' },
-  { label: '系统', value: '系统' },
-]
 
-const ACTION_OPTIONS = [
-  { label: '创建', value: '创建' },
-  { label: '更新', value: '更新' },
-  { label: '删除', value: '删除' },
-  { label: '查看', value: '查看' },
-  { label: '导出', value: '导出' },
-  { label: '登录', value: '登录' },
-  { label: '登出', value: '登出' },
-  { label: '修改密码', value: '修改密码' },
-  { label: '修改状态', value: '修改状态' },
-  { label: '上传', value: '上传' },
-]
-
-const MODULE_COLOR_MAP: Record<string, string> = {
-  '用户管理': 'blue',
-  '消费记录': 'orange',
-  '心情日记': 'green',
-  '体重记录': 'cyan',
-  '笔记': 'purple',
-  '小说': 'geekblue',
-  '版本管理': 'magenta',
-  '系统': 'default',
-}
-
-const ACTION_COLOR_MAP: Record<string, string> = {
-  '创建': 'green',
-  '更新': 'blue',
-  '删除': 'red',
-  '查看': 'default',
-  '导出': 'purple',
-  '登录': 'cyan',
-  '登出': 'default',
-  '修改密码': 'orange',
-  '修改状态': 'blue',
-  '上传': 'geekblue',
-}
 
 
 
@@ -83,6 +38,10 @@ const OperationLogs: React.FC = () => {
   const [filterAction, setFilterAction] = useState<string | undefined>(undefined)
   const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const { currentPage, pageSize, paginate, resetPage, setCurrentPage, setPageSize } = usePagination()
+
+  // 字典查询
+  const { options: moduleOptions, colors: moduleColors } = useDictOptions('operation_module')
+  const { options: actionOptions, colors: actionColors } = useDictOptions('operation_action')
 
   // 日志清理功能
   const [cleanModalOpen, setCleanModalOpen] = useState(false)
@@ -251,7 +210,7 @@ const OperationLogs: React.FC = () => {
       key: 'action',
       width: 100,
       render: (action: string) => (
-        <Tag color={ACTION_COLOR_MAP[action] || 'default'}>{action}</Tag>
+        <Tag color={actionColors[action] || 'default'}>{actionOptions.find(opt => opt.value === action)?.label || action}</Tag>
       ),
     },
     {
@@ -260,7 +219,7 @@ const OperationLogs: React.FC = () => {
       key: 'module',
       width: 100,
       render: (module: string) => (
-        <Tag color={MODULE_COLOR_MAP[module] || 'default'}>{module}</Tag>
+        <Tag color={moduleColors[module] || 'default'}>{moduleOptions.find(opt => opt.value === module)?.label || module}</Tag>
       ),
     },
     {
@@ -322,7 +281,7 @@ const OperationLogs: React.FC = () => {
             placeholder="操作类型"
             value={filterAction}
             onChange={val => { setFilterAction(val); setCurrentPage(1) }}
-            options={ACTION_OPTIONS}
+            options={actionOptions}
             style={{ width: 140 }}
             allowClear
           />
@@ -330,7 +289,7 @@ const OperationLogs: React.FC = () => {
             placeholder="模块"
             value={filterModule}
             onChange={val => { setFilterModule(val); setCurrentPage(1) }}
-            options={MODULE_OPTIONS}
+            options={moduleOptions}
             style={{ width: 140 }}
             allowClear
           />

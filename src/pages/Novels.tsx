@@ -32,6 +32,7 @@ import { supabase, handleSupabaseError } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import NoPermission from '../components/NoPermission'
+import { useDictOptions } from '../hooks/useDictOptions'
 
 const { Title } = Typography
 
@@ -62,45 +63,6 @@ interface NovelRecord {
 
 // ==================== 常量定义 ====================
 
-const STATUS_COLORS: Record<string, string> = {
-  '连载': 'processing',
-  '完结': 'success',
-}
-
-// 本地状态选项（中文值，与 fetchNovels 映射后的 status 一致）
-const NOVEL_STATUS_FILTER_OPTIONS = [
-  { label: '连载中', value: '连载' },
-  { label: '已完结', value: '完结' },
-]
-
-// 小说分类选项
-const NOVEL_CATEGORY_OPTIONS = [
-  { label: '玄幻', value: '玄幻' },
-  { label: '仙侠', value: '仙侠' },
-  { label: '都市', value: '都市' },
-  { label: '历史', value: '历史' },
-  { label: '武侠', value: '武侠' },
-  { label: '科幻', value: '科幻' },
-  { label: '游戏', value: '游戏' },
-  { label: '悬疑', value: '悬疑' },
-  { label: '灵异', value: '灵异' },
-  { label: '言情', value: '言情' },
-]
-
-// 分类颜色映射
-const CATEGORY_COLORS: Record<string, string> = {
-  '玄幻': 'volcano',
-  '仙侠': 'purple',
-  '都市': 'blue',
-  '历史': 'gold',
-  '武侠': 'red',
-  '科幻': 'cyan',
-  '游戏': 'geekblue',
-  '悬疑': 'magenta',
-  '灵异': 'dark',
-  '言情': 'pink',
-}
-
 // 格式化字数显示
 const formatWordCount = (num: number): string => {
   if (num >= 10000) {
@@ -118,6 +80,10 @@ const Novels: React.FC = () => {
     canDeleteNovels,
     canExportNovels,
   } = usePermission()
+
+  // 字典查询
+  const { options: categoryOptions, colors: categoryColors } = useDictOptions('novel_category')
+  const { options: statusOptions, colors: statusColors } = useDictOptions('novel_status')
 
   // 状态
   const [data, setData] = useState<NovelRecord[]>([])
@@ -217,14 +183,14 @@ const Novels: React.FC = () => {
       name: 'category',
       label: '分类',
       type: 'select',
-      options: NOVEL_CATEGORY_OPTIONS,
+      options: categoryOptions,
       placeholder: '选择分类',
     },
     {
       name: 'status',
       label: '状态',
       type: 'select',
-      options: NOVEL_STATUS_FILTER_OPTIONS,
+      options: statusOptions,
       placeholder: '选择状态',
     },
     // is_published 筛选已移除
@@ -251,7 +217,7 @@ const Novels: React.FC = () => {
       name: 'category',
       label: '分类',
       type: 'select',
-      options: NOVEL_CATEGORY_OPTIONS,
+      options: categoryOptions,
       placeholder: '选择分类',
     },
     {
@@ -271,10 +237,7 @@ const Novels: React.FC = () => {
       name: 'status',
       label: '状态',
       type: 'select',
-      options: [
-        { label: '连载', value: '连载' },
-        { label: '完结', value: '完结' },
-      ],
+      options: statusOptions,
       placeholder: '选择状态',
       defaultValue: '连载',
     },
@@ -627,11 +590,11 @@ const Novels: React.FC = () => {
       dataIndex: 'category',
       key: 'category',
       width: 80,
-      filters: NOVEL_CATEGORY_OPTIONS.map((opt) => ({ text: opt.label, value: opt.value })),
+      filters: categoryOptions.map((opt) => ({ text: opt.label, value: opt.value })),
       onFilter: (value, record) => record.category === value,
       render: (category: string) => (
         category ? (
-          <Tag color={CATEGORY_COLORS[category] || 'default'}>{category}</Tag>
+          <Tag color={categoryColors[category] || 'default'}>{categoryOptions.find(opt => opt.value === category)?.label || category}</Tag>
         ) : '-'
       ),
     },
@@ -663,11 +626,11 @@ const Novels: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 80,
-      filters: NOVEL_STATUS_FILTER_OPTIONS.map((opt) => ({ text: opt.label, value: opt.value })),
+      filters: statusOptions.map((opt) => ({ text: opt.label, value: opt.value })),
       onFilter: (value, record) => record.status === value,
       render: (status: string) => (
-        <Tag color={STATUS_COLORS[status] || 'default'}>
-          {status || '连载'}
+        <Tag color={statusColors[status] || 'default'}>
+          {statusOptions.find(opt => opt.value === status)?.label || status || '连载'}
         </Tag>
       ),
     },
