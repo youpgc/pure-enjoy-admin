@@ -6,14 +6,12 @@ import {
   Statistic,
   Table,
   Tag,
-  Progress,
   Button,
   Empty,
-  Badge,
-  Tooltip,
   Tabs,
   Typography,
   Space,
+  Alert,
 } from 'antd'
 import {
   DatabaseOutlined,
@@ -23,14 +21,14 @@ import {
   ExclamationCircleOutlined,
   ClockCircleOutlined,
   WarningOutlined,
+  LockOutlined,
 } from '@ant-design/icons'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
-import { apiQuery, handleApiError } from '../utils/apiClient'
+import { handleApiError } from '../utils/apiClient'
 
-const { Text } = Typography
-const { TabPane } = Tabs
+const { Text, Title } = Typography
 
 // ==================== 类型定义 ====================
 
@@ -46,61 +44,56 @@ interface SystemMetric {
 interface TableInfo {
   name: string
   row_count: number
-  size_bytes: number
-  last_vacuum: string | null
-  last_analyze: string | null
-}
-
-interface ConnectionInfo {
-  pid: number
-  usename: string
-  application_name: string
-  client_addr: string
-  state: string
-  query_start: string | null
-  state_change: string | null
-  query: string | null
-}
-
-interface SlowQuery {
-  query: string
-  calls: number
-  total_time: number
-  mean_time: number
-  max_time: number
 }
 
 interface SystemStatus {
   database: 'connected' | 'disconnected' | 'error'
-  storage: 'healthy' | 'warning' | 'critical'
+  storage: 'healthy' | 'warning' | 'error'
   auth: 'healthy' | 'warning' | 'error'
   realtime: 'healthy' | 'warning' | 'error'
 }
 
-// ==================== 组件 ====================
+// ==================== 已知表名列表 ====================
+
+const KNOWN_TABLES = [
+  'users', 'admin_users', 'app_versions', 'app_configs', 'novels', 'novel_chapters', 'user_novels',
+  'mood_diaries', 'expenses', 'weight_records', 'notes', 'reminders', 'habits', 'user_favorites',
+  'user_anniversaries', 'user_feedback', 'feedback_flow_records', 'notifications', 'operation_logs',
+  'error_logs', 'point_records', 'sensitive_words', 'sensitive_word_logs', 'dict_items', 'dict_types',
+  'system_configs', 'announcements',
+]
+
+// ==================== 不可用提示组件 ====================
+
+const DirectAccessRequired: React.FC<{ description?: string }> = ({ description }) => (
+  <div style={{ padding: '40px 0', textAlign: 'center' }}>
+    <LockOutlined style={{ fontSize: 48, color: '#bfbfbf', marginBottom: 16 }} />
+    <Title level={5} type="secondary">此功能需要数据库直接访问权限</Title>
+    <Text type="secondary">
+      {description || 'Supabase REST API 无法获取此信息，请通过数据库直连或 Supabase Dashboard 查看。'}
+    </Text>
+  </div>
+)
+
+// ==================== 主组件 ====================
 
 const SystemMonitor: React.FC = () => {
   const [loading, setLoading] = useState(false)
+  const [tableStatsLoading, setTableStatsLoading] = useState(false)
   const [metrics, setMetrics] = useState<SystemMetric[]>([])
   const [tables, setTables] = useState<TableInfo[]>([])
-  const [connections, setConnections] = useState<ConnectionInfo[]>([])
-  const [slowQueries, setSlowQueries] = useState<SlowQuery[]>([])
   const [status, setStatus] = useState<SystemStatus>({
-    database: 'connected',
+    database: 'disconnected',
     storage: 'healthy',
     auth: 'healthy',
     realtime: 'healthy',
   })
-  const [dbSize, setDbSize] = useState(0)
-  const [activeConnections, setActiveConnections] = useState(0)
-  const [maxConnections, setMaxConnections] = useState(100)
-  const [uptime, setUptime] = useState(0)
+
   const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // 获取系统指标
-  const fetchMetrics = useCallback(async () => {
+  // 获取模拟系统指标
+  const fetchMetrics = useCallback(() => {
     try {
-      // 模拟获取系统指标数据（实际项目中可能需要后端API支持）
       const now = dayjs()
       const newMetrics: SystemMetric[] = []
       for (let i = 29; i >= 0; i--) {
@@ -120,83 +113,48 @@ const SystemMonitor: React.FC = () => {
     }
   }, [])
 
-  // 获取表信息
-  const fetchTableInfo = useCallback(async () => {
+  // 通过 REST API 并行查询所有表的行数
+  const fetchTableStats = useCallback(async () => {
+    setTableStatsLoading(true)
     try {
-      const result = await apiQuery(
-        () => supabase.rpc('get_table_stats'),
-        'SystemMonitor-表统计'
+      const results = await Promise.all(
+        KNOWN_TABLES.map(async (tableName): Promise<TableInfo> => {
+          try {
+            const { count, error } = await supabase
+              .from(tableName)
+              .select('*', { count: 'exact', head: true })
+            if (error) {
+              console.warn(`[SystemMonitor] 查询表 ${tableName} 行数失败:`, error.message)
+              return { name: tableName, row_count: 0 }
+            }
+            return { name: tableName, row_count: count ?? 0 }
+          } catch {
+            return { name: tableName, row_count: 0 }
+          }
+        })
       )
-      if (result.success) {
-        setTables((result.data as any) || [])
-      }
+      setTables(results)
     } catch (error) {
-      handleApiError(error, 'SystemMonitor-表信息')
+      handleApiError(error, 'SystemMonitor-表统计')
+    } finally {
+      setTableStatsLoading(false)
     }
   }, [])
 
-  // 获取连接信息
-  const fetchConnections = useCallback(async () => {
-    try {
-      const result = await apiQuery(
-        () => supabase.rpc('get_connections'),
-        'SystemMonitor-连接信息'
-      )
-      if (result.success) {
-        setConnections((result.data as any) || [])
-      }
-    } catch (error) {
-      handleApiError(error, 'SystemMonitor-连接信息')
-    }
-  }, [])
-
-  // 获取慢查询
-  const fetchSlowQueries = useCallback(async () => {
-    try {
-      const result = await apiQuery(
-        () => supabase.rpc('get_slow_queries'),
-        'SystemMonitor-慢查询'
-      )
-      if (result.success) {
-        setSlowQueries((result.data as any) || [])
-      }
-    } catch (error) {
-      handleApiError(error, 'SystemMonitor-慢查询')
-    }
-  }, [])
-
-  // 获取数据库状态
+  // 获取数据库健康状态
   const fetchDatabaseStatus = useCallback(async () => {
     try {
-      const [sizeResult, connResult, uptimeResult] = await Promise.all([
-        apiQuery(() => supabase.rpc('get_database_size'), 'SystemMonitor-数据库大小'),
-        apiQuery(() => supabase.rpc('get_active_connections'), 'SystemMonitor-活跃连接'),
-        apiQuery(() => supabase.rpc('get_uptime'), 'SystemMonitor-运行时间'),
-      ])
+      // 健康检查：查询 users 表
+      const { error } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true })
 
-      if (sizeResult.success) {
-        setDbSize((sizeResult.data as any) || 0)
-      }
-      if (connResult.success) {
-        const connData = connResult.data as any
-        setActiveConnections(connData?.active || 0)
-        setMaxConnections(connData?.max || 100)
-      }
-      if (uptimeResult.success) {
-        setUptime((uptimeResult.data as any) || 0)
-      }
-
-      // 检查数据库连接状态
-      const healthResult = await apiQuery(
-        () => supabase.from('users').select('id', { count: 'exact', head: true }),
-        'SystemMonitor-健康检查'
-      )
       setStatus(prev => ({
         ...prev,
-        database: healthResult.success ? 'connected' : 'error',
+        database: error ? 'error' : 'connected',
       }))
     } catch (error) {
-      handleApiError(error, 'SystemMonitor-数据库状态')
+      handleApiError(error, 'SystemMonitor-健康检查')
       setStatus(prev => ({ ...prev, database: 'error' }))
     }
   }, [])
@@ -206,15 +164,13 @@ const SystemMonitor: React.FC = () => {
     setLoading(true)
     await Promise.all([
       fetchMetrics(),
-      fetchTableInfo(),
-      fetchConnections(),
-      fetchSlowQueries(),
+      fetchTableStats(),
       fetchDatabaseStatus(),
     ])
     setLoading(false)
-  }, [fetchMetrics, fetchTableInfo, fetchConnections, fetchSlowQueries, fetchDatabaseStatus])
+  }, [fetchMetrics, fetchTableStats, fetchDatabaseStatus])
 
-  // 自动刷新
+  // 自动刷新（仅刷新指标和健康检查，不频繁刷新表统计）
   useEffect(() => {
     loadAllData()
     autoRefreshRef.current = setInterval(() => {
@@ -228,23 +184,6 @@ const SystemMonitor: React.FC = () => {
     }
   }, [loadAllData, fetchDatabaseStatus, fetchMetrics])
 
-  // 格式化字节大小
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
-  // 格式化运行时间
-  const formatUptime = (seconds: number) => {
-    const days = Math.floor(seconds / 86400)
-    const hours = Math.floor((seconds % 86400) / 3600)
-    const minutes = Math.floor((seconds % 3600) / 60)
-    return `${days}天 ${hours}小时 ${minutes}分钟`
-  }
-
   // 表格列定义
   const tableColumns = [
     {
@@ -257,105 +196,14 @@ const SystemMonitor: React.FC = () => {
       title: '行数',
       dataIndex: 'row_count',
       key: 'row_count',
-      render: (count: number) => count?.toLocaleString() || 0,
-    },
-    {
-      title: '大小',
-      dataIndex: 'size_bytes',
-      key: 'size_bytes',
-      render: (size: number) => formatBytes(size),
-    },
-    {
-      title: '最后清理',
-      dataIndex: 'last_vacuum',
-      key: 'last_vacuum',
-      render: (date: string | null) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
+      sorter: (a: TableInfo, b: TableInfo) => a.row_count - b.row_count,
+      defaultSortOrder: 'descend' as const,
+      render: (count: number) => count?.toLocaleString() ?? '0',
     },
   ]
 
-  const connectionColumns = [
-    {
-      title: 'PID',
-      dataIndex: 'pid',
-      key: 'pid',
-      width: 80,
-    },
-    {
-      title: '用户',
-      dataIndex: 'usename',
-      key: 'usename',
-    },
-    {
-      title: '应用',
-      dataIndex: 'application_name',
-      key: 'application_name',
-    },
-    {
-      title: '状态',
-      dataIndex: 'state',
-      key: 'state',
-      render: (state: string) => (
-        <Badge
-          status={state === 'active' ? 'processing' : state === 'idle' ? 'success' : 'default'}
-          text={state}
-        />
-      ),
-    },
-    {
-      title: '查询开始',
-      dataIndex: 'query_start',
-      key: 'query_start',
-      render: (date: string | null) => date ? dayjs(date).format('HH:mm:ss') : '-',
-    },
-  ]
-
-  const slowQueryColumns = [
-    {
-      title: '查询',
-      dataIndex: 'query',
-      key: 'query',
-      ellipsis: true,
-      render: (query: string) => (
-        <Tooltip title={query}>
-          <span>{query.substring(0, 100)}...</span>
-        </Tooltip>
-      ),
-    },
-    {
-      title: '调用次数',
-      dataIndex: 'calls',
-      key: 'calls',
-      width: 100,
-    },
-    {
-      title: '总时间(ms)',
-      dataIndex: 'total_time',
-      key: 'total_time',
-      width: 120,
-      render: (time: number) => time?.toFixed(2),
-    },
-    {
-      title: '平均时间(ms)',
-      dataIndex: 'mean_time',
-      key: 'mean_time',
-      width: 130,
-      render: (time: number) => time?.toFixed(2),
-    },
-    {
-      title: '最大时间(ms)',
-      dataIndex: 'max_time',
-      key: 'max_time',
-      width: 130,
-      render: (time: number) => (
-        <Tag color={time > 1000 ? 'red' : time > 100 ? 'orange' : 'green'}>
-          {time?.toFixed(2)}
-        </Tag>
-      ),
-    },
-  ]
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
+  const getStatusIcon = (s: string) => {
+    switch (s) {
       case 'connected':
       case 'healthy':
         return <CheckCircleOutlined style={{ color: '#52c41a' }} />
@@ -369,8 +217,8 @@ const SystemMonitor: React.FC = () => {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (s: string) => {
+    switch (s) {
       case 'connected':
       case 'healthy':
         return 'green'
@@ -383,6 +231,54 @@ const SystemMonitor: React.FC = () => {
         return 'default'
     }
   }
+
+  const getStatusText = (s: string) => {
+    switch (s) {
+      case 'connected':
+      case 'healthy':
+        return '正常'
+      case 'warning':
+        return '警告'
+      case 'error':
+        return '异常'
+      case 'disconnected':
+        return '未连接'
+      default:
+        return s
+    }
+  }
+
+  // Tabs items（Ant Design 5.x 推荐写法）
+  const tabItems = [
+    {
+      key: 'tables',
+      label: '表统计',
+      children: (
+        <Table
+          dataSource={tables}
+          columns={tableColumns}
+          rowKey="name"
+          loading={tableStatsLoading}
+          pagination={{ pageSize: 10 }}
+          size="middle"
+        />
+      ),
+    },
+    {
+      key: 'connections',
+      label: '连接信息',
+      children: (
+        <DirectAccessRequired description="连接信息需要通过 pg_stat_activity 系统视图查询，REST API 无法访问。" />
+      ),
+    },
+    {
+      key: 'slow-queries',
+      label: '慢查询',
+      children: (
+        <DirectAccessRequired description="慢查询统计需要通过 pg_stat_statements 扩展查询，REST API 无法访问。" />
+      ),
+    },
+  ]
 
   return (
     <div style={{ padding: 24 }}>
@@ -399,7 +295,7 @@ const SystemMonitor: React.FC = () => {
           <Card>
             <Statistic
               title="数据库状态"
-              value={status.database === 'connected' ? '正常' : '异常'}
+              value={getStatusText(status.database)}
               prefix={getStatusIcon(status.database)}
               valueStyle={{ color: status.database === 'connected' ? '#52c41a' : '#ff4d4f' }}
             />
@@ -409,8 +305,9 @@ const SystemMonitor: React.FC = () => {
           <Card>
             <Statistic
               title="数据库大小"
-              value={formatBytes(dbSize)}
+              value="需要直接访问"
               prefix={<DatabaseOutlined />}
+              valueStyle={{ fontSize: 16, color: '#8c8c8c' }}
             />
           </Card>
         </Col>
@@ -418,13 +315,9 @@ const SystemMonitor: React.FC = () => {
           <Card>
             <Statistic
               title="活跃连接"
-              value={`${activeConnections} / ${maxConnections}`}
+              value="需要直接访问"
               prefix={<CloudServerOutlined />}
-            />
-            <Progress
-              percent={Math.round((activeConnections / maxConnections) * 100)}
-              size="small"
-              status={activeConnections / maxConnections > 0.8 ? 'exception' : 'normal'}
+              valueStyle={{ fontSize: 16, color: '#8c8c8c' }}
             />
           </Card>
         </Col>
@@ -432,8 +325,9 @@ const SystemMonitor: React.FC = () => {
           <Card>
             <Statistic
               title="运行时间"
-              value={formatUptime(uptime)}
+              value="需要直接访问"
               prefix={<ClockCircleOutlined />}
+              valueStyle={{ fontSize: 16, color: '#8c8c8c' }}
             />
           </Card>
         </Col>
@@ -442,47 +336,58 @@ const SystemMonitor: React.FC = () => {
       {/* 服务状态 */}
       <Card style={{ marginBottom: 16 }}>
         <Row gutter={16}>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Space>
               {getStatusIcon(status.database)}
               <Text>数据库</Text>
               <Tag color={getStatusColor(status.database)}>
-                {status.database === 'connected' ? '正常' : status.database}
+                {getStatusText(status.database)}
               </Tag>
             </Space>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Space>
               {getStatusIcon(status.storage)}
               <Text>存储</Text>
               <Tag color={getStatusColor(status.storage)}>
-                {status.storage === 'healthy' ? '正常' : status.storage}
+                {getStatusText(status.storage)}
               </Tag>
             </Space>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Space>
               {getStatusIcon(status.auth)}
               <Text>认证</Text>
               <Tag color={getStatusColor(status.auth)}>
-                {status.auth === 'healthy' ? '正常' : status.auth}
+                {getStatusText(status.auth)}
               </Tag>
             </Space>
           </Col>
-          <Col span={6}>
+          <Col xs={12} sm={6}>
             <Space>
               {getStatusIcon(status.realtime)}
               <Text>实时</Text>
               <Tag color={getStatusColor(status.realtime)}>
-                {status.realtime === 'healthy' ? '正常' : status.realtime}
+                {getStatusText(status.realtime)}
               </Tag>
             </Space>
           </Col>
         </Row>
       </Card>
 
-      {/* 性能指标图表 */}
-      <Card title="性能指标（最近30分钟）" style={{ marginBottom: 16 }}>
+      {/* 性能指标图表（模拟数据） */}
+      <Card
+        title="性能指标（最近30分钟）"
+        style={{ marginBottom: 16 }}
+      >
+        <Alert
+          message="模拟数据，仅供参考"
+          description="CPU、内存、磁盘等系统指标无法通过 Supabase REST API 获取，以下数据为模拟生成。"
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          closable
+        />
         {metrics.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={metrics}>
@@ -490,7 +395,6 @@ const SystemMonitor: React.FC = () => {
               <XAxis dataKey="timestamp" />
               <YAxis />
               <RechartsTooltip />
-              <Legend />
               <Area type="monotone" dataKey="cpu_usage" name="CPU使用率(%)" stroke="#1890ff" fill="#1890ff" fillOpacity={0.3} />
               <Area type="monotone" dataKey="memory_usage" name="内存使用率(%)" stroke="#52c41a" fill="#52c41a" fillOpacity={0.3} />
               <Area type="monotone" dataKey="disk_usage" name="磁盘使用率(%)" stroke="#faad14" fill="#faad14" fillOpacity={0.3} />
@@ -503,35 +407,7 @@ const SystemMonitor: React.FC = () => {
 
       {/* 详细标签页 */}
       <Card>
-        <Tabs defaultActiveKey="tables">
-          <TabPane tab="表统计" key="tables">
-            <Table
-              dataSource={tables}
-              columns={tableColumns}
-              rowKey="name"
-              loading={loading}
-              pagination={{ pageSize: 10 }}
-            />
-          </TabPane>
-          <TabPane tab="连接信息" key="connections">
-            <Table
-              dataSource={connections}
-              columns={connectionColumns}
-              rowKey="pid"
-              loading={loading}
-              pagination={{ pageSize: 10 }}
-            />
-          </TabPane>
-          <TabPane tab="慢查询" key="slow-queries">
-            <Table
-              dataSource={slowQueries}
-              columns={slowQueryColumns}
-              rowKey="query"
-              loading={loading}
-              pagination={{ pageSize: 10 }}
-            />
-          </TabPane>
-        </Tabs>
+        <Tabs defaultActiveKey="tables" items={tabItems} />
       </Card>
     </div>
   )
