@@ -25,6 +25,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
 const { Text } = Typography
 
@@ -82,6 +83,7 @@ const DictManagement: React.FC = () => {
   const [dictItems, setDictItems] = useState<DictItem[]>([])
   const [itemLoading, setItemLoading] = useState(false)
   const [itemSearchKeyword, setItemSearchKeyword] = useState('')
+  const { pagination: itemPagination, resetPage: resetItemPage, setTotal: setItemTotal, tablePagination: itemTablePagination } = usePagination()
 
   // 字典项弹窗状态
   const [itemModalVisible, setItemModalVisible] = useState(false)
@@ -139,12 +141,10 @@ const DictManagement: React.FC = () => {
     }
     setItemLoading(true)
     try {
-      const result = await itemService.findAll((q) => {
-        let filtered = q
+      const result = await itemService.paginate(itemPagination.current, itemPagination.pageSize, (q) => {
+        let filtered = q.eq('type_id', selectedTypeId)
         if (itemSearchKeyword) {
-          filtered = filtered.or(`type_id.eq.${selectedTypeId},code.ilike.%${itemSearchKeyword}%,label.ilike.%${itemSearchKeyword}%`)
-        } else {
-          filtered = filtered.eq('type_id', selectedTypeId)
+          filtered = filtered.or(`code.ilike.%${itemSearchKeyword}%,label.ilike.%${itemSearchKeyword}%`)
         }
         return filtered
       })
@@ -152,13 +152,14 @@ const DictManagement: React.FC = () => {
         handleApiError(result.errorMessage, 'DictManagement-加载字典项')
         return
       }
-      setDictItems(result.data || [])
+      setDictItems(result.data?.data || [])
+      setItemTotal(result.data?.total || 0)
     } catch (error) {
       handleApiError(error, 'DictManagement-加载字典项')
     } finally {
       setItemLoading(false)
     }
-  }, [selectedTypeId, itemSearchKeyword])
+  }, [selectedTypeId, itemSearchKeyword, itemPagination.current, itemPagination.pageSize, itemService, setItemTotal])
 
   useEffect(() => {
     loadDictTypes()
@@ -175,6 +176,7 @@ const DictManagement: React.FC = () => {
 
   // 字典项搜索
   const handleItemSearch = () => {
+    resetItemPage()
     loadDictItems()
   }
 
@@ -182,6 +184,7 @@ const DictManagement: React.FC = () => {
   const handleSelectType = (record: DictType) => {
     setSelectedTypeId(record.id)
     setItemSearchKeyword('')
+    resetItemPage()
   }
 
   // 打开新增类型弹窗
@@ -332,6 +335,7 @@ const DictManagement: React.FC = () => {
       setItemModalVisible(false)
       setEditingItem(null)
       itemForm.resetFields()
+      resetItemPage()
       loadDictItems()
     } catch (error) {
       handleApiError(error, 'DictManagement-保存字典项')
@@ -577,12 +581,7 @@ const DictManagement: React.FC = () => {
           dataSource={dictItems}
           rowKey="id"
           loading={itemLoading}
-          pagination={{
-            pageSize: 20,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 条`,
-          }}
+          pagination={itemTablePagination}
           scroll={{ x: 'max-content' }}
           locale={{
             emptyText: selectedTypeId
