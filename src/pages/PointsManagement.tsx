@@ -11,8 +11,6 @@ import {
   Form,
   Select,
   Popconfirm,
-  Tooltip,
-  Badge,
   Typography,
   Row,
   Col,
@@ -25,7 +23,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  GiftOutlined,
   ArrowUpOutlined,
   ArrowDownOutlined,
   HistoryOutlined,
@@ -35,7 +32,7 @@ import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
@@ -70,7 +67,7 @@ const PointsManagement: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [modalVisible, setModalVisible] = useState(false)
   const [form] = Form.useForm()
-  const { isAdmin } = usePermission()
+  const { isAdmin: _isAdmin } = usePermission()
 
   const pointsService = new BaseService<PointsRecord>('points_records', { defaultOrder: { column: 'created_at', ascending: false } })
 

@@ -7,15 +7,11 @@ import {
   Tag,
   Card,
   message,
-  Modal,
-  Form,
   Select,
   DatePicker,
-  Tooltip,
   Avatar,
   Switch,
   Popconfirm,
-  Badge,
   Typography,
   Row,
   Col,
@@ -28,10 +24,6 @@ import {
   EditOutlined,
   DeleteOutlined,
   UserOutlined,
-  MailOutlined,
-  PhoneOutlined,
-  CrownOutlined,
-  StopOutlined,
   CheckCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -40,7 +32,7 @@ import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import UserFormModal from '../components/UserFormModal'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 import type { User } from '../types/user'
 
 const { Text } = Typography
@@ -72,8 +64,7 @@ const Users: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [modalVisible, setModalVisible] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [form] = Form.useForm()
-  const { isAdmin } = usePermission()
+  const { isAdmin: _isAdmin } = usePermission()
 
   const userService = new BaseService<User>('users', { defaultOrder: { column: 'created_at', ascending: false } })
 

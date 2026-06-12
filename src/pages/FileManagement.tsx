@@ -10,13 +10,11 @@ import {
   Modal,
   Upload,
   Popconfirm,
-  Tooltip,
   Select,
   Typography,
   Row,
   Col,
   Statistic,
-  Progress,
 } from 'antd'
 import {
   SearchOutlined,
@@ -35,7 +33,7 @@ import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
-import { BaseService, apiQuery, apiExecute, handleApiError } from '../utils/apiClient'
+import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 const { Dragger } = Upload
@@ -70,8 +68,8 @@ const FileManagement: React.FC = () => {
   })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const { isAdmin } = usePermission()
+  const [_uploading, setUploading] = useState(false)
+  const { isAdmin: _isAdmin } = usePermission()
 
   const fileService = new BaseService<FileItem>('files', { defaultOrder: { column: 'created_at', ascending: false } })
 

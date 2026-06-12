@@ -10,7 +10,6 @@ import {
   Empty,
   Table,
   Tag,
-  message,
 } from 'antd'
 import {
   LineChart,
@@ -24,8 +23,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  BarChart,
-  Bar,
 } from 'recharts'
 import {
   UserOutlined,

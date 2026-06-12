@@ -11,7 +11,6 @@ import {
   Form,
   Select,
   Popconfirm,
-  Tooltip,
   Badge,
   Typography,
   Row,
@@ -35,7 +34,7 @@ import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
@@ -47,7 +46,7 @@ const VERSION_STATUS_MAP: Record<string, string> = {
   draft: '草稿',
 }
 
-const VERSION_STATUS_OPTIONS = Object.entries(VERSION_STATUS_MAP).map(([code, label]) => ({ label, value: code }))
+// VERSION_STATUS_OPTIONS is reserved for future use
 
 const RELEASE_TYPE_MAP: Record<string, string> = {
   feature: '功能更新',
@@ -103,7 +102,7 @@ const VersionManagement: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingVersion, setEditingVersion] = useState<AppVersion | null>(null)
   const [form] = Form.useForm()
-  const { isAdmin } = usePermission()
+  const { isAdmin: _isAdmin } = usePermission()
 
   const versionService = new BaseService<AppVersion>('app_versions', { defaultOrder: { column: 'created_at', ascending: false } })
 

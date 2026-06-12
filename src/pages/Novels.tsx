@@ -11,7 +11,6 @@ import {
   Form,
   Select,
   Popconfirm,
-  Tooltip,
   Switch,
   Badge,
   Typography,
@@ -37,7 +36,7 @@ import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import NovelChapterModal from '../components/NovelChapterModal'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
@@ -66,8 +65,8 @@ const NOVEL_CATEGORY_MAP: Record<string, string> = {
 }
 
 const NOVEL_CATEGORY_OPTIONS = Object.entries(NOVEL_CATEGORY_MAP)
-  .filter(([code, label], index, arr) => arr.findIndex(([, l]) => l === label) === index)
-  .map(([code, label]) => ({ label, value: code }))
+  .filter(([_code, label], index, arr) => arr.findIndex(([, l]) => l === label) === index)
+  .map(([_code, label]) => ({ label, value: _code }))
 
 const NOVEL_STATUS_MAP: Record<string, string> = {
   ongoing: '连载中',
@@ -127,7 +126,7 @@ const Novels: React.FC = () => {
   const [chapterModalOpen, setChapterModalOpen] = useState(false)
   const [selectedNovelId, setSelectedNovelId] = useState<string>('')
   const [form] = Form.useForm()
-  const { isAdmin } = usePermission()
+  const { isAdmin: _isAdmin } = usePermission()
 
   const novelService = new BaseService<Novel>('novels', { defaultOrder: { column: 'created_at', ascending: false } })
 

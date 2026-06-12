@@ -24,7 +24,7 @@ import {
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
-import { BaseService, handleApiError, apiQuery } from '../utils/apiClient'
+import { handleApiError, apiQuery } from '../utils/apiClient'
 
 // ==================== 类型定义 ====================
 interface UserTrendItem {

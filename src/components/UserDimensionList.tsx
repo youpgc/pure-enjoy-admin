@@ -8,7 +8,6 @@ import {
   Tag,
   Typography,
   Tooltip,
-  message,
   Empty,
   Descriptions,
   Divider,
@@ -16,9 +15,8 @@ import {
 import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
 import { EyeOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { supabase } from '../utils/supabase'
 import { getActionColumn } from './ActionColumn'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Title, Text } = Typography
 

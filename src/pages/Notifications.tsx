@@ -11,13 +11,11 @@ import {
   Form,
   Select,
   Popconfirm,
-  Tooltip,
   Badge,
   Typography,
   Row,
   Col,
   Statistic,
-  Switch,
 } from 'antd'
 import {
   SearchOutlined,
@@ -28,14 +26,13 @@ import {
   BellOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  SendOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
@@ -74,7 +71,7 @@ const Notifications: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingNotification, setEditingNotification] = useState<Notification | null>(null)
   const [form] = Form.useForm()
-  const { isAdmin } = usePermission()
+  const { isAdmin: _isAdmin } = usePermission()
 
   const notificationService = new BaseService<Notification>('notifications', { defaultOrder: { column: 'created_at', ascending: false } })
 

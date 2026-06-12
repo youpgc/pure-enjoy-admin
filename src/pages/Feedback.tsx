@@ -12,7 +12,6 @@ import {
   Select,
   Popconfirm,
   Tooltip,
-  Badge,
   Typography,
   Row,
   Col,
@@ -34,18 +33,13 @@ import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text, Paragraph } = Typography
 
 // ==================== 枚举映射 ====================
 
-const FEEDBACK_CATEGORY_MAP: Record<string, string> = {
-  bug: 'Bug反馈',
-  feature: '功能建议',
-  improvement: '体验优化',
-  other: '其他',
-}
+// FEEDBACK_CATEGORY_MAP is reserved for future use
 
 const FEEDBACK_STATUS_MAP: Record<string, string> = {
   pending: '待处理',
@@ -58,8 +52,8 @@ const FEEDBACK_STATUS_MAP: Record<string, string> = {
 }
 
 const FEEDBACK_STATUS_OPTIONS = Object.entries(FEEDBACK_STATUS_MAP)
-  .filter(([code, label], index, arr) => arr.findIndex(([, l]) => l === label) === index)
-  .map(([code, label]) => ({ label, value: code }))
+  .filter(([_code, label], index, arr) => arr.findIndex(([, l]) => l === label) === index)
+  .map(([_code, label]) => ({ label, value: _code }))
 
 // ==================== 类型定义 ====================
 
@@ -94,7 +88,7 @@ const Feedback: React.FC = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackItem | null>(null)
   const [replyForm] = Form.useForm()
-  const { isAdmin } = usePermission()
+  const { isAdmin: _isAdmin } = usePermission()
 
   const feedbackService = new BaseService<FeedbackItem>('user_feedback', { defaultOrder: { column: 'created_at', ascending: false } })
 

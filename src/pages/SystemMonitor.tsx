@@ -7,15 +7,11 @@ import {
   Table,
   Tag,
   Progress,
-  Timeline,
-  Alert,
   Button,
-  Spin,
   Empty,
   Badge,
   Tooltip,
   Tabs,
-  List,
   Typography,
   Space,
 } from 'antd'
@@ -26,10 +22,9 @@ import {
   CheckCircleOutlined,
   ExclamationCircleOutlined,
   ClockCircleOutlined,
-  FileTextOutlined,
   WarningOutlined,
 } from '@ant-design/icons'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { apiQuery, handleApiError } from '../utils/apiClient'

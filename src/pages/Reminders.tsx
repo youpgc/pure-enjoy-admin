@@ -10,7 +10,6 @@ import {
   Form,
   Popconfirm,
   DatePicker,
-  Select,
   Switch,
   Typography,
   Row,
@@ -44,7 +43,7 @@ const REPEAT_TYPE_MAP: Record<string, string> = {
   custom: '自定义',
 }
 
-const REPEAT_TYPE_OPTIONS = Object.entries(REPEAT_TYPE_MAP).map(([code, label]) => ({ label, value: code }))
+// REPEAT_TYPE_OPTIONS is reserved for future use
 
 // ==================== 类型定义 ====================
 

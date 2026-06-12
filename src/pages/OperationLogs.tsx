@@ -9,8 +9,6 @@ import {
   message,
   Select,
   DatePicker,
-  Tooltip,
-  Badge,
   Typography,
   Row,
   Col,
@@ -30,8 +28,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
-import { getActionColumn } from '../components/ActionColumn'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
@@ -70,7 +67,7 @@ const OperationLogs: React.FC = () => {
     dateRange: null,
   })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
-  const { isAdmin } = usePermission()
+  const { isAdmin: _isAdmin } = usePermission()
 
   const logService = new BaseService<OperationLog>('operation_logs', { defaultOrder: { column: 'created_at', ascending: false } })
 

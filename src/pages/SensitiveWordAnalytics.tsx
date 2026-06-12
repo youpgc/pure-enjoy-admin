@@ -20,7 +20,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -33,8 +32,7 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
-import { supabase } from '../utils/supabase'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker

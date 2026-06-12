@@ -7,12 +7,9 @@ import {
   Tag,
   Card,
   message,
-  Modal,
-  Form,
   Select,
   Popconfirm,
   Tooltip,
-  Badge,
   Typography,
   Row,
   Col,
@@ -21,8 +18,6 @@ import {
 import {
   SearchOutlined,
   ReloadOutlined,
-  PlusOutlined,
-  EditOutlined,
   DeleteOutlined,
   BookOutlined,
   HeartOutlined,
@@ -33,7 +28,7 @@ import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
@@ -68,10 +63,7 @@ const NovelBookshelves: React.FC = () => {
     isFavorite: undefined,
   })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
-  const [modalVisible, setModalVisible] = useState(false)
-  const [editingBookshelf, setEditingBookshelf] = useState<NovelBookshelf | null>(null)
-  const [form] = Form.useForm()
-  const { isAdmin } = usePermission()
+  const { isAdmin: _isAdmin } = usePermission()
 
   const bookshelfService = new BaseService<NovelBookshelf>('user_novels', { defaultOrder: { column: 'updated_at', ascending: false } })
 

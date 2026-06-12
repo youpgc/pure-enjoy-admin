@@ -11,8 +11,6 @@ import {
   Form,
   Select,
   Popconfirm,
-  Tooltip,
-  Badge,
   Typography,
   Row,
   Col,
@@ -27,14 +25,13 @@ import {
   DeleteOutlined,
   WarningOutlined,
   CheckCircleOutlined,
-  StopOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
@@ -82,7 +79,7 @@ const SensitiveWords: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingWord, setEditingWord] = useState<SensitiveWord | null>(null)
   const [form] = Form.useForm()
-  const { isAdmin } = usePermission()
+  const { isAdmin: _isAdmin } = usePermission()
 
   const wordService = new BaseService<SensitiveWord>('sensitive_words', { defaultOrder: { column: 'created_at', ascending: false } })
 
