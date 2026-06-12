@@ -176,34 +176,76 @@ const RolePermission: React.FC = () => {
     }
   }
 
-  // 权限树数据（示例）
+  // 权限树数据（完整模块）
   const permissionTreeData = [
     {
       title: '用户管理',
-      key: 'user',
+      key: 'users',
       children: [
-        { title: '查看用户', key: 'user:read' },
-        { title: '创建用户', key: 'user:create' },
-        { title: '编辑用户', key: 'user:update' },
-        { title: '删除用户', key: 'user:delete' },
+        { title: '查看用户', key: 'users:read' },
+        { title: '编辑用户', key: 'users:write' },
+        { title: '删除用户', key: 'users:delete' },
+        { title: '导出用户', key: 'users:export' },
       ],
     },
     {
       title: '小说管理',
-      key: 'novel',
+      key: 'novels',
       children: [
-        { title: '查看小说', key: 'novel:read' },
-        { title: '创建小说', key: 'novel:create' },
-        { title: '编辑小说', key: 'novel:update' },
-        { title: '删除小说', key: 'novel:delete' },
+        { title: '查看小说', key: 'novels:read' },
+        { title: '编辑小说', key: 'novels:write' },
+        { title: '删除小说', key: 'novels:delete' },
       ],
     },
     {
-      title: '系统管理',
-      key: 'system',
+      title: '反馈管理',
+      key: 'feedback',
       children: [
-        { title: '查看配置', key: 'system:read' },
-        { title: '编辑配置', key: 'system:update' },
+        { title: '查看反馈', key: 'feedback:read' },
+        { title: '编辑反馈', key: 'feedback:write' },
+        { title: '删除反馈', key: 'feedback:delete' },
+      ],
+    },
+    {
+      title: '内容管理',
+      key: 'content',
+      children: [
+        { title: '查看内容', key: 'content:read' },
+        { title: '编辑内容', key: 'content:write' },
+        { title: '删除内容', key: 'content:delete' },
+      ],
+    },
+    {
+      title: '系统设置',
+      key: 'settings',
+      children: [
+        { title: '查看设置', key: 'settings:read' },
+        { title: '编辑设置', key: 'settings:write' },
+      ],
+    },
+    {
+      title: '数据统计',
+      key: 'analytics',
+      children: [
+        { title: '查看统计', key: 'analytics:read' },
+      ],
+    },
+    {
+      title: '文件管理',
+      key: 'files',
+      children: [
+        { title: '查看文件', key: 'files:read' },
+        { title: '上传/编辑文件', key: 'files:write' },
+        { title: '删除文件', key: 'files:delete' },
+      ],
+    },
+    {
+      title: '敏感词管理',
+      key: 'sensitive',
+      children: [
+        { title: '查看敏感词', key: 'sensitive:read' },
+        { title: '编辑敏感词', key: 'sensitive:write' },
+        { title: '删除敏感词', key: 'sensitive:delete' },
       ],
     },
   ]

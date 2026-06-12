@@ -28,12 +28,13 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { getExpenseCategoryOptions } from '../utils/dictService'
 
 const { Text } = Typography
 
-// ==================== 分类映射 ====================
+// ==================== 分类映射（fallback） ====================
 
-const EXPENSE_CATEGORY_MAP: Record<string, string> = {
+const FALLBACK_CATEGORY_MAP: Record<string, string> = {
   food: '餐饮',
   transport: '交通',
   communication: '通讯',
@@ -45,7 +46,7 @@ const EXPENSE_CATEGORY_MAP: Record<string, string> = {
   other: '其他',
 }
 
-const EXPENSE_CATEGORY_OPTIONS = Object.entries(EXPENSE_CATEGORY_MAP).map(([code, label]) => ({
+const FALLBACK_CATEGORY_OPTIONS = Object.entries(FALLBACK_CATEGORY_MAP).map(([code, label]) => ({
   label,
   value: code,
 }))
@@ -74,9 +75,25 @@ const Expenses: React.FC = () => {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRecord, setEditingRecord] = useState<Expense | null>(null)
+  const [categoryMap, setCategoryMap] = useState<Record<string, string>>(FALLBACK_CATEGORY_MAP)
+  const [categoryOptions, setCategoryOptions] = useState(FALLBACK_CATEGORY_OPTIONS)
   const [form] = Form.useForm()
 
   const service = new BaseService<Expense>('expenses', { defaultOrder: { column: 'date', ascending: false } })
+
+  // 加载消费分类字典
+  useEffect(() => {
+    getExpenseCategoryOptions().then((options) => {
+      if (options.length > 0) {
+        setCategoryOptions(options)
+        const map: Record<string, string> = {}
+        options.forEach((opt) => {
+          map[opt.value] = opt.label
+        })
+        setCategoryMap(map)
+      }
+    })
+  }, [])
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -193,7 +210,7 @@ const Expenses: React.FC = () => {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
-      render: (category: string) => EXPENSE_CATEGORY_MAP[category] || category,
+      render: (category: string) => categoryMap[category] || category,
     },
     {
       title: '描述',
@@ -362,7 +379,7 @@ const Expenses: React.FC = () => {
           >
             <Select
               placeholder="请选择分类"
-              options={EXPENSE_CATEGORY_OPTIONS}
+              options={categoryOptions}
             />
           </Form.Item>
           <Form.Item
