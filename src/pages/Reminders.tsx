@@ -37,10 +37,13 @@ interface Reminder {
   id: string
   user_id: string
   title: string
-  content?: string
+  description?: string
   remind_at: string
   is_completed: boolean
+  is_repeated?: boolean
+  repeat_type?: string
   created_at: string
+  updated_at?: string
 }
 
 // ==================== 组件 ====================
@@ -49,6 +52,7 @@ const Reminders: React.FC = () => {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null)
   const [form] = Form.useForm()
@@ -59,9 +63,9 @@ const Reminders: React.FC = () => {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await service.findAll((q) => {
+      const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
         if (searchKeyword) {
-          return q.or(`title.ilike.%${searchKeyword}%,content.ilike.%${searchKeyword}%`)
+          return q.or(`title.ilike.%${searchKeyword}%,description.ilike.%${searchKeyword}%`)
         }
         return q
       })
@@ -69,13 +73,14 @@ const Reminders: React.FC = () => {
         handleApiError(result.errorMessage, 'Reminders-加载数据')
         return
       }
-      setReminders(result.data || [])
+      setReminders(result.data!.data)
+      setPagination(prev => ({ ...prev, total: result.data!.total }))
     } catch (error) {
       handleApiError(error, 'Reminders-加载数据')
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword])
+  }, [searchKeyword, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -83,7 +88,7 @@ const Reminders: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    loadData()
+    setPagination(prev => ({ ...prev, current: 1 }))
   }
 
   // 打开新增弹窗
@@ -184,10 +189,22 @@ const Reminders: React.FC = () => {
       ),
     },
     {
-      title: '内容',
-      dataIndex: 'content',
-      key: 'content',
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
       ellipsis: true,
+    },
+    {
+      title: '是否重复',
+      dataIndex: 'is_repeated',
+      key: 'is_repeated',
+      render: (repeated: boolean) => repeated ? '是' : '否',
+    },
+    {
+      title: '重复类型',
+      dataIndex: 'repeat_type',
+      key: 'repeat_type',
+      render: (type: string) => type || '-',
     },
     {
       title: '提醒时间',
@@ -301,7 +318,15 @@ const Reminders: React.FC = () => {
         dataSource={reminders}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 20 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
         scroll={{ x: 800 }}
       />
 
@@ -333,10 +358,10 @@ const Reminders: React.FC = () => {
             <Input placeholder="请输入标题" />
           </Form.Item>
           <Form.Item
-            name="content"
-            label="内容"
+            name="description"
+            label="描述"
           >
-            <Input.TextArea rows={3} placeholder="请输入内容" />
+            <Input.TextArea rows={3} placeholder="请输入描述" />
           </Form.Item>
           <Form.Item
             name="remind_at"

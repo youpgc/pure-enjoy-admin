@@ -38,8 +38,13 @@ interface Anniversary {
   title: string
   date: string
   type: 'birthday' | 'wedding' | 'work' | 'other'
-  reminder_days?: number
+  remind_days_before?: number
+  description?: string
+  repeat_yearly?: boolean
+  remind_enabled?: boolean
+  user_nickname?: string
   created_at: string
+  updated_at?: string
 }
 
 // ==================== 组件 ====================
@@ -48,17 +53,18 @@ const Anniversaries: React.FC = () => {
   const [anniversaries, setAnniversaries] = useState<Anniversary[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingAnniversary, setEditingAnniversary] = useState<Anniversary | null>(null)
   const [form] = Form.useForm()
 
-  const service = new BaseService<Anniversary>('anniversaries', { defaultOrder: { column: 'date', ascending: true } })
+  const service = new BaseService<Anniversary>('user_anniversaries', { defaultOrder: { column: 'date', ascending: true } })
 
   // 加载数据
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await service.findAll((q) => {
+      const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
         if (searchKeyword) {
           return q.or(`title.ilike.%${searchKeyword}%`)
         }
@@ -68,13 +74,14 @@ const Anniversaries: React.FC = () => {
         handleApiError(result.errorMessage, 'Anniversaries-加载数据')
         return
       }
-      setAnniversaries(result.data || [])
+      setAnniversaries(result.data!.data)
+      setPagination(prev => ({ ...prev, total: result.data!.total }))
     } catch (error) {
       handleApiError(error, 'Anniversaries-加载数据')
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword])
+  }, [searchKeyword, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -82,14 +89,14 @@ const Anniversaries: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    loadData()
+    setPagination(prev => ({ ...prev, current: 1 }))
   }
 
   // 打开新增弹窗
   const handleAdd = () => {
     setEditingAnniversary(null)
     form.resetFields()
-    form.setFieldsValue({ date: dayjs(), type: 'other', reminder_days: 7 })
+    form.setFieldsValue({ date: dayjs(), type: 'other', remind_days_before: 7 })
     setModalVisible(true)
   }
 
@@ -202,9 +209,15 @@ const Anniversaries: React.FC = () => {
     },
     {
       title: '提醒天数',
-      dataIndex: 'reminder_days',
-      key: 'reminder_days',
+      dataIndex: 'remind_days_before',
+      key: 'remind_days_before',
       render: (days: number) => days ? `${days} 天前` : '-',
+    },
+    {
+      title: '用户昵称',
+      dataIndex: 'user_nickname',
+      key: 'user_nickname',
+      render: (nickname: string) => nickname || '-',
     },
     {
       title: '操作',
@@ -289,7 +302,15 @@ const Anniversaries: React.FC = () => {
         dataSource={anniversaries}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 20 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
         scroll={{ x: 800 }}
       />
 
@@ -343,7 +364,7 @@ const Anniversaries: React.FC = () => {
             />
           </Form.Item>
           <Form.Item
-            name="reminder_days"
+            name="remind_days_before"
             label="提前提醒天数"
           >
             <Input placeholder="请输入提前提醒天数" />

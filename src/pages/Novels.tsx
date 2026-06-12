@@ -45,6 +45,7 @@ const { Text } = Typography
 
 interface Novel {
   id: string
+  user_id?: string
   title: string
   author: string
   category: string
@@ -53,7 +54,14 @@ interface Novel {
   status: 'ongoing' | 'completed' | 'paused'
   read_count: number
   chapter_count: number
-  is_vip: boolean
+  is_free: boolean
+  source?: string
+  source_url?: string
+  tags?: string[]
+  word_count?: number
+  price?: number
+  rating?: number
+  collect_count?: number
   created_at: string
   updated_at: string
 }
@@ -62,7 +70,7 @@ interface NovelFilters {
   keyword: string
   category: string | undefined
   status: string | undefined
-  isVip: boolean | undefined
+  isFree: boolean | undefined
 }
 
 // ==================== 组件 ====================
@@ -75,7 +83,7 @@ const Novels: React.FC = () => {
     keyword: '',
     category: undefined,
     status: undefined,
-    isVip: undefined,
+    isFree: undefined,
   })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [modalVisible, setModalVisible] = useState(false)
@@ -102,8 +110,8 @@ const Novels: React.FC = () => {
         if (filters.status) {
           query = query.eq('status', filters.status)
         }
-        if (filters.isVip !== undefined) {
-          query = query.eq('is_vip', filters.isVip)
+        if (filters.isFree !== undefined) {
+          query = query.eq('is_free', filters.isFree)
         }
         return query
       })
@@ -138,7 +146,7 @@ const Novels: React.FC = () => {
       keyword: '',
       category: undefined,
       status: undefined,
-      isVip: undefined,
+      isFree: undefined,
     })
     setPagination(prev => ({ ...prev, current: 1 }))
   }
@@ -214,18 +222,18 @@ const Novels: React.FC = () => {
     }
   }
 
-  // 切换VIP状态
-  const handleToggleVip = async (record: Novel) => {
+  // 切换免费状态
+  const handleToggleFree = async (record: Novel) => {
     try {
-      const result = await novelService.update(record.id, { is_vip: !record.is_vip })
+      const result = await novelService.update(record.id, { is_free: !record.is_free })
       if (!result.success) {
-        handleApiError(result.errorMessage, 'Novels-切换VIP')
+        handleApiError(result.errorMessage, 'Novels-切换免费')
         return
       }
-      message.success(`已${!record.is_vip ? '设为' : '取消'}VIP`)
+      message.success(`已${!record.is_free ? '设为免费' : '取消免费'}`)
       loadNovels()
     } catch (error) {
-      handleApiError(error, 'Novels-切换VIP')
+      handleApiError(error, 'Novels-切换免费')
     }
   }
 
@@ -296,7 +304,7 @@ const Novels: React.FC = () => {
           <div>
             <div style={{ fontWeight: 500 }}>{record.title}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>{record.author}</Text>
-            {record.is_vip && <Tag color="gold" style={{ marginLeft: 4 }}>VIP</Tag>}
+            {record.is_free && <Tag color="green" style={{ marginLeft: 4 }}>免费</Tag>}
           </div>
         </Space>
       ),
@@ -365,10 +373,10 @@ const Novels: React.FC = () => {
           onClick: () => handleToggleStatus(record),
         },
         {
-          key: 'vip',
-          label: record.is_vip ? '取消VIP' : '设为VIP',
+          key: 'free',
+          label: record.is_free ? '取消免费' : '设为免费',
           icon: <EyeOutlined />,
-          onClick: () => handleToggleVip(record),
+          onClick: () => handleToggleFree(record),
         },
         {
           key: 'delete',
@@ -408,8 +416,8 @@ const Novels: React.FC = () => {
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
-              title="VIP小说"
-              value={novels.filter(n => n.is_vip).length}
+              title="免费小说"
+              value={novels.filter(n => n.is_free).length}
               prefix={<EyeOutlined />}
               valueStyle={{ color: '#faad14' }}
             />
@@ -457,14 +465,14 @@ const Novels: React.FC = () => {
             ]}
           />
           <Select
-            placeholder="VIP"
-            value={filters.isVip}
-            onChange={(value) => setFilters(prev => ({ ...prev, isVip: value }))}
+            placeholder="免费"
+            value={filters.isFree}
+            onChange={(value) => setFilters(prev => ({ ...prev, isFree: value }))}
             style={{ width: 120 }}
             allowClear
             options={[
-              { label: 'VIP', value: true },
-              { label: '免费', value: false },
+              { label: '免费', value: true },
+              { label: '付费', value: false },
             ]}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
@@ -594,8 +602,8 @@ const Novels: React.FC = () => {
             />
           </Form.Item>
           <Form.Item
-            name="is_vip"
-            label="VIP"
+            name="is_free"
+            label="免费"
             valuePropName="checked"
           >
             <Switch checkedChildren="是" unCheckedChildren="否" />

@@ -43,13 +43,22 @@ const { Text } = Typography
 
 interface AppVersion {
   id: string
-  app_name: string
   platform: 'ios' | 'android' | 'web'
   version: string
   build_number: number
-  force_update: boolean
-  update_url?: string
+  is_force_update: boolean
   release_notes?: string
+  release_type?: string
+  apk_url?: string
+  apk_size?: number
+  status?: string
+  released_at?: string
+  revoked_at?: string
+  created_by?: string
+  download_url?: string
+  file_size?: number
+  checksum?: string
+  file_name?: string
   is_active: boolean
   created_at: string
   updated_at: string
@@ -87,7 +96,7 @@ const VersionManagement: React.FC = () => {
       const result = await versionService.paginate(pagination.current, pagination.pageSize, (q) => {
         let query = q
         if (filters.keyword) {
-          query = query.or(`app_name.ilike.%${filters.keyword}%,version.ilike.%${filters.keyword}%`)
+          query = query.or(`version.ilike.%${filters.keyword}%,release_notes.ilike.%${filters.keyword}%`)
         }
         if (filters.platform) {
           query = query.eq('platform', filters.platform)
@@ -242,15 +251,14 @@ const VersionManagement: React.FC = () => {
   // 表格列定义
   const columns: ColumnsType<AppVersion> = [
     {
-      title: '应用信息',
-      key: 'app',
+      title: '版本信息',
+      key: 'version_info',
       width: 250,
       render: (_, record) => (
         <div>
-          <div style={{ fontWeight: 500 }}>{record.app_name}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            版本: {record.version} (Build {record.build_number})
-          </Text>
+          <div style={{ fontWeight: 500 }}>版本: {record.version} (Build {record.build_number})</div>
+          {record.release_type && <Text type="secondary" style={{ fontSize: 12 }}>类型: {record.release_type}</Text>}
+          {record.file_name && <div><Text type="secondary" style={{ fontSize: 12 }}>{record.file_name}</Text></div>}
         </div>
       ),
     },
@@ -271,8 +279,8 @@ const VersionManagement: React.FC = () => {
     },
     {
       title: '强制更新',
-      dataIndex: 'force_update',
-      key: 'force_update',
+      dataIndex: 'is_force_update',
+      key: 'is_force_update',
       width: 100,
       render: (force: boolean) => (
         <Tag color={force ? 'red' : 'default'}>{force ? '是' : '否'}</Tag>
@@ -280,12 +288,34 @@ const VersionManagement: React.FC = () => {
     },
     {
       title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: string) => {
+        const statusMap: Record<string, { color: string; label: string }> = {
+          released: { color: 'green', label: '已发布' },
+          revoked: { color: 'red', label: '已撤回' },
+          draft: { color: 'default', label: '草稿' },
+        }
+        const info = statusMap[status] || { color: 'default', label: status || '未知' }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
+    },
+    {
+      title: '激活',
       dataIndex: 'is_active',
       key: 'is_active',
-      width: 100,
+      width: 80,
       render: (isActive: boolean) => (
-        <Badge status={isActive ? 'success' : 'default'} text={isActive ? '激活' : '停用'} />
+        <Badge status={isActive ? 'success' : 'default'} text={isActive ? '是' : '否'} />
       ),
+    },
+    {
+      title: '文件大小',
+      dataIndex: 'file_size',
+      key: 'file_size',
+      width: 100,
+      render: (size: number) => size ? `${(size / 1024 / 1024).toFixed(2)} MB` : '-',
     },
     {
       title: '创建时间',
@@ -348,7 +378,7 @@ const VersionManagement: React.FC = () => {
           <Card>
             <Statistic
               title="强制更新"
-              value={versions.filter(v => v.force_update).length}
+              value={versions.filter(v => v.is_force_update).length}
               prefix={<CloudUploadOutlined />}
               valueStyle={{ color: '#ff4d4f' }}
             />
@@ -360,7 +390,7 @@ const VersionManagement: React.FC = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input
-            placeholder="搜索应用名/版本号"
+            placeholder="搜索版本号/更新说明"
             value={filters.keyword}
             onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={handleSearch}
@@ -461,13 +491,6 @@ const VersionManagement: React.FC = () => {
       >
         <Form form={form} layout="vertical">
           <Form.Item
-            name="app_name"
-            label="应用名称"
-            rules={[{ required: true, message: '请输入应用名称' }]}
-          >
-            <Input placeholder="请输入应用名称" />
-          </Form.Item>
-          <Form.Item
             name="platform"
             label="平台"
             rules={[{ required: true, message: '请选择平台' }]}
@@ -496,10 +519,18 @@ const VersionManagement: React.FC = () => {
             <Input type="number" placeholder="请输入构建号" />
           </Form.Item>
           <Form.Item
-            name="update_url"
-            label="更新地址"
+            name="release_type"
+            label="发布类型"
           >
-            <Input placeholder="请输入更新下载地址" />
+            <Select
+              placeholder="请选择发布类型"
+              allowClear
+              options={[
+                { label: '正式版', value: 'release' },
+                { label: '测试版', value: 'beta' },
+                { label: '灰度', value: 'canary' },
+              ]}
+            />
           </Form.Item>
           <Form.Item
             name="release_notes"
@@ -508,7 +539,31 @@ const VersionManagement: React.FC = () => {
             <Input.TextArea rows={4} placeholder="请输入更新说明" />
           </Form.Item>
           <Form.Item
-            name="force_update"
+            name="download_url"
+            label="下载地址"
+          >
+            <Input placeholder="请输入下载地址" />
+          </Form.Item>
+          <Form.Item
+            name="file_name"
+            label="文件名"
+          >
+            <Input placeholder="请输入文件名" />
+          </Form.Item>
+          <Form.Item
+            name="file_size"
+            label="文件大小(字节)"
+          >
+            <Input type="number" placeholder="请输入文件大小(字节)" />
+          </Form.Item>
+          <Form.Item
+            name="checksum"
+            label="校验值"
+          >
+            <Input placeholder="请输入校验值" />
+          </Form.Item>
+          <Form.Item
+            name="is_force_update"
             label="强制更新"
             valuePropName="checked"
           >

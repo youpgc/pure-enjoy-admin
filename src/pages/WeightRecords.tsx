@@ -36,9 +36,13 @@ interface WeightRecord {
   id: string
   user_id: string
   weight: number
-  record_date: string
+  date: string
+  body_fat?: number
+  bmi?: number
   note?: string
+  user_nickname?: string
   created_at: string
+  updated_at?: string
 }
 
 // ==================== 组件 ====================
@@ -47,17 +51,18 @@ const WeightRecords: React.FC = () => {
   const [records, setRecords] = useState<WeightRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRecord, setEditingRecord] = useState<WeightRecord | null>(null)
   const [form] = Form.useForm()
 
-  const service = new BaseService<WeightRecord>('weight_records', { defaultOrder: { column: 'record_date', ascending: false } })
+  const service = new BaseService<WeightRecord>('weight_records', { defaultOrder: { column: 'date', ascending: false } })
 
   // 加载数据
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await service.findAll((q) => {
+      const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
         if (searchKeyword) {
           return q.or(`user_id.ilike.%${searchKeyword}%,note.ilike.%${searchKeyword}%`)
         }
@@ -67,13 +72,14 @@ const WeightRecords: React.FC = () => {
         handleApiError(result.errorMessage, 'WeightRecords-加载数据')
         return
       }
-      setRecords(result.data || [])
+      setRecords(result.data!.data)
+      setPagination(prev => ({ ...prev, total: result.data!.total }))
     } catch (error) {
       handleApiError(error, 'WeightRecords-加载数据')
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword])
+  }, [searchKeyword, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -81,14 +87,14 @@ const WeightRecords: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    loadData()
+    setPagination(prev => ({ ...prev, current: 1 }))
   }
 
   // 打开新增弹窗
   const handleAdd = () => {
     setEditingRecord(null)
     form.resetFields()
-    form.setFieldsValue({ record_date: dayjs() })
+    form.setFieldsValue({ date: dayjs() })
     setModalVisible(true)
   }
 
@@ -97,7 +103,7 @@ const WeightRecords: React.FC = () => {
     setEditingRecord(record)
     form.setFieldsValue({
       ...record,
-      record_date: dayjs(record.record_date),
+      date: dayjs(record.date),
     })
     setModalVisible(true)
   }
@@ -123,7 +129,7 @@ const WeightRecords: React.FC = () => {
       const values = await form.validateFields()
       const data = {
         ...values,
-        record_date: values.record_date.format('YYYY-MM-DD'),
+        date: values.date.format('YYYY-MM-DD'),
       }
       if (editingRecord) {
         const result = await service.update(editingRecord.id, data)
@@ -165,9 +171,27 @@ const WeightRecords: React.FC = () => {
     },
     {
       title: '记录日期',
-      dataIndex: 'record_date',
-      key: 'record_date',
+      dataIndex: 'date',
+      key: 'date',
       render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
+    },
+    {
+      title: '体脂率(%)',
+      dataIndex: 'body_fat',
+      key: 'body_fat',
+      render: (val: number) => val != null ? val : '-',
+    },
+    {
+      title: 'BMI',
+      dataIndex: 'bmi',
+      key: 'bmi',
+      render: (val: number) => val != null ? val : '-',
+    },
+    {
+      title: '用户昵称',
+      dataIndex: 'user_nickname',
+      key: 'user_nickname',
+      render: (nickname: string) => nickname || '-',
     },
     {
       title: '备注',
@@ -273,7 +297,15 @@ const WeightRecords: React.FC = () => {
         dataSource={records}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 20 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
         scroll={{ x: 800 }}
       />
 
@@ -305,7 +337,7 @@ const WeightRecords: React.FC = () => {
             <InputNumber style={{ width: '100%' }} placeholder="请输入体重" min={0} step={0.1} />
           </Form.Item>
           <Form.Item
-            name="record_date"
+            name="date"
             label="记录日期"
             rules={[{ required: true, message: '请选择记录日期' }]}
           >

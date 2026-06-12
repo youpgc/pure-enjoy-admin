@@ -50,6 +50,7 @@ const DictManagement: React.FC = () => {
   const [dicts, setDicts] = useState<DictItem[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingDict, setEditingDict] = useState<DictItem | null>(null)
   const [form] = Form.useForm()
@@ -60,7 +61,7 @@ const DictManagement: React.FC = () => {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await service.findAll((q) => {
+      const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
         if (searchKeyword) {
           return q.or(`dict_type.ilike.%${searchKeyword}%,dict_label.ilike.%${searchKeyword}%,dict_code.ilike.%${searchKeyword}%`)
         }
@@ -70,13 +71,14 @@ const DictManagement: React.FC = () => {
         handleApiError(result.errorMessage, 'DictManagement-加载数据')
         return
       }
-      setDicts(result.data || [])
+      setDicts(result.data!.data)
+      setPagination(prev => ({ ...prev, total: result.data!.total }))
     } catch (error) {
       handleApiError(error, 'DictManagement-加载数据')
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword])
+  }, [searchKeyword, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -84,7 +86,7 @@ const DictManagement: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    loadData()
+    setPagination(prev => ({ ...prev, current: 1 }))
   }
 
   // 打开新增弹窗
@@ -285,7 +287,15 @@ const DictManagement: React.FC = () => {
         dataSource={dicts}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 20 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
         scroll={{ x: 1000 }}
       />
 

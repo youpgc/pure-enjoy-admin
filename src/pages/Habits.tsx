@@ -4,12 +4,15 @@ import {
   Button,
   Input,
   Space,
+  Tag,
   Card,
   message,
   Modal,
   Form,
   Popconfirm,
   Select,
+  Switch,
+  InputNumber,
   Typography,
   Row,
   Col,
@@ -36,10 +39,12 @@ interface Habit {
   user_id: string
   name: string
   description?: string
-  frequency: 'daily' | 'weekly' | 'monthly'
-  streak: number
-  total_count: number
+  target_days?: number
+  current_streak?: number
+  longest_streak?: number
+  is_active?: boolean
   created_at: string
+  updated_at?: string
 }
 
 // ==================== 组件 ====================
@@ -48,6 +53,7 @@ const Habits: React.FC = () => {
   const [habits, setHabits] = useState<Habit[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null)
   const [form] = Form.useForm()
@@ -58,7 +64,7 @@ const Habits: React.FC = () => {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await service.findAll((q) => {
+      const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
         if (searchKeyword) {
           return q.or(`name.ilike.%${searchKeyword}%,description.ilike.%${searchKeyword}%`)
         }
@@ -68,13 +74,14 @@ const Habits: React.FC = () => {
         handleApiError(result.errorMessage, 'Habits-加载数据')
         return
       }
-      setHabits(result.data || [])
+      setHabits(result.data!.data)
+      setPagination(prev => ({ ...prev, total: result.data!.total }))
     } catch (error) {
       handleApiError(error, 'Habits-加载数据')
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword])
+  }, [searchKeyword, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -82,14 +89,14 @@ const Habits: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    loadData()
+    setPagination(prev => ({ ...prev, current: 1 }))
   }
 
   // 打开新增弹窗
   const handleAdd = () => {
     setEditingHabit(null)
     form.resetFields()
-    form.setFieldsValue({ frequency: 'daily', streak: 0, total_count: 0 })
+    form.setFieldsValue({ target_days: 30, current_streak: 0, longest_streak: 0, is_active: true })
     setModalVisible(true)
   }
 
@@ -163,28 +170,30 @@ const Habits: React.FC = () => {
       ellipsis: true,
     },
     {
-      title: '频率',
-      dataIndex: 'frequency',
-      key: 'frequency',
-      render: (frequency: string) => {
-        const map: Record<string, string> = {
-          daily: '每日',
-          weekly: '每周',
-          monthly: '每月',
-        }
-        return map[frequency] || frequency
-      },
+      title: '目标天数',
+      dataIndex: 'target_days',
+      key: 'target_days',
+      render: (days: number) => days ? `${days} 天` : '-',
     },
     {
-      title: '连续天数',
-      dataIndex: 'streak',
-      key: 'streak',
-      render: (streak: number) => <Text style={{ color: '#52c41a' }}>{streak} 天</Text>,
+      title: '当前连续',
+      dataIndex: 'current_streak',
+      key: 'current_streak',
+      render: (streak: number) => <Text style={{ color: '#52c41a' }}>{streak || 0} 天</Text>,
     },
     {
-      title: '总完成次数',
-      dataIndex: 'total_count',
-      key: 'total_count',
+      title: '最长连续',
+      dataIndex: 'longest_streak',
+      key: 'longest_streak',
+      render: (streak: number) => <Text style={{ color: '#1890ff' }}>{streak || 0} 天</Text>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      render: (isActive: boolean) => (
+        <Tag color={isActive ? 'green' : 'default'}>{isActive ? '进行中' : '已停用'}</Tag>
+      ),
     },
     {
       title: '操作',
@@ -227,7 +236,7 @@ const Habits: React.FC = () => {
           <Card>
             <Statistic
               title="平均连续天数"
-              value={habits.length > 0 ? Math.round(habits.reduce((sum, h) => sum + h.streak, 0) / habits.length) : 0}
+              value={habits.length > 0 ? Math.round(habits.reduce((sum, h) => sum + (h.current_streak || 0), 0) / habits.length) : 0}
               suffix="天"
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: '#52c41a' }}
@@ -270,7 +279,15 @@ const Habits: React.FC = () => {
         dataSource={habits}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 20 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
         scroll={{ x: 800 }}
       />
 
@@ -308,18 +325,17 @@ const Habits: React.FC = () => {
             <Input.TextArea rows={2} placeholder="请输入描述" />
           </Form.Item>
           <Form.Item
-            name="frequency"
-            label="频率"
-            rules={[{ required: true, message: '请选择频率' }]}
+            name="target_days"
+            label="目标天数"
           >
-            <Select
-              placeholder="请选择频率"
-              options={[
-                { label: '每日', value: 'daily' },
-                { label: '每周', value: 'weekly' },
-                { label: '每月', value: 'monthly' },
-              ]}
-            />
+            <InputNumber style={{ width: '100%' }} placeholder="请输入目标天数" min={1} />
+          </Form.Item>
+          <Form.Item
+            name="is_active"
+            label="是否激活"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
         </Form>
       </Modal>

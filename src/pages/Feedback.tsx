@@ -43,19 +43,17 @@ const { Text, Paragraph } = Typography
 interface FeedbackItem {
   id: string
   user_id: string
-  user_email?: string
-  type: string
+  user_nickname?: string
   title: string
-  content: string
+  description: string
   status: 'pending' | 'processing' | 'resolved' | 'rejected'
-  reply?: string
+  admin_reply?: string
   created_at: string
   updated_at: string
 }
 
 interface FeedbackFilters {
   keyword: string
-  type: string | undefined
   status: string | undefined
 }
 
@@ -67,7 +65,6 @@ const Feedback: React.FC = () => {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [filters, setFilters] = useState<FeedbackFilters>({
     keyword: '',
-    type: undefined,
     status: undefined,
   })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
@@ -76,7 +73,7 @@ const Feedback: React.FC = () => {
   const [replyForm] = Form.useForm()
   const { isAdmin } = usePermission()
 
-  const feedbackService = new BaseService<FeedbackItem>('feedback', { defaultOrder: { column: 'created_at', ascending: false } })
+  const feedbackService = new BaseService<FeedbackItem>('user_feedback', { defaultOrder: { column: 'created_at', ascending: false } })
 
   // 加载反馈列表
   const loadFeedback = useCallback(async () => {
@@ -85,10 +82,7 @@ const Feedback: React.FC = () => {
       const result = await feedbackService.paginate(pagination.current, pagination.pageSize, (q) => {
         let query = q
         if (filters.keyword) {
-          query = query.or(`title.ilike.%${filters.keyword}%,content.ilike.%${filters.keyword}%,user_email.ilike.%${filters.keyword}%`)
-        }
-        if (filters.type) {
-          query = query.eq('type', filters.type)
+          query = query.or(`title.ilike.%${filters.keyword}%,description.ilike.%${filters.keyword}%,user_nickname.ilike.%${filters.keyword}%`)
         }
         if (filters.status) {
           query = query.eq('status', filters.status)
@@ -124,7 +118,6 @@ const Feedback: React.FC = () => {
   const handleReset = () => {
     setFilters({
       keyword: '',
-      type: undefined,
       status: undefined,
     })
     setPagination(prev => ({ ...prev, current: 1 }))
@@ -153,7 +146,7 @@ const Feedback: React.FC = () => {
     }
     try {
       const { error } = await supabase
-        .from('feedback')
+        .from('user_feedback')
         .delete()
         .in('id', selectedRowKeys as string[])
       if (error) {
@@ -193,7 +186,7 @@ const Feedback: React.FC = () => {
       if (!selectedFeedback) return
 
       const result = await feedbackService.update(selectedFeedback.id, {
-        reply: values.reply,
+        admin_reply: values.reply,
         status: 'resolved',
         updated_at: new Date().toISOString(),
       })
@@ -214,7 +207,7 @@ const Feedback: React.FC = () => {
   // 查看详情
   const handleViewDetail = (record: FeedbackItem) => {
     setSelectedFeedback(record)
-    replyForm.setFieldsValue({ reply: record.reply || '' })
+    replyForm.setFieldsValue({ reply: record.admin_reply || '' })
     setDetailModalOpen(true)
   }
 
@@ -228,18 +221,15 @@ const Feedback: React.FC = () => {
         <div>
           <div style={{ fontWeight: 500 }}>{record.title}</div>
           <Text type="secondary" style={{ fontSize: 12 }}>
-            {record.user_email || record.user_id}
+            {record.user_nickname || record.user_id}
           </Text>
-          <div>
-            <Tag>{record.type}</Tag>
-          </div>
         </div>
       ),
     },
     {
       title: '内容',
-      dataIndex: 'content',
-      key: 'content',
+      dataIndex: 'description',
+      key: 'description',
       ellipsis: true,
       render: (content: string) => (
         <Tooltip title={content}>
@@ -356,19 +346,6 @@ const Feedback: React.FC = () => {
             allowClear
           />
           <Select
-            placeholder="类型"
-            value={filters.type}
-            onChange={(value) => setFilters(prev => ({ ...prev, type: value }))}
-            style={{ width: 120 }}
-            allowClear
-            options={[
-              { label: '功能建议', value: 'feature' },
-              { label: 'Bug反馈', value: 'bug' },
-              { label: '投诉', value: 'complaint' },
-              { label: '其他', value: 'other' },
-            ]}
-          />
-          <Select
             placeholder="状态"
             value={filters.status}
             onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
@@ -461,10 +438,7 @@ const Feedback: React.FC = () => {
           <>
             <Descriptions bordered size="small" column={1} style={{ marginBottom: 16 }}>
               <Descriptions.Item label="标题">{selectedFeedback.title}</Descriptions.Item>
-              <Descriptions.Item label="用户">{selectedFeedback.user_email || selectedFeedback.user_id}</Descriptions.Item>
-              <Descriptions.Item label="类型">
-                <Tag>{selectedFeedback.type}</Tag>
-              </Descriptions.Item>
+              <Descriptions.Item label="用户">{selectedFeedback.user_nickname || selectedFeedback.user_id}</Descriptions.Item>
               <Descriptions.Item label="状态">
                 <Tag color={
                   selectedFeedback.status === 'pending' ? 'orange' :
@@ -484,15 +458,15 @@ const Feedback: React.FC = () => {
             <div style={{ marginBottom: 16 }}>
               <Text strong>反馈内容：</Text>
               <Paragraph style={{ marginTop: 8, padding: 12, background: '#f5f5f5', borderRadius: 4 }}>
-                {selectedFeedback.content}
+                {selectedFeedback.description}
               </Paragraph>
             </div>
 
-            {selectedFeedback.reply && (
+            {selectedFeedback.admin_reply && (
               <div style={{ marginBottom: 16 }}>
                 <Text strong>历史回复：</Text>
                 <Paragraph style={{ marginTop: 8, padding: 12, background: '#f6ffed', borderRadius: 4 }}>
-                  {selectedFeedback.reply}
+                  {selectedFeedback.admin_reply}
                 </Paragraph>
               </div>
             )}

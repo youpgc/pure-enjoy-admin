@@ -39,8 +39,11 @@ interface Expense {
   amount: number
   category: string
   description?: string
-  expense_date: string
+  date: string
+  note?: string
+  user_nickname?: string
   created_at: string
+  updated_at?: string
 }
 
 // ==================== 组件 ====================
@@ -49,17 +52,18 @@ const Expenses: React.FC = () => {
   const [records, setRecords] = useState<Expense[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRecord, setEditingRecord] = useState<Expense | null>(null)
   const [form] = Form.useForm()
 
-  const service = new BaseService<Expense>('expenses', { defaultOrder: { column: 'expense_date', ascending: false } })
+  const service = new BaseService<Expense>('expenses', { defaultOrder: { column: 'date', ascending: false } })
 
   // 加载数据
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await service.findAll((q) => {
+      const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
         if (searchKeyword) {
           return q.or(`user_id.ilike.%${searchKeyword}%,description.ilike.%${searchKeyword}%,category.ilike.%${searchKeyword}%`)
         }
@@ -69,13 +73,14 @@ const Expenses: React.FC = () => {
         handleApiError(result.errorMessage, 'Expenses-加载数据')
         return
       }
-      setRecords(result.data || [])
+      setRecords(result.data!.data)
+      setPagination(prev => ({ ...prev, total: result.data!.total }))
     } catch (error) {
       handleApiError(error, 'Expenses-加载数据')
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword])
+  }, [searchKeyword, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -83,14 +88,14 @@ const Expenses: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    loadData()
+    setPagination(prev => ({ ...prev, current: 1 }))
   }
 
   // 打开新增弹窗
   const handleAdd = () => {
     setEditingRecord(null)
     form.resetFields()
-    form.setFieldsValue({ expense_date: dayjs() })
+    form.setFieldsValue({ date: dayjs() })
     setModalVisible(true)
   }
 
@@ -99,7 +104,7 @@ const Expenses: React.FC = () => {
     setEditingRecord(record)
     form.setFieldsValue({
       ...record,
-      expense_date: dayjs(record.expense_date),
+      date: dayjs(record.date),
     })
     setModalVisible(true)
   }
@@ -125,7 +130,7 @@ const Expenses: React.FC = () => {
       const values = await form.validateFields()
       const data = {
         ...values,
-        expense_date: values.expense_date.format('YYYY-MM-DD'),
+        date: values.date.format('YYYY-MM-DD'),
       }
       if (editingRecord) {
         const result = await service.update(editingRecord.id, data)
@@ -178,9 +183,22 @@ const Expenses: React.FC = () => {
     },
     {
       title: '日期',
-      dataIndex: 'expense_date',
-      key: 'expense_date',
+      dataIndex: 'date',
+      key: 'date',
       render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
+    },
+    {
+      title: '备注',
+      dataIndex: 'note',
+      key: 'note',
+      ellipsis: true,
+      render: (note: string) => note || '-',
+    },
+    {
+      title: '用户昵称',
+      dataIndex: 'user_nickname',
+      key: 'user_nickname',
+      render: (nickname: string) => nickname || '-',
     },
     {
       title: '操作',
@@ -236,7 +254,7 @@ const Expenses: React.FC = () => {
           <Card>
             <Statistic
               title="今日支出"
-              value={records.filter(r => dayjs(r.expense_date).isSame(dayjs(), 'day')).reduce((sum, r) => sum + r.amount, 0).toFixed(2)}
+              value={records.filter(r => dayjs(r.date).isSame(dayjs(), 'day')).reduce((sum, r) => sum + r.amount, 0).toFixed(2)}
               prefix="¥"
               valueStyle={{ color: '#faad14' }}
             />
@@ -278,7 +296,15 @@ const Expenses: React.FC = () => {
         dataSource={records}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 20 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
         scroll={{ x: 800 }}
       />
 
@@ -333,7 +359,7 @@ const Expenses: React.FC = () => {
             <Input.TextArea rows={2} placeholder="请输入描述" />
           </Form.Item>
           <Form.Item
-            name="expense_date"
+            name="date"
             label="日期"
             rules={[{ required: true, message: '请选择日期' }]}
           >

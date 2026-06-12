@@ -46,6 +46,7 @@ const Notes: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingNote, setEditingNote] = useState<Note | null>(null)
   const [form] = Form.useForm()
@@ -56,7 +57,7 @@ const Notes: React.FC = () => {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await service.findAll((q) => {
+      const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
         if (searchKeyword) {
           return q.or(`title.ilike.%${searchKeyword}%,content.ilike.%${searchKeyword}%,category.ilike.%${searchKeyword}%`)
         }
@@ -66,13 +67,14 @@ const Notes: React.FC = () => {
         handleApiError(result.errorMessage, 'Notes-加载数据')
         return
       }
-      setNotes(result.data || [])
+      setNotes(result.data!.data)
+      setPagination(prev => ({ ...prev, total: result.data!.total }))
     } catch (error) {
       handleApiError(error, 'Notes-加载数据')
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword])
+  }, [searchKeyword, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -80,7 +82,7 @@ const Notes: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    loadData()
+    setPagination(prev => ({ ...prev, current: 1 }))
   }
 
   // 打开新增弹窗
@@ -263,7 +265,15 @@ const Notes: React.FC = () => {
         dataSource={notes}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 20 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
         scroll={{ x: 800 }}
       />
 

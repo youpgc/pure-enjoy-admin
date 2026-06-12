@@ -163,13 +163,23 @@ const Dashboard: React.FC = () => {
         newUsersByDate[dateKey] = (newUsersByDate[dateKey] || 0) + 1
       })
 
+      // 活跃用户按日期分布（从 operation_logs 中统计）
+      const activeUsersByDate: Record<string, Set<string>> = {}
+      ;((operationLogs7dRes.data as any) || []).forEach((log: any) => {
+        if (log.user_id && log.created_at) {
+          const dateKey = dayjs(log.created_at).format('MM-DD')
+          if (!activeUsersByDate[dateKey]) activeUsersByDate[dateKey] = new Set()
+          activeUsersByDate[dateKey].add(log.user_id)
+        }
+      })
+
       const trendItems: UserTrendItem[] = []
       for (let i = 29; i >= 0; i--) {
         const dateKey = now.subtract(i, 'day').format('MM-DD')
         trendItems.push({
           date: dateKey,
           newUsers: newUsersByDate[dateKey] || 0,
-          activeUsers: Math.floor(Math.random() * 10) + 5, // 模拟活跃数据
+          activeUsers: activeUsersByDate[dateKey]?.size || 0,
         })
       }
       setUserTrend(trendItems)

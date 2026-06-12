@@ -34,10 +34,15 @@ const { Text } = Typography
 interface Favorite {
   id: string
   user_id: string
-  item_id: string
-  item_type: string
-  item_title?: string
+  title: string
+  url?: string
+  description?: string
+  category?: string
+  tags?: string[]
+  is_pinned?: boolean
+  user_nickname?: string
   created_at: string
+  updated_at?: string
 }
 
 // ==================== 组件 ====================
@@ -46,19 +51,20 @@ const Favorites: React.FC = () => {
   const [favorites, setFavorites] = useState<Favorite[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingFavorite, setEditingFavorite] = useState<Favorite | null>(null)
   const [form] = Form.useForm()
 
-  const service = new BaseService<Favorite>('favorites', { defaultOrder: { column: 'created_at', ascending: false } })
+  const service = new BaseService<Favorite>('user_favorites', { defaultOrder: { column: 'created_at', ascending: false } })
 
   // 加载数据
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await service.findAll((q) => {
+      const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
         if (searchKeyword) {
-          return q.or(`user_id.ilike.%${searchKeyword}%,item_title.ilike.%${searchKeyword}%`)
+          return q.or(`user_id.ilike.%${searchKeyword}%,title.ilike.%${searchKeyword}%`)
         }
         return q
       })
@@ -66,13 +72,14 @@ const Favorites: React.FC = () => {
         handleApiError(result.errorMessage, 'Favorites-加载数据')
         return
       }
-      setFavorites(result.data || [])
+      setFavorites(result.data!.data)
+      setPagination(prev => ({ ...prev, total: result.data!.total }))
     } catch (error) {
       handleApiError(error, 'Favorites-加载数据')
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword])
+  }, [searchKeyword, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -80,7 +87,7 @@ const Favorites: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
-    loadData()
+    setPagination(prev => ({ ...prev, current: 1 }))
   }
 
   // 打开新增弹窗
@@ -154,21 +161,40 @@ const Favorites: React.FC = () => {
       ellipsis: true,
     },
     {
-      title: '项目标题',
-      dataIndex: 'item_title',
-      key: 'item_title',
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
       render: (title: string) => <Text strong>{title || '-'}</Text>,
     },
     {
-      title: '项目类型',
-      dataIndex: 'item_type',
-      key: 'item_type',
+      title: 'URL',
+      dataIndex: 'url',
+      key: 'url',
+      ellipsis: true,
+      render: (url: string) => url ? <a href={url} target="_blank" rel="noopener noreferrer">{url}</a> : '-',
     },
     {
-      title: '项目ID',
-      dataIndex: 'item_id',
-      key: 'item_id',
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
       ellipsis: true,
+    },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      key: 'category',
+    },
+    {
+      title: '置顶',
+      dataIndex: 'is_pinned',
+      key: 'is_pinned',
+      render: (pinned: boolean) => pinned ? '是' : '否',
+    },
+    {
+      title: '用户昵称',
+      dataIndex: 'user_nickname',
+      key: 'user_nickname',
+      render: (nickname: string) => nickname || '-',
     },
     {
       title: '收藏时间',
@@ -229,7 +255,7 @@ const Favorites: React.FC = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input
-            placeholder="搜索用户ID/项目标题"
+            placeholder="搜索用户ID/标题"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
@@ -259,7 +285,15 @@ const Favorites: React.FC = () => {
         dataSource={favorites}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 20 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
         scroll={{ x: 800 }}
       />
 
@@ -284,24 +318,29 @@ const Favorites: React.FC = () => {
             <Input placeholder="请输入用户ID" />
           </Form.Item>
           <Form.Item
-            name="item_id"
-            label="项目ID"
-            rules={[{ required: true, message: '请输入项目ID' }]}
+            name="title"
+            label="标题"
+            rules={[{ required: true, message: '请输入标题' }]}
           >
-            <Input placeholder="请输入项目ID" />
+            <Input placeholder="请输入标题" />
           </Form.Item>
           <Form.Item
-            name="item_type"
-            label="项目类型"
-            rules={[{ required: true, message: '请输入项目类型' }]}
+            name="url"
+            label="URL"
           >
-            <Input placeholder="请输入项目类型" />
+            <Input placeholder="请输入URL" />
           </Form.Item>
           <Form.Item
-            name="item_title"
-            label="项目标题"
+            name="description"
+            label="描述"
           >
-            <Input placeholder="请输入项目标题" />
+            <Input.TextArea rows={2} placeholder="请输入描述" />
+          </Form.Item>
+          <Form.Item
+            name="category"
+            label="分类"
+          >
+            <Input placeholder="请输入分类" />
           </Form.Item>
         </Form>
       </Modal>

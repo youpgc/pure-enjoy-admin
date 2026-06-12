@@ -192,7 +192,7 @@ const Users: React.FC = () => {
   // 切换用户状态
   const handleToggleStatus = async (record: User) => {
     try {
-      const newStatus = record.status === 'active' ? 'inactive' : 'active'
+      const newStatus = record.status === 'active' ? 'disabled' : 'active'
       const result = await userService.update(record.id, { status: newStatus as any })
       if (!result.success) {
         handleApiError(result.errorMessage, 'Users-切换状态')
@@ -416,7 +416,7 @@ const Users: React.FC = () => {
             allowClear
             options={[
               { label: '启用', value: 'active' },
-              { label: '停用', value: 'inactive' },
+              { label: '停用', value: 'disabled' },
             ]}
           />
           <Select

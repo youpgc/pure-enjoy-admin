@@ -31,7 +31,13 @@ async function flushErrorLogs() {
   try {
     // 获取当前用户信息
     const adminUserStr = localStorage.getItem('admin_user')
-    const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
+    let adminUser = null
+    try {
+      adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
+    } catch (e) {
+      console.error('Failed to parse admin_user from localStorage:', e)
+      localStorage.removeItem('admin_user')
+    }
     
     const logsWithMetadata = logsToFlush.map(log => ({
       ...log,
@@ -66,8 +72,14 @@ export async function reportError(
 ) {
   try {
     const adminUserStr = localStorage.getItem('admin_user')
-    const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
-    
+    let adminUser = null
+    try {
+      adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
+    } catch (e) {
+      console.error('Failed to parse admin_user from localStorage:', e)
+      localStorage.removeItem('admin_user')
+    }
+
     const errorLog = {
       level,
       module,
@@ -172,8 +184,14 @@ export async function logOperation(params: {
 }) {
   try {
     const adminUserStr = localStorage.getItem('admin_user')
-    const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
-    
+    let adminUser = null
+    try {
+      adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
+    } catch (e) {
+      console.error('Failed to parse admin_user from localStorage:', e)
+      localStorage.removeItem('admin_user')
+    }
+
     // 将 detail 转换为对象格式（数据库期望 JSON）
     let details: object | null = null
     if (params.detail) {
@@ -227,7 +245,13 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
       // 自动注入 x-user-id Header（用于RLS策略）
       const adminUserStr = localStorage.getItem('admin_user')
-      const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
+      let adminUser = null
+      try {
+        adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
+      } catch (e) {
+        console.error('Failed to parse admin_user from localStorage:', e)
+        localStorage.removeItem('admin_user')
+      }
       const userId = adminUser?.id || adminUser?.user_id || null
 
       if (userId && options.headers) {
@@ -319,28 +343,20 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 })
 
-// 错误处理辅助函数
-export const handleSupabaseError = (error: any, context: string): string => {
+// 错误处理辅助函数（逻辑与 apiClient.ts 中的 mapSupabaseError 一致，独立实现以避免循环依赖）
+export const handleSupabaseError = (error: any, context?: string): string => {
   console.error(`[Supabase] ${context} 错误:`, error)
-  
-  if (error?.code === 'PGRST116') {
-    return '数据不存在或已被删除'
+
+  const codeMap: Record<string, string> = {
+    PGRST116: '数据不存在或已被删除',
+    PGRST301: '没有权限执行此操作',
+    '23505': '数据已存在（唯一性冲突）',
+    '23503': '关联数据不存在（外键约束）',
+    '42501': '没有权限执行此操作',
   }
-  if (error?.code === 'PGRST301') {
-    return '没有权限执行此操作'
-  }
-  if (error?.code === '23505') {
-    return '数据已存在（唯一性冲突）'
-  }
-  if (error?.code === '23503') {
-    return '关联数据不存在（外键约束）'
-  }
-  if (error?.message?.includes('JWT')) {
-    return '认证已过期，请重新登录'
-  }
-  if (error?.message?.includes('network')) {
-    return '网络连接失败，请检查网络'
-  }
-  
+  const code = error?.code as string | undefined
+  if (code && codeMap[code]) return codeMap[code]
+  if (error?.message?.includes('JWT')) return '认证已过期，请重新登录'
+  if (error?.message?.includes('network')) return '网络连接失败，请检查网络'
   return error?.message || '操作失败，请稍后重试'
 }
