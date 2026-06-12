@@ -9,9 +9,6 @@ import {
   message,
   Select,
   Typography,
-  Row,
-  Col,
-  Statistic,
 } from 'antd'
 import {
   SearchOutlined,
@@ -58,42 +55,8 @@ const ErrorLogs: React.FC = () => {
     level: undefined,
   })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
-  const [stats, setStats] = useState({ total: 0, errorCount: 0, warningCount: 0, todayCount: 0 })
 
   const logService = new BaseService<ErrorLog>('error_logs', { defaultOrder: { column: 'created_at', ascending: false } })
-
-  // 加载统计数据
-  const loadStats = useCallback(async () => {
-    try {
-      const { count: totalCount } = await supabase
-        .from('error_logs')
-        .select('*', { count: 'exact', head: true })
-
-      const { count: errorCount } = await supabase
-        .from('error_logs')
-        .select('*', { count: 'exact', head: true })
-        .eq('level', 'error')
-
-      const { count: warningCount } = await supabase
-        .from('error_logs')
-        .select('*', { count: 'exact', head: true })
-        .eq('level', 'warning')
-
-      const { count: todayCount } = await supabase
-        .from('error_logs')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', dayjs().startOf('day').format('YYYY-MM-DD HH:mm:ss'))
-
-      setStats({
-        total: totalCount || 0,
-        errorCount: errorCount || 0,
-        warningCount: warningCount || 0,
-        todayCount: todayCount || 0,
-      })
-    } catch (error) {
-      handleApiError(error, 'ErrorLogs-加载统计')
-    }
-  }, [])
 
   // 加载日志列表
   const loadLogs = useCallback(async () => {
@@ -128,10 +91,6 @@ const ErrorLogs: React.FC = () => {
     loadLogs()
   }, [loadLogs])
 
-  useEffect(() => {
-    loadStats()
-  }, [loadStats])
-
   // 搜索
   const handleSearch = () => {
     resetPage()
@@ -165,7 +124,6 @@ const ErrorLogs: React.FC = () => {
       message.success(`成功删除 ${selectedRowKeys.length} 条日志`)
       setSelectedRowKeys([])
       loadLogs()
-      loadStats()
     } catch (error) {
       handleApiError(error, 'ErrorLogs-批量删除')
     }
@@ -223,49 +181,6 @@ const ErrorLogs: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="总日志数"
-              value={stats.total}
-              prefix={<AlertOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Error 数"
-              value={stats.errorCount}
-              prefix={<AlertOutlined />}
-              valueStyle={{ color: '#f5222d' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="Warning 数"
-              value={stats.warningCount}
-              prefix={<WarningOutlined />}
-              valueStyle={{ color: '#fa8c16' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card>
-            <Statistic
-              title="今日新增"
-              value={stats.todayCount}
-              prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
