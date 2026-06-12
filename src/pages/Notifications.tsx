@@ -181,6 +181,15 @@ const Notifications: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields()
+      // payload 字符串转对象
+      if (values.payload && typeof values.payload === 'string') {
+        try {
+          values.payload = JSON.parse(values.payload)
+        } catch (e) {
+          message.error('附加数据格式错误，请输入有效JSON')
+          return
+        }
+      }
       if (editingNotification) {
         const result = await notificationService.update(editingNotification.id, {
           ...values,

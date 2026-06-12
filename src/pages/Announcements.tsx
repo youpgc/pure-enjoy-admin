@@ -157,6 +157,12 @@ const Announcements: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields()
+      // 格式化 expire_at
+      values.expire_at = values.expire_at?.format('YYYY-MM-DD HH:mm:ss') || null
+      // 如果发布且没有 publish_at，自动设置
+      if (values.is_published && !values.publish_at) {
+        values.publish_at = new Date().toISOString()
+      }
       if (editingAnnouncement) {
         const result = await service.update(editingAnnouncement.id, {
           ...values,

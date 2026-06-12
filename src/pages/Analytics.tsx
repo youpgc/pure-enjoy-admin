@@ -110,7 +110,7 @@ const Analytics: React.FC = () => {
         ),
         apiQuery(() =>
           supabase
-            .from('feedback')
+            .from('user_feedback')
             .select('created_at')
             .gte('created_at', startDate)
             .lte('created_at', endDate + 'T23:59:59') as any,

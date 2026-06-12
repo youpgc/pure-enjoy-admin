@@ -144,9 +144,11 @@ const DictManagement: React.FC = () => {
     setItemLoading(true)
     try {
       const result = await itemService.findAll((q) => {
-        let filtered = q.eq('type_id', selectedTypeId)
+        let filtered = q
         if (itemSearchKeyword) {
-          filtered = filtered.or(`code.ilike.%${itemSearchKeyword}%,label.ilike.%${itemSearchKeyword}%`)
+          filtered = filtered.or(`type_id.eq.${selectedTypeId},code.ilike.%${itemSearchKeyword}%,label.ilike.%${itemSearchKeyword}%`)
+        } else {
+          filtered = filtered.eq('type_id', selectedTypeId)
         }
         return filtered
       })

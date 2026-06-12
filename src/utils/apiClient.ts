@@ -101,25 +101,13 @@ export class BaseService<T extends Record<string, any>> {
     try {
       const from = (page - 1) * pageSize
       const to = from + pageSize - 1
-
-      let baseQ = supabase.from(this.tableName).select('*', { count: 'exact' })
-      if (query) baseQ = query(baseQ)
-
-      const [{ count, error: countError }, { data, error }] = await Promise.all([
-        baseQ,
-        (query
-          ? query(supabase.from(this.tableName).select('*'))
-          : supabase.from(this.tableName).select('*')
-        )
-          .order(this.options?.defaultOrder?.column || 'created_at', {
-            ascending: this.options?.defaultOrder?.ascending ?? false,
-          })
-          .range(from, to),
-      ])
-
-      if (countError) throw countError
+      let q = supabase.from(this.tableName).select('*', { count: 'exact', head: false })
+      if (query) q = query(q)
+      q = q.order(this.options?.defaultOrder?.column || 'created_at', {
+        ascending: this.options?.defaultOrder?.ascending ?? false,
+      } as any).range(from, to)
+      const { data, count, error } = await q
       if (error) throw error
-
       return successResponse({ data: data || [], total: count || 0 })
     } catch (err) {
       return errorResponse(logApiError(err, `${this.tableName}.paginate`))
@@ -160,6 +148,28 @@ export class BaseService<T extends Record<string, any>> {
       return successResponse(true)
     } catch (err) {
       return errorResponse(logApiError(err, `${this.tableName}.delete`))
+    }
+  }
+
+  /// 批量删除
+  async batchDelete(ids: (string | number)[]): Promise<ApiResponse<boolean>> {
+    try {
+      const { error } = await supabase.from(this.tableName).delete().in('id', ids)
+      if (error) throw error
+      return successResponse(true)
+    } catch (err) {
+      return errorResponse(logApiError(err, `${this.tableName}.batchDelete`))
+    }
+  }
+
+  /// 批量更新
+  async batchUpdate(ids: (string | number)[], data: Partial<T>): Promise<ApiResponse<boolean>> {
+    try {
+      const { error } = await supabase.from(this.tableName).update(data as any).in('id', ids)
+      if (error) throw error
+      return successResponse(true)
+    } catch (err) {
+      return errorResponse(logApiError(err, `${this.tableName}.batchUpdate`))
     }
   }
 }

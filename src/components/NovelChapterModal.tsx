@@ -36,7 +36,7 @@ interface NovelChapter {
   title: string
   content: string
   word_count: number
-  is_vip: boolean
+  is_free: boolean
   created_at: string
   updated_at: string
 }
@@ -206,7 +206,7 @@ const NovelChapterModal: React.FC<{
       render: (title: string, record: NovelChapter) => (
         <Space>
           <Text strong>{title}</Text>
-          {record.is_vip && <Tag color="gold">VIP</Tag>}
+          {!record.is_free && <Tag color="gold">VIP</Tag>}
         </Space>
       ),
     },
@@ -326,8 +326,8 @@ const NovelChapterModal: React.FC<{
             <Input.TextArea rows={10} placeholder="请输入章节内容" />
           </Form.Item>
           <Form.Item
-            name="is_vip"
-            label="VIP章节"
+            name="is_free"
+            label="免费章节"
             valuePropName="checked"
           >
             <Switch checkedChildren="是" unCheckedChildren="否" />
