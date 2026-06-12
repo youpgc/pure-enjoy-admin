@@ -381,7 +381,7 @@ const RolePermission: React.FC = () => {
     <div style={{ padding: 24 }}>
       {/* 统计卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12}>
           <Card>
             <Statistic
               title="总角色数"
@@ -390,30 +390,11 @@ const RolePermission: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="启用角色"
-              value={roles.filter((r) => r.is_active).length}
-              prefix={<SafetyOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
+        <Col xs={24} sm={12}>
           <Card>
             <Statistic
               title="平均权限数"
-              value={
-                roles.length > 0
-                  ? Math.round(
-                      roles.reduce(
-                        (sum, r) => sum + (r.permissions || []).length,
-                        0
-                      ) / roles.length
-                    )
-                  : 0
-              }
+              value={roles.length > 0 ? Math.round(roles.reduce((sum, r) => sum + (r.permissions || []).length, 0) / roles.length) : 0}
               prefix={<SafetyOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
