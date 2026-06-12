@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase, reportError } from './supabase'
 import { message } from 'antd'
 
 /// 统一 API 响应封装
@@ -33,11 +33,20 @@ export function mapSupabaseError(error: any): string {
   return error?.message || '操作失败，请稍后重试'
 }
 
-/// 统一异常处理：打印 + 提示
+/// 统一异常处理：打印 + 提示 + 记录错误日志
 export function handleApiError(error: unknown, context?: string): string {
   const msg = error instanceof Error ? error.message : mapSupabaseError(error)
   console.error(`[API${context ? ` - ${context}` : ''}]`, error)
   message.error(msg)
+  reportError('error', context || 'api', msg, undefined, error instanceof Error ? error : undefined)
+  return msg
+}
+
+/// 内部错误处理：记录日志但不弹消息（用于 BaseService 静默错误）
+function logApiError(error: unknown, context: string): string {
+  const msg = mapSupabaseError(error)
+  console.error(`[API - ${context}]`, error)
+  reportError('error', context, msg, undefined, error instanceof Error ? error : undefined)
   return msg
 }
 
@@ -64,7 +73,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(data || [])
     } catch (err) {
-      return errorResponse(mapSupabaseError(err))
+      return errorResponse(logApiError(err, `${this.tableName}.findAll`))
     }
   }
 
@@ -79,7 +88,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(data)
     } catch (err) {
-      return errorResponse(mapSupabaseError(err))
+      return errorResponse(logApiError(err, `${this.tableName}.findById`))
     }
   }
 
@@ -113,7 +122,7 @@ export class BaseService<T extends Record<string, any>> {
 
       return successResponse({ data: data || [], total: count || 0 })
     } catch (err) {
-      return errorResponse(mapSupabaseError(err))
+      return errorResponse(logApiError(err, `${this.tableName}.paginate`))
     }
   }
 
@@ -128,7 +137,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(result)
     } catch (err) {
-      return errorResponse(mapSupabaseError(err))
+      return errorResponse(logApiError(err, `${this.tableName}.create`))
     }
   }
 
@@ -139,7 +148,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(true)
     } catch (err) {
-      return errorResponse(mapSupabaseError(err))
+      return errorResponse(logApiError(err, `${this.tableName}.update`))
     }
   }
 
@@ -150,7 +159,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(true)
     } catch (err) {
-      return errorResponse(mapSupabaseError(err))
+      return errorResponse(logApiError(err, `${this.tableName}.delete`))
     }
   }
 }
