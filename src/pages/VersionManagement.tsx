@@ -15,7 +15,6 @@ import {
   Typography,
   Row,
   Col,
-  Statistic,
   Switch,
   Descriptions,
 } from 'antd'
@@ -25,9 +24,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  AppstoreOutlined,
-  CheckCircleOutlined,
-  CloudUploadOutlined,
   DownloadOutlined,
   QrcodeOutlined,
 } from '@ant-design/icons'
