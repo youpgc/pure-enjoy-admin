@@ -14,6 +14,7 @@ import {
   Row,
   Col,
   Statistic,
+  Descriptions,
 } from 'antd'
 import {
   SearchOutlined,
@@ -22,6 +23,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   FileTextOutlined,
+  EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -61,9 +63,12 @@ const Notes: React.FC = () => {
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [userFilter, setUserFilter] = useState('')
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingNote, setEditingNote] = useState<Note | null>(null)
+  const [detailNote, setDetailNote] = useState<Note | null>(null)
+  const [detailVisible, setDetailVisible] = useState(false)
   const [form] = Form.useForm()
 
   const service = new BaseService<Note>('notes', { defaultOrder: { column: 'created_at', ascending: false } })
@@ -73,10 +78,14 @@ const Notes: React.FC = () => {
     setLoading(true)
     try {
       const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
         if (searchKeyword) {
-          return q.or(`title.ilike.%${searchKeyword}%,content.ilike.%${searchKeyword}%,category.ilike.%${searchKeyword}%`)
+          query = query.or(`title.ilike.%${searchKeyword}%,content.ilike.%${searchKeyword}%`)
         }
-        return q
+        if (userFilter) {
+          query = query.eq('user_id', userFilter)
+        }
+        return query
       })
       if (!result.success) {
         handleApiError(result.errorMessage, 'Notes-加载数据')
@@ -89,7 +98,7 @@ const Notes: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword, pagination.current, pagination.pageSize])
+  }, [searchKeyword, userFilter, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -97,6 +106,13 @@ const Notes: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
+    resetPage()
+  }
+
+  // 重置筛选
+  const handleReset = () => {
+    setSearchKeyword('')
+    setUserFilter('')
     resetPage()
   }
 
@@ -114,6 +130,12 @@ const Notes: React.FC = () => {
       ...record,
     })
     setModalVisible(true)
+  }
+
+  // 查看详情
+  const handleViewDetail = (record: Note) => {
+    setDetailNote(record)
+    setDetailVisible(true)
   }
 
   // 删除记录
@@ -169,6 +191,12 @@ const Notes: React.FC = () => {
   // 表格列定义
   const columns: ColumnsType<Note> = [
     {
+      title: '用户ID',
+      dataIndex: 'user_id',
+      key: 'user_id',
+      ellipsis: true,
+    },
+    {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
@@ -200,9 +228,12 @@ const Notes: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 180,
       render: (_, record) => (
         <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
           <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
@@ -250,16 +281,28 @@ const Notes: React.FC = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input
-            placeholder="搜索标题/内容/分类"
+            placeholder="搜索标题/内容"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Input
+            placeholder="按用户ID筛选"
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
             allowClear
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
           </Button>
         </Space>
       </Card>
@@ -281,7 +324,7 @@ const Notes: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={tablePagination}
-        scroll={{ x: 800 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 表单弹窗 */}
@@ -329,6 +372,30 @@ const Notes: React.FC = () => {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 详情弹窗 */}
+      <Modal
+        title="笔记详情"
+        open={detailVisible}
+        onCancel={() => { setDetailVisible(false); setDetailNote(null) }}
+        footer={[
+          <Button key="close" onClick={() => { setDetailVisible(false); setDetailNote(null) }}>
+            关闭
+          </Button>,
+        ]}
+        width={600}
+      >
+        {detailNote && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="用户ID">{detailNote.user_id}</Descriptions.Item>
+            <Descriptions.Item label="标题">{detailNote.title}</Descriptions.Item>
+            <Descriptions.Item label="内容">{detailNote.content}</Descriptions.Item>
+            <Descriptions.Item label="分类">{NOTE_CATEGORY_MAP[detailNote.category || ''] || detailNote.category || '-'}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{dayjs(detailNote.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+            <Descriptions.Item label="更新时间">{dayjs(detailNote.updated_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+          </Descriptions>
+        )}
       </Modal>
     </div>
   )

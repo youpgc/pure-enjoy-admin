@@ -16,6 +16,7 @@ import {
   Row,
   Col,
   Statistic,
+  Descriptions,
 } from 'antd'
 import {
   SearchOutlined,
@@ -24,6 +25,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   DollarOutlined,
+  EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -73,9 +75,12 @@ const Expenses: React.FC = () => {
   const [records, setRecords] = useState<Expense[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [userFilter, setUserFilter] = useState('')
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRecord, setEditingRecord] = useState<Expense | null>(null)
+  const [detailRecord, setDetailRecord] = useState<Expense | null>(null)
+  const [detailVisible, setDetailVisible] = useState(false)
   const [categoryMap, setCategoryMap] = useState<Record<string, string>>(FALLBACK_CATEGORY_MAP)
   const [categoryOptions, setCategoryOptions] = useState(FALLBACK_CATEGORY_OPTIONS)
   const [form] = Form.useForm()
@@ -101,10 +106,14 @@ const Expenses: React.FC = () => {
     setLoading(true)
     try {
       const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
         if (searchKeyword) {
-          return q.or(`user_id.ilike.%${searchKeyword}%,description.ilike.%${searchKeyword}%,category.ilike.%${searchKeyword}%`)
+          query = query.or(`description.ilike.%${searchKeyword}%,category.ilike.%${searchKeyword}%`)
         }
-        return q
+        if (userFilter) {
+          query = query.eq('user_id', userFilter)
+        }
+        return query
       })
       if (!result.success) {
         handleApiError(result.errorMessage, 'Expenses-加载数据')
@@ -117,7 +126,7 @@ const Expenses: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword, pagination.current, pagination.pageSize])
+  }, [searchKeyword, userFilter, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -125,6 +134,13 @@ const Expenses: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
+    resetPage()
+  }
+
+  // 重置筛选
+  const handleReset = () => {
+    setSearchKeyword('')
+    setUserFilter('')
     resetPage()
   }
 
@@ -144,6 +160,12 @@ const Expenses: React.FC = () => {
       date: dayjs(record.date),
     })
     setModalVisible(true)
+  }
+
+  // 查看详情
+  const handleViewDetail = (record: Expense) => {
+    setDetailRecord(record)
+    setDetailVisible(true)
   }
 
   // 删除记录
@@ -202,6 +224,12 @@ const Expenses: React.FC = () => {
       ellipsis: true,
     },
     {
+      title: '用户昵称',
+      dataIndex: 'user_nickname',
+      key: 'user_nickname',
+      render: (nickname: string) => nickname || '-',
+    },
+    {
       title: '金额',
       dataIndex: 'amount',
       key: 'amount',
@@ -233,17 +261,14 @@ const Expenses: React.FC = () => {
       render: (note: string) => note || '-',
     },
     {
-      title: '用户昵称',
-      dataIndex: 'user_nickname',
-      key: 'user_nickname',
-      render: (nickname: string) => nickname || '-',
-    },
-    {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 180,
       render: (_, record) => (
         <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
           <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
@@ -262,7 +287,7 @@ const Expenses: React.FC = () => {
     },
   ]
 
-  // 计算总支出
+  // 计算总支出（基于当前筛选）
   const totalAmount = records.reduce((sum, r) => sum + r.amount, 0)
 
   return (
@@ -304,16 +329,28 @@ const Expenses: React.FC = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input
-            placeholder="搜索用户ID/描述/分类"
+            placeholder="搜索描述/分类"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Input
+            placeholder="按用户ID筛选"
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
             allowClear
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
           </Button>
         </Space>
       </Card>
@@ -335,7 +372,7 @@ const Expenses: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={tablePagination}
-        scroll={{ x: 800 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 表单弹窗 */}
@@ -389,6 +426,32 @@ const Expenses: React.FC = () => {
             <DatePicker style={{ width: '100%' }} placeholder="请选择日期" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 详情弹窗 */}
+      <Modal
+        title="支出详情"
+        open={detailVisible}
+        onCancel={() => { setDetailVisible(false); setDetailRecord(null) }}
+        footer={[
+          <Button key="close" onClick={() => { setDetailVisible(false); setDetailRecord(null) }}>
+            关闭
+          </Button>,
+        ]}
+        width={500}
+      >
+        {detailRecord && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="用户ID">{detailRecord.user_id}</Descriptions.Item>
+            <Descriptions.Item label="用户昵称">{detailRecord.user_nickname || '-'}</Descriptions.Item>
+            <Descriptions.Item label="金额">¥{detailRecord.amount.toFixed(2)}</Descriptions.Item>
+            <Descriptions.Item label="分类">{categoryMap[detailRecord.category] || detailRecord.category}</Descriptions.Item>
+            <Descriptions.Item label="描述">{detailRecord.description || '-'}</Descriptions.Item>
+            <Descriptions.Item label="日期">{dayjs(detailRecord.date).format('YYYY-MM-DD')}</Descriptions.Item>
+            <Descriptions.Item label="备注">{detailRecord.note || '-'}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{dayjs(detailRecord.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+          </Descriptions>
+        )}
       </Modal>
     </div>
   )

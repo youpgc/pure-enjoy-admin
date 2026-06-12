@@ -416,7 +416,7 @@ const Feedback: React.FC = () => {
           selectedRowKeys,
           onChange: setSelectedRowKeys,
         }}
-        scroll={{ x: 1200 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 详情弹窗 */}

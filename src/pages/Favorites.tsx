@@ -14,6 +14,7 @@ import {
   Row,
   Col,
   Statistic,
+  Descriptions,
 } from 'antd'
 import {
   SearchOutlined,
@@ -22,6 +23,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   HeartOutlined,
+  EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -64,9 +66,12 @@ const Favorites: React.FC = () => {
   const [favorites, setFavorites] = useState<Favorite[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [userFilter, setUserFilter] = useState('')
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingFavorite, setEditingFavorite] = useState<Favorite | null>(null)
+  const [detailFavorite, setDetailFavorite] = useState<Favorite | null>(null)
+  const [detailVisible, setDetailVisible] = useState(false)
   const [form] = Form.useForm()
 
   const service = new BaseService<Favorite>('user_favorites', { defaultOrder: { column: 'created_at', ascending: false } })
@@ -76,10 +81,14 @@ const Favorites: React.FC = () => {
     setLoading(true)
     try {
       const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
         if (searchKeyword) {
-          return q.or(`user_id.ilike.%${searchKeyword}%,title.ilike.%${searchKeyword}%`)
+          query = query.or(`title.ilike.%${searchKeyword}%`)
         }
-        return q
+        if (userFilter) {
+          query = query.eq('user_id', userFilter)
+        }
+        return query
       })
       if (!result.success) {
         handleApiError(result.errorMessage, 'Favorites-加载数据')
@@ -92,7 +101,7 @@ const Favorites: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword, pagination.current, pagination.pageSize])
+  }, [searchKeyword, userFilter, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -100,6 +109,13 @@ const Favorites: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
+    resetPage()
+  }
+
+  // 重置筛选
+  const handleReset = () => {
+    setSearchKeyword('')
+    setUserFilter('')
     resetPage()
   }
 
@@ -117,6 +133,12 @@ const Favorites: React.FC = () => {
       ...record,
     })
     setModalVisible(true)
+  }
+
+  // 查看详情
+  const handleViewDetail = (record: Favorite) => {
+    setDetailFavorite(record)
+    setDetailVisible(true)
   }
 
   // 删除记录
@@ -174,6 +196,12 @@ const Favorites: React.FC = () => {
       ellipsis: true,
     },
     {
+      title: '用户昵称',
+      dataIndex: 'user_nickname',
+      key: 'user_nickname',
+      render: (nickname: string) => nickname || '-',
+    },
+    {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
@@ -205,12 +233,6 @@ const Favorites: React.FC = () => {
       render: (pinned: boolean) => pinned ? '是' : '否',
     },
     {
-      title: '用户昵称',
-      dataIndex: 'user_nickname',
-      key: 'user_nickname',
-      render: (nickname: string) => nickname || '-',
-    },
-    {
       title: '收藏时间',
       dataIndex: 'created_at',
       key: 'created_at',
@@ -219,9 +241,12 @@ const Favorites: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 180,
       render: (_, record) => (
         <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
           <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
@@ -269,16 +294,28 @@ const Favorites: React.FC = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input
-            placeholder="搜索用户ID/标题"
+            placeholder="搜索标题"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Input
+            placeholder="按用户ID筛选"
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
             allowClear
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
           </Button>
         </Space>
       </Card>
@@ -300,7 +337,7 @@ const Favorites: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={tablePagination}
-        scroll={{ x: 800 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 表单弹窗 */}
@@ -353,6 +390,32 @@ const Favorites: React.FC = () => {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 详情弹窗 */}
+      <Modal
+        title="收藏详情"
+        open={detailVisible}
+        onCancel={() => { setDetailVisible(false); setDetailFavorite(null) }}
+        footer={[
+          <Button key="close" onClick={() => { setDetailVisible(false); setDetailFavorite(null) }}>
+            关闭
+          </Button>,
+        ]}
+        width={500}
+      >
+        {detailFavorite && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="用户ID">{detailFavorite.user_id}</Descriptions.Item>
+            <Descriptions.Item label="用户昵称">{detailFavorite.user_nickname || '-'}</Descriptions.Item>
+            <Descriptions.Item label="标题">{detailFavorite.title}</Descriptions.Item>
+            <Descriptions.Item label="URL">{detailFavorite.url ? <a href={detailFavorite.url} target="_blank" rel="noopener noreferrer">{detailFavorite.url}</a> : '-'}</Descriptions.Item>
+            <Descriptions.Item label="描述">{detailFavorite.description || '-'}</Descriptions.Item>
+            <Descriptions.Item label="分类">{FAVORITE_CATEGORY_MAP[detailFavorite.category || ''] || detailFavorite.category || '-'}</Descriptions.Item>
+            <Descriptions.Item label="置顶">{detailFavorite.is_pinned ? '是' : '否'}</Descriptions.Item>
+            <Descriptions.Item label="收藏时间">{dayjs(detailFavorite.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+          </Descriptions>
+        )}
       </Modal>
     </div>
   )

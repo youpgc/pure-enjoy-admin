@@ -460,7 +460,7 @@ const SensitiveWords: React.FC = () => {
           selectedRowKeys,
           onChange: setSelectedRowKeys,
         }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 敏感词表单弹窗 */}

@@ -15,6 +15,7 @@ import {
   Row,
   Col,
   Statistic,
+  Descriptions,
 } from 'antd'
 import {
   SearchOutlined,
@@ -23,6 +24,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   BellOutlined,
+  EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -43,8 +45,6 @@ const REPEAT_TYPE_MAP: Record<string, string> = {
   weekend: '周末',
   custom: '自定义',
 }
-
-// REPEAT_TYPE_OPTIONS is reserved for future use
 
 // ==================== 类型定义 ====================
 
@@ -67,9 +67,12 @@ const Reminders: React.FC = () => {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [userFilter, setUserFilter] = useState('')
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null)
+  const [detailReminder, setDetailReminder] = useState<Reminder | null>(null)
+  const [detailVisible, setDetailVisible] = useState(false)
   const [form] = Form.useForm()
 
   const service = new BaseService<Reminder>('reminders', { defaultOrder: { column: 'remind_at', ascending: true } })
@@ -79,10 +82,14 @@ const Reminders: React.FC = () => {
     setLoading(true)
     try {
       const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
         if (searchKeyword) {
-          return q.or(`title.ilike.%${searchKeyword}%,description.ilike.%${searchKeyword}%`)
+          query = query.or(`title.ilike.%${searchKeyword}%,description.ilike.%${searchKeyword}%`)
         }
-        return q
+        if (userFilter) {
+          query = query.eq('user_id', userFilter)
+        }
+        return query
       })
       if (!result.success) {
         handleApiError(result.errorMessage, 'Reminders-加载数据')
@@ -95,7 +102,7 @@ const Reminders: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword, pagination.current, pagination.pageSize])
+  }, [searchKeyword, userFilter, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -103,6 +110,13 @@ const Reminders: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
+    resetPage()
+  }
+
+  // 重置筛选
+  const handleReset = () => {
+    setSearchKeyword('')
+    setUserFilter('')
     resetPage()
   }
 
@@ -122,6 +136,12 @@ const Reminders: React.FC = () => {
       remind_at: dayjs(record.remind_at),
     })
     setModalVisible(true)
+  }
+
+  // 查看详情
+  const handleViewDetail = (record: Reminder) => {
+    setDetailReminder(record)
+    setDetailVisible(true)
   }
 
   // 删除记录
@@ -194,6 +214,12 @@ const Reminders: React.FC = () => {
   // 表格列定义
   const columns: ColumnsType<Reminder> = [
     {
+      title: '用户ID',
+      dataIndex: 'user_id',
+      key: 'user_id',
+      ellipsis: true,
+    },
+    {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
@@ -243,9 +269,12 @@ const Reminders: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 180,
       render: (_, record) => (
         <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
           <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
@@ -308,11 +337,23 @@ const Reminders: React.FC = () => {
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Input
+            placeholder="按用户ID筛选"
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
             allowClear
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
           </Button>
         </Space>
       </Card>
@@ -334,7 +375,7 @@ const Reminders: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={tablePagination}
-        scroll={{ x: 800 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 表单弹窗 */}
@@ -378,6 +419,32 @@ const Reminders: React.FC = () => {
             <DatePicker showTime style={{ width: '100%' }} placeholder="请选择提醒时间" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 详情弹窗 */}
+      <Modal
+        title="提醒详情"
+        open={detailVisible}
+        onCancel={() => { setDetailVisible(false); setDetailReminder(null) }}
+        footer={[
+          <Button key="close" onClick={() => { setDetailVisible(false); setDetailReminder(null) }}>
+            关闭
+          </Button>,
+        ]}
+        width={500}
+      >
+        {detailReminder && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="用户ID">{detailReminder.user_id}</Descriptions.Item>
+            <Descriptions.Item label="标题">{detailReminder.title}</Descriptions.Item>
+            <Descriptions.Item label="描述">{detailReminder.description || '-'}</Descriptions.Item>
+            <Descriptions.Item label="是否重复">{detailReminder.is_repeated ? '是' : '否'}</Descriptions.Item>
+            <Descriptions.Item label="重复类型">{REPEAT_TYPE_MAP[detailReminder.repeat_type || ''] || detailReminder.repeat_type || '-'}</Descriptions.Item>
+            <Descriptions.Item label="提醒时间">{dayjs(detailReminder.remind_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+            <Descriptions.Item label="完成状态">{detailReminder.is_completed ? '已完成' : '未完成'}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{dayjs(detailReminder.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+          </Descriptions>
+        )}
       </Modal>
     </div>
   )

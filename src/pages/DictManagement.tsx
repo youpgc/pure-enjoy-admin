@@ -548,7 +548,7 @@ const DictManagement: React.FC = () => {
           loading={typeLoading}
           size="middle"
           pagination={false}
-          scroll={{ x: 800 }}
+          scroll={{ x: 'max-content' }}
           onRow={(record) => ({
             onClick: () => handleSelectType(record),
             style: {
@@ -620,7 +620,7 @@ const DictManagement: React.FC = () => {
             showQuickJumper: true,
             showTotal: (total) => `共 ${total} 条`,
           }}
-          scroll={{ x: 900 }}
+          scroll={{ x: 'max-content' }}
           locale={{
             emptyText: selectedTypeId
               ? '暂无字典项数据'

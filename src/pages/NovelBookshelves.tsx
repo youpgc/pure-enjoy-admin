@@ -354,7 +354,7 @@ const NovelBookshelves: React.FC = () => {
           selectedRowKeys,
           onChange: setSelectedRowKeys,
         }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 'max-content' }}
       />
     </div>
   )

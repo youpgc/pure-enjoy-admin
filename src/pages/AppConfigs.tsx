@@ -331,7 +331,7 @@ const AppConfigs: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={tablePagination}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 表单弹窗 */}

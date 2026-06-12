@@ -406,7 +406,7 @@ const Notifications: React.FC = () => {
           selectedRowKeys,
           onChange: setSelectedRowKeys,
         }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 通知表单弹窗 */}

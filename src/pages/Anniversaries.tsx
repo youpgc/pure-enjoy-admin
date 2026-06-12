@@ -15,6 +15,7 @@ import {
   Row,
   Col,
   Statistic,
+  Descriptions,
 } from 'antd'
 import {
   SearchOutlined,
@@ -23,6 +24,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   CalendarOutlined,
+  EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -65,9 +67,12 @@ const Anniversaries: React.FC = () => {
   const [anniversaries, setAnniversaries] = useState<Anniversary[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [userFilter, setUserFilter] = useState('')
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingAnniversary, setEditingAnniversary] = useState<Anniversary | null>(null)
+  const [detailAnniversary, setDetailAnniversary] = useState<Anniversary | null>(null)
+  const [detailVisible, setDetailVisible] = useState(false)
   const [form] = Form.useForm()
 
   const service = new BaseService<Anniversary>('user_anniversaries', { defaultOrder: { column: 'date', ascending: true } })
@@ -77,10 +82,14 @@ const Anniversaries: React.FC = () => {
     setLoading(true)
     try {
       const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
         if (searchKeyword) {
-          return q.or(`title.ilike.%${searchKeyword}%`)
+          query = query.or(`title.ilike.%${searchKeyword}%`)
         }
-        return q
+        if (userFilter) {
+          query = query.eq('user_id', userFilter)
+        }
+        return query
       })
       if (!result.success) {
         handleApiError(result.errorMessage, 'Anniversaries-加载数据')
@@ -93,7 +102,7 @@ const Anniversaries: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword, pagination.current, pagination.pageSize])
+  }, [searchKeyword, userFilter, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -101,6 +110,13 @@ const Anniversaries: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
+    resetPage()
+  }
+
+  // 重置筛选
+  const handleReset = () => {
+    setSearchKeyword('')
+    setUserFilter('')
     resetPage()
   }
 
@@ -120,6 +136,12 @@ const Anniversaries: React.FC = () => {
       date: dayjs(record.date),
     })
     setModalVisible(true)
+  }
+
+  // 查看详情
+  const handleViewDetail = (record: Anniversary) => {
+    setDetailAnniversary(record)
+    setDetailVisible(true)
   }
 
   // 删除记录
@@ -186,6 +208,18 @@ const Anniversaries: React.FC = () => {
   // 表格列定义
   const columns: ColumnsType<Anniversary> = [
     {
+      title: '用户ID',
+      dataIndex: 'user_id',
+      key: 'user_id',
+      ellipsis: true,
+    },
+    {
+      title: '用户昵称',
+      dataIndex: 'user_nickname',
+      key: 'user_nickname',
+      render: (nickname: string) => nickname || '-',
+    },
+    {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
@@ -218,17 +252,14 @@ const Anniversaries: React.FC = () => {
       render: (days: number) => days ? `${days} 天前` : '-',
     },
     {
-      title: '用户昵称',
-      dataIndex: 'user_nickname',
-      key: 'user_nickname',
-      render: (nickname: string) => nickname || '-',
-    },
-    {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 180,
       render: (_, record) => (
         <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
           <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
@@ -281,11 +312,23 @@ const Anniversaries: React.FC = () => {
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Input
+            placeholder="按用户ID筛选"
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
             allowClear
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
           </Button>
         </Space>
       </Card>
@@ -307,7 +350,7 @@ const Anniversaries: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={tablePagination}
-        scroll={{ x: 800 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 表单弹窗 */}
@@ -361,6 +404,33 @@ const Anniversaries: React.FC = () => {
             <Input placeholder="请输入提前提醒天数" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 详情弹窗 */}
+      <Modal
+        title="纪念日详情"
+        open={detailVisible}
+        onCancel={() => { setDetailVisible(false); setDetailAnniversary(null) }}
+        footer={[
+          <Button key="close" onClick={() => { setDetailVisible(false); setDetailAnniversary(null) }}>
+            关闭
+          </Button>,
+        ]}
+        width={500}
+      >
+        {detailAnniversary && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="用户ID">{detailAnniversary.user_id}</Descriptions.Item>
+            <Descriptions.Item label="用户昵称">{detailAnniversary.user_nickname || '-'}</Descriptions.Item>
+            <Descriptions.Item label="标题">{detailAnniversary.title}</Descriptions.Item>
+            <Descriptions.Item label="日期">{dayjs(detailAnniversary.date).format('YYYY-MM-DD')}</Descriptions.Item>
+            <Descriptions.Item label="类型">{ANNIVERSARY_TYPE_MAP[detailAnniversary.type] || detailAnniversary.type}</Descriptions.Item>
+            <Descriptions.Item label="距离下次">{getDaysUntil(detailAnniversary.date)} 天后</Descriptions.Item>
+            <Descriptions.Item label="提前提醒">{detailAnniversary.remind_days_before ? detailAnniversary.remind_days_before + ' 天前' : '-'}</Descriptions.Item>
+            <Descriptions.Item label="描述">{detailAnniversary.description || '-'}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{dayjs(detailAnniversary.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+          </Descriptions>
+        )}
       </Modal>
     </div>
   )

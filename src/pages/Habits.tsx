@@ -16,6 +16,7 @@ import {
   Row,
   Col,
   Statistic,
+  Descriptions,
 } from 'antd'
 import {
   SearchOutlined,
@@ -24,6 +25,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   CheckCircleOutlined,
+  EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { BaseService, handleApiError } from '../utils/apiClient'
@@ -52,9 +54,12 @@ const Habits: React.FC = () => {
   const [habits, setHabits] = useState<Habit[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [userFilter, setUserFilter] = useState('')
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null)
+  const [detailHabit, setDetailHabit] = useState<Habit | null>(null)
+  const [detailVisible, setDetailVisible] = useState(false)
   const [form] = Form.useForm()
 
   const service = new BaseService<Habit>('habits', { defaultOrder: { column: 'created_at', ascending: false } })
@@ -64,10 +69,14 @@ const Habits: React.FC = () => {
     setLoading(true)
     try {
       const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
         if (searchKeyword) {
-          return q.or(`name.ilike.%${searchKeyword}%,description.ilike.%${searchKeyword}%`)
+          query = query.or(`name.ilike.%${searchKeyword}%,description.ilike.%${searchKeyword}%`)
         }
-        return q
+        if (userFilter) {
+          query = query.eq('user_id', userFilter)
+        }
+        return query
       })
       if (!result.success) {
         handleApiError(result.errorMessage, 'Habits-加载数据')
@@ -80,7 +89,7 @@ const Habits: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword, pagination.current, pagination.pageSize])
+  }, [searchKeyword, userFilter, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -88,6 +97,13 @@ const Habits: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
+    resetPage()
+  }
+
+  // 重置筛选
+  const handleReset = () => {
+    setSearchKeyword('')
+    setUserFilter('')
     resetPage()
   }
 
@@ -106,6 +122,12 @@ const Habits: React.FC = () => {
       ...record,
     })
     setModalVisible(true)
+  }
+
+  // 查看详情
+  const handleViewDetail = (record: Habit) => {
+    setDetailHabit(record)
+    setDetailVisible(true)
   }
 
   // 删除记录
@@ -157,6 +179,12 @@ const Habits: React.FC = () => {
   // 表格列定义
   const columns: ColumnsType<Habit> = [
     {
+      title: '用户ID',
+      dataIndex: 'user_id',
+      key: 'user_id',
+      ellipsis: true,
+    },
+    {
       title: '习惯名称',
       dataIndex: 'name',
       key: 'name',
@@ -197,9 +225,12 @@ const Habits: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 180,
       render: (_, record) => (
         <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
           <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
@@ -253,11 +284,23 @@ const Habits: React.FC = () => {
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Input
+            placeholder="按用户ID筛选"
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
             allowClear
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
           </Button>
         </Space>
       </Card>
@@ -279,7 +322,7 @@ const Habits: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={tablePagination}
-        scroll={{ x: 800 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 表单弹窗 */}
@@ -329,6 +372,32 @@ const Habits: React.FC = () => {
             <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 详情弹窗 */}
+      <Modal
+        title="习惯详情"
+        open={detailVisible}
+        onCancel={() => { setDetailVisible(false); setDetailHabit(null) }}
+        footer={[
+          <Button key="close" onClick={() => { setDetailVisible(false); setDetailHabit(null) }}>
+            关闭
+          </Button>,
+        ]}
+        width={500}
+      >
+        {detailHabit && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="用户ID">{detailHabit.user_id}</Descriptions.Item>
+            <Descriptions.Item label="习惯名称">{detailHabit.name}</Descriptions.Item>
+            <Descriptions.Item label="描述">{detailHabit.description || '-'}</Descriptions.Item>
+            <Descriptions.Item label="目标天数">{detailHabit.target_days ? detailHabit.target_days + ' 天' : '-'}</Descriptions.Item>
+            <Descriptions.Item label="当前连续">{detailHabit.current_streak || 0} 天</Descriptions.Item>
+            <Descriptions.Item label="最长连续">{detailHabit.longest_streak || 0} 天</Descriptions.Item>
+            <Descriptions.Item label="状态">{detailHabit.is_active ? '进行中' : '已停用'}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{new Date(detailHabit.created_at).toLocaleString()}</Descriptions.Item>
+          </Descriptions>
+        )}
       </Modal>
     </div>
   )

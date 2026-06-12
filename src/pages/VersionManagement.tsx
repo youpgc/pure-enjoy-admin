@@ -27,11 +27,11 @@ import {
   DeleteOutlined,
   AppstoreOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined,
   CloudUploadOutlined,
   DownloadOutlined,
   QrcodeOutlined,
 } from '@ant-design/icons'
+import { QRCodeSVG } from 'qrcode.react'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
@@ -41,24 +41,6 @@ import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 
 const { Text } = Typography
-
-// ==================== 枚举映射 ====================
-
-const VERSION_STATUS_MAP: Record<string, string> = {
-  released: '已发布',
-  revoked: '已撤回',
-  draft: '草稿',
-}
-
-// VERSION_STATUS_OPTIONS is reserved for future use
-
-const RELEASE_TYPE_MAP: Record<string, string> = {
-  feature: '功能更新',
-  hotfix: '热修复',
-  release: '正式发布',
-}
-
-const RELEASE_TYPE_OPTIONS = Object.entries(RELEASE_TYPE_MAP).map(([code, label]) => ({ label, value: code }))
 
 // ==================== 类型定义 ====================
 
@@ -226,24 +208,6 @@ const VersionManagement: React.FC = () => {
     }
   }
 
-  // 切换激活状态
-  const handleToggleActive = async (record: AppVersion) => {
-    try {
-      const result = await versionService.update(record.id, {
-        is_active: !record.is_active,
-        updated_at: new Date().toISOString(),
-      })
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'VersionManagement-切换状态')
-        return
-      }
-      message.success(`版本已${!record.is_active ? '激活' : '停用'}`)
-      loadVersions()
-    } catch (error) {
-      handleApiError(error, 'VersionManagement-切换状态')
-    }
-  }
-
   // 保存版本
   const handleSave = async () => {
     try {
@@ -279,17 +243,19 @@ const VersionManagement: React.FC = () => {
     }
   }
 
+  // 获取下载链接（映射）
+  const getDownloadUrl = (record: AppVersion) => record.download_url || record.apk_url || ''
+
   // 表格列定义
   const columns: ColumnsType<AppVersion> = [
     {
-      title: '版本信息',
-      key: 'version_info',
-      width: 250,
+      title: '应用名称',
+      key: 'app_name',
+      width: 200,
       render: (_, record) => (
         <div>
-          <div style={{ fontWeight: 500 }}>版本: {record.version} (Build {record.build_number})</div>
-          {record.release_type && <Text type="secondary" style={{ fontSize: 12 }}>类型: {RELEASE_TYPE_MAP[record.release_type] || record.release_type}</Text>}
-          {record.file_name && <div><Text type="secondary" style={{ fontSize: 12 }}>{record.file_name}</Text></div>}
+          <div style={{ fontWeight: 500 }}>{record.version}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>Build {record.build_number}</Text>
         </div>
       ),
     },
@@ -309,6 +275,19 @@ const VersionManagement: React.FC = () => {
       },
     },
     {
+      title: '版本号',
+      dataIndex: 'version',
+      key: 'version',
+      width: 120,
+      render: (version: string) => <Text strong>v{version}</Text>,
+    },
+    {
+      title: '构建号',
+      dataIndex: 'build_number',
+      key: 'build_number',
+      width: 100,
+    },
+    {
       title: '强制更新',
       dataIndex: 'is_force_update',
       key: 'is_force_update',
@@ -318,22 +297,6 @@ const VersionManagement: React.FC = () => {
       ),
     },
     {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 100,
-      render: (status: string) => {
-        const statusColorMap: Record<string, string> = {
-          released: 'green',
-          revoked: 'red',
-          draft: 'default',
-        }
-        const color = statusColorMap[status] || 'default'
-        const label = VERSION_STATUS_MAP[status] || status || '未知'
-        return <Tag color={color}>{label}</Tag>
-      },
-    },
-    {
       title: '激活',
       dataIndex: 'is_active',
       key: 'is_active',
@@ -341,13 +304,6 @@ const VersionManagement: React.FC = () => {
       render: (isActive: boolean) => (
         <Badge status={isActive ? 'success' : 'default'} text={isActive ? '是' : '否'} />
       ),
-    },
-    {
-      title: '文件大小',
-      dataIndex: 'file_size',
-      key: 'file_size',
-      width: 100,
-      render: (size: number) => size ? `${(size / 1024 / 1024).toFixed(2)} MB` : '-',
     },
     {
       title: '创建时间',
@@ -376,19 +332,13 @@ const VersionManagement: React.FC = () => {
           label: '下载APK',
           icon: <DownloadOutlined />,
           onClick: () => {
-            const url = record.download_url || record.apk_url
+            const url = getDownloadUrl(record)
             if (url) {
               window.open(url, '_blank')
             } else {
               message.warning('该版本没有下载地址')
             }
           },
-        },
-        {
-          key: 'toggle',
-          label: record.is_active ? '停用' : '激活',
-          icon: record.is_active ? <CloseCircleOutlined /> : <CheckCircleOutlined />,
-          onClick: () => handleToggleActive(record),
         },
         {
           key: 'delete',
@@ -398,7 +348,7 @@ const VersionManagement: React.FC = () => {
           onClick: () => handleDelete(record.id),
         },
       ],
-      { width: 240, maxVisible: 3 }
+      { width: 280, maxVisible: 3 }
     ),
   ]
 
@@ -414,10 +364,13 @@ const VersionManagement: React.FC = () => {
           }
         >
           <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }} bordered>
-            <Descriptions.Item label="版本号">
+            <Descriptions.Item label="应用名称">
               <Text strong style={{ fontSize: 16, color: '#1890ff' }}>
-                v{currentVersion.version}
+                {currentVersion.version}
               </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="版本号">
+              v{currentVersion.version}
             </Descriptions.Item>
             <Descriptions.Item label="构建号">
               {currentVersion.build_number}
@@ -425,23 +378,22 @@ const VersionManagement: React.FC = () => {
             <Descriptions.Item label="平台">
               <Tag>{currentVersion.platform}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="发布类型">
-              {RELEASE_TYPE_MAP[currentVersion.release_type || ''] || currentVersion.release_type || '-'}
+            <Descriptions.Item label="强制更新">
+              <Tag color={currentVersion.is_force_update ? 'red' : 'default'}>
+                {currentVersion.is_force_update ? '是' : '否'}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="更新链接" span={2}>
+              {getDownloadUrl(currentVersion) || '-'}
             </Descriptions.Item>
             <Descriptions.Item label="更新说明" span={2}>
               {currentVersion.release_notes || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="发布时间">
-              {currentVersion.released_at
-                ? dayjs(currentVersion.released_at).format('YYYY-MM-DD HH:mm')
-                : '-'}
+            <Descriptions.Item label="激活状态">
+              <Badge status={currentVersion.is_active ? 'success' : 'default'} text={currentVersion.is_active ? '是' : '否'} />
             </Descriptions.Item>
-            <Descriptions.Item label="文件大小">
-              {currentVersion.file_size
-                ? `${(currentVersion.file_size / 1024 / 1024).toFixed(2)} MB`
-                : currentVersion.apk_size
-                  ? `${(currentVersion.apk_size / 1024 / 1024).toFixed(2)} MB`
-                  : '-'}
+            <Descriptions.Item label="创建时间">
+              {dayjs(currentVersion.created_at).format('YYYY-MM-DD HH:mm')}
             </Descriptions.Item>
           </Descriptions>
           <Space style={{ marginTop: 12 }}>
@@ -455,7 +407,7 @@ const VersionManagement: React.FC = () => {
               type="primary"
               icon={<DownloadOutlined />}
               onClick={() => {
-                const url = currentVersion.download_url || currentVersion.apk_url
+                const url = getDownloadUrl(currentVersion)
                 if (url) window.open(url, '_blank')
                 else message.warning('该版本没有下载地址')
               }}
@@ -579,7 +531,7 @@ const VersionManagement: React.FC = () => {
           selectedRowKeys,
           onChange: setSelectedRowKeys,
         }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 版本表单弹窗 */}
@@ -622,16 +574,6 @@ const VersionManagement: React.FC = () => {
             rules={[{ required: true, message: '请输入构建号' }]}
           >
             <Input type="number" placeholder="请输入构建号" />
-          </Form.Item>
-          <Form.Item
-            name="release_type"
-            label="发布类型"
-          >
-            <Select
-              placeholder="请选择发布类型"
-              allowClear
-              options={RELEASE_TYPE_OPTIONS}
-            />
           </Form.Item>
           <Form.Item
             name="release_notes"
@@ -696,38 +638,34 @@ const VersionManagement: React.FC = () => {
                 width: 200,
                 height: 200,
                 margin: '0 auto 16px',
-                background: '#f5f5f5',
+                background: '#fff',
                 borderRadius: 8,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 14,
-                color: '#999',
-                border: '1px dashed #d9d9d9',
+                border: '1px solid #d9d9d9',
               }}
             >
-              <div>
-                <QrcodeOutlined style={{ fontSize: 48, color: '#1890ff', marginBottom: 8 }} />
-                <div>二维码预览</div>
-                <div style={{ fontSize: 12, marginTop: 4 }}>
-                  v{qrCodeVersion.version}+{qrCodeVersion.build_number}
-                </div>
-              </div>
+              <QRCodeSVG
+                value={getDownloadUrl(qrCodeVersion) || 'https://example.com'}
+                size={180}
+                level="M"
+              />
             </div>
             <div style={{ marginBottom: 8 }}>
               <Text strong>v{qrCodeVersion.version}+{qrCodeVersion.build_number}</Text>
             </div>
             <div style={{ marginBottom: 12 }}>
               <Text type="secondary">
-                {(qrCodeVersion.download_url || qrCodeVersion.apk_url) || '暂无下载地址'}
+                {getDownloadUrl(qrCodeVersion) || '暂无下载地址'}
               </Text>
             </div>
-            {(qrCodeVersion.download_url || qrCodeVersion.apk_url) && (
+            {getDownloadUrl(qrCodeVersion) && (
               <Button
                 type="primary"
                 icon={<DownloadOutlined />}
                 onClick={() => {
-                  window.open(qrCodeVersion.download_url || qrCodeVersion.apk_url, '_blank')
+                  window.open(getDownloadUrl(qrCodeVersion), '_blank')
                 }}
               >
                 下载APK

@@ -44,6 +44,8 @@ const { Text } = Typography
 // ==================== 枚举映射 ====================
 
 const NOVEL_CATEGORY_MAP: Record<string, string> = {
+  '修真': '修真',
+  '玄幻': '玄幻',
   xuanhuan: '玄幻',
   xianxia: '仙侠',
   dushi: '都市',
@@ -65,9 +67,19 @@ const NOVEL_CATEGORY_MAP: Record<string, string> = {
   qita: '其他',
 }
 
-const NOVEL_CATEGORY_OPTIONS = Object.entries(NOVEL_CATEGORY_MAP)
-  .filter(([_code, label], index, arr) => arr.findIndex(([, l]) => l === label) === index)
-  .map(([_code, label]) => ({ label, value: _code }))
+const NOVEL_CATEGORY_OPTIONS = [
+  { label: '玄幻', value: '玄幻' },
+  { label: '修真', value: '修真' },
+  { label: '都市', value: '都市' },
+  { label: '言情', value: '言情' },
+  { label: '科幻', value: '科幻' },
+  { label: '历史', value: '历史' },
+  { label: '游戏', value: '游戏' },
+  { label: '悬疑', value: '悬疑' },
+  { label: '武侠', value: '武侠' },
+  { label: '灵异', value: '灵异' },
+  { label: '其他', value: '其他' },
+]
 
 const NOVEL_STATUS_MAP: Record<string, string> = {
   ongoing: '连载中',
@@ -75,7 +87,11 @@ const NOVEL_STATUS_MAP: Record<string, string> = {
   paused: '暂停更新',
 }
 
-const NOVEL_STATUS_OPTIONS = Object.entries(NOVEL_STATUS_MAP).map(([code, label]) => ({ label, value: code }))
+const NOVEL_STATUS_OPTIONS = [
+  { label: '连载中', value: 'ongoing' },
+  { label: '已完结', value: 'completed' },
+  { label: '暂停更新', value: 'paused' },
+]
 
 // ==================== 类型定义 ====================
 
@@ -545,7 +561,7 @@ const Novels: React.FC = () => {
           selectedRowKeys,
           onChange: setSelectedRowKeys,
         }}
-        scroll={{ x: 1200 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 小说表单弹窗 */}

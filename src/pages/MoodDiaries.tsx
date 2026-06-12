@@ -15,6 +15,7 @@ import {
   Row,
   Col,
   Statistic,
+  Descriptions,
 } from 'antd'
 import {
   SearchOutlined,
@@ -23,6 +24,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   SmileOutlined,
+  EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -68,9 +70,12 @@ const MoodDiaries: React.FC = () => {
   const [records, setRecords] = useState<MoodDiary[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [userFilter, setUserFilter] = useState('')
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRecord, setEditingRecord] = useState<MoodDiary | null>(null)
+  const [detailRecord, setDetailRecord] = useState<MoodDiary | null>(null)
+  const [detailVisible, setDetailVisible] = useState(false)
   const [form] = Form.useForm()
 
   const service = new BaseService<MoodDiary>('mood_diaries', { defaultOrder: { column: 'date', ascending: false } })
@@ -80,10 +85,14 @@ const MoodDiaries: React.FC = () => {
     setLoading(true)
     try {
       const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
         if (searchKeyword) {
-          return q.or(`user_id.ilike.%${searchKeyword}%,content.ilike.%${searchKeyword}%`)
+          query = query.or(`content.ilike.%${searchKeyword}%`)
         }
-        return q
+        if (userFilter) {
+          query = query.eq('user_id', userFilter)
+        }
+        return query
       })
       if (!result.success) {
         handleApiError(result.errorMessage, 'MoodDiaries-加载数据')
@@ -96,7 +105,7 @@ const MoodDiaries: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword, pagination.current, pagination.pageSize])
+  }, [searchKeyword, userFilter, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -104,6 +113,13 @@ const MoodDiaries: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
+    resetPage()
+  }
+
+  // 重置筛选
+  const handleReset = () => {
+    setSearchKeyword('')
+    setUserFilter('')
     resetPage()
   }
 
@@ -123,6 +139,12 @@ const MoodDiaries: React.FC = () => {
       date: dayjs(record.date),
     })
     setModalVisible(true)
+  }
+
+  // 查看详情
+  const handleViewDetail = (record: MoodDiary) => {
+    setDetailRecord(record)
+    setDetailVisible(true)
   }
 
   // 删除记录
@@ -194,6 +216,12 @@ const MoodDiaries: React.FC = () => {
       ellipsis: true,
     },
     {
+      title: '用户昵称',
+      dataIndex: 'user_nickname',
+      key: 'user_nickname',
+      render: (nickname: string) => nickname || '-',
+    },
+    {
       title: '心情',
       dataIndex: 'mood',
       key: 'mood',
@@ -222,17 +250,14 @@ const MoodDiaries: React.FC = () => {
       render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
     },
     {
-      title: '用户昵称',
-      dataIndex: 'user_nickname',
-      key: 'user_nickname',
-      render: (nickname: string) => nickname || '-',
-    },
-    {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 180,
       render: (_, record) => (
         <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
           <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
@@ -280,16 +305,28 @@ const MoodDiaries: React.FC = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input
-            placeholder="搜索用户ID/内容"
+            placeholder="搜索内容"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            style={{ width: 220 }}
+            allowClear
+          />
+          <Input
+            placeholder="按用户ID筛选"
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
             allowClear
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
           </Button>
         </Space>
       </Card>
@@ -311,7 +348,7 @@ const MoodDiaries: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={tablePagination}
-        scroll={{ x: 800 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 表单弹窗 */}
@@ -358,6 +395,35 @@ const MoodDiaries: React.FC = () => {
             <DatePicker style={{ width: '100%' }} placeholder="请选择记录日期" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 详情弹窗 */}
+      <Modal
+        title="心情日记详情"
+        open={detailVisible}
+        onCancel={() => { setDetailVisible(false); setDetailRecord(null) }}
+        footer={[
+          <Button key="close" onClick={() => { setDetailVisible(false); setDetailRecord(null) }}>
+            关闭
+          </Button>,
+        ]}
+        width={500}
+      >
+        {detailRecord && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="用户ID">{detailRecord.user_id}</Descriptions.Item>
+            <Descriptions.Item label="用户昵称">{detailRecord.user_nickname || '-'}</Descriptions.Item>
+            <Descriptions.Item label="心情">
+              <Text style={{ color: getMoodColor(detailRecord.mood), fontWeight: 500 }}>
+                {MOOD_TYPE_MAP[detailRecord.mood] || detailRecord.mood}
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="内容">{detailRecord.content || '-'}</Descriptions.Item>
+            <Descriptions.Item label="心情标签">{detailRecord.mood_label || '-'}</Descriptions.Item>
+            <Descriptions.Item label="记录日期">{dayjs(detailRecord.date).format('YYYY-MM-DD')}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{dayjs(detailRecord.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+          </Descriptions>
+        )}
       </Modal>
     </div>
   )

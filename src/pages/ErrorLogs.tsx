@@ -324,7 +324,7 @@ const ErrorLogs: React.FC = () => {
           selectedRowKeys,
           onChange: setSelectedRowKeys,
         }}
-        scroll={{ x: 800 }}
+        scroll={{ x: 'max-content' }}
         expandable={{
           expandedRowRender: (record) => {
             if (!record.detail) {

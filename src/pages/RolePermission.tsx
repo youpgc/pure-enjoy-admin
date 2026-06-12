@@ -8,12 +8,13 @@ import {
   message,
   Modal,
   Form,
-  Popconfirm,
   Tree,
   Typography,
   Row,
   Col,
   Statistic,
+  Switch,
+  Tag,
 } from 'antd'
 import {
   SearchOutlined,
@@ -25,7 +26,9 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { BaseService, handleApiError } from '../utils/apiClient'
+import { handleApiError } from '../utils/apiClient'
+import { supabase } from '../utils/supabase'
+import { getActionColumn } from '../components/ActionColumn'
 
 const { Text } = Typography
 
@@ -37,7 +40,9 @@ interface Role {
   code: string
   description?: string
   permissions: string[]
+  is_active: boolean
   created_at: string
+  updated_at: string
 }
 
 // ==================== 组件 ====================
@@ -52,23 +57,65 @@ const RolePermission: React.FC = () => {
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
   const [form] = Form.useForm()
 
-  const service = new BaseService<Role>('roles', { defaultOrder: { column: 'created_at', ascending: false } })
-
-  // 加载数据
+  // 从 system_configs 加载角色数据
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await service.findAll((q) => {
-        if (searchKeyword) {
-          return q.or(`name.ilike.%${searchKeyword}%,code.ilike.%${searchKeyword}%`)
+      const { data, error } = await supabase
+        .from('system_configs')
+        .select('*')
+        .eq('key', 'roles')
+        .single()
+
+      if (error) {
+        // 如果没有 roles 配置，使用默认数据
+        if (error.code === 'PGRST116') {
+          const defaultRoles: Role[] = [
+            {
+              id: 'user',
+              name: '普通用户',
+              code: 'user',
+              description: '普通用户，拥有基本查看权限',
+              permissions: ['users:read', 'novels:read', 'content:read'],
+              is_active: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            {
+              id: 'admin',
+              name: '管理员',
+              code: 'admin',
+              description: '管理员，拥有大部分管理权限',
+              permissions: ['users:read', 'users:write', 'novels:read', 'novels:write', 'novels:delete', 'feedback:read', 'feedback:write', 'content:read', 'content:write', 'content:delete', 'settings:read', 'settings:write', 'analytics:read', 'files:read', 'files:write', 'files:delete', 'sensitive:read', 'sensitive:write'],
+              is_active: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            {
+              id: 'super_admin',
+              name: '超级管理员',
+              code: 'super_admin',
+              description: '超级管理员，拥有所有权限',
+              permissions: ['users:read', 'users:write', 'users:delete', 'users:export', 'novels:read', 'novels:write', 'novels:delete', 'feedback:read', 'feedback:write', 'feedback:delete', 'content:read', 'content:write', 'content:delete', 'settings:read', 'settings:write', 'analytics:read', 'files:read', 'files:write', 'files:delete', 'sensitive:read', 'sensitive:write', 'sensitive:delete'],
+              is_active: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+          ]
+          setRoles(defaultRoles)
+          return
         }
-        return q
-      })
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'RolePermission-加载数据')
+        handleApiError(error, 'RolePermission-加载数据')
         return
       }
-      setRoles(result.data || [])
+
+      if (data && data.value) {
+        const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value
+        const rolesData: Role[] = Array.isArray(parsed) ? parsed : parsed.roles || []
+        setRoles(rolesData)
+      } else {
+        setRoles([])
+      }
     } catch (error) {
       handleApiError(error, 'RolePermission-加载数据')
     } finally {
@@ -79,6 +126,42 @@ const RolePermission: React.FC = () => {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  // 保存角色到 system_configs
+  const saveRoles = async (newRoles: Role[]) => {
+    try {
+      const { data: existing } = await supabase
+        .from('system_configs')
+        .select('id')
+        .eq('key', 'roles')
+        .single()
+
+      const payload = {
+        key: 'roles',
+        value: JSON.stringify({ roles: newRoles }),
+        description: '系统角色权限配置',
+        updated_at: new Date().toISOString(),
+      }
+
+      if (existing) {
+        const { error } = await supabase
+          .from('system_configs')
+          .update(payload)
+          .eq('key', 'roles')
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('system_configs')
+          .insert({ ...payload, created_at: new Date().toISOString() })
+        if (error) throw error
+      }
+
+      return true
+    } catch (error) {
+      handleApiError(error, 'RolePermission-保存角色')
+      return false
+    }
+  }
 
   // 搜索
   const handleSearch = () => {
@@ -110,16 +193,11 @@ const RolePermission: React.FC = () => {
 
   // 删除记录
   const handleDelete = async (id: string) => {
-    try {
-      const result = await service.delete(id)
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'RolePermission-删除')
-        return
-      }
+    const newRoles = roles.filter((r) => r.id !== id)
+    const success = await saveRoles(newRoles)
+    if (success) {
       message.success('删除成功')
-      loadData()
-    } catch (error) {
-      handleApiError(error, 'RolePermission-删除')
+      setRoles(newRoles)
     }
   }
 
@@ -127,29 +205,32 @@ const RolePermission: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields()
+      let newRoles: Role[]
       if (editingRole) {
-        const result = await service.update(editingRole.id, values)
-        if (!result.success) {
-          handleApiError(result.errorMessage, 'RolePermission-更新')
-          return
-        }
-        message.success('更新成功')
+        newRoles = roles.map((r) =>
+          r.id === editingRole.id
+            ? { ...r, ...values, updated_at: new Date().toISOString() }
+            : r
+        )
       } else {
-        const result = await service.create({
+        const newRole: Role = {
           ...values,
+          id: values.code,
           permissions: [],
+          is_active: true,
           created_at: new Date().toISOString(),
-        })
-        if (!result.success) {
-          handleApiError(result.errorMessage, 'RolePermission-创建')
-          return
+          updated_at: new Date().toISOString(),
         }
-        message.success('创建成功')
+        newRoles = [...roles, newRole]
       }
-      setModalVisible(false)
-      setEditingRole(null)
-      form.resetFields()
-      loadData()
+      const success = await saveRoles(newRoles)
+      if (success) {
+        message.success(editingRole ? '更新成功' : '创建成功')
+        setModalVisible(false)
+        setEditingRole(null)
+        form.resetFields()
+        setRoles(newRoles)
+      }
     } catch (error) {
       handleApiError(error, 'RolePermission-保存')
     }
@@ -158,25 +239,22 @@ const RolePermission: React.FC = () => {
   // 保存权限
   const handleSavePermission = async () => {
     if (!editingRole) return
-    try {
-      const result = await service.update(editingRole.id, {
-        permissions: selectedPermissions,
-      })
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'RolePermission-保存权限')
-        return
-      }
+    const newRoles = roles.map((r) =>
+      r.id === editingRole.id
+        ? { ...r, permissions: selectedPermissions, updated_at: new Date().toISOString() }
+        : r
+    )
+    const success = await saveRoles(newRoles)
+    if (success) {
       message.success('权限配置成功')
       setPermissionModalOpen(false)
       setEditingRole(null)
       setSelectedPermissions([])
-      loadData()
-    } catch (error) {
-      handleApiError(error, 'RolePermission-保存权限')
+      setRoles(newRoles)
     }
   }
 
-  // 权限树数据（完整模块）
+  // 权限树数据（3个模块：用户管理、小说管理、系统管理）
   const permissionTreeData = [
     {
       title: '用户管理',
@@ -198,51 +276,21 @@ const RolePermission: React.FC = () => {
       ],
     },
     {
-      title: '反馈管理',
-      key: 'feedback',
+      title: '系统管理',
+      key: 'system',
       children: [
         { title: '查看反馈', key: 'feedback:read' },
         { title: '编辑反馈', key: 'feedback:write' },
         { title: '删除反馈', key: 'feedback:delete' },
-      ],
-    },
-    {
-      title: '内容管理',
-      key: 'content',
-      children: [
         { title: '查看内容', key: 'content:read' },
         { title: '编辑内容', key: 'content:write' },
         { title: '删除内容', key: 'content:delete' },
-      ],
-    },
-    {
-      title: '系统设置',
-      key: 'settings',
-      children: [
         { title: '查看设置', key: 'settings:read' },
         { title: '编辑设置', key: 'settings:write' },
-      ],
-    },
-    {
-      title: '数据统计',
-      key: 'analytics',
-      children: [
         { title: '查看统计', key: 'analytics:read' },
-      ],
-    },
-    {
-      title: '文件管理',
-      key: 'files',
-      children: [
         { title: '查看文件', key: 'files:read' },
         { title: '上传/编辑文件', key: 'files:write' },
         { title: '删除文件', key: 'files:delete' },
-      ],
-    },
-    {
-      title: '敏感词管理',
-      key: 'sensitive',
-      children: [
         { title: '查看敏感词', key: 'sensitive:read' },
         { title: '编辑敏感词', key: 'sensitive:write' },
         { title: '删除敏感词', key: 'sensitive:delete' },
@@ -250,69 +298,90 @@ const RolePermission: React.FC = () => {
     },
   ]
 
+  // 过滤后的角色列表
+  const filteredRoles = roles.filter(
+    (r) =>
+      !searchKeyword ||
+      r.name.includes(searchKeyword) ||
+      r.code.includes(searchKeyword)
+  )
+
   // 表格列定义
   const columns: ColumnsType<Role> = [
     {
       title: '角色名称',
       dataIndex: 'name',
       key: 'name',
+      width: 150,
       render: (name: string) => <Text strong>{name}</Text>,
     },
     {
       title: '角色编码',
       dataIndex: 'code',
       key: 'code',
+      width: 120,
     },
     {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
+      width: 200,
       ellipsis: true,
     },
     {
-      title: '权限数',
+      title: '权限数量',
       key: 'permission_count',
       width: 100,
       render: (_, record: Role) => (record.permissions || []).length,
     },
     {
+      title: '状态',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 100,
+      render: (isActive: boolean) => (
+        <Tag color={isActive ? 'green' : 'default'}>{isActive ? '启用' : '停用'}</Tag>
+      ),
+    },
+    {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
+      width: 170,
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 200,
-      render: (_, record) => (
-        <Space>
-          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
-            编辑
-          </Button>
-          <Button size="small" icon={<SafetyOutlined />} onClick={() => handlePermission(record)}>
-            权限
-          </Button>
-          <Popconfirm
-            title="确认删除"
-            onConfirm={() => handleDelete(record.id)}
-            okText="确认"
-            cancelText="取消"
-          >
-            <Button danger size="small" icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    getActionColumn<Role>(
+      (record) => [
+        {
+          key: 'edit',
+          label: '编辑',
+          icon: <EditOutlined />,
+          type: 'primary',
+          onClick: () => handleEdit(record),
+        },
+        {
+          key: 'permission',
+          label: '配置权限',
+          icon: <SafetyOutlined />,
+          onClick: () => handlePermission(record),
+        },
+        {
+          key: 'delete',
+          label: '删除',
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => handleDelete(record.id),
+        },
+      ],
+      { width: 280, maxVisible: 3 }
+    ),
   ]
 
   return (
     <div style={{ padding: 24 }}>
       {/* 统计卡片 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={12}>
+        <Col xs={24} sm={8}>
           <Card>
             <Statistic
               title="总角色数"
@@ -321,11 +390,30 @@ const RolePermission: React.FC = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12}>
+        <Col xs={24} sm={8}>
+          <Card>
+            <Statistic
+              title="启用角色"
+              value={roles.filter((r) => r.is_active).length}
+              prefix={<SafetyOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
           <Card>
             <Statistic
               title="平均权限数"
-              value={roles.length > 0 ? Math.round(roles.reduce((sum, r) => sum + (r.permissions || []).length, 0) / roles.length) : 0}
+              value={
+                roles.length > 0
+                  ? Math.round(
+                      roles.reduce(
+                        (sum, r) => sum + (r.permissions || []).length,
+                        0
+                      ) / roles.length
+                    )
+                  : 0
+              }
               prefix={<SafetyOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -364,11 +452,11 @@ const RolePermission: React.FC = () => {
       {/* 数据表格 */}
       <Table
         columns={columns}
-        dataSource={roles}
+        dataSource={filteredRoles}
         rowKey="id"
         loading={loading}
         pagination={{ pageSize: 20 }}
-        scroll={{ x: 800 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 角色表单弹窗 */}
@@ -404,12 +492,19 @@ const RolePermission: React.FC = () => {
           >
             <Input.TextArea rows={2} placeholder="请输入描述" />
           </Form.Item>
+          <Form.Item
+            name="is_active"
+            label="状态"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="启用" unCheckedChildren="停用" />
+          </Form.Item>
         </Form>
       </Modal>
 
       {/* 权限配置弹窗 */}
       <Modal
-        title="配置权限"
+        title={`配置权限 - ${editingRole?.name || ''}`}
         open={permissionModalOpen}
         onOk={handleSavePermission}
         onCancel={() => {
@@ -417,7 +512,7 @@ const RolePermission: React.FC = () => {
           setEditingRole(null)
           setSelectedPermissions([])
         }}
-        width={500}
+        width={600}
       >
         <Tree
           checkable

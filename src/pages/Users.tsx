@@ -285,9 +285,9 @@ const Users: React.FC = () => {
       width: 100,
       render: (level: string) => {
         const levelMap: Record<string, { color: string; label: string }> = {
-          normal: { color: 'default', label: '普通' },
-          vip: { color: 'gold', label: 'VIP' },
-          svip: { color: 'purple', label: 'SVIP' },
+          normal: { color: 'default', label: '普通会员' },
+          member: { color: 'gold', label: '会员' },
+          super_member: { color: 'cyan', label: '超级会员' },
         }
         const info = levelMap[level] || { color: 'default', label: level }
         return <Tag color={info.color}>{info.label}</Tag>
@@ -418,9 +418,9 @@ const Users: React.FC = () => {
             style={{ width: 120 }}
             allowClear
             options={[
-              { label: '普通', value: 'normal' },
-              { label: 'VIP', value: 'vip' },
-              { label: 'SVIP', value: 'svip' },
+              { label: '普通会员', value: 'normal' },
+              { label: '会员', value: 'member' },
+              { label: '超级会员', value: 'super_member' },
             ]}
           />
           <RangePicker
@@ -472,7 +472,7 @@ const Users: React.FC = () => {
           selectedRowKeys,
           onChange: setSelectedRowKeys,
         }}
-        scroll={{ x: 1200 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 用户表单弹窗 */}

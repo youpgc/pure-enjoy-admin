@@ -371,7 +371,7 @@ const PointsManagement: React.FC = () => {
           selectedRowKeys,
           onChange: setSelectedRowKeys,
         }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 积分调整弹窗 */}

@@ -15,6 +15,7 @@ import {
   Row,
   Col,
   Statistic,
+  Descriptions,
 } from 'antd'
 import {
   SearchOutlined,
@@ -23,6 +24,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   LineChartOutlined,
+  EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -52,9 +54,12 @@ const WeightRecords: React.FC = () => {
   const [records, setRecords] = useState<WeightRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [userFilter, setUserFilter] = useState('')
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRecord, setEditingRecord] = useState<WeightRecord | null>(null)
+  const [detailRecord, setDetailRecord] = useState<WeightRecord | null>(null)
+  const [detailVisible, setDetailVisible] = useState(false)
   const [form] = Form.useForm()
 
   const service = new BaseService<WeightRecord>('weight_records', { defaultOrder: { column: 'date', ascending: false } })
@@ -64,10 +69,14 @@ const WeightRecords: React.FC = () => {
     setLoading(true)
     try {
       const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
         if (searchKeyword) {
-          return q.or(`user_id.ilike.%${searchKeyword}%,note.ilike.%${searchKeyword}%`)
+          query = query.or(`note.ilike.%${searchKeyword}%`)
         }
-        return q
+        if (userFilter) {
+          query = query.eq('user_id', userFilter)
+        }
+        return query
       })
       if (!result.success) {
         handleApiError(result.errorMessage, 'WeightRecords-加载数据')
@@ -80,7 +89,7 @@ const WeightRecords: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword, pagination.current, pagination.pageSize])
+  }, [searchKeyword, userFilter, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -88,6 +97,13 @@ const WeightRecords: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
+    resetPage()
+  }
+
+  // 重置筛选
+  const handleReset = () => {
+    setSearchKeyword('')
+    setUserFilter('')
     resetPage()
   }
 
@@ -107,6 +123,12 @@ const WeightRecords: React.FC = () => {
       date: dayjs(record.date),
     })
     setModalVisible(true)
+  }
+
+  // 查看详情
+  const handleViewDetail = (record: WeightRecord) => {
+    setDetailRecord(record)
+    setDetailVisible(true)
   }
 
   // 删除记录
@@ -165,6 +187,12 @@ const WeightRecords: React.FC = () => {
       ellipsis: true,
     },
     {
+      title: '用户昵称',
+      dataIndex: 'user_nickname',
+      key: 'user_nickname',
+      render: (nickname: string) => nickname || '-',
+    },
+    {
       title: '体重(kg)',
       dataIndex: 'weight',
       key: 'weight',
@@ -189,12 +217,6 @@ const WeightRecords: React.FC = () => {
       render: (val: number) => val != null ? val : '-',
     },
     {
-      title: '用户昵称',
-      dataIndex: 'user_nickname',
-      key: 'user_nickname',
-      render: (nickname: string) => nickname || '-',
-    },
-    {
       title: '备注',
       dataIndex: 'note',
       key: 'note',
@@ -203,9 +225,12 @@ const WeightRecords: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 180,
       render: (_, record) => (
         <Space>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+            详情
+          </Button>
           <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
@@ -224,7 +249,7 @@ const WeightRecords: React.FC = () => {
     },
   ]
 
-  // 计算平均体重
+  // 计算平均体重（基于当前筛选）
   const avgWeight = records.length > 0
     ? (records.reduce((sum, r) => sum + r.weight, 0) / records.length).toFixed(1)
     : '0'
@@ -268,7 +293,7 @@ const WeightRecords: React.FC = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input
-            placeholder="搜索用户ID/备注"
+            placeholder="搜索备注"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
@@ -276,8 +301,20 @@ const WeightRecords: React.FC = () => {
             style={{ width: 220 }}
             allowClear
           />
+          <Input
+            placeholder="按用户ID筛选"
+            value={userFilter}
+            onChange={(e) => setUserFilter(e.target.value)}
+            onPressEnter={handleSearch}
+            prefix={<SearchOutlined />}
+            style={{ width: 220 }}
+            allowClear
+          />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={handleReset}>
+            重置
           </Button>
         </Space>
       </Card>
@@ -299,7 +336,7 @@ const WeightRecords: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={tablePagination}
-        scroll={{ x: 800 }}
+        scroll={{ x: 'max-content' }}
       />
 
       {/* 表单弹窗 */}
@@ -343,6 +380,32 @@ const WeightRecords: React.FC = () => {
             <Input.TextArea rows={2} placeholder="请输入备注" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 详情弹窗 */}
+      <Modal
+        title="体重记录详情"
+        open={detailVisible}
+        onCancel={() => { setDetailVisible(false); setDetailRecord(null) }}
+        footer={[
+          <Button key="close" onClick={() => { setDetailVisible(false); setDetailRecord(null) }}>
+            关闭
+          </Button>,
+        ]}
+        width={500}
+      >
+        {detailRecord && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="用户ID">{detailRecord.user_id}</Descriptions.Item>
+            <Descriptions.Item label="用户昵称">{detailRecord.user_nickname || '-'}</Descriptions.Item>
+            <Descriptions.Item label="体重">{detailRecord.weight} kg</Descriptions.Item>
+            <Descriptions.Item label="体脂率">{detailRecord.body_fat != null ? detailRecord.body_fat + '%' : '-'}</Descriptions.Item>
+            <Descriptions.Item label="BMI">{detailRecord.bmi != null ? detailRecord.bmi : '-'}</Descriptions.Item>
+            <Descriptions.Item label="记录日期">{dayjs(detailRecord.date).format('YYYY-MM-DD')}</Descriptions.Item>
+            <Descriptions.Item label="备注">{detailRecord.note || '-'}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{dayjs(detailRecord.created_at).format('YYYY-MM-DD HH:mm:ss')}</Descriptions.Item>
+          </Descriptions>
+        )}
       </Modal>
     </div>
   )
