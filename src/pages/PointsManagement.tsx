@@ -41,11 +41,13 @@ const { Text } = Typography
 interface PointsRecord {
   id: string
   user_id: string
-  user_email?: string
-  type: 'earn' | 'spend' | 'adjust'
+  type: string
   amount: number
-  reason: string
-  balance_after: number
+  remark: string
+  operator_id: string | null
+  operator_name: string | null
+  status: string
+  expires_at: string | null
   created_at: string
 }
 
@@ -69,7 +71,7 @@ const PointsManagement: React.FC = () => {
   const [form] = Form.useForm()
   const { isAdmin: _isAdmin } = usePermission()
 
-  const pointsService = new BaseService<PointsRecord>('points_records', { defaultOrder: { column: 'created_at', ascending: false } })
+  const pointsService = new BaseService<PointsRecord>('point_records', { defaultOrder: { column: 'created_at', ascending: false } })
 
   // 加载积分记录
   const loadRecords = useCallback(async () => {
@@ -78,7 +80,7 @@ const PointsManagement: React.FC = () => {
       const result = await pointsService.paginate(pagination.current, pagination.pageSize, (q) => {
         let query = q
         if (filters.keyword) {
-          query = query.or(`user_email.ilike.%${filters.keyword}%,reason.ilike.%${filters.keyword}%`)
+          query = query.or(`user_id.ilike.%${filters.keyword}%,remark.ilike.%${filters.keyword}%`)
         }
         if (filters.type) {
           query = query.eq('type', filters.type)
@@ -142,7 +144,7 @@ const PointsManagement: React.FC = () => {
     }
     try {
       const { error } = await supabase
-        .from('points_records')
+        .from('point_records')
         .delete()
         .in('id', selectedRowKeys as string[])
       if (error) {
@@ -181,15 +183,11 @@ const PointsManagement: React.FC = () => {
   // 表格列定义
   const columns: ColumnsType<PointsRecord> = [
     {
-      title: '用户',
-      key: 'user',
-      width: 200,
-      render: (_, record) => (
-        <div>
-          <div>{record.user_email || record.user_id}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>ID: {record.user_id}</Text>
-        </div>
-      ),
+      title: '用户ID',
+      dataIndex: 'user_id',
+      key: 'user_id',
+      width: 180,
+      ellipsis: true,
     },
     {
       title: '类型',
@@ -198,9 +196,11 @@ const PointsManagement: React.FC = () => {
       width: 100,
       render: (type: string) => {
         const typeMap: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
+          checkin: { color: 'green', label: '签到', icon: <ArrowUpOutlined /> },
           earn: { color: 'green', label: '获得', icon: <ArrowUpOutlined /> },
           spend: { color: 'red', label: '消费', icon: <ArrowDownOutlined /> },
           adjust: { color: 'blue', label: '调整', icon: <EditOutlined /> },
+          admin: { color: 'purple', label: '管理员', icon: <EditOutlined /> },
         }
         const info = typeMap[type] || { color: 'default', label: type, icon: null }
         return <Tag color={info.color} icon={info.icon}>{info.label}</Tag>
@@ -212,23 +212,38 @@ const PointsManagement: React.FC = () => {
       key: 'amount',
       width: 120,
       render: (amount: number, record: PointsRecord) => (
-        <Text style={{ color: record.type === 'earn' ? '#52c41a' : '#ff4d4f', fontWeight: 500 }}>
-          {record.type === 'earn' ? '+' : ''}{amount}
+        <Text style={{ color: Number(amount) >= 0 ? '#52c41a' : '#ff4d4f', fontWeight: 500 }}>
+          {Number(amount) >= 0 ? '+' : ''}{amount}
         </Text>
       ),
     },
     {
-      title: '变动后余额',
-      dataIndex: 'balance_after',
-      key: 'balance_after',
-      width: 120,
-      render: (balance: number) => <Text strong>{balance}</Text>,
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 80,
+      render: (status: string) => {
+        const statusMap: Record<string, { color: string; label: string }> = {
+          active: { color: 'green', label: '有效' },
+          expired: { color: 'default', label: '已过期' },
+          used: { color: 'orange', label: '已使用' },
+        }
+        const info = statusMap[status] || { color: 'default', label: status }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
     },
     {
-      title: '原因',
-      dataIndex: 'reason',
-      key: 'reason',
+      title: '备注',
+      dataIndex: 'remark',
+      key: 'remark',
       ellipsis: true,
+    },
+    {
+      title: '操作人',
+      dataIndex: 'operator_name',
+      key: 'operator_name',
+      width: 100,
+      render: (name: string | null) => name || '-',
     },
     {
       title: '时间',
@@ -290,7 +305,7 @@ const PointsManagement: React.FC = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input
-            placeholder="搜索用户/原因"
+            placeholder="搜索用户ID/备注"
             value={filters.keyword}
             onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={handleSearch}
@@ -407,11 +422,24 @@ const PointsManagement: React.FC = () => {
             <InputNumber style={{ width: '100%' }} placeholder="请输入积分数量" />
           </Form.Item>
           <Form.Item
-            name="reason"
-            label="原因"
-            rules={[{ required: true, message: '请输入原因' }]}
+            name="remark"
+            label="备注"
+            rules={[{ required: true, message: '请输入备注' }]}
           >
-            <Input.TextArea rows={3} placeholder="请输入原因" />
+            <Input.TextArea rows={3} placeholder="请输入备注" />
+          </Form.Item>
+          <Form.Item
+            name="status"
+            label="状态"
+            initialValue="active"
+          >
+            <Select
+              options={[
+                { label: '有效', value: 'active' },
+                { label: '已过期', value: 'expired' },
+                { label: '已使用', value: 'used' },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>
