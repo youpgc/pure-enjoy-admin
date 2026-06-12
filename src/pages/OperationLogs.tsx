@@ -7,7 +7,7 @@ import { usePermission } from '../hooks/usePermission'
 import { usePagination } from '../hooks/usePagination'
 import { exportToCSV } from '../utils/export'
 import { supabase } from '../utils/supabase'
-import { useDictOptions } from '../hooks/useDictOptions'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 // 操作日志数据类型（与 operation_logs 表字段对应）
 interface OperationLogItem {
@@ -40,8 +40,10 @@ const OperationLogs: React.FC = () => {
   const { currentPage, pageSize, paginate, resetPage, setCurrentPage, setPageSize } = usePagination()
 
   // 字典查询
-  const { options: moduleOptions, colors: moduleColors } = useDictOptions('operation_module')
-  const { options: actionOptions, colors: actionColors } = useDictOptions('operation_action')
+  const { options: moduleOptions } = useDictOptions('operation_module')
+  const { options: actionOptions } = useDictOptions('operation_action')
+  const { getColor: getModuleColor } = useDictColors('operation_module')
+  const { getColor: getActionColor } = useDictColors('operation_action')
 
   // 日志清理功能
   const [cleanModalOpen, setCleanModalOpen] = useState(false)
@@ -210,7 +212,7 @@ const OperationLogs: React.FC = () => {
       key: 'action',
       width: 100,
       render: (action: string) => (
-        <Tag color={actionColors[action] || 'default'}>{actionOptions.find(opt => opt.value === action)?.label || action}</Tag>
+        <Tag color={getActionColor(action) || 'default'}>{actionOptions.find(opt => opt.value === action)?.label || action}</Tag>
       ),
     },
     {
@@ -219,7 +221,7 @@ const OperationLogs: React.FC = () => {
       key: 'module',
       width: 100,
       render: (module: string) => (
-        <Tag color={moduleColors[module] || 'default'}>{moduleOptions.find(opt => opt.value === module)?.label || module}</Tag>
+        <Tag color={getModuleColor(module) || 'default'}>{moduleOptions.find(opt => opt.value === module)?.label || module}</Tag>
       ),
     },
     {

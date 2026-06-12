@@ -29,7 +29,7 @@ import {
 } from '@ant-design/icons'
 import type { User, UserStats, OperationLog } from '../types/user'
 import dayjs from 'dayjs'
-import { useDictOptions } from '../hooks/useDictOptions'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 const { Text, Title } = Typography
 
@@ -51,9 +51,12 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
   onClose,
 }) => {
   // 字典查询
-  const { options: roleOptions, colors: roleColors } = useDictOptions('user_role')
-  const { options: levelOptions, colors: levelColors } = useDictOptions('member_level')
-  const { options: statusOptions, colors: statusColors } = useDictOptions('user_status')
+  const { options: roleOptions } = useDictOptions('user_role')
+  const { options: levelOptions } = useDictOptions('member_level')
+  const { options: statusOptions } = useDictOptions('user_status')
+  const { getColor: getRoleColor } = useDictColors('user_role')
+  const { getColor: getLevelColor } = useDictColors('member_level')
+  const { getColor: getStatusColor } = useDictColors('user_status')
 
   if (!user) return null
 
@@ -82,13 +85,13 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
 
         {/* 状态标签 */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Tag color={roleColors[user.role] || 'default'} style={{ marginRight: 8 }}>
+          <Tag color={getRoleColor(user.role) || 'default'} style={{ marginRight: 8 }}>
             {roleOptions.find(opt => opt.value === user.role)?.label || user.role}
           </Tag>
-          <Tag color={levelColors[user.member_level] || 'default'} style={{ marginRight: 8 }}>
+          <Tag color={getLevelColor(user.member_level) || 'default'} style={{ marginRight: 8 }}>
             {levelOptions.find(opt => opt.value === user.member_level)?.label || user.member_level}
           </Tag>
-          <Tag color={statusColors[user.status] || 'default'}>
+          <Tag color={getStatusColor(user.status) || 'default'}>
             {statusOptions.find(opt => opt.value === user.status)?.label || user.status}
           </Tag>
         </div>

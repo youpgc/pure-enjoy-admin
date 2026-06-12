@@ -8,23 +8,12 @@ import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { useEditModal } from '../hooks/useEditModal'
-import { useDictOptions } from '../hooks/useDictOptions'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 import { formatDateTime, formatDate } from '../utils/format'
 import NoPermission from '../components/NoPermission'
 import TagsCell from '../components/TagsCell'
 
 // ==================== 常量定义 ====================
-
-const MOOD_COLORS: Record<string, string> = {
-  '开心': 'gold',
-  '愉快': 'lime',
-  '平静': 'cyan',
-  '一般': 'default',
-  '低落': 'orange',
-  '难过': 'red',
-  '焦虑': 'purple',
-  '愤怒': 'red',
-}
 
 const MOOD_OPTIONS_FALLBACK = [
   { value: '开心', label: '开心' },
@@ -64,18 +53,23 @@ const getEditFields = (moodOptions: { value: string; label: string }[]): EditFie
 const getDetailColumns = (
   canDelete: boolean,
   onDelete: (id: string) => void,
-  onEdit: (record: RecordItem) => void
+  onEdit: (record: RecordItem) => void,
+  moodOptions: { value: string; label: string }[],
+  getMoodColor: (code: string) => string
 ): ColumnsType<RecordItem> => [
   {
     title: '心情',
     dataIndex: 'mood',
     key: 'mood',
     width: 100,
-    render: (mood: string) => (
-      <Tag color={MOOD_COLORS[mood || ''] || 'default'} icon={<HeartFilled />}>
-        {mood || '-'}
-      </Tag>
-    ),
+    render: (mood: string) => {
+      const label = moodOptions.find(opt => opt.value === mood)?.label || mood || '-'
+      return (
+        <Tag color={getMoodColor(mood || '') || 'default'} icon={<HeartFilled />}>
+          {label}
+        </Tag>
+      )
+    },
   },
   {
     title: '内容',
@@ -147,6 +141,7 @@ const MoodDiaries: React.FC = () => {
   const { canReadMoods, canWriteMoods, canDeleteMoods } = usePermission()
   const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
   const { options: moodOptions } = useDictOptions('mood_type', MOOD_OPTIONS_FALLBACK)
+  const { getColor: getMoodColor } = useDictColors('mood_type')
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -179,8 +174,8 @@ const MoodDiaries: React.FC = () => {
     title: '心情日记管理',
     tableName: 'mood_diaries',
     detailTitle: '心情日记详情',
-    detailColumns: getDetailColumns(canDeleteMoods || false, handleDelete, handleEdit),
-  }), [canDeleteMoods, canWriteMoods])
+    detailColumns: getDetailColumns(canDeleteMoods || false, handleDelete, handleEdit, moodOptions, getMoodColor),
+  }), [canDeleteMoods, canWriteMoods, moodOptions, getMoodColor])
 
   // 权限检查
   if (!canReadMoods) {

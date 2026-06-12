@@ -36,12 +36,6 @@ import dayjs from 'dayjs'
 import sha256 from 'crypto-js/sha256'
 import type { User, UserFormData, UserStats, OperationLog, UserRole, MemberLevel, UserStatus } from '../types/user'
 import {
-  USER_ROLE_LABELS,
-  USER_ROLE_COLORS,
-  MEMBER_LEVEL_LABELS,
-  MEMBER_LEVEL_COLORS,
-  USER_STATUS_LABELS,
-  USER_STATUS_COLORS,
   USER_ROLE_OPTIONS,
   MEMBER_LEVEL_OPTIONS,
   USER_STATUS_OPTIONS,
@@ -435,15 +429,15 @@ const Users: React.FC = () => {
       { title: '所在地', dataIndex: 'location', render: (v: unknown) => String(v || '') },
       { title: '职业', dataIndex: 'occupation', render: (v: unknown) => String(v || '') },
       { title: '公司', dataIndex: 'company', render: (v: unknown) => String(v || '') },
-      { title: '角色', dataIndex: 'role', render: (v: unknown) => USER_ROLE_LABELS[v as UserRole] || String(v) },
-      { title: '会员等级', dataIndex: 'member_level', render: (v: unknown) => MEMBER_LEVEL_LABELS[v as MemberLevel] || String(v) },
+      { title: '角色', dataIndex: 'role', render: (v: unknown) => roleOptions.find(opt => opt.value === v)?.label || String(v) },
+      { title: '会员等级', dataIndex: 'member_level', render: (v: unknown) => memberLevelOptions.find(opt => opt.value === v)?.label || String(v) },
       { title: '积分', dataIndex: 'points' },
-      { title: '状态', dataIndex: 'status', render: (v: unknown) => USER_STATUS_LABELS[v as UserStatus] || String(v) },
+      { title: '状态', dataIndex: 'status', render: (v: unknown) => statusOptions.find(opt => opt.value === v)?.label || String(v) },
       { title: '注册时间', dataIndex: 'created_at', render: (v: unknown) => dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss') },
     ]
     exportToCSV(filteredData as unknown as Record<string, unknown>[], columns, '用户列表')
     message.success('CSV 导出成功')
-  }, [filteredData])
+  }, [filteredData, roleOptions, memberLevelOptions, statusOptions])
 
   const handleExportExcel = useCallback(() => {
     const columns = [
@@ -457,15 +451,15 @@ const Users: React.FC = () => {
       { title: '所在地', dataIndex: 'location', render: (v: unknown) => String(v || '') },
       { title: '职业', dataIndex: 'occupation', render: (v: unknown) => String(v || '') },
       { title: '公司', dataIndex: 'company', render: (v: unknown) => String(v || '') },
-      { title: '角色', dataIndex: 'role', render: (v: unknown) => USER_ROLE_LABELS[v as UserRole] || String(v) },
-      { title: '会员等级', dataIndex: 'member_level', render: (v: unknown) => MEMBER_LEVEL_LABELS[v as MemberLevel] || String(v) },
+      { title: '角色', dataIndex: 'role', render: (v: unknown) => roleOptions.find(opt => opt.value === v)?.label || String(v) },
+      { title: '会员等级', dataIndex: 'member_level', render: (v: unknown) => memberLevelOptions.find(opt => opt.value === v)?.label || String(v) },
       { title: '积分', dataIndex: 'points' },
-      { title: '状态', dataIndex: 'status', render: (v: unknown) => USER_STATUS_LABELS[v as UserStatus] || String(v) },
+      { title: '状态', dataIndex: 'status', render: (v: unknown) => statusOptions.find(opt => opt.value === v)?.label || String(v) },
       { title: '注册时间', dataIndex: 'created_at', render: (v: unknown) => dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss') },
     ]
     exportToExcel(filteredData as unknown as Record<string, unknown>[], columns, '用户列表')
     message.success('Excel 导出成功')
-  }, [filteredData])
+  }, [filteredData, roleOptions, memberLevelOptions, statusOptions])
 
   const exportMenuItems = [
     { key: 'csv', label: '导出 CSV', icon: <ExportOutlined /> },
@@ -540,7 +534,7 @@ const Users: React.FC = () => {
       key: 'role',
       width: 100,
       render: (role: UserRole) => (
-        <Tag color={getRoleColor(role) || USER_ROLE_COLORS[role]}>{USER_ROLE_LABELS[role]}</Tag>
+        <Tag color={getRoleColor(role)}>{roleOptions.find(opt => opt.value === role)?.label || role}</Tag>
       ),
     },
     {
@@ -549,7 +543,7 @@ const Users: React.FC = () => {
       key: 'member_level',
       width: 100,
       render: (level: MemberLevel) => (
-        <Tag color={getMemberLevelColor(level) || MEMBER_LEVEL_COLORS[level]}>{MEMBER_LEVEL_LABELS[level]}</Tag>
+        <Tag color={getMemberLevelColor(level)}>{memberLevelOptions.find(opt => opt.value === level)?.label || level}</Tag>
       ),
     },
     {
@@ -566,7 +560,7 @@ const Users: React.FC = () => {
       key: 'status',
       width: 80,
       render: (status: UserStatus) => (
-        <Tag color={getStatusColor(status) || USER_STATUS_COLORS[status]}>{USER_STATUS_LABELS[status]}</Tag>
+        <Tag color={getStatusColor(status)}>{statusOptions.find(opt => opt.value === status)?.label || status}</Tag>
       ),
     },
     {

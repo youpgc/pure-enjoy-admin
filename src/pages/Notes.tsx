@@ -8,13 +8,14 @@ import EditRecordModal, { EditFieldConfig } from '../components/EditRecordModal'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { useEditModal } from '../hooks/useEditModal'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 import { formatDateTime } from '../utils/format'
 import NoPermission from '../components/NoPermission'
 import TagsCell from '../components/TagsCell'
 
 // ==================== 常量定义 ====================
 
-const CATEGORY_OPTIONS = [
+const CATEGORY_OPTIONS_FALLBACK = [
   { value: '工作', label: '工作' },
   { value: '生活', label: '生活' },
   { value: '学习', label: '学习' },
@@ -23,7 +24,7 @@ const CATEGORY_OPTIONS = [
 
 // ==================== 编辑字段配置 ====================
 
-const EDIT_FIELDS: EditFieldConfig[] = [
+const getEditFields = (categoryOptions: { value: string; label: string }[]): EditFieldConfig[] => [
   {
     name: 'title',
     label: '标题',
@@ -42,7 +43,7 @@ const EDIT_FIELDS: EditFieldConfig[] = [
     name: 'category',
     label: '分类',
     type: 'select',
-    options: CATEGORY_OPTIONS,
+    options: categoryOptions,
   },
   {
     name: 'tags',
@@ -62,7 +63,9 @@ const EDIT_FIELDS: EditFieldConfig[] = [
 const getDetailColumns = (
   canDelete: boolean,
   onDelete: (id: string) => void,
-  onEdit: (record: RecordItem) => void
+  onEdit: (record: RecordItem) => void,
+  categoryOptions: { value: string; label: string }[],
+  getCategoryColor: (code: string) => string
 ): ColumnsType<RecordItem> => [
   {
     title: '置顶',
@@ -86,7 +89,10 @@ const getDetailColumns = (
     dataIndex: 'category',
     key: 'category',
     width: 100,
-    render: (category: string) => category ? <Tag color="blue">{category}</Tag> : '-',
+    render: (category: string) => {
+      const label = categoryOptions.find(opt => opt.value === category)?.label || category
+      return category ? <Tag color={getCategoryColor(category) || 'blue'}>{label}</Tag> : '-'
+    },
   },
   {
     title: '标签',
@@ -146,6 +152,8 @@ const getDetailColumns = (
 const Notes: React.FC = () => {
   const { canReadNotes, canWriteNotes, canDeleteNotes } = usePermission()
   const { editModalOpen, editingRecord, open, close } = useEditModal<RecordItem>()
+  const { options: categoryOptions } = useDictOptions('note_category', CATEGORY_OPTIONS_FALLBACK)
+  const { getColor: getCategoryColor } = useDictColors('note_category')
 
   // 删除记录
   const handleDelete = async (id: string) => {
@@ -178,8 +186,8 @@ const Notes: React.FC = () => {
     title: '笔记管理',
     tableName: 'notes',
     detailTitle: '笔记详情',
-    detailColumns: getDetailColumns(canDeleteNotes || false, handleDelete, handleEdit),
-  }), [canDeleteNotes, canWriteNotes])
+    detailColumns: getDetailColumns(canDeleteNotes || false, handleDelete, handleEdit, categoryOptions, getCategoryColor),
+  }), [canDeleteNotes, canWriteNotes, categoryOptions, getCategoryColor])
 
   // 权限检查
   if (!canReadNotes) {
@@ -193,7 +201,7 @@ const Notes: React.FC = () => {
         open={editModalOpen}
         record={editingRecord}
         tableName="notes"
-        fields={EDIT_FIELDS}
+        fields={getEditFields(categoryOptions)}
         onClose={close}
         onSuccess={() => {
           window.location.reload()

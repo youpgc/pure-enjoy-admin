@@ -540,15 +540,23 @@ const Feedback: React.FC = () => {
       <div style={{ padding: '0 0 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h3 style={{ margin: 0 }}>问题反馈</h3>
         <Space>
-          <Badge count={data.filter(d => d.status === 'pending').length} offset={[0, 0]}>
-            <Tag color="default">待确认</Tag>
-          </Badge>
-          <Badge count={data.filter(d => d.status === 'in_progress').length} offset={[0, 0]}>
-            <Tag color="warning">处理中</Tag>
-          </Badge>
-          <Badge count={data.filter(d => d.status === 'delayed').length} offset={[0, 0]}>
-            <Tag color="orange">已滞后</Tag>
-          </Badge>
+          {statusOptions.length > 0 ? statusOptions.map(opt => (
+            <Badge key={opt.value} count={data.filter(d => d.status === opt.value).length} offset={[0, 0]}>
+              <Tag color={getStatusColor(opt.value) || 'default'}>{opt.label}</Tag>
+            </Badge>
+          )) : (
+            <>
+              <Badge count={data.filter(d => d.status === 'pending').length} offset={[0, 0]}>
+                <Tag color="default">待确认</Tag>
+              </Badge>
+              <Badge count={data.filter(d => d.status === 'in_progress').length} offset={[0, 0]}>
+                <Tag color="warning">处理中</Tag>
+              </Badge>
+              <Badge count={data.filter(d => d.status === 'delayed').length} offset={[0, 0]}>
+                <Tag color="orange">已滞后</Tag>
+              </Badge>
+            </>
+          )}
         </Space>
       </div>
 

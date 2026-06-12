@@ -536,11 +536,7 @@ const VersionManagement: React.FC = () => {
               label="更新类型"
               rules={[{ required: true, message: '请选择更新类型' }]}
             >
-              <Select placeholder="选择更新类型" options={releaseTypeOptions.length > 0 ? releaseTypeOptions : [
-                { label: '热更新 - Bug修复', value: 'hotfix' },
-                { label: '功能迭代 - 新功能', value: 'feature' },
-                { label: '强制更新 - 必须升级', value: 'force' },
-              ]} />
+              <Select placeholder="选择更新类型" options={releaseTypeOptions} />
             </Form.Item>
             <Form.Item
               name="release_notes"

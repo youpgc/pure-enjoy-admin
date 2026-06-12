@@ -7,10 +7,7 @@ import {
   RiseOutlined,
   FallOutlined,
   DashboardOutlined,
-  FileTextOutlined,
-  HeartOutlined,
   BookOutlined,
-  WalletOutlined,
   ReadOutlined,
   FireOutlined,
 } from '@ant-design/icons'
@@ -423,15 +420,8 @@ const Dashboard: React.FC = () => {
                   dataIndex: 'action',
                   key: 'action',
                   render: (text: string) => {
-                    const colorMapFallback: Record<string, string> = {
-                      'create': 'green',
-                      'update': 'blue',
-                      'delete': 'red',
-                      'login': 'purple',
-                      'view': 'default',
-                    }
                     const dictOpt = actionOptions.find(opt => opt.value === text)
-                    return <Tag color={getActionColor(text) || colorMapFallback[text] || 'default'}>{dictOpt?.label || text}</Tag>
+                    return <Tag color={getActionColor(text) || 'default'}>{dictOpt?.label || text}</Tag>
                   },
                 },
                 {
@@ -439,18 +429,9 @@ const Dashboard: React.FC = () => {
                   dataIndex: 'module',
                   key: 'module',
                   render: (text: string) => {
-                    const iconMapFallback: Record<string, React.ReactNode> = {
-                      'expenses': <WalletOutlined />,
-                      'mood_diaries': <HeartOutlined />,
-                      'notes': <FileTextOutlined />,
-                      'novels': <BookOutlined />,
-                      'users': <UserOutlined />,
-                    }
                     const dictOpt = moduleOptions.find(opt => opt.value === text)
                     return (
-                      <span>
-                        {iconMapFallback[text] || null} {dictOpt?.label || text}
-                      </span>
+                      <span>{dictOpt?.label || text}</span>
                     )
                   },
                 },

@@ -30,22 +30,13 @@ interface UserOption {
 // ==================== 常量定义 ====================
 
 const TYPE_OPTIONS_FALLBACK = [
-  { label: '系统通知', value: '系统通知' },
-  { label: '版本更新', value: '版本更新' },
-  { label: '提醒', value: '提醒' },
-  { label: '习惯', value: '习惯' },
-  { label: '小说', value: '小说' },
-  { label: '消费', value: '消费' },
+  { label: '系统通知', value: 'system' },
+  { label: '版本更新', value: 'version_update' },
+  { label: '提醒', value: 'reminder' },
+  { label: '习惯', value: 'habit' },
+  { label: '小说', value: 'novel' },
+  { label: '消费', value: 'expense' },
 ]
-
-const TYPE_COLOR_MAP_FALLBACK: Record<string, string> = {
-  '系统通知': 'blue',
-  '版本更新': 'purple',
-  '提醒': 'orange',
-  '习惯': 'green',
-  '小说': 'geekblue',
-  '消费': 'red',
-}
 
 const READ_STATUS_OPTIONS = [
   { label: '未读', value: 'unread' },
@@ -329,9 +320,10 @@ const Notifications: React.FC = () => {
       dataIndex: 'type',
       key: 'type',
       width: 100,
-      render: (type: string) => (
-        <Tag color={getTypeColor(type) || TYPE_COLOR_MAP_FALLBACK[type] || 'default'}>{type || '-'}</Tag>
-      ),
+      render: (type: string) => {
+        const dictOpt = typeOptions.find(opt => opt.value === type)
+        return <Tag color={getTypeColor(type) || 'default'}>{dictOpt?.label || type || '-'}</Tag>
+      },
     },
     {
       title: '内容',

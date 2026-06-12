@@ -32,7 +32,7 @@ import { supabase, handleSupabaseError } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import NoPermission from '../components/NoPermission'
-import { useDictOptions } from '../hooks/useDictOptions'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 const { Title } = Typography
 
@@ -82,8 +82,10 @@ const Novels: React.FC = () => {
   } = usePermission()
 
   // 字典查询
-  const { options: categoryOptions, colors: categoryColors } = useDictOptions('novel_category')
-  const { options: statusOptions, colors: statusColors } = useDictOptions('novel_status')
+  const { options: categoryOptions } = useDictOptions('novel_category')
+  const { options: statusOptions } = useDictOptions('novel_status')
+  const { getColor: getCategoryColor } = useDictColors('novel_category')
+  const { getColor: getStatusColor } = useDictColors('novel_status')
 
   // 状态
   const [data, setData] = useState<NovelRecord[]>([])
@@ -594,7 +596,7 @@ const Novels: React.FC = () => {
       onFilter: (value, record) => record.category === value,
       render: (category: string) => (
         category ? (
-          <Tag color={categoryColors[category] || 'default'}>{categoryOptions.find(opt => opt.value === category)?.label || category}</Tag>
+          <Tag color={getCategoryColor(category) || 'default'}>{categoryOptions.find(opt => opt.value === category)?.label || category}</Tag>
         ) : '-'
       ),
     },
@@ -629,7 +631,7 @@ const Novels: React.FC = () => {
       filters: statusOptions.map((opt) => ({ text: opt.label, value: opt.value })),
       onFilter: (value, record) => record.status === value,
       render: (status: string) => (
-        <Tag color={statusColors[status] || 'default'}>
+        <Tag color={getStatusColor(status) || 'default'}>
           {statusOptions.find(opt => opt.value === status)?.label || status || '连载'}
         </Tag>
       ),
