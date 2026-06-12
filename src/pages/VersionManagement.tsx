@@ -363,93 +363,69 @@ const VersionManagement: React.FC = () => {
             <Tag color="green">已激活</Tag>
           }
         >
-          <Descriptions size="small" column={{ xs: 1, sm: 2, md: 4 }} bordered>
-            <Descriptions.Item label="应用名称">
-              <Text strong style={{ fontSize: 16, color: '#1890ff' }}>
-                {currentVersion.version}
-              </Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="版本号">
-              v{currentVersion.version}
-            </Descriptions.Item>
-            <Descriptions.Item label="构建号">
-              {currentVersion.build_number}
-            </Descriptions.Item>
-            <Descriptions.Item label="平台">
-              <Tag>{currentVersion.platform}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="强制更新">
-              <Tag color={currentVersion.is_force_update ? 'red' : 'default'}>
-                {currentVersion.is_force_update ? '是' : '否'}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="更新链接" span={2}>
-              {getDownloadUrl(currentVersion) || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="更新说明" span={2}>
-              {currentVersion.release_notes || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="激活状态">
-              <Badge status={currentVersion.is_active ? 'success' : 'default'} text={currentVersion.is_active ? '是' : '否'} />
-            </Descriptions.Item>
-            <Descriptions.Item label="创建时间">
-              {dayjs(currentVersion.created_at).format('YYYY-MM-DD HH:mm')}
-            </Descriptions.Item>
-          </Descriptions>
-          <Space style={{ marginTop: 12 }}>
-            <Button
-              icon={<QrcodeOutlined />}
-              onClick={() => setQrCodeVersion(currentVersion)}
-            >
-              二维码
-            </Button>
-            <Button
-              type="primary"
-              icon={<DownloadOutlined />}
-              onClick={() => {
-                const url = getDownloadUrl(currentVersion)
-                if (url) window.open(url, '_blank')
-                else message.warning('该版本没有下载地址')
-              }}
-            >
-              下载APK
-            </Button>
-          </Space>
+          <Row gutter={24} align="middle">
+            <Col flex="none">
+              <div
+                style={{
+                  width: 160,
+                  height: 160,
+                  background: '#fff',
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid #d9d9d9',
+                }}
+              >
+                <QRCodeSVG
+                  value={getDownloadUrl(currentVersion) || 'https://example.com'}
+                  size={140}
+                  level="M"
+                />
+              </div>
+            </Col>
+            <Col flex="auto">
+              <Descriptions size="small" column={2} bordered>
+                <Descriptions.Item label="版本号">
+                  <Text strong style={{ fontSize: 16, color: '#1890ff' }}>
+                    v{currentVersion.version}
+                  </Text>
+                </Descriptions.Item>
+                <Descriptions.Item label="构建号">
+                  {currentVersion.build_number}
+                </Descriptions.Item>
+                <Descriptions.Item label="平台">
+                  <Tag>{currentVersion.platform}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="强制更新">
+                  <Tag color={currentVersion.is_force_update ? 'red' : 'default'}>
+                    {currentVersion.is_force_update ? '是' : '否'}
+                  </Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="更新说明" span={2}>
+                  {currentVersion.release_notes || '-'}
+                </Descriptions.Item>
+                <Descriptions.Item label="创建时间">
+                  {dayjs(currentVersion.created_at).format('YYYY-MM-DD HH:mm')}
+                </Descriptions.Item>
+                <Descriptions.Item label="操作">
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    onClick={() => {
+                      const url = getDownloadUrl(currentVersion)
+                      if (url) window.open(url, '_blank')
+                      else message.warning('该版本没有下载地址')
+                    }}
+                  >
+                    下载APK
+                  </Button>
+                </Descriptions.Item>
+              </Descriptions>
+            </Col>
+          </Row>
         </Card>
       )}
-
-      {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总版本数"
-              value={pagination.total}
-              prefix={<AppstoreOutlined />}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="激活版本"
-              value={versions.filter(v => v.is_active).length}
-              prefix={<CheckCircleOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="强制更新"
-              value={versions.filter(v => v.is_force_update).length}
-              prefix={<CloudUploadOutlined />}
-              valueStyle={{ color: '#ff4d4f' }}
-            />
-          </Card>
-        </Col>
-      </Row>
 
       {/* 筛选栏 */}
       <Card style={{ marginBottom: 16 }}>
