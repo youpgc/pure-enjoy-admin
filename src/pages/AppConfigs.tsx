@@ -35,10 +35,11 @@ const { Text, Paragraph } = Typography
 
 interface AppConfig {
   id: string
-  key: string
-  value: string
-  description?: string
-  type: 'string' | 'number' | 'boolean' | 'json'
+  config_key: string
+  title: string
+  content: string
+  config_type: 'string' | 'number' | 'boolean' | 'json'
+  sort_order: number
   is_active: boolean
   created_at: string
   updated_at: string
@@ -50,19 +51,20 @@ const AppConfigs: React.FC = () => {
   const [configs, setConfigs] = useState<AppConfig[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingConfig, setEditingConfig] = useState<AppConfig | null>(null)
   const [form] = Form.useForm()
 
-  const service = new BaseService<AppConfig>('app_configs', { defaultOrder: { column: 'key', ascending: true } })
+  const service = new BaseService<AppConfig>('app_configs', { defaultOrder: { column: 'sort_order', ascending: true } })
 
   // 加载数据
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await service.findAll((q) => {
+      const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
         if (searchKeyword) {
-          return q.or(`key.ilike.%${searchKeyword}%,description.ilike.%${searchKeyword}%`)
+          return q.or(`config_key.ilike.%${searchKeyword}%,title.ilike.%${searchKeyword}%`)
         }
         return q
       })
@@ -70,13 +72,14 @@ const AppConfigs: React.FC = () => {
         handleApiError(result.errorMessage, 'AppConfigs-加载数据')
         return
       }
-      setConfigs(result.data || [])
+      setConfigs(result.data?.data || [])
+      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
     } catch (error) {
       handleApiError(error, 'AppConfigs-加载数据')
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword])
+  }, [searchKeyword, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -84,6 +87,7 @@ const AppConfigs: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
+    setPagination(prev => ({ ...prev, current: 1 }))
     loadData()
   }
 
@@ -91,7 +95,7 @@ const AppConfigs: React.FC = () => {
   const handleAdd = () => {
     setEditingConfig(null)
     form.resetFields()
-    form.setFieldsValue({ type: 'string', is_active: true })
+    form.setFieldsValue({ config_type: 'string', sort_order: 0, is_active: true })
     setModalVisible(true)
   }
 
@@ -176,28 +180,41 @@ const AppConfigs: React.FC = () => {
   const columns: ColumnsType<AppConfig> = [
     {
       title: '配置键',
-      dataIndex: 'key',
-      key: 'key',
-      render: (key: string) => <Text strong>{key}</Text>,
+      dataIndex: 'config_key',
+      key: 'config_key',
+      render: (configKey: string) => <Text strong>{configKey}</Text>,
+    },
+    {
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
+      render: (title: string) => title || '-',
     },
     {
       title: '配置值',
-      dataIndex: 'value',
-      key: 'value',
+      dataIndex: 'content',
+      key: 'content',
       ellipsis: true,
-      render: (value: string, record: AppConfig) => {
-        if (record.type === 'json') {
-          return <Paragraph ellipsis style={{ marginBottom: 0 }}>{value}</Paragraph>
+      render: (content: string, record: AppConfig) => {
+        if (record.config_type === 'json') {
+          return <Paragraph ellipsis style={{ marginBottom: 0 }}>{content}</Paragraph>
         }
-        return value
+        return content
       },
     },
     {
       title: '类型',
-      dataIndex: 'type',
-      key: 'type',
+      dataIndex: 'config_type',
+      key: 'config_type',
       width: 100,
       render: (type: string) => <Tag>{type}</Tag>,
+    },
+    {
+      title: '排序',
+      dataIndex: 'sort_order',
+      key: 'sort_order',
+      width: 80,
+      render: (sortOrder: number) => sortOrder ?? 0,
     },
     {
       title: '状态',
@@ -212,12 +229,6 @@ const AppConfigs: React.FC = () => {
           unCheckedChildren="停用"
         />
       ),
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
     },
     {
       title: '更新时间',
@@ -257,7 +268,7 @@ const AppConfigs: React.FC = () => {
           <Card>
             <Statistic
               title="总配置数"
-              value={configs.length}
+              value={pagination.total}
               prefix={<SettingOutlined />}
             />
           </Card>
@@ -276,7 +287,7 @@ const AppConfigs: React.FC = () => {
           <Card>
             <Statistic
               title="JSON配置"
-              value={configs.filter(c => c.type === 'json').length}
+              value={configs.filter(c => c.config_type === 'json').length}
               prefix={<SettingOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
@@ -288,7 +299,7 @@ const AppConfigs: React.FC = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input
-            placeholder="搜索配置键/描述"
+            placeholder="搜索配置键/标题"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
@@ -318,7 +329,15 @@ const AppConfigs: React.FC = () => {
         dataSource={configs}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 20 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
         scroll={{ x: 1000 }}
       />
 
@@ -336,21 +355,27 @@ const AppConfigs: React.FC = () => {
       >
         <Form form={form} layout="vertical">
           <Form.Item
-            name="key"
+            name="config_key"
             label="配置键"
             rules={[{ required: true, message: '请输入配置键' }]}
           >
             <Input placeholder="请输入配置键" disabled={!!editingConfig} />
           </Form.Item>
           <Form.Item
-            name="value"
+            name="title"
+            label="标题"
+          >
+            <Input placeholder="请输入标题" />
+          </Form.Item>
+          <Form.Item
+            name="content"
             label="配置值"
             rules={[{ required: true, message: '请输入配置值' }]}
           >
             <Input.TextArea rows={4} placeholder="请输入配置值" />
           </Form.Item>
           <Form.Item
-            name="type"
+            name="config_type"
             label="类型"
             rules={[{ required: true, message: '请选择类型' }]}
           >
@@ -365,10 +390,11 @@ const AppConfigs: React.FC = () => {
             />
           </Form.Item>
           <Form.Item
-            name="description"
-            label="描述"
+            name="sort_order"
+            label="排序"
+            initialValue={0}
           >
-            <Input.TextArea rows={2} placeholder="请输入描述" />
+            <Input type="number" placeholder="排序值" />
           </Form.Item>
           <Form.Item
             name="is_active"

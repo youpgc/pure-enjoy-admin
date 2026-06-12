@@ -41,11 +41,12 @@ const { RangePicker } = DatePicker
 interface OperationLog {
   id: string
   user_id: string
-  user_email?: string
   action: string
   module: string
-  description?: string
-  ip_address?: string
+  details?: Record<string, any>
+  ip?: string
+  target_id?: string
+  user_agent?: string
   created_at: string
 }
 
@@ -80,7 +81,7 @@ const OperationLogs: React.FC = () => {
       const result = await logService.paginate(pagination.current, pagination.pageSize, (q) => {
         let query = q
         if (filters.keyword) {
-          query = query.or(`user_email.ilike.%${filters.keyword}%,description.ilike.%${filters.keyword}%`)
+          query = query.or(`action.ilike.%${filters.keyword}%,module.ilike.%${filters.keyword}%`)
         }
         if (filters.action) {
           query = query.eq('action', filters.action)
@@ -157,15 +158,10 @@ const OperationLogs: React.FC = () => {
   // 表格列定义
   const columns: ColumnsType<OperationLog> = [
     {
-      title: '用户',
-      key: 'user',
+      title: '用户ID',
+      dataIndex: 'user_id',
+      key: 'user_id',
       width: 200,
-      render: (_, record) => (
-        <div>
-          <div>{record.user_email || record.user_id}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>ID: {record.user_id}</Text>
-        </div>
-      ),
     },
     {
       title: '操作',
@@ -191,17 +187,40 @@ const OperationLogs: React.FC = () => {
       },
     },
     {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
+      title: '详情',
+      dataIndex: 'details',
+      key: 'details',
       ellipsis: true,
+      render: (details: Record<string, any>) => {
+        if (!details) return '-'
+        try {
+          return <Text style={{ fontSize: 12 }}>{JSON.stringify(details)}</Text>
+        } catch {
+          return String(details)
+        }
+      },
+    },
+    {
+      title: '目标ID',
+      dataIndex: 'target_id',
+      key: 'target_id',
+      width: 120,
+      render: (targetId: string) => targetId || '-',
     },
     {
       title: 'IP地址',
-      dataIndex: 'ip_address',
-      key: 'ip_address',
+      dataIndex: 'ip',
+      key: 'ip',
       width: 130,
       render: (ip: string) => ip || '-',
+    },
+    {
+      title: 'User Agent',
+      dataIndex: 'user_agent',
+      key: 'user_agent',
+      width: 150,
+      ellipsis: true,
+      render: (ua: string) => ua || '-',
     },
     {
       title: '时间',
@@ -251,7 +270,7 @@ const OperationLogs: React.FC = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input
-            placeholder="搜索用户/描述"
+            placeholder="搜索操作/模块"
             value={filters.keyword}
             onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={handleSearch}

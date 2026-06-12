@@ -34,6 +34,7 @@ import {
   ToolOutlined,
   FolderOutlined,
   UnorderedListOutlined,
+  AlertOutlined,
 } from '@ant-design/icons'
 import type { AdminUser } from './types/auth'
 import AuthGuard from './components/AuthGuard'
@@ -65,6 +66,7 @@ import Notifications from './pages/Notifications'
 import Announcements from './pages/Announcements'
 import Feedback from './pages/Feedback'
 import PointsManagement from './pages/PointsManagement'
+import ErrorLogs from './pages/ErrorLogs'
 
 
 const { Header, Sider, Content } = Layout
@@ -126,7 +128,7 @@ type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' 
   'novels' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
-  | 'anniversaries' | 'points'
+  | 'anniversaries' | 'points' | 'error_logs'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -229,6 +231,7 @@ const MainLayout: React.FC = () => {
           { key: 'app_configs', icon: <ToolOutlined />, label: '配置管理' },
           { key: 'dict_management', icon: <BookOutlined />, label: '字典管理' },
           { key: 'file_management', icon: <FolderOutlined />, label: '文件管理' },
+          { key: 'error_logs', icon: <AlertOutlined />, label: '错误日志' },
         ],
       },
     ] : []),
@@ -288,6 +291,8 @@ const MainLayout: React.FC = () => {
         return <Feedback />
       case 'points':
         return <PointsManagement />
+      case 'error_logs':
+        return <ErrorLogs />
       default:
         return <Dashboard />
     }
@@ -321,6 +326,7 @@ const MainLayout: React.FC = () => {
       feedback: '问题反馈',
       anniversaries: '纪念日',
       points: '积分管理',
+      error_logs: '错误日志',
     }
     return titles[currentPage] || '数据概览'
   }

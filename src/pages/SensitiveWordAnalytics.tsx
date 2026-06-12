@@ -48,8 +48,13 @@ interface SensitiveWordHit {
   word: string
   category: string
   level: string
-  content_type: string
-  content_id: string
+  source: string
+  source_id: string
+  word_id: string
+  user_id: string
+  content_snippet: string
+  action_taken: string
+  ip_address: string
   created_at: string
 }
 
@@ -76,7 +81,7 @@ const SensitiveWordAnalytics: React.FC = () => {
   const [dailyStats, setDailyStats] = useState<DailyStat[]>([])
   const [topWords, setTopWords] = useState<{ word: string; count: number }[]>([])
 
-  const hitService = new BaseService<SensitiveWordHit>('sensitive_word_hits', { defaultOrder: { column: 'created_at', ascending: false } })
+  const hitService = new BaseService<SensitiveWordHit>('sensitive_word_logs', { defaultOrder: { column: 'created_at', ascending: false } })
 
   // 加载统计数据
   const loadAnalytics = useCallback(async () => {
@@ -170,9 +175,28 @@ const SensitiveWordAnalytics: React.FC = () => {
       },
     },
     {
-      title: '内容类型',
-      dataIndex: 'content_type',
-      key: 'content_type',
+      title: '来源',
+      dataIndex: 'source',
+      key: 'source',
+    },
+    {
+      title: '来源ID',
+      dataIndex: 'source_id',
+      key: 'source_id',
+      width: 100,
+    },
+    {
+      title: '处理方式',
+      dataIndex: 'action_taken',
+      key: 'action_taken',
+      width: 100,
+    },
+    {
+      title: 'IP地址',
+      dataIndex: 'ip_address',
+      key: 'ip_address',
+      width: 130,
+      render: (ip: string) => ip || '-',
     },
     {
       title: '时间',

@@ -24,157 +24,343 @@ import {
   EditOutlined,
   DeleteOutlined,
   BookOutlined,
+  AppstoreOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 
 const { Text } = Typography
 
 // ==================== 类型定义 ====================
 
+interface DictType {
+  id: string
+  code: string
+  name: string
+  description: string
+  sort_order: number
+  is_system: boolean
+  status: string
+  is_active: boolean
+  type_code: string | null
+  type_name: string | null
+  created_at: string
+  updated_at: string
+}
+
 interface DictItem {
   id: string
-  dict_type: string
-  dict_code: string
-  dict_label: string
-  dict_value: string
+  type_id: string
+  code: string
+  label: string
+  value: string
+  extra: Record<string, any>
   sort_order: number
+  is_default: boolean
+  status: string
+  item_code: string
+  item_name: string
+  item_value: string | null
   is_active: boolean
+  extra_data: Record<string, any> | null
   created_at: string
+  updated_at: string
 }
 
 // ==================== 组件 ====================
 
 const DictManagement: React.FC = () => {
-  const [dicts, setDicts] = useState<DictItem[]>([])
-  const [loading, setLoading] = useState(false)
-  const [searchKeyword, setSearchKeyword] = useState('')
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
-  const [modalVisible, setModalVisible] = useState(false)
-  const [editingDict, setEditingDict] = useState<DictItem | null>(null)
-  const [form] = Form.useForm()
+  // 字典类型状态
+  const [dictTypes, setDictTypes] = useState<DictType[]>([])
+  const [typeLoading, setTypeLoading] = useState(false)
+  const [typeSearchKeyword, setTypeSearchKeyword] = useState('')
+  const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null)
 
-  const service = new BaseService<DictItem>('dict_items', { defaultOrder: { column: 'sort_order', ascending: true } })
+  // 字典类型弹窗状态
+  const [typeModalVisible, setTypeModalVisible] = useState(false)
+  const [editingType, setEditingType] = useState<DictType | null>(null)
+  const [typeForm] = Form.useForm()
 
-  // 加载数据
-  const loadData = useCallback(async () => {
-    setLoading(true)
+  // 字典项状态
+  const [dictItems, setDictItems] = useState<DictItem[]>([])
+  const [itemLoading, setItemLoading] = useState(false)
+  const [itemSearchKeyword, setItemSearchKeyword] = useState('')
+
+  // 字典项弹窗状态
+  const [itemModalVisible, setItemModalVisible] = useState(false)
+  const [editingItem, setEditingItem] = useState<DictItem | null>(null)
+  const [itemForm] = Form.useForm()
+
+  const typeService = new BaseService<DictType>('dict_types', {
+    defaultOrder: { column: 'sort_order', ascending: true },
+  })
+  const itemService = new BaseService<DictItem>('dict_items', {
+    defaultOrder: { column: 'sort_order', ascending: true },
+  })
+
+  // ==================== 字典类型操作 ====================
+
+  const loadDictTypes = useCallback(async () => {
+    setTypeLoading(true)
     try {
-      const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
-        if (searchKeyword) {
-          return q.or(`dict_type.ilike.%${searchKeyword}%,dict_label.ilike.%${searchKeyword}%,dict_code.ilike.%${searchKeyword}%`)
+      const result = await typeService.findAll((q) => {
+        if (typeSearchKeyword) {
+          return q.or(`code.ilike.%${typeSearchKeyword}%,name.ilike.%${typeSearchKeyword}%`)
         }
         return q
       })
       if (!result.success) {
-        handleApiError(result.errorMessage, 'DictManagement-加载数据')
+        handleApiError(result.errorMessage, 'DictManagement-加载字典类型')
         return
       }
-      setDicts(result.data!.data)
-      setPagination(prev => ({ ...prev, total: result.data!.total }))
+      const types = result.data || []
+      setDictTypes(types)
+      // 如果没有选中类型，默认选中第一个
+      if (!selectedTypeId && types.length > 0 && types[0]) {
+        setSelectedTypeId(types[0].id)
+      }
+      // 如果选中的类型已被删除，切换到第一个
+      if (selectedTypeId && types.length > 0 && !types.find(t => t.id === selectedTypeId) && types[0]) {
+        setSelectedTypeId(types[0].id)
+      }
+      // 如果所有类型都被删除
+      if (types.length === 0) {
+        setSelectedTypeId(null)
+      }
     } catch (error) {
-      handleApiError(error, 'DictManagement-加载数据')
+      handleApiError(error, 'DictManagement-加载字典类型')
     } finally {
-      setLoading(false)
+      setTypeLoading(false)
     }
-  }, [searchKeyword, pagination.current, pagination.pageSize])
+  }, [typeSearchKeyword, selectedTypeId])
+
+  // 加载字典项
+  const loadDictItems = useCallback(async () => {
+    if (!selectedTypeId) {
+      setDictItems([])
+      return
+    }
+    setItemLoading(true)
+    try {
+      const result = await itemService.findAll((q) => {
+        let filtered = q.eq('type_id', selectedTypeId)
+        if (itemSearchKeyword) {
+          filtered = filtered.or(`code.ilike.%${itemSearchKeyword}%,label.ilike.%${itemSearchKeyword}%`)
+        }
+        return filtered
+      })
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'DictManagement-加载字典项')
+        return
+      }
+      setDictItems(result.data || [])
+    } catch (error) {
+      handleApiError(error, 'DictManagement-加载字典项')
+    } finally {
+      setItemLoading(false)
+    }
+  }, [selectedTypeId, itemSearchKeyword])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadDictTypes()
+  }, [loadDictTypes])
 
-  // 搜索
-  const handleSearch = () => {
-    setPagination(prev => ({ ...prev, current: 1 }))
+  useEffect(() => {
+    loadDictItems()
+  }, [loadDictItems])
+
+  // 类型搜索
+  const handleTypeSearch = () => {
+    loadDictTypes()
   }
 
-  // 打开新增弹窗
-  const handleAdd = () => {
-    setEditingDict(null)
-    form.resetFields()
-    form.setFieldsValue({ sort_order: 0, is_active: true })
-    setModalVisible(true)
+  // 字典项搜索
+  const handleItemSearch = () => {
+    loadDictItems()
   }
 
-  // 打开编辑弹窗
-  const handleEdit = (record: DictItem) => {
-    setEditingDict(record)
-    form.setFieldsValue({
-      ...record,
+  // 选中类型行
+  const handleSelectType = (record: DictType) => {
+    setSelectedTypeId(record.id)
+    setItemSearchKeyword('')
+  }
+
+  // 打开新增类型弹窗
+  const handleAddType = () => {
+    setEditingType(null)
+    typeForm.resetFields()
+    typeForm.setFieldsValue({ sort_order: 0, is_active: true })
+    setTypeModalVisible(true)
+  }
+
+  // 打开编辑类型弹窗
+  const handleEditType = (record: DictType) => {
+    setEditingType(record)
+    typeForm.setFieldsValue({
+      code: record.code,
+      name: record.name,
+      description: record.description,
+      sort_order: record.sort_order,
+      is_active: record.is_active,
     })
-    setModalVisible(true)
+    setTypeModalVisible(true)
   }
 
-  // 删除记录
-  const handleDelete = async (id: string) => {
+  // 删除类型
+  const handleDeleteType = async (id: string) => {
     try {
-      const result = await service.delete(id)
+      const result = await typeService.delete(id)
       if (!result.success) {
-        handleApiError(result.errorMessage, 'DictManagement-删除')
+        handleApiError(result.errorMessage, 'DictManagement-删除字典类型')
         return
       }
       message.success('删除成功')
-      loadData()
+      loadDictTypes()
     } catch (error) {
-      handleApiError(error, 'DictManagement-删除')
+      handleApiError(error, 'DictManagement-删除字典类型')
     }
   }
 
-  // 保存记录
-  const handleSave = async () => {
+  // 保存类型
+  const handleSaveType = async () => {
     try {
-      const values = await form.validateFields()
-      if (editingDict) {
-        const result = await service.update(editingDict.id, values)
+      const values = await typeForm.validateFields()
+      if (editingType) {
+        const result = await typeService.update(editingType.id, {
+          ...values,
+          updated_at: new Date().toISOString(),
+        })
         if (!result.success) {
-          handleApiError(result.errorMessage, 'DictManagement-更新')
+          handleApiError(result.errorMessage, 'DictManagement-更新字典类型')
           return
         }
         message.success('更新成功')
       } else {
-        const result = await service.create({
+        const result = await typeService.create({
           ...values,
           created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         if (!result.success) {
-          handleApiError(result.errorMessage, 'DictManagement-创建')
+          handleApiError(result.errorMessage, 'DictManagement-创建字典类型')
           return
         }
         message.success('创建成功')
       }
-      setModalVisible(false)
-      setEditingDict(null)
-      form.resetFields()
-      loadData()
+      setTypeModalVisible(false)
+      setEditingType(null)
+      typeForm.resetFields()
+      loadDictTypes()
     } catch (error) {
-      handleApiError(error, 'DictManagement-保存')
+      handleApiError(error, 'DictManagement-保存字典类型')
     }
   }
 
-  // 表格列定义
-  const columns: ColumnsType<DictItem> = [
+  // ==================== 字典项操作 ====================
+
+  // 打开新增字典项弹窗
+  const handleAddItem = () => {
+    if (!selectedTypeId) {
+      message.warning('请先选择一个字典类型')
+      return
+    }
+    setEditingItem(null)
+    itemForm.resetFields()
+    itemForm.setFieldsValue({
+      type_id: selectedTypeId,
+      sort_order: 0,
+      is_default: false,
+      is_active: true,
+    })
+    setItemModalVisible(true)
+  }
+
+  // 打开编辑字典项弹窗
+  const handleEditItem = (record: DictItem) => {
+    setEditingItem(record)
+    itemForm.setFieldsValue({
+      code: record.code,
+      label: record.label,
+      value: record.value,
+      sort_order: record.sort_order,
+      is_default: record.is_default,
+      is_active: record.is_active,
+    })
+    setItemModalVisible(true)
+  }
+
+  // 删除字典项
+  const handleDeleteItem = async (id: string) => {
+    try {
+      const result = await itemService.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'DictManagement-删除字典项')
+        return
+      }
+      message.success('删除成功')
+      loadDictItems()
+    } catch (error) {
+      handleApiError(error, 'DictManagement-删除字典项')
+    }
+  }
+
+  // 保存字典项
+  const handleSaveItem = async () => {
+    try {
+      const values = await itemForm.validateFields()
+      if (editingItem) {
+        const result = await itemService.update(editingItem.id, {
+          ...values,
+          updated_at: new Date().toISOString(),
+        })
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'DictManagement-更新字典项')
+          return
+        }
+        message.success('更新成功')
+      } else {
+        const result = await itemService.create({
+          ...values,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'DictManagement-创建字典项')
+          return
+        }
+        message.success('创建成功')
+      }
+      setItemModalVisible(false)
+      setEditingItem(null)
+      itemForm.resetFields()
+      loadDictItems()
+    } catch (error) {
+      handleApiError(error, 'DictManagement-保存字典项')
+    }
+  }
+
+  // ==================== 表格列定义 ====================
+
+  const selectedTypeName = dictTypes.find(t => t.id === selectedTypeId)?.name
+
+  const typeColumns: ColumnsType<DictType> = [
     {
-      title: '字典类型',
-      dataIndex: 'dict_type',
-      key: 'dict_type',
-      render: (type: string) => <Tag color="blue">{type}</Tag>,
-    },
-    {
-      title: '字典编码',
-      dataIndex: 'dict_code',
-      key: 'dict_code',
+      title: '类型编码',
+      dataIndex: 'code',
+      key: 'code',
       render: (code: string) => <Text strong>{code}</Text>,
     },
     {
-      title: '标签',
-      dataIndex: 'dict_label',
-      key: 'dict_label',
+      title: '类型名称',
+      dataIndex: 'name',
+      key: 'name',
     },
     {
-      title: '值',
-      dataIndex: 'dict_value',
-      key: 'dict_value',
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
     },
     {
       title: '排序',
@@ -197,12 +383,13 @@ const DictManagement: React.FC = () => {
       width: 150,
       render: (_, record) => (
         <Space>
-          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEditType(record)}>
             编辑
           </Button>
           <Popconfirm
             title="确认删除"
-            onConfirm={() => handleDelete(record.id)}
+            description="删除类型后，该类型下的所有字典项也将无法使用"
+            onConfirm={() => handleDeleteType(record.id)}
             okText="确认"
             cancelText="取消"
           >
@@ -215,8 +402,72 @@ const DictManagement: React.FC = () => {
     },
   ]
 
-  // 字典类型统计
-  const typeCount = new Set(dicts.map(d => d.dict_type)).size
+  const itemColumns: ColumnsType<DictItem> = [
+    {
+      title: '编码',
+      dataIndex: 'code',
+      key: 'code',
+      render: (code: string) => <Text strong>{code}</Text>,
+    },
+    {
+      title: '标签',
+      dataIndex: 'label',
+      key: 'label',
+    },
+    {
+      title: '值',
+      dataIndex: 'value',
+      key: 'value',
+    },
+    {
+      title: '排序',
+      dataIndex: 'sort_order',
+      key: 'sort_order',
+      width: 80,
+    },
+    {
+      title: '默认',
+      dataIndex: 'is_default',
+      key: 'is_default',
+      width: 80,
+      render: (isDefault: boolean) => (
+        <Tag color={isDefault ? 'blue' : 'default'}>{isDefault ? '是' : '否'}</Tag>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 100,
+      render: (isActive: boolean) => (
+        <Tag color={isActive ? 'green' : 'red'}>{isActive ? '启用' : '停用'}</Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 150,
+      render: (_, record) => (
+        <Space>
+          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEditItem(record)}>
+            编辑
+          </Button>
+          <Popconfirm
+            title="确认删除"
+            onConfirm={() => handleDeleteItem(record.id)}
+            okText="确认"
+            cancelText="取消"
+          >
+            <Button danger size="small" icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  // ==================== 渲染 ====================
 
   return (
     <div style={{ padding: 24 }}>
@@ -225,18 +476,18 @@ const DictManagement: React.FC = () => {
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
-              title="总字典项"
-              value={dicts.length}
-              prefix={<BookOutlined />}
+              title="字典类型数"
+              value={dictTypes.length}
+              prefix={<AppstoreOutlined />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
           <Card>
             <Statistic
-              title="字典类型数"
-              value={typeCount}
-              prefix={<BookOutlined />}
+              title="当前类型字典项"
+              value={dictItems.length}
+              prefix={<UnorderedListOutlined />}
               valueStyle={{ color: '#1890ff' }}
             />
           </Card>
@@ -245,7 +496,7 @@ const DictManagement: React.FC = () => {
           <Card>
             <Statistic
               title="启用项"
-              value={dicts.filter(d => d.is_active).length}
+              value={dictItems.filter(d => d.is_active).length}
               prefix={<BookOutlined />}
               valueStyle={{ color: '#52c41a' }}
             />
@@ -253,90 +504,215 @@ const DictManagement: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Space wrap>
-          <Input
-            placeholder="搜索字典类型/编码/标签"
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
-            onPressEnter={handleSearch}
-            prefix={<SearchOutlined />}
-            style={{ width: 300 }}
-            allowClear
-          />
-          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
-            搜索
-          </Button>
-        </Space>
+      {/* ==================== 字典类型区域 ==================== */}
+      <Card
+        title={
+          <Space>
+            <AppstoreOutlined />
+            <span>字典类型</span>
+          </Space>
+        }
+        style={{ marginBottom: 16 }}
+      >
+        {/* 类型筛选栏 */}
+        <div style={{ marginBottom: 16 }}>
+          <Space wrap>
+            <Input
+              placeholder="搜索类型编码/名称"
+              value={typeSearchKeyword}
+              onChange={(e) => setTypeSearchKeyword(e.target.value)}
+              onPressEnter={handleTypeSearch}
+              prefix={<SearchOutlined />}
+              style={{ width: 300 }}
+              allowClear
+            />
+            <Button type="primary" icon={<SearchOutlined />} onClick={handleTypeSearch}>
+              搜索
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={loadDictTypes} loading={typeLoading}>
+              刷新
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleAddType}>
+              新增类型
+            </Button>
+          </Space>
+        </div>
+
+        {/* 类型表格 */}
+        <Table
+          columns={typeColumns}
+          dataSource={dictTypes}
+          rowKey="id"
+          loading={typeLoading}
+          size="middle"
+          pagination={false}
+          scroll={{ x: 800 }}
+          onRow={(record) => ({
+            onClick: () => handleSelectType(record),
+            style: {
+              cursor: 'pointer',
+              background: record.id === selectedTypeId ? '#e6f7ff' : undefined,
+            },
+          })}
+        />
       </Card>
 
-      {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          新增字典项
-        </Button>
-        <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-          刷新
-        </Button>
-      </div>
+      {/* ==================== 字典项区域 ==================== */}
+      <Card
+        title={
+          <Space>
+            <UnorderedListOutlined />
+            <span>字典项{selectedTypeName ? ` - ${selectedTypeName}` : ''}</span>
+          </Space>
+        }
+      >
+        {/* 字典项筛选栏 */}
+        <div style={{ marginBottom: 16 }}>
+          <Space wrap>
+            <Input
+              placeholder="搜索字典项编码/标签"
+              value={itemSearchKeyword}
+              onChange={(e) => setItemSearchKeyword(e.target.value)}
+              onPressEnter={handleItemSearch}
+              prefix={<SearchOutlined />}
+              style={{ width: 300 }}
+              allowClear
+              disabled={!selectedTypeId}
+            />
+            <Button
+              type="primary"
+              icon={<SearchOutlined />}
+              onClick={handleItemSearch}
+              disabled={!selectedTypeId}
+            >
+              搜索
+            </Button>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={loadDictItems}
+              loading={itemLoading}
+              disabled={!selectedTypeId}
+            >
+              刷新
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleAddItem}
+              disabled={!selectedTypeId}
+            >
+              新增字典项
+            </Button>
+          </Space>
+        </div>
 
-      {/* 数据表格 */}
-      <Table
-        columns={columns}
-        dataSource={dicts}
-        rowKey="id"
-        loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total) => `共 ${total} 条`,
-          onChange: (page, pageSize) => {
-            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
-          },
-        }}
-        scroll={{ x: 1000 }}
-      />
+        {/* 字典项表格 */}
+        <Table
+          columns={itemColumns}
+          dataSource={dictItems}
+          rowKey="id"
+          loading={itemLoading}
+          pagination={{
+            pageSize: 20,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `共 ${total} 条`,
+          }}
+          scroll={{ x: 900 }}
+          locale={{
+            emptyText: selectedTypeId
+              ? '暂无字典项数据'
+              : '请先在上方选择一个字典类型',
+          }}
+        />
+      </Card>
 
-      {/* 表单弹窗 */}
+      {/* ==================== 字典类型表单弹窗 ==================== */}
       <Modal
-        title={editingDict ? '编辑字典项' : '新增字典项'}
-        open={modalVisible}
-        onOk={handleSave}
+        title={editingType ? '编辑字典类型' : '新增字典类型'}
+        open={typeModalVisible}
+        onOk={handleSaveType}
         onCancel={() => {
-          setModalVisible(false)
-          setEditingDict(null)
-          form.resetFields()
+          setTypeModalVisible(false)
+          setEditingType(null)
+          typeForm.resetFields()
         }}
         width={500}
       >
-        <Form form={form} layout="vertical">
+        <Form form={typeForm} layout="vertical">
           <Form.Item
-            name="dict_type"
-            label="字典类型"
-            rules={[{ required: true, message: '请输入字典类型' }]}
+            name="code"
+            label="类型编码"
+            rules={[{ required: true, message: '请输入类型编码' }]}
           >
-            <Input placeholder="请输入字典类型" />
+            <Input placeholder="请输入类型编码" disabled={!!editingType} />
           </Form.Item>
           <Form.Item
-            name="dict_code"
-            label="字典编码"
-            rules={[{ required: true, message: '请输入字典编码' }]}
+            name="name"
+            label="类型名称"
+            rules={[{ required: true, message: '请输入类型名称' }]}
           >
-            <Input placeholder="请输入字典编码" />
+            <Input placeholder="请输入类型名称" />
           </Form.Item>
           <Form.Item
-            name="dict_label"
+            name="description"
+            label="描述"
+          >
+            <Input.TextArea rows={3} placeholder="请输入描述" />
+          </Form.Item>
+          <Form.Item
+            name="sort_order"
+            label="排序"
+          >
+            <InputNumber style={{ width: '100%' }} placeholder="请输入排序" min={0} />
+          </Form.Item>
+          <Form.Item
+            name="is_active"
+            label="状态"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="启用" unCheckedChildren="停用" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* ==================== 字典项表单弹窗 ==================== */}
+      <Modal
+        title={editingItem ? '编辑字典项' : '新增字典项'}
+        open={itemModalVisible}
+        onOk={handleSaveItem}
+        onCancel={() => {
+          setItemModalVisible(false)
+          setEditingItem(null)
+          itemForm.resetFields()
+        }}
+        width={500}
+      >
+        <Form form={itemForm} layout="vertical">
+          <Form.Item
+            name="type_id"
+            label="所属类型"
+            hidden
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="code"
+            label="编码"
+            rules={[{ required: true, message: '请输入编码' }]}
+          >
+            <Input placeholder="请输入编码" disabled={!!editingItem} />
+          </Form.Item>
+          <Form.Item
+            name="label"
             label="标签"
             rules={[{ required: true, message: '请输入标签' }]}
           >
             <Input placeholder="请输入标签" />
           </Form.Item>
           <Form.Item
-            name="dict_value"
+            name="value"
             label="值"
-            rules={[{ required: true, message: '请输入值' }]}
           >
             <Input placeholder="请输入值" />
           </Form.Item>
@@ -345,6 +721,13 @@ const DictManagement: React.FC = () => {
             label="排序"
           >
             <InputNumber style={{ width: '100%' }} placeholder="请输入排序" min={0} />
+          </Form.Item>
+          <Form.Item
+            name="is_default"
+            label="是否默认"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
           <Form.Item
             name="is_active"

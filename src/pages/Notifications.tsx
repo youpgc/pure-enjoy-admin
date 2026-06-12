@@ -44,12 +44,15 @@ const { Text } = Typography
 interface Notification {
   id: string
   title: string
-  content: string
+  body: string
   type: 'system' | 'user' | 'novel' | 'activity'
-  target_users?: string[]
+  user_id?: string | null
+  icon?: string
+  color?: string
+  payload?: Record<string, any>
   is_read: boolean
+  read_at?: string
   created_at: string
-  updated_at: string
 }
 
 interface NotificationFilters {
@@ -82,7 +85,7 @@ const Notifications: React.FC = () => {
       const result = await notificationService.paginate(pagination.current, pagination.pageSize, (q) => {
         let query = q
         if (filters.keyword) {
-          query = query.or(`title.ilike.%${filters.keyword}%,content.ilike.%${filters.keyword}%`)
+          query = query.or(`title.ilike.%${filters.keyword}%,body.ilike.%${filters.keyword}%`)
         }
         if (filters.type) {
           query = query.eq('type', filters.type)
@@ -184,7 +187,6 @@ const Notifications: React.FC = () => {
       if (editingNotification) {
         const result = await notificationService.update(editingNotification.id, {
           ...values,
-          updated_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'Notifications-更新')
@@ -196,7 +198,6 @@ const Notifications: React.FC = () => {
           ...values,
           is_read: false,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         } as any)
         if (!result.success) {
           handleApiError(result.errorMessage, 'Notifications-创建')
@@ -223,10 +224,12 @@ const Notifications: React.FC = () => {
         <div>
           <div style={{ fontWeight: 500 }}>{record.title}</div>
           <Text type="secondary" style={{ fontSize: 12 }} ellipsis>
-            {record.content}
+            {record.body}
           </Text>
           <div>
             <Tag>{record.type}</Tag>
+            {record.user_id && <Tag color="green">指定用户</Tag>}
+            {!record.user_id && <Tag color="blue">全局通知</Tag>}
           </div>
         </div>
       ),
@@ -262,6 +265,13 @@ const Notifications: React.FC = () => {
       key: 'created_at',
       width: 170,
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+    },
+    {
+      title: '阅读时间',
+      dataIndex: 'read_at',
+      key: 'read_at',
+      width: 170,
+      render: (date: string) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-',
     },
     getActionColumn<Notification>(
       (record) => [
@@ -323,7 +333,7 @@ const Notifications: React.FC = () => {
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Input
-            placeholder="搜索标题/内容"
+            placeholder="请输入标题或内容关键词"
             value={filters.keyword}
             onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={handleSearch}
@@ -421,7 +431,7 @@ const Notifications: React.FC = () => {
             <Input placeholder="请输入标题" />
           </Form.Item>
           <Form.Item
-            name="content"
+            name="body"
             label="内容"
             rules={[{ required: true, message: '请输入内容' }]}
           >
@@ -441,6 +451,32 @@ const Notifications: React.FC = () => {
                 { label: '活动', value: 'activity' },
               ]}
             />
+          </Form.Item>
+          <Form.Item
+            name="user_id"
+            label="目标用户ID"
+            tooltip="留空表示全局通知，发送给所有用户"
+          >
+            <Input placeholder="留空表示全局通知" allowClear />
+          </Form.Item>
+          <Form.Item
+            name="icon"
+            label="图标"
+          >
+            <Input placeholder="请输入图标名称（可选）" />
+          </Form.Item>
+          <Form.Item
+            name="color"
+            label="颜色"
+          >
+            <Input placeholder="请输入颜色值（可选，如 #1890ff）" />
+          </Form.Item>
+          <Form.Item
+            name="payload"
+            label="附加数据 (JSON)"
+            tooltip="JSON格式的附加数据（可选）"
+          >
+            <Input.TextArea rows={3} placeholder='{"key": "value"}' />
           </Form.Item>
         </Form>
       </Modal>

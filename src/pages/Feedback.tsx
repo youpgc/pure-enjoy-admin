@@ -267,13 +267,13 @@ const Feedback: React.FC = () => {
       width: 100,
       render: (status: string) => {
         const statusMap: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
-          pending: { color: 'orange', label: FEEDBACK_STATUS_MAP.pending, icon: <ClockCircleOutlined /> },
-          processing: { color: 'blue', label: FEEDBACK_STATUS_MAP.processing, icon: <ExclamationCircleOutlined /> },
-          confirmed: { color: 'cyan', label: FEEDBACK_STATUS_MAP.confirmed, icon: <CheckCircleOutlined /> },
-          in_progress: { color: 'blue', label: FEEDBACK_STATUS_MAP.in_progress, icon: <ExclamationCircleOutlined /> },
-          resolved: { color: 'green', label: FEEDBACK_STATUS_MAP.resolved, icon: <CheckCircleOutlined /> },
-          rejected: { color: 'red', label: FEEDBACK_STATUS_MAP.rejected, icon: <ExclamationCircleOutlined /> },
-          delayed: { color: 'gold', label: FEEDBACK_STATUS_MAP.delayed, icon: <ClockCircleOutlined /> },
+          pending: { color: 'orange', label: FEEDBACK_STATUS_MAP['pending'] || '待处理', icon: <ClockCircleOutlined /> },
+          processing: { color: 'blue', label: FEEDBACK_STATUS_MAP['processing'] || '处理中', icon: <ExclamationCircleOutlined /> },
+          confirmed: { color: 'cyan', label: FEEDBACK_STATUS_MAP['confirmed'] || '已确认', icon: <CheckCircleOutlined /> },
+          in_progress: { color: 'blue', label: FEEDBACK_STATUS_MAP['in_progress'] || '处理中', icon: <ExclamationCircleOutlined /> },
+          resolved: { color: 'green', label: FEEDBACK_STATUS_MAP['resolved'] || '已解决', icon: <CheckCircleOutlined /> },
+          rejected: { color: 'red', label: FEEDBACK_STATUS_MAP['rejected'] || '已拒绝', icon: <ExclamationCircleOutlined /> },
+          delayed: { color: 'gold', label: FEEDBACK_STATUS_MAP['delayed'] || '已延期', icon: <ClockCircleOutlined /> },
         }
         const info = statusMap[status] || { color: 'default', label: FEEDBACK_STATUS_MAP[status] || status, icon: null }
         return <Tag color={info.color} icon={info.icon}>{info.label}</Tag>

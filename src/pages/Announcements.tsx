@@ -12,6 +12,7 @@ import {
   Popconfirm,
   Switch,
   Select,
+  DatePicker,
   Typography,
   Row,
   Col,
@@ -38,10 +39,18 @@ interface Announcement {
   title: string
   content: string
   type: 'system' | 'activity' | 'maintenance'
+  priority: string
   is_published: boolean
   publish_at?: string
+  expire_at?: string | null
   created_at: string
   updated_at: string
+}
+
+const PRIORITY_MAP: Record<string, { color: string; label: string }> = {
+  high: { color: 'red', label: '高' },
+  medium: { color: 'orange', label: '中' },
+  low: { color: 'blue', label: '低' },
 }
 
 // ==================== 组件 ====================
@@ -50,6 +59,7 @@ const Announcements: React.FC = () => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
   const [modalVisible, setModalVisible] = useState(false)
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null)
   const [form] = Form.useForm()
@@ -60,7 +70,7 @@ const Announcements: React.FC = () => {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await service.findAll((q) => {
+      const result = await service.paginate(pagination.current, pagination.pageSize, (q) => {
         if (searchKeyword) {
           return q.or(`title.ilike.%${searchKeyword}%,content.ilike.%${searchKeyword}%`)
         }
@@ -70,13 +80,14 @@ const Announcements: React.FC = () => {
         handleApiError(result.errorMessage, 'Announcements-加载数据')
         return
       }
-      setAnnouncements(result.data || [])
+      setAnnouncements(result.data?.data || [])
+      setPagination(prev => ({ ...prev, total: result.data?.total || 0 }))
     } catch (error) {
       handleApiError(error, 'Announcements-加载数据')
     } finally {
       setLoading(false)
     }
-  }, [searchKeyword])
+  }, [searchKeyword, pagination.current, pagination.pageSize])
 
   useEffect(() => {
     loadData()
@@ -84,6 +95,7 @@ const Announcements: React.FC = () => {
 
   // 搜索
   const handleSearch = () => {
+    setPagination(prev => ({ ...prev, current: 1 }))
     loadData()
   }
 
@@ -91,7 +103,7 @@ const Announcements: React.FC = () => {
   const handleAdd = () => {
     setEditingAnnouncement(null)
     form.resetFields()
-    form.setFieldsValue({ type: 'system', is_published: false })
+    form.setFieldsValue({ type: 'system', priority: 'medium', is_published: false })
     setModalVisible(true)
   }
 
@@ -122,10 +134,14 @@ const Announcements: React.FC = () => {
   // 切换发布状态
   const handleTogglePublish = async (record: Announcement) => {
     try {
-      const result = await service.update(record.id, {
+      const updateData: Partial<Announcement> = {
         is_published: !record.is_published,
         updated_at: new Date().toISOString(),
-      })
+      }
+      if (!record.is_published) {
+        updateData.publish_at = new Date().toISOString()
+      }
+      const result = await service.update(record.id, updateData)
       if (!result.success) {
         handleApiError(result.errorMessage, 'Announcements-切换状态')
         return
@@ -207,6 +223,16 @@ const Announcements: React.FC = () => {
       },
     },
     {
+      title: '优先级',
+      dataIndex: 'priority',
+      key: 'priority',
+      width: 80,
+      render: (priority: string) => {
+        const info = PRIORITY_MAP[priority] || { color: 'default', label: priority || '中' }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
+    },
+    {
       title: '发布状态',
       dataIndex: 'is_published',
       key: 'is_published',
@@ -258,7 +284,7 @@ const Announcements: React.FC = () => {
           <Card>
             <Statistic
               title="总公告数"
-              value={announcements.length}
+              value={pagination.total}
               prefix={<SoundOutlined />}
             />
           </Card>
@@ -319,7 +345,15 @@ const Announcements: React.FC = () => {
         dataSource={announcements}
         rowKey="id"
         loading={loading}
-        pagination={{ pageSize: 20 }}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page, pageSize) => {
+            setPagination(prev => ({ ...prev, current: page, pageSize: pageSize || 20 }))
+          },
+        }}
         scroll={{ x: 1000 }}
       />
 
@@ -362,6 +396,30 @@ const Announcements: React.FC = () => {
                 { label: '活动', value: 'activity' },
                 { label: '维护', value: 'maintenance' },
               ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="priority"
+            label="优先级"
+            rules={[{ required: true, message: '请选择优先级' }]}
+          >
+            <Select
+              placeholder="请选择优先级"
+              options={[
+                { label: '高', value: 'high' },
+                { label: '中', value: 'medium' },
+                { label: '低', value: 'low' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="expire_at"
+            label="过期时间"
+          >
+            <DatePicker
+              showTime
+              placeholder="请选择过期时间（可选）"
+              style={{ width: '100%' }}
             />
           </Form.Item>
           <Form.Item

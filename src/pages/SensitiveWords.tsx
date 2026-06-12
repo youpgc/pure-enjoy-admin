@@ -45,8 +45,20 @@ interface SensitiveWord {
   word: string
   category: string
   level: 'low' | 'medium' | 'high'
+  replace_word?: string
+  description?: string
+  match_mode: 'exact' | 'fuzzy' | 'regex'
   is_active: boolean
+  hit_count: number
+  created_by?: string
   created_at: string
+  updated_at?: string
+}
+
+const MATCH_MODE_MAP: Record<string, { color: string; label: string }> = {
+  exact: { color: 'blue', label: '精确' },
+  fuzzy: { color: 'orange', label: '模糊' },
+  regex: { color: 'purple', label: '正则' },
 }
 
 interface SensitiveWordFilters {
@@ -130,7 +142,7 @@ const SensitiveWords: React.FC = () => {
   const handleAdd = () => {
     setEditingWord(null)
     form.resetFields()
-    form.setFieldsValue({ level: 'medium', is_active: true })
+    form.setFieldsValue({ level: 'medium', match_mode: 'exact', is_active: true })
     setModalVisible(true)
   }
 
@@ -258,6 +270,37 @@ const SensitiveWords: React.FC = () => {
         const info = levelMap[level] || { color: 'default', label: level }
         return <Tag color={info.color}>{info.label}</Tag>
       },
+    },
+    {
+      title: '替换词',
+      dataIndex: 'replace_word',
+      key: 'replace_word',
+      width: 120,
+      render: (replaceWord: string) => replaceWord || '-',
+    },
+    {
+      title: '匹配模式',
+      dataIndex: 'match_mode',
+      key: 'match_mode',
+      width: 100,
+      render: (mode: string) => {
+        const info = MATCH_MODE_MAP[mode] || { color: 'default', label: mode }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
+    },
+    {
+      title: '命中次数',
+      dataIndex: 'hit_count',
+      key: 'hit_count',
+      width: 100,
+      render: (count: number) => <Text>{count ?? 0}</Text>,
+    },
+    {
+      title: '创建者',
+      dataIndex: 'created_by',
+      key: 'created_by',
+      width: 120,
+      render: (createdBy: string) => createdBy || '-',
     },
     {
       title: '状态',
@@ -451,6 +494,18 @@ const SensitiveWords: React.FC = () => {
             <Input placeholder="请输入敏感词" />
           </Form.Item>
           <Form.Item
+            name="replace_word"
+            label="替换词"
+          >
+            <Input placeholder="替换为（可选）" />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="描述"
+          >
+            <Input.TextArea rows={2} placeholder="请输入描述（可选）" />
+          </Form.Item>
+          <Form.Item
             name="category"
             label="分类"
             rules={[{ required: true, message: '请选择分类' }]}
@@ -477,6 +532,20 @@ const SensitiveWords: React.FC = () => {
                 { label: '低', value: 'low' },
                 { label: '中', value: 'medium' },
                 { label: '高', value: 'high' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="match_mode"
+            label="匹配模式"
+            rules={[{ required: true, message: '请选择匹配模式' }]}
+          >
+            <Select
+              placeholder="请选择匹配模式"
+              options={[
+                { label: '精确', value: 'exact' },
+                { label: '模糊', value: 'fuzzy' },
+                { label: '正则', value: 'regex' },
               ]}
             />
           </Form.Item>
