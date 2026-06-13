@@ -528,7 +528,7 @@ const Feedback: React.FC = () => {
         )
       },
     },
-  ], [canWriteFeedback, canDeleteFeedback, pagination])
+  ], [canWriteFeedback, canDeleteFeedback, pagination.current, pagination.pageSize])
 
   // 权限检查
   if (!canReadFeedback) {

@@ -3,6 +3,7 @@ import {
   Table,
   Button,
   Input,
+  InputNumber,
   Space,
   Tag,
   Card,
@@ -350,7 +351,7 @@ const AppConfigs: React.FC = () => {
             label="排序"
             initialValue={0}
           >
-            <Input type="number" placeholder="排序值" />
+            <InputNumber style={{ width: '100%' }} placeholder="排序值" min={0} />
           </Form.Item>
           <Form.Item
             name="is_active"

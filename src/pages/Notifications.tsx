@@ -191,6 +191,7 @@ const Notifications: React.FC = () => {
       } else {
         const result = await notificationService.create({
           ...values,
+          user_id: values.user_id || null,
           is_read: false,
         } as any)
         if (!result.success) {
@@ -389,6 +390,13 @@ const Notifications: React.FC = () => {
                 { label: '活动', value: 'activity' },
               ]}
             />
+          </Form.Item>
+          <Form.Item
+            name="user_id"
+            label="用户ID"
+            tooltip="不填则为全局通知，发送给所有用户"
+          >
+            <Input placeholder="留空则为全局通知" allowClear />
           </Form.Item>
         </Form>
       </Modal>

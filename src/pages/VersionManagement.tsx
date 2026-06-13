@@ -3,6 +3,7 @@ import {
   Table,
   Button,
   Input,
+  InputNumber,
   Space,
   Tag,
   Card,
@@ -545,7 +546,7 @@ const VersionManagement: React.FC = () => {
             label="构建号"
             rules={[{ required: true, message: '请输入构建号' }]}
           >
-            <Input type="number" placeholder="请输入构建号" />
+            <InputNumber style={{ width: '100%' }} placeholder="请输入构建号" min={0} />
           </Form.Item>
           <Form.Item
             name="release_notes"
@@ -569,7 +570,7 @@ const VersionManagement: React.FC = () => {
             name="file_size"
             label="文件大小(字节)"
           >
-            <Input type="number" placeholder="请输入文件大小(字节)" />
+            <InputNumber style={{ width: '100%' }} placeholder="请输入文件大小(字节)" min={0} />
           </Form.Item>
           <Form.Item
             name="checksum"

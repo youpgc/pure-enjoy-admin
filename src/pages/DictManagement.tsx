@@ -56,9 +56,6 @@ interface DictItem {
   sort_order: number
   is_default: boolean
   status: string
-  item_code: string
-  item_name: string
-  item_value: string | null
   is_active: boolean
   extra_data: Record<string, any> | null
   created_at: string

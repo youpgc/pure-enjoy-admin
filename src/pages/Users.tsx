@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Table,
   Button,
@@ -106,20 +106,78 @@ const Users: React.FC = () => {
     setLoading(true)
 
     try {
-      // 先获取总数
-      const { count, error: countError } = await supabase
+      // 构建带筛选条件的查询
+      let query = supabase
         .from('users')
         .select('*', { count: 'exact', head: true })
+
+      // 关键词搜索下推到数据库
+      if (searchText.trim()) {
+        const keyword = searchText.trim()
+        const conditions: string[] = []
+        conditions.push(`email.ilike.%${keyword}%`)
+        conditions.push(`nickname.ilike.%${keyword}%`)
+        conditions.push(`phone.ilike.%${keyword}%`)
+        conditions.push(`id.ilike.%${keyword}%`)
+        query = query.or(conditions.join(','))
+      }
+
+      // 角色筛选
+      if (filterValues.role) {
+        query = query.eq('role', filterValues.role)
+      }
+
+      // 状态筛选
+      if (filterValues.status) {
+        query = query.eq('status', filterValues.status)
+      }
+
+      // 会员等级筛选
+      if (filterValues.member_level) {
+        query = query.eq('member_level', filterValues.member_level)
+      }
+
+      // 注册时间范围筛选
+      if (filterValues.dateRange && filterValues.dateRange[0] && filterValues.dateRange[1]) {
+        query = query.gte('created_at', filterValues.dateRange[0]).lte('created_at', filterValues.dateRange[1] + 'T23:59:59')
+      }
+
+      // 先获取筛选后的总数
+      const { count, error: countError } = await query
       if (countError) throw countError
 
-      // 分页查询
-      const from = (page - 1) * pageSize
-      const to = from + pageSize - 1
-      const { data: users, error } = await supabase
+      // 分页查询（同样带筛选条件）
+      let dataQuery = supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false })
-        .range(from, to)
+
+      // 重复应用筛选条件到数据查询
+      if (searchText.trim()) {
+        const keyword = searchText.trim()
+        const conditions: string[] = []
+        conditions.push(`email.ilike.%${keyword}%`)
+        conditions.push(`nickname.ilike.%${keyword}%`)
+        conditions.push(`phone.ilike.%${keyword}%`)
+        conditions.push(`id.ilike.%${keyword}%`)
+        dataQuery = dataQuery.or(conditions.join(','))
+      }
+      if (filterValues.role) {
+        dataQuery = dataQuery.eq('role', filterValues.role)
+      }
+      if (filterValues.status) {
+        dataQuery = dataQuery.eq('status', filterValues.status)
+      }
+      if (filterValues.member_level) {
+        dataQuery = dataQuery.eq('member_level', filterValues.member_level)
+      }
+      if (filterValues.dateRange && filterValues.dateRange[0] && filterValues.dateRange[1]) {
+        dataQuery = dataQuery.gte('created_at', filterValues.dateRange[0]).lte('created_at', filterValues.dateRange[1] + 'T23:59:59')
+      }
+
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      const { data: users, error } = await dataQuery.range(from, to)
 
       if (error) {
         console.error('[Users] Supabase 查询失败:', error)
@@ -136,54 +194,11 @@ const Users: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [searchText, filterValues])
 
   useEffect(() => {
     fetchUsers()
   }, [fetchUsers])
-
-  // ==================== 筛选逻辑 ====================
-  const filteredData = useMemo(() => {
-    let result = [...data]
-
-    // 关键词搜索
-    if (searchText.trim()) {
-      const keyword = searchText.trim().toLowerCase()
-      result = result.filter(user => {
-        return (
-          user.email.toLowerCase().includes(keyword) ||
-          (user.nickname && user.nickname.toLowerCase().includes(keyword)) ||
-          (user.phone && user.phone.includes(keyword)) ||
-          user.id.toLowerCase().includes(keyword)
-        )
-      })
-    }
-
-    // 角色筛选
-    if (filterValues.role) {
-      result = result.filter(user => user.role === filterValues.role)
-    }
-
-    // 状态筛选
-    if (filterValues.status) {
-      result = result.filter(user => user.status === filterValues.status)
-    }
-
-    // 会员等级筛选
-    if (filterValues.member_level) {
-      result = result.filter(user => user.member_level === filterValues.member_level)
-    }
-
-    // 注册时间范围筛选
-    if (filterValues.dateRange && filterValues.dateRange[0] && filterValues.dateRange[1]) {
-      result = result.filter(user => {
-        const createdAt = user.created_at?.split('T')[0]
-        return createdAt && createdAt >= filterValues.dateRange![0] && createdAt <= filterValues.dateRange![1]
-      })
-    }
-
-    return result
-  }, [data, searchText, filterValues])
 
   // ==================== 操作处理 ====================
   // 记录操作日志
@@ -435,9 +450,9 @@ const Users: React.FC = () => {
       { title: '状态', dataIndex: 'status', render: (v: unknown) => statusOptions.find(opt => opt.value === v)?.label || String(v) },
       { title: '注册时间', dataIndex: 'created_at', render: (v: unknown) => dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss') },
     ]
-    exportToCSV(filteredData as unknown as Record<string, unknown>[], columns, '用户列表')
+    exportToCSV(data as unknown as Record<string, unknown>[], columns, '用户列表')
     message.success('CSV 导出成功')
-  }, [filteredData, roleOptions, memberLevelOptions, statusOptions])
+  }, [data, roleOptions, memberLevelOptions, statusOptions])
 
   const handleExportExcel = useCallback(() => {
     const columns = [
@@ -457,9 +472,9 @@ const Users: React.FC = () => {
       { title: '状态', dataIndex: 'status', render: (v: unknown) => statusOptions.find(opt => opt.value === v)?.label || String(v) },
       { title: '注册时间', dataIndex: 'created_at', render: (v: unknown) => dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss') },
     ]
-    exportToExcel(filteredData as unknown as Record<string, unknown>[], columns, '用户列表')
+    exportToExcel(data as unknown as Record<string, unknown>[], columns, '用户列表')
     message.success('Excel 导出成功')
-  }, [filteredData, roleOptions, memberLevelOptions, statusOptions])
+  }, [data, roleOptions, memberLevelOptions, statusOptions])
 
   const exportMenuItems = [
     { key: 'csv', label: '导出 CSV', icon: <ExportOutlined /> },
@@ -749,7 +764,7 @@ const Users: React.FC = () => {
       {/* 数据表格 */}
       <Table<User>
         columns={columns}
-        dataSource={filteredData}
+        dataSource={data}
         rowKey="id"
         loading={loading}
         pagination={{

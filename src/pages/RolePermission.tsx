@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Table,
   Button,
@@ -295,6 +295,21 @@ const RolePermission: React.FC = () => {
     },
   ]
 
+  // 收集所有父节点 key（非叶子节点），用于在 onCheck 中过滤
+  const parentKeys = useMemo(() => {
+    const keys: string[] = []
+    const collect = (nodes: any[]) => {
+      for (const node of nodes) {
+        if (node.children && node.children.length > 0) {
+          keys.push(node.key)
+          collect(node.children)
+        }
+      }
+    }
+    collect(permissionTreeData)
+    return new Set(keys)
+  }, [])
+
   // 过滤后的角色列表
   const filteredRoles = roles.filter(
     (r) =>
@@ -472,7 +487,11 @@ const RolePermission: React.FC = () => {
         <Tree
           checkable
           checkedKeys={selectedPermissions}
-          onCheck={(checkedKeys) => setSelectedPermissions(checkedKeys as string[])}
+          onCheck={(checkedKeys) => {
+            // 过滤掉父节点 key，只保留叶子节点（具体权限）
+            const keys = (checkedKeys as string[]).filter((key) => !parentKeys.has(key))
+            setSelectedPermissions(keys)
+          }}
           treeData={permissionTreeData}
         />
       </Modal>

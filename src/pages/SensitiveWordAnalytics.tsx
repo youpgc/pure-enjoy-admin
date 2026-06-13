@@ -79,6 +79,35 @@ const SensitiveWordAnalytics: React.FC = () => {
 
   const hitService = new BaseService<SensitiveWordHit>('sensitive_word_logs', { defaultOrder: { column: 'created_at', ascending: false } })
 
+  // 加载全量数据用于统计（不受分页影响）
+  const loadAllDataForAnalytics = useCallback(async (startDate: string, endDate: string): Promise<SensitiveWordHit[]> => {
+    const allData: SensitiveWordHit[] = []
+    let offset = 0
+    const batchSize = 1000
+    let hasMore = true
+
+    while (hasMore) {
+      const result = await hitService.findAll((q: any) =>
+        q.gte('created_at', startDate).lte('created_at', endDate).range(offset, offset + batchSize - 1)
+      )
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'SensitiveWordAnalytics-加载全量统计')
+        break
+      }
+      const batch = result.data || []
+      if (batch.length === 0) {
+        hasMore = false
+      } else {
+        allData.push(...batch)
+        if (batch.length < batchSize) {
+          hasMore = false
+        }
+        offset += batchSize
+      }
+    }
+    return allData
+  }, [])
+
   // 加载统计数据
   const loadAnalytics = useCallback(async () => {
     setLoading(true)
@@ -86,24 +115,27 @@ const SensitiveWordAnalytics: React.FC = () => {
       const startDate = dateRange[0].format('YYYY-MM-DD')
       const endDate = dateRange[1].format('YYYY-MM-DD') + 'T23:59:59'
 
-      // 加载命中记录
-      const result = await hitService.paginate(
-        pagination.current,
-        pagination.pageSize,
-        (q) => q.gte('created_at', startDate).lte('created_at', endDate),
-      )
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'SensitiveWordAnalytics-加载数据')
+      // 并行加载：分页数据用于表格，全量数据用于统计
+      const [pageResult, allHitData] = await Promise.all([
+        hitService.paginate(
+          pagination.current,
+          pagination.pageSize,
+          (q) => q.gte('created_at', startDate).lte('created_at', endDate),
+        ),
+        loadAllDataForAnalytics(startDate, endDate),
+      ])
+
+      if (!pageResult.success) {
+        handleApiError(pageResult.errorMessage, 'SensitiveWordAnalytics-加载数据')
         return
       }
 
-      const hitData = result.data?.data || []
-      setHits(hitData)
-      setTotal(result.data?.total || 0)
+      setHits(pageResult.data?.data || [])
+      setTotal(pageResult.data?.total || 0)
 
-      // 分类统计
+      // 分类统计（基于全量数据）
       const categoryMap = new Map<string, number>()
-      hitData.forEach((hit) => {
+      allHitData.forEach((hit) => {
         const cat = hit.category || '未分类'
         categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1)
       })
@@ -111,14 +143,14 @@ const SensitiveWordAnalytics: React.FC = () => {
         Array.from(categoryMap.entries()).map(([category, count]) => ({ category, count }))
       )
 
-      // 每日统计
+      // 每日统计（基于全量数据）
       const dateMap = new Map<string, number>()
       const days = dateRange[1].diff(dateRange[0], 'day') + 1
       for (let i = 0; i < days; i++) {
         const date = dateRange[0].add(i, 'day').format('MM-DD')
         dateMap.set(date, 0)
       }
-      hitData.forEach((hit) => {
+      allHitData.forEach((hit) => {
         const date = dayjs(hit.created_at).format('MM-DD')
         if (dateMap.has(date)) {
           dateMap.set(date, (dateMap.get(date) || 0) + 1)
@@ -128,9 +160,9 @@ const SensitiveWordAnalytics: React.FC = () => {
         Array.from(dateMap.entries()).map(([date, count]) => ({ date, count }))
       )
 
-      // 热门敏感词
+      // 热门敏感词（基于全量数据）
       const wordMap = new Map<string, number>()
-      hitData.forEach((hit) => {
+      allHitData.forEach((hit) => {
         wordMap.set(hit.word, (wordMap.get(hit.word) || 0) + 1)
       })
       setTopWords(
@@ -144,7 +176,7 @@ const SensitiveWordAnalytics: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [dateRange, pagination.current, pagination.pageSize, setTotal])
+  }, [dateRange, pagination.current, pagination.pageSize, setTotal, loadAllDataForAnalytics])
 
   useEffect(() => {
     loadAnalytics()

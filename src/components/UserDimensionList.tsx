@@ -74,6 +74,7 @@ const UserDimensionList: React.FC<{
 
   // 状态
   const [loading, setLoading] = useState(true)
+  const [dataLimitWarning, setDataLimitWarning] = useState<string | null>(null)
   const [data, setData] = useState<UserSummary[]>([])
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
@@ -131,8 +132,10 @@ const UserDimensionList: React.FC<{
 
   const fetchData = useCallback(async () => {
     setLoading(true)
+    setDataLimitWarning(null)
     try {
       // 分批拉取全部数据，避免 Supabase 默认 1000 条限制
+      const MAX_RECORDS = 10000
       const allItems: Record<string, unknown>[] = []
       let offset = 0
       const batchSize = 1000
@@ -153,6 +156,12 @@ const UserDimensionList: React.FC<{
             hasMore = false
           }
           offset += batchSize
+
+          // 超过最大限制时停止拉取并显示警告
+          if (allItems.length >= MAX_RECORDS) {
+            setDataLimitWarning(`数据量超过 ${MAX_RECORDS} 条限制，仅加载了前 ${MAX_RECORDS} 条记录，统计结果可能不完整`)
+            hasMore = false
+          }
         }
       }
 
@@ -358,6 +367,11 @@ const UserDimensionList: React.FC<{
           <Text type="secondary">记录总数：</Text>
           <Text strong>{data.reduce((sum, item) => sum + item.total_count, 0)}</Text>
         </Space>
+        {dataLimitWarning && (
+          <div style={{ marginTop: 8 }}>
+            <Text type="warning">{dataLimitWarning}</Text>
+          </div>
+        )}
       </Card>
 
       {/* 数据表格 */}

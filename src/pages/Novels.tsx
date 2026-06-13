@@ -92,23 +92,16 @@ const NOVEL_STATUS_OPTIONS = [
 
 interface Novel {
   id: string
-  user_id?: string
   title: string
   author: string
   category: string
   description: string
   cover_url: string
   status: 'ongoing' | 'completed'
-  read_count: number
   chapter_count: number
   is_free: boolean
-  source?: string
   source_url?: string
-  tags?: string[]
   word_count?: number
-  price?: number
-  rating?: number
-  collect_count?: number
   created_at: string
   updated_at: string
 }
@@ -303,7 +296,6 @@ const Novels: React.FC = () => {
         // 创建小说
         const result = await novelService.create({
           ...values,
-          read_count: 0,
           chapter_count: 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -376,13 +368,6 @@ const Novels: React.FC = () => {
         const info = statusColorMap[status] || 'default'
         return <Badge status={info as any} text={NOVEL_STATUS_MAP[status] || status} />
       },
-    },
-    {
-      title: '阅读量',
-      dataIndex: 'read_count',
-      key: 'read_count',
-      width: 100,
-      sorter: (a, b) => a.read_count - b.read_count,
     },
     {
       title: '章节数',
