@@ -294,6 +294,18 @@ const VersionManagement: React.FC = () => {
       ),
     },
     {
+      title: '更新说明',
+      dataIndex: 'release_notes',
+      key: 'release_notes',
+      width: 240,
+      ellipsis: true,
+      render: (notes: string) => (
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          {notes || '-'}
+        </Text>
+      ),
+    },
+    {
       title: '激活',
       dataIndex: 'is_active',
       key: 'is_active',
