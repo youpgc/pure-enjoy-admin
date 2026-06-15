@@ -416,10 +416,16 @@ const VersionManagement: React.FC = () => {
     getActionColumn<AppVersion>(
       (record) => [
         {
+          key: 'edit',
+          label: '编辑',
+          icon: <EditOutlined />,
+          type: 'primary',
+          onClick: () => handleEdit(record),
+        },
+        {
           key: 'rollback',
           label: '回滚',
           icon: <RollbackOutlined />,
-          type: 'primary',
           disabled: record.status === 'released',
           onClick: () => handleRollback(record),
         },
@@ -429,12 +435,6 @@ const VersionManagement: React.FC = () => {
           icon: <ThunderboltOutlined />,
           danger: !record.is_force_update,
           onClick: () => handleForceUpdate(record),
-        },
-        {
-          key: 'edit',
-          label: '编辑',
-          icon: <EditOutlined />,
-          onClick: () => handleEdit(record),
         },
         {
           key: 'qrcode',
@@ -463,7 +463,7 @@ const VersionManagement: React.FC = () => {
           onClick: () => handleDelete(record.id),
         },
       ],
-      { width: 320, maxVisible: 4 }
+      { width: 240 }
     ),
   ]
 
