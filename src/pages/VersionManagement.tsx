@@ -349,6 +349,21 @@ const VersionManagement: React.FC = () => {
       ),
     },
     {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (status: string) => {
+        const statusMap: Record<string, { color: string; label: string }> = {
+          released: { color: 'green', label: '已发布' },
+          revoked: { color: 'orange', label: '已下架' },
+          inactive: { color: 'default', label: '已失效' },
+        }
+        const info = statusMap[status] || { color: 'default', label: status }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
+    },
+    {
       title: '平台',
       dataIndex: 'platform',
       key: 'platform',
