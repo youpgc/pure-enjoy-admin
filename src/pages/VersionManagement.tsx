@@ -29,6 +29,7 @@ import {
   QrcodeOutlined,
   RollbackOutlined,
   ThunderboltOutlined,
+  CopyOutlined,
 } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import type { ColumnsType } from 'antd/es/table'
@@ -164,7 +165,19 @@ const VersionManagement: React.FC = () => {
   const handleEdit = (record: AppVersion) => {
     setEditingVersion(record)
     form.setFieldsValue({
-      ...record,
+      platform: record.platform,
+      version: record.version,
+      build_number: record.build_number,
+      release_notes: record.release_notes,
+      apk_url: record.apk_url,
+      download_url: record.download_url,
+      file_name: record.file_name,
+      apk_size: record.apk_size,
+      file_size: record.file_size,
+      checksum: record.checksum,
+      is_force_update: record.is_force_update,
+      is_active: record.is_active,
+      status: record.status,
     })
     setModalVisible(true)
   }
@@ -352,15 +365,22 @@ const VersionManagement: React.FC = () => {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
-      render: (status: string) => {
+      width: 120,
+      render: (status: string, record: AppVersion) => {
         const statusMap: Record<string, { color: string; label: string }> = {
           released: { color: 'green', label: '已发布' },
           revoked: { color: 'orange', label: '已下架' },
           inactive: { color: 'default', label: '已失效' },
         }
         const info = statusMap[status] || { color: 'default', label: status }
-        return <Tag color={info.color}>{info.label}</Tag>
+        return (
+          <Space direction="vertical" size={0}>
+            <Tag color={info.color}>{info.label}</Tag>
+            {record.is_active && status !== 'released' && (
+              <Text type="warning" style={{ fontSize: 11 }}>激活异常</Text>
+            )}
+          </Space>
+        )
       },
     },
     {
@@ -401,24 +421,32 @@ const VersionManagement: React.FC = () => {
       ),
     },
     {
+      title: '下载地址',
+      dataIndex: 'apk_url',
+      key: 'apk_url',
+      width: 200,
+      ellipsis: true,
+      render: (url: string, record: AppVersion) => {
+        const downloadUrl = url || record.download_url || ''
+        return downloadUrl ? (
+          <Text copyable={{ text: downloadUrl }} style={{ fontSize: 12 }}>
+            {downloadUrl}
+          </Text>
+        ) : (
+          <Text type="secondary" style={{ fontSize: 12 }}>-</Text>
+        )
+      },
+    },
+    {
       title: '更新说明',
       dataIndex: 'release_notes',
       key: 'release_notes',
-      width: 240,
+      width: 200,
       ellipsis: true,
       render: (notes: string) => (
         <Text type="secondary" style={{ fontSize: 13 }}>
           {notes || '-'}
         </Text>
-      ),
-    },
-    {
-      title: '激活',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      width: 80,
-      render: (isActive: boolean) => (
-        <Badge status={isActive ? 'success' : 'default'} text={isActive ? '是' : '否'} />
       ),
     },
     {
@@ -429,55 +457,91 @@ const VersionManagement: React.FC = () => {
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
     getActionColumn<AppVersion>(
-      (record) => [
-        {
-          key: 'edit',
-          label: '编辑',
-          icon: <EditOutlined />,
-          type: 'primary',
-          onClick: () => handleEdit(record),
-        },
-        {
-          key: 'rollback',
-          label: '回滚',
-          icon: <RollbackOutlined />,
-          disabled: record.status === 'released',
-          onClick: () => handleRollback(record),
-        },
-        {
-          key: 'forceUpdate',
-          label: record.is_force_update ? '取消强制' : '强制更新',
-          icon: <ThunderboltOutlined />,
-          danger: !record.is_force_update,
-          onClick: () => handleForceUpdate(record),
-        },
-        {
-          key: 'qrcode',
-          label: '二维码',
-          icon: <QrcodeOutlined />,
-          onClick: () => setQrCodeVersion(record),
-        },
-        {
-          key: 'download',
-          label: '下载APK',
-          icon: <DownloadOutlined />,
-          onClick: () => {
-            const url = getDownloadUrl(record)
-            if (url) {
-              window.open(url, '_blank')
-            } else {
-              message.warning('该版本没有下载地址')
-            }
+      (record) => {
+        const isReleased = record.status === 'released'
+        const isInactive = record.status === 'inactive'
+        const hasApk = !!(record.apk_url || record.download_url)
+        const isCurrentLatest = currentVersion?.id === record.id
+
+        const actions = [
+          {
+            key: 'edit',
+            label: '编辑',
+            icon: <EditOutlined />,
+            type: 'primary' as const,
+            onClick: () => handleEdit(record),
           },
-        },
-        {
-          key: 'delete',
-          label: '删除',
-          icon: <DeleteOutlined />,
-          danger: true,
-          onClick: () => handleDelete(record.id),
-        },
-      ],
+        ]
+
+        // 回滚：仅对已下架(revoked)且非失效(inactive)的版本显示
+        if (!isReleased && !isInactive) {
+          actions.push({
+            key: 'rollback',
+            label: '回滚',
+            icon: <RollbackOutlined />,
+            onClick: () => handleRollback(record),
+          })
+        }
+
+        // 强制更新/取消强制：仅对当前最新 released 版本显示
+        if (isReleased && isCurrentLatest) {
+          actions.push({
+            key: 'forceUpdate',
+            label: record.is_force_update ? '取消强制' : '强制更新',
+            icon: <ThunderboltOutlined />,
+            danger: !record.is_force_update,
+            onClick: () => handleForceUpdate(record),
+          })
+        }
+
+        // 复制下载地址：仅当apk存在且版本有效时显示
+        if (hasApk && !isInactive) {
+          actions.push({
+            key: 'copyUrl',
+            label: '复制地址',
+            icon: <CopyOutlined />,
+            onClick: () => {
+              const url = getDownloadUrl(record)
+              navigator.clipboard.writeText(url).then(() => {
+                message.success('下载地址已复制')
+              }).catch(() => {
+                message.error('复制失败')
+              })
+            },
+          })
+        }
+
+        actions.push(
+          {
+            key: 'qrcode',
+            label: '二维码',
+            icon: <QrcodeOutlined />,
+            onClick: () => setQrCodeVersion(record),
+          },
+          {
+            key: 'download',
+            label: '下载APK',
+            icon: <DownloadOutlined />,
+            onClick: () => {
+              const url = getDownloadUrl(record)
+              if (url) {
+                window.open(url, '_blank')
+              } else {
+                message.warning('该版本没有下载地址')
+              }
+            },
+          },
+          {
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => handleDelete(record.id),
+          }
+        )
+
+        return actions
+      },
       { width: 240 }
     ),
   ]
