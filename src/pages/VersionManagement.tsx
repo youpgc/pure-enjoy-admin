@@ -412,6 +412,20 @@ const VersionManagement: React.FC = () => {
       width: 100,
     },
     {
+      title: '文件大小',
+      dataIndex: 'apk_size',
+      key: 'apk_size',
+      width: 120,
+      render: (size: number, record: AppVersion) => {
+        const bytes = size || record.file_size || 0
+        if (!bytes) return <Text type="secondary">-</Text>
+        if (bytes >= 1024 * 1024 * 1024) return <Text>{(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB</Text>
+        if (bytes >= 1024 * 1024) return <Text>{(bytes / (1024 * 1024)).toFixed(2)} MB</Text>
+        if (bytes >= 1024) return <Text>{(bytes / 1024).toFixed(2)} KB</Text>
+        return <Text>{bytes} B</Text>
+      },
+    },
+    {
       title: '强制更新',
       dataIndex: 'is_force_update',
       key: 'is_force_update',
@@ -473,8 +487,8 @@ const VersionManagement: React.FC = () => {
           },
         ]
 
-        // 回滚：仅对已下架(revoked)且非失效(inactive)的版本显示
-        if (!isReleased && !isInactive) {
+        // 回滚：仅对已下架(revoked)版本显示
+        if (record.status === 'revoked') {
           actions.push({
             key: 'rollback',
             label: '回滚',
@@ -483,8 +497,8 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        // 强制更新/取消强制：仅对当前最新 released 版本显示
-        if (isReleased && isCurrentLatest) {
+        // 强制更新/取消强制：仅对 released 版本显示
+        if (record.status === 'released') {
           actions.push({
             key: 'forceUpdate',
             label: record.is_force_update ? '取消强制' : '强制更新',
