@@ -27,6 +27,8 @@ import {
   DeleteOutlined,
   DownloadOutlined,
   QrcodeOutlined,
+  RollbackOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import type { ColumnsType } from 'antd/es/table'
@@ -205,6 +207,96 @@ const VersionManagement: React.FC = () => {
     }
   }
 
+  // 回滚版本：将当前版本标记为 released，其他版本标记为 revoked
+  const handleRollback = async (record: AppVersion) => {
+    Modal.confirm({
+      title: '确认回滚',
+      content: `确定要将版本 ${record.version} (build ${record.build_number}) 回滚为当前发布版本吗？\n\n其他已发布版本将被标记为已下架。`,
+      okText: '确认回滚',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          // 1. 将所有 released 版本标记为 revoked
+          const { error: revokeError } = await supabase
+            .from('app_versions')
+            .update({
+              status: 'revoked',
+              is_active: false,
+              revoked_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('status', 'released')
+
+          if (revokeError) {
+            handleApiError(revokeError, 'VersionManagement-回滚')
+            return
+          }
+
+          // 2. 将目标版本标记为 released
+          const { error: releaseError } = await supabase
+            .from('app_versions')
+            .update({
+              status: 'released',
+              is_active: true,
+              released_at: new Date().toISOString(),
+              revoked_at: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', record.id)
+
+          if (releaseError) {
+            handleApiError(releaseError, 'VersionManagement-回滚')
+            return
+          }
+
+          message.success(`版本 ${record.version} 已回滚为当前发布版本`)
+          loadVersions()
+        } catch (error) {
+          handleApiError(error, 'VersionManagement-回滚')
+        }
+      },
+    })
+  }
+
+  // 强制更新：切换 is_force_update 和 release_type
+  const handleForceUpdate = async (record: AppVersion) => {
+    const newForceUpdate = !record.is_force_update
+    Modal.confirm({
+      title: newForceUpdate ? '开启强制更新' : '关闭强制更新',
+      content: newForceUpdate
+        ? `确定要强制用户更新到版本 ${record.version} 吗？开启后所有用户必须更新才能继续使用。`
+        : `确定要关闭版本 ${record.version} 的强制更新吗？`,
+      okText: '确认',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          const { error } = await supabase
+            .from('app_versions')
+            .update({
+              is_force_update: newForceUpdate,
+              release_type: newForceUpdate ? 'force' : 'feature',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', record.id)
+
+          if (error) {
+            handleApiError(error, 'VersionManagement-强制更新')
+            return
+          }
+
+          message.success(
+            newForceUpdate
+              ? `版本 ${record.version} 已开启强制更新`
+              : `版本 ${record.version} 已关闭强制更新`
+          )
+          loadVersions()
+        } catch (error) {
+          handleApiError(error, 'VersionManagement-强制更新')
+        }
+      },
+    })
+  }
+
   // 保存版本
   const handleSave = async () => {
     try {
@@ -324,10 +416,24 @@ const VersionManagement: React.FC = () => {
     getActionColumn<AppVersion>(
       (record) => [
         {
+          key: 'rollback',
+          label: '回滚',
+          icon: <RollbackOutlined />,
+          type: 'primary',
+          disabled: record.status === 'released',
+          onClick: () => handleRollback(record),
+        },
+        {
+          key: 'forceUpdate',
+          label: record.is_force_update ? '取消强制' : '强制更新',
+          icon: <ThunderboltOutlined />,
+          danger: !record.is_force_update,
+          onClick: () => handleForceUpdate(record),
+        },
+        {
           key: 'edit',
           label: '编辑',
           icon: <EditOutlined />,
-          type: 'primary',
           onClick: () => handleEdit(record),
         },
         {
@@ -357,7 +463,7 @@ const VersionManagement: React.FC = () => {
           onClick: () => handleDelete(record.id),
         },
       ],
-      { width: 280, maxVisible: 3 }
+      { width: 320, maxVisible: 4 }
     ),
   ]
 
