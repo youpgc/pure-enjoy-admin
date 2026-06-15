@@ -58,8 +58,6 @@ interface AppVersion {
   released_at?: string
   revoked_at?: string
   created_by?: string
-  download_url?: string
-  file_size?: number
   checksum?: string
   file_name?: string
   is_active: boolean
@@ -170,10 +168,8 @@ const VersionManagement: React.FC = () => {
       build_number: record.build_number,
       release_notes: record.release_notes,
       apk_url: record.apk_url,
-      download_url: record.download_url,
       file_name: record.file_name,
       apk_size: record.apk_size,
-      file_size: record.file_size,
       checksum: record.checksum,
       is_force_update: record.is_force_update,
       is_active: record.is_active,
@@ -345,8 +341,8 @@ const VersionManagement: React.FC = () => {
     }
   }
 
-  // 获取下载链接（映射）
-  const getDownloadUrl = (record: AppVersion) => record.download_url || record.apk_url || ''
+  // 获取下载链接
+  const getDownloadUrl = (record: AppVersion) => record.apk_url || ''
 
   // 表格列定义
   const columns: ColumnsType<AppVersion> = [
@@ -416,8 +412,8 @@ const VersionManagement: React.FC = () => {
       dataIndex: 'apk_size',
       key: 'apk_size',
       width: 120,
-      render: (size: number, record: AppVersion) => {
-        const bytes = size || record.file_size || 0
+      render: (size: number) => {
+        const bytes = size || 0
         if (!bytes) return <Text type="secondary">-</Text>
         if (bytes >= 1024 * 1024 * 1024) return <Text>{(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB</Text>
         if (bytes >= 1024 * 1024) return <Text>{(bytes / (1024 * 1024)).toFixed(2)} MB</Text>
@@ -440,11 +436,10 @@ const VersionManagement: React.FC = () => {
       key: 'apk_url',
       width: 200,
       ellipsis: true,
-      render: (url: string, record: AppVersion) => {
-        const downloadUrl = url || record.download_url || ''
-        return downloadUrl ? (
-          <Text copyable={{ text: downloadUrl }} style={{ fontSize: 12 }}>
-            {downloadUrl}
+      render: (url: string) => {
+        return url ? (
+          <Text copyable={{ text: url }} style={{ fontSize: 12 }}>
+            {url}
           </Text>
         ) : (
           <Text type="secondary" style={{ fontSize: 12 }}>-</Text>
@@ -472,10 +467,8 @@ const VersionManagement: React.FC = () => {
     },
     getActionColumn<AppVersion>(
       (record) => {
-        const isReleased = record.status === 'released'
         const isInactive = record.status === 'inactive'
-        const hasApk = !!(record.apk_url || record.download_url)
-        const isCurrentLatest = currentVersion?.id === record.id
+        const hasApk = !!record.apk_url
 
         const actions = [
           {
@@ -772,10 +765,10 @@ const VersionManagement: React.FC = () => {
             <Input.TextArea rows={4} placeholder="请输入更新说明" />
           </Form.Item>
           <Form.Item
-            name="download_url"
-            label="下载地址"
+            name="apk_url"
+            label="APK下载地址"
           >
-            <Input placeholder="请输入下载地址" />
+            <Input placeholder="请输入APK下载地址" />
           </Form.Item>
           <Form.Item
             name="file_name"
@@ -784,7 +777,7 @@ const VersionManagement: React.FC = () => {
             <Input placeholder="请输入文件名" />
           </Form.Item>
           <Form.Item
-            name="file_size"
+            name="apk_size"
             label="文件大小(字节)"
           >
             <InputNumber style={{ width: '100%' }} placeholder="请输入文件大小(字节)" min={0} />
