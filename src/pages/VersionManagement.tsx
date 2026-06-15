@@ -525,14 +525,19 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        actions.push(
-          {
+        // 二维码：仅当apk存在且版本有效时显示
+        if (hasApk && !isInactive) {
+          actions.push({
             key: 'qrcode',
             label: '二维码',
             icon: <QrcodeOutlined />,
             onClick: () => setQrCodeVersion(record),
-          },
-          {
+          })
+        }
+
+        // 下载APK：仅当apk存在且版本有效时显示
+        if (hasApk && !isInactive) {
+          actions.push({
             key: 'download',
             label: '下载APK',
             icon: <DownloadOutlined />,
@@ -544,15 +549,16 @@ const VersionManagement: React.FC = () => {
                 message.warning('该版本没有下载地址')
               }
             },
-          },
-          {
-            key: 'delete',
-            label: '删除',
-            icon: <DeleteOutlined />,
-            danger: true,
-            onClick: () => handleDelete(record.id),
-          }
-        )
+          })
+        }
+
+        actions.push({
+          key: 'delete',
+          label: '删除',
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => handleDelete(record.id),
+        })
 
         return actions
       },
