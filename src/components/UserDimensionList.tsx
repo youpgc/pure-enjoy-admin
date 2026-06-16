@@ -15,7 +15,7 @@ import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
 import { EyeOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getActionColumn } from './ActionColumn'
-import { BaseService, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError, apiQuery } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
 
 const { Title, Text } = Typography
@@ -128,13 +128,45 @@ const UserDimensionList: React.FC<{
     }
   }, [])
 
-  // ==================== 数据加载（全量拉取，避免旧数据丢失） ====================
+  // ==================== 数据加载（优先使用 RPC 后端聚合，降级为全量拉取） ====================
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     setDataLimitWarning(null)
     try {
-      // 分批拉取全部数据，避免 Supabase 默认 1000 条限制
+      // 优先尝试 RPC 后端聚合
+      const rpcResult = await apiQuery<{ user_id: string; count: number; latest_record_at: string }[]>(
+        () => supabase.rpc('get_user_dimension_stats', {
+          p_table_name: tableName,
+          p_user_ids: null,
+        }),
+        `UserDimensionList-${title}-RPC聚合`
+      )
+
+      if (rpcResult.success && rpcResult.data) {
+        // RPC 调用成功，直接使用后端聚合结果
+        const result: UserSummary[] = rpcResult.data.map((row) => ({
+          user_id: row.user_id,
+          user_nickname: undefined,
+          total_count: row.count,
+          latest_date: row.latest_record_at,
+          categories: [],
+          stats: {},
+        }))
+        result.sort((a, b) => b.total_count - a.total_count)
+
+        setData(result)
+        fetchUserInfo(result.map(u => u.user_id))
+        return
+      }
+
+      // RPC 调用失败（函数不存在等），降级为原来的分批拉取逻辑
+      console.warn(
+        `[UserDimensionList] RPC 调用失败，降级为全量拉取。`,
+        `请确保已创建 get_user_dimension_stats 函数。错误: ${rpcResult.errorMessage}`
+      )
+
+      // --- 降级逻辑：分批拉取全部数据 ---
       const MAX_RECORDS = 10000
       const allItems: Record<string, unknown>[] = []
       let offset = 0
@@ -142,12 +174,12 @@ const UserDimensionList: React.FC<{
       let hasMore = true
 
       while (hasMore) {
-        const result = await recordService.findAll((q) => q.range(offset, offset + batchSize - 1))
-        if (!result.success) {
-          handleApiError(result.errorMessage, `UserDimensionList-${title}-数据加载`)
+        const batchResult = await recordService.findAll((q) => q.range(offset, offset + batchSize - 1))
+        if (!batchResult.success) {
+          handleApiError(batchResult.errorMessage, `UserDimensionList-${title}-数据加载`)
           break
         }
-        const batch = result.data || []
+        const batch = batchResult.data || []
         if (batch.length === 0) {
           hasMore = false
         } else {
@@ -166,17 +198,16 @@ const UserDimensionList: React.FC<{
       }
 
       // 按用户聚合
-      const userMap = new Map<string, UserSummary>()
+      const aggregatedMap = new Map<string, UserSummary>()
 
       for (const item of allItems) {
         const uid = item.user_id as string
         if (!uid) continue
 
-        if (!userMap.has(uid)) {
-          // 直接使用表中存储的user_nickname，无需关联查询
+        if (!aggregatedMap.has(uid)) {
           const displayName = (item.user_nickname as string) || `用户${uid.substring(0, 6)}`
 
-          userMap.set(uid, {
+          aggregatedMap.set(uid, {
             user_id: uid,
             user_nickname: displayName,
             total_count: 0,
@@ -186,7 +217,7 @@ const UserDimensionList: React.FC<{
           })
         }
 
-        const summary = userMap.get(uid)!
+        const summary = aggregatedMap.get(uid)!
         summary.total_count++
 
         // 更新最新日期
@@ -204,18 +235,18 @@ const UserDimensionList: React.FC<{
       }
 
       // 转换为数组并排序
-      const result = Array.from(userMap.values())
-      result.sort((a, b) => b.total_count - a.total_count)
+      const fallbackResult = Array.from(aggregatedMap.values())
+      fallbackResult.sort((a, b) => b.total_count - a.total_count)
 
-      setData(result)
+      setData(fallbackResult)
       // 加载用户信息
-      fetchUserInfo(result.map(u => u.user_id))
+      fetchUserInfo(fallbackResult.map(u => u.user_id))
     } catch (error) {
       handleApiError(error, `UserDimensionList-${title}-数据加载`)
     } finally {
       setLoading(false)
     }
-  }, [tableName, title])
+  }, [tableName, title, fetchUserInfo])
 
   useEffect(() => {
     fetchData()

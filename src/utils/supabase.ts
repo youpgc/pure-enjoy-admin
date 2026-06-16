@@ -254,7 +254,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       }
       const userId = adminUser?.id || adminUser?.user_id || null
 
-      if (userId && options.headers) {
+      if (userId) {
+        if (!options.headers) {
+          options.headers = {} as Record<string, string>
+        }
         const headers = options.headers as Record<string, string>
         if (!headers['x-user-id']) {
           headers['x-user-id'] = userId

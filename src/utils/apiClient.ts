@@ -73,7 +73,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(data || [])
     } catch (err) {
-      return errorResponse(logApiError(err, `${this.tableName}.findAll`))
+      return errorResponse(handleApiError(err, `${this.tableName}.findAll`))
     }
   }
 
@@ -88,7 +88,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(data)
     } catch (err) {
-      return errorResponse(logApiError(err, `${this.tableName}.findById`))
+      return errorResponse(handleApiError(err, `${this.tableName}.findById`))
     }
   }
 
@@ -110,7 +110,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse({ data: data || [], total: count || 0 })
     } catch (err) {
-      return errorResponse(logApiError(err, `${this.tableName}.paginate`))
+      return errorResponse(handleApiError(err, `${this.tableName}.paginate`))
     }
   }
 
@@ -125,7 +125,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(result)
     } catch (err) {
-      return errorResponse(logApiError(err, `${this.tableName}.create`))
+      return errorResponse(handleApiError(err, `${this.tableName}.create`))
     }
   }
 
@@ -136,7 +136,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(true)
     } catch (err) {
-      return errorResponse(logApiError(err, `${this.tableName}.update`))
+      return errorResponse(handleApiError(err, `${this.tableName}.update`))
     }
   }
 
@@ -147,7 +147,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(true)
     } catch (err) {
-      return errorResponse(logApiError(err, `${this.tableName}.delete`))
+      return errorResponse(handleApiError(err, `${this.tableName}.delete`))
     }
   }
 
@@ -158,7 +158,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(true)
     } catch (err) {
-      return errorResponse(logApiError(err, `${this.tableName}.batchDelete`))
+      return errorResponse(handleApiError(err, `${this.tableName}.batchDelete`))
     }
   }
 
@@ -169,7 +169,7 @@ export class BaseService<T extends Record<string, any>> {
       if (error) throw error
       return successResponse(true)
     } catch (err) {
-      return errorResponse(logApiError(err, `${this.tableName}.batchUpdate`))
+      return errorResponse(handleApiError(err, `${this.tableName}.batchUpdate`))
     }
   }
 }
