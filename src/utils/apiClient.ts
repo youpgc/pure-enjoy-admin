@@ -42,8 +42,8 @@ export function handleApiError(error: unknown, context?: string): string {
   return msg
 }
 
-/// 内部错误处理：记录日志但不弹消息（用于 BaseService 静默错误）
-function logApiError(error: unknown, context: string): string {
+/// 内部错误处理：记录日志但不弹消息（保留供非 UI 层使用）
+export function logApiError(error: unknown, context: string): string {
   const msg = mapSupabaseError(error)
   console.error(`[API - ${context}]`, error)
   reportError('error', context, msg, undefined, error instanceof Error ? error : undefined)

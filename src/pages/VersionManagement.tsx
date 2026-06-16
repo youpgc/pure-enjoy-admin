@@ -12,7 +12,6 @@ import {
   Form,
   Select,
   Popconfirm,
-  Badge,
   Typography,
   Row,
   Col,
@@ -36,7 +35,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
-import { getActionColumn } from '../components/ActionColumn'
+import { getActionColumn, type ActionButton } from '../components/ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 
@@ -470,12 +469,12 @@ const VersionManagement: React.FC = () => {
         const isInactive = record.status === 'inactive'
         const hasApk = !!record.apk_url
 
-        const actions = [
+        const actions: ActionButton[] = [
           {
             key: 'edit',
             label: '编辑',
             icon: <EditOutlined />,
-            type: 'primary' as const,
+            type: 'primary',
             onClick: () => handleEdit(record),
           },
         ]
