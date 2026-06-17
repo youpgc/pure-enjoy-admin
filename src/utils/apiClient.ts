@@ -178,14 +178,14 @@ export class BaseService<T extends Record<string, any>> {
 export async function apiQuery<T>(
   queryFn: () => any,
   context?: string
-): Promise<ApiResponse<T>> {
+): Promise<ApiResponse<T> & { count?: number | null }> {
   try {
-    const { data, error } = await queryFn()
+    const { data, error, count } = await queryFn()
     if (error) throw error
-    return successResponse(data as T)
+    return { ...successResponse(data as T), count }
   } catch (err) {
     const msg = handleApiError(err, context)
-    return errorResponse(msg)
+    return { ...errorResponse(msg), count: null }
   }
 }
 

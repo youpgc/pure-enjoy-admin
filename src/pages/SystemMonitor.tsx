@@ -52,7 +52,8 @@ const SystemMonitor: React.FC = () => {
           try {
             const { count, error } = await supabase
               .from(tableName)
-              .select('*', { count: 'exact', head: true })
+              .select('id', { count: 'exact' })
+              .limit(1)
             if (error) {
               console.warn(`[SystemMonitor] 查询表 ${tableName} 行数失败:`, error.message)
               return { name: tableName, row_count: 0 }
@@ -76,7 +77,8 @@ const SystemMonitor: React.FC = () => {
     try {
       const { error } = await supabase
         .from('users')
-        .select('id', { count: 'exact', head: true })
+        .select('id', { count: 'exact' })
+        .limit(1)
       setDbConnected(!error)
     } catch (error) {
       handleApiError(error, 'SystemMonitor-健康检查')

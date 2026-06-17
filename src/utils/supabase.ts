@@ -3,6 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 declare const process: { env: Record<string, string | undefined> } | undefined;
 const isDev = typeof process !== 'undefined' && process!.env && process!.env.NODE_ENV === 'development'
 
+// 强制在浏览器中也能看到关键日志
+const enableDebugLog = true
+
 const SUPABASE_URL = 'https://mhdrbjpqmzswswoazwjg.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_wFx9tlxImVfEpRN4NMkS1g_QOm64aj6'
 
@@ -244,6 +247,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       const method = options.method || 'GET'
 
       // 自动注入 x-user-id Header（用于RLS策略）
+      // admin用户需要发送x-user-id以便RLS中的is_current_user_admin()能识别管理员身份
       const adminUserStr = localStorage.getItem('admin_user')
       let adminUser = null
       try {
@@ -254,14 +258,13 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       }
       const userId = adminUser?.id || adminUser?.user_id || null
 
+      // 统一使用新的 Headers 实例来确保 header 被正确设置
       if (userId) {
-        if (!options.headers) {
-          options.headers = {} as Record<string, string>
+        const newHeaders = new Headers(options.headers)
+        if (!newHeaders.has('x-user-id')) {
+          newHeaders.set('x-user-id', userId)
         }
-        const headers = options.headers as Record<string, string>
-        if (!headers['x-user-id']) {
-          headers['x-user-id'] = userId
-        }
+        options.headers = newHeaders
       }
 
       // 解析表名（用于日志）
@@ -278,8 +281,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         // 忽略 URL 解析错误
       }
 
-      if (isDev) {
-        console.log(`[Supabase] ${method} ${tableName} - 请求开始`)
+      if (enableDebugLog) {
+        console.log(`[Supabase] ${method} ${tableName} - 请求开始, x-user-id: ${userId || 'none'}`)
       }
 
       return fetch(url, options).then(async (response) => {
@@ -321,7 +324,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             url: url.toString().split('?')[0], // 移除查询参数，保护敏感信息
           })
         } else {
-          if (isDev) {
+          if (enableDebugLog) {
             console.log(`[Supabase] ${method} ${tableName} - 请求成功 (${duration}ms)`)
           }
         }

@@ -1,15 +1,12 @@
 import React, { useState } from 'react'
 import { Card, Form, Input, Button, message, Typography } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
+import sha256 from 'crypto-js/sha256'
 import { supabase } from '../utils/supabase'
 
 /// 对密码进行 SHA-256 哈希（与App端保持一致）
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(password)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+function hashPassword(password: string): string {
+  return sha256(password).toString()
 }
 
 const { Title, Text } = Typography
@@ -21,7 +18,7 @@ const Login: React.FC = () => {
     setLoading(true)
     try {
       // 对密码进行哈希（与App端保持一致）
-      const passwordHash = await hashPassword(values.password)
+      const passwordHash = hashPassword(values.password)
 
       // 直接查询 admin_users 表
       // eslint-disable-next-line no-template-curly-in-string
@@ -43,7 +40,11 @@ const Login: React.FC = () => {
 
       // 哈希密码比较（与App端保持一致）
       if (user.password_hash !== passwordHash) {
-        throw new Error('用户名或密码错误')
+        // 开发环境提示：如果密码不匹配，提示用户需要在Supabase更新密码
+        console.error('[Login] 密码不匹配!')
+        console.error('[Login] 输入密码hash:', passwordHash)
+        console.error('[Login] 数据库hash:', user.password_hash)
+        throw new Error('用户名或密码错误（如刚更新过密码，请在Supabase SQL Editor执行 update_admin_password.sql）')
       }
 
       // 检查角色
@@ -56,6 +57,7 @@ const Login: React.FC = () => {
         id: String(user.id),
         email: user.email,
         role: user.role,
+        name: user.name || user.nickname || '',
         created_at: user.created_at,
       }
 

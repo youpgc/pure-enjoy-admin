@@ -106,10 +106,11 @@ const Users: React.FC = () => {
     setLoading(true)
 
     try {
-      // 构建带筛选条件的查询
+      // 构建带筛选条件的查询 - 使用limit(1)代替head:true，确保count正确返回
       let query = supabase
         .from('users')
-        .select('*', { count: 'exact', head: true })
+        .select('*', { count: 'exact' })
+        .limit(1)
 
       // 关键词搜索下推到数据库
       if (searchText.trim()) {

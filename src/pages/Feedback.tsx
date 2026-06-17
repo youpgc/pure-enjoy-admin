@@ -294,7 +294,8 @@ const Feedback: React.FC = () => {
       // 先获取总数
       const { count, error: countError } = await supabase
         .from('user_feedback')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact' })
+        .limit(1)
       if (countError) throw countError
 
       // 分页查询
