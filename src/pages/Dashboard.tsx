@@ -111,7 +111,7 @@ const Dashboard: React.FC = () => {
         // 上周新增用户
         apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo) as any, 'Dashboard-上周新增用户'),
         // 最近7天活跃用户（包含模块信息）
-        apiQuery(() => supabase.from('operation_logs').select('user_id, module').gte('created_at', sevenDaysAgo).limit(1000) as any, 'Dashboard-7天活跃用户'),
+        apiQuery(() => supabase.from('operation_logs').select('user_id, module, created_at').gte('created_at', sevenDaysAgo).limit(1000) as any, 'Dashboard-7天活跃用户'),
         // 上周活跃用户
         apiQuery(() => supabase.from('operation_logs').select('user_id').gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo).limit(1000) as any, 'Dashboard-上周活跃用户'),
         // 用户增长趋势（30天）
