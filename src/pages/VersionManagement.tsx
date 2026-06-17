@@ -444,7 +444,6 @@ const VersionManagement: React.FC = () => {
     },
     getActionColumn<AppVersion>(
       (record) => {
-        const isInactive = record.status === 'inactive'
         const hasApk = !!record.apk_url
 
         const actions: ActionButton[] = [
@@ -478,8 +477,8 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        // 复制下载地址：仅当apk存在且版本有效时显示
-        if (hasApk && !isInactive) {
+        // 复制下载地址：仅当apk存在且版本激活时显示
+        if (hasApk && record.is_active) {
           actions.push({
             key: 'copyUrl',
             label: '复制地址',
@@ -495,8 +494,8 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        // 二维码：仅当apk存在且版本有效时显示
-        if (hasApk && !isInactive) {
+        // 二维码：仅当apk存在且版本激活时显示
+        if (hasApk && record.is_active) {
           actions.push({
             key: 'qrcode',
             label: '二维码',
@@ -505,8 +504,8 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        // 下载APK：仅当apk存在且版本有效时显示
-        if (hasApk && !isInactive) {
+        // 下载APK：仅当apk存在且版本激活时显示
+        if (hasApk && record.is_active) {
           actions.push({
             key: 'download',
             label: '下载APK',
