@@ -215,20 +215,20 @@ const VersionManagement: React.FC = () => {
     }
   }
 
-  // 回滚版本：将当前版本标记为 released，其他版本标记为 revoked
+  // 回滚版本：将当前版本标记为 released，其他版本标记为 superseded
   const handleRollback = async (record: AppVersion) => {
     Modal.confirm({
       title: '确认回滚',
-      content: `确定要将版本 ${record.version} (build ${record.build_number}) 回滚为当前发布版本吗？\n\n其他已发布版本将被标记为已下架。`,
+      content: `确定要将版本 ${record.version} (build ${record.build_number}) 回滚为当前发布版本吗？\n\n其他已发布版本将被标记为已取代。`,
       okText: '确认回滚',
       cancelText: '取消',
       onOk: async () => {
         try {
-          // 1. 将所有 released 版本标记为 revoked
+          // 1. 将所有 released 版本标记为 superseded（与CI保持一致）
           const { error: revokeError } = await supabase
             .from('app_versions')
             .update({
-              status: 'revoked',
+              status: 'superseded',
               is_active: false,
               revoked_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
@@ -309,6 +309,26 @@ const VersionManagement: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields()
+
+      // 如果将版本设为 released，确保没有其他已发布的版本
+      if (values.status === 'released') {
+        const { data: existingReleased, error: checkError } = await supabase
+          .from('app_versions')
+          .select('id, version, build_number')
+          .eq('status', 'released')
+          .limit(1)
+
+        if (checkError) {
+          handleApiError(checkError, 'VersionManagement-检查已发布版本')
+          return
+        }
+
+        if (existingReleased && existingReleased.length > 0 && existingReleased[0].id !== editingVersion?.id) {
+          message.warning(`已有已发布版本 v${existingReleased[0].version} (build ${existingReleased[0].build_number})，请先将其状态改为其他值，或使用回滚功能`)
+          return
+        }
+      }
+
       if (editingVersion) {
         const result = await versionService.update(editingVersion.id, {
           ...values,
