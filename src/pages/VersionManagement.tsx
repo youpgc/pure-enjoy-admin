@@ -361,21 +361,15 @@ const VersionManagement: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 120,
-      render: (status: string, record: AppVersion) => {
+      render: (status: string) => {
         const statusMap: Record<string, { color: string; label: string }> = {
           released: { color: 'green', label: '已发布' },
+          superseded: { color: 'orange', label: '已取代' },
           revoked: { color: 'orange', label: '已下架' },
           inactive: { color: 'default', label: '已失效' },
         }
         const info = statusMap[status] || { color: 'default', label: status }
-        return (
-          <Space direction="vertical" size={0}>
-            <Tag color={info.color}>{info.label}</Tag>
-            {record.is_active && status !== 'released' && (
-              <Text type="warning" style={{ fontSize: 11 }}>激活异常</Text>
-            )}
-          </Space>
-        )
+        return <Tag color={info.color}>{info.label}</Tag>
       },
     },
     {
@@ -430,22 +424,6 @@ const VersionManagement: React.FC = () => {
       ),
     },
     {
-      title: '下载地址',
-      dataIndex: 'apk_url',
-      key: 'apk_url',
-      width: 200,
-      ellipsis: true,
-      render: (url: string) => {
-        return url ? (
-          <Text copyable={{ text: url }} style={{ fontSize: 12 }}>
-            {url}
-          </Text>
-        ) : (
-          <Text type="secondary" style={{ fontSize: 12 }}>-</Text>
-        )
-      },
-    },
-    {
       title: '更新说明',
       dataIndex: 'release_notes',
       key: 'release_notes',
@@ -479,8 +457,8 @@ const VersionManagement: React.FC = () => {
           },
         ]
 
-        // 回滚：仅对已下架(revoked)版本显示
-        if (record.status === 'revoked') {
+        // 回滚：仅对非激活版本(is_active=false)显示
+        if (!record.is_active) {
           actions.push({
             key: 'rollback',
             label: '回滚',
