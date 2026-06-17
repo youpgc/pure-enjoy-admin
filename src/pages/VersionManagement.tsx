@@ -323,8 +323,9 @@ const VersionManagement: React.FC = () => {
           return
         }
 
-        if (existingReleased && existingReleased.length > 0 && existingReleased[0].id !== editingVersion?.id) {
-          message.warning(`已有已发布版本 v${existingReleased[0].version} (build ${existingReleased[0].build_number})，请先将其状态改为其他值，或使用回滚功能`)
+        const firstReleased = existingReleased?.[0]
+        if (firstReleased && firstReleased.id !== editingVersion?.id) {
+          message.warning(`已有已发布版本 v${firstReleased.version} (build ${firstReleased.build_number})，请先将其状态改为其他值，或使用回滚功能`)
           return
         }
       }
