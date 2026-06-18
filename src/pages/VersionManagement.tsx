@@ -224,12 +224,11 @@ const VersionManagement: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          // 1. 将所有 released 版本标记为 revoked（与CI保持一致）
+          // 1. 将所有 released 版本标记为 revoked（只改 status，不改 is_active）
           const { error: revokeError } = await supabase
             .from('app_versions')
             .update({
               status: 'revoked',
-              is_active: false,
               revoked_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             })
@@ -240,12 +239,11 @@ const VersionManagement: React.FC = () => {
             return
           }
 
-          // 2. 将目标版本标记为 released
+          // 2. 将目标版本标记为 released（只改 status，不改 is_active）
           const { error: releaseError } = await supabase
             .from('app_versions')
             .update({
               status: 'released',
-              is_active: true,
               released_at: new Date().toISOString(),
               revoked_at: null,
               updated_at: new Date().toISOString(),
