@@ -215,20 +215,20 @@ const VersionManagement: React.FC = () => {
     }
   }
 
-  // 回滚版本：将当前版本标记为 released，其他版本标记为 superseded
+  // 回滚版本：将当前版本标记为 released，其他版本标记为 revoked
   const handleRollback = async (record: AppVersion) => {
     Modal.confirm({
       title: '确认回滚',
-      content: `确定要将版本 ${record.version} (build ${record.build_number}) 回滚为当前发布版本吗？\n\n其他已发布版本将被标记为已取代。`,
+      content: `确定要将版本 ${record.version} (build ${record.build_number}) 回滚为当前发布版本吗？\n\n其他已发布版本将被标记为已下架。`,
       okText: '确认回滚',
       cancelText: '取消',
       onOk: async () => {
         try {
-          // 1. 将所有 released 版本标记为 superseded（与CI保持一致）
+          // 1. 将所有 released 版本标记为 revoked（与CI保持一致）
           const { error: revokeError } = await supabase
             .from('app_versions')
             .update({
-              status: 'superseded',
+              status: 'revoked',
               is_active: false,
               revoked_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
@@ -385,9 +385,7 @@ const VersionManagement: React.FC = () => {
       render: (status: string) => {
         const statusMap: Record<string, { color: string; label: string }> = {
           released: { color: 'green', label: '已发布' },
-          superseded: { color: 'orange', label: '已取代' },
           revoked: { color: 'orange', label: '已下架' },
-          inactive: { color: 'default', label: '已失效' },
         }
         const info = statusMap[status] || { color: 'default', label: status }
         return <Tag color={info.color}>{info.label}</Tag>
