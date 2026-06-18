@@ -461,18 +461,31 @@ const VersionManagement: React.FC = () => {
     },
     getActionColumn<AppVersion>(
       (record) => {
-        const actions: ActionButton[] = [
-          {
-            key: 'edit',
-            label: '编辑',
-            icon: <EditOutlined />,
-            type: 'primary',
-            onClick: () => handleEdit(record),
-          },
-        ]
+        const actions: ActionButton[] = []
 
-        // 回滚：仅对非发布版本(status!=released)显示
-        if (record.status !== 'released') {
+        // 已失效(superseded)版本只展示删除按钮
+        if (record.status === 'superseded') {
+          actions.push({
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => handleDelete(record.id),
+          })
+          return actions
+        }
+
+        // 编辑按钮：status 非 superseded 时展示（已失效版本不展示）
+        actions.push({
+          key: 'edit',
+          label: '编辑',
+          icon: <EditOutlined />,
+          type: 'primary',
+          onClick: () => handleEdit(record),
+        })
+
+        // 回滚按钮：只在 status 为 revoked 时展示
+        if (record.status === 'revoked') {
           actions.push({
             key: 'rollback',
             label: '回滚',
@@ -492,49 +505,43 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        // 复制下载地址：仅当版本未失效时显示
-        if (record.status !== 'superseded') {
-          actions.push({
-            key: 'copyUrl',
-            label: '复制地址',
-            icon: <CopyOutlined />,
-            onClick: () => {
-              const url = getDownloadUrl(record)
-              navigator.clipboard.writeText(url).then(() => {
-                message.success('下载地址已复制')
-              }).catch(() => {
-                message.error('复制失败')
-              })
-            },
-          })
-        }
+        // 复制下载地址
+        actions.push({
+          key: 'copyUrl',
+          label: '复制地址',
+          icon: <CopyOutlined />,
+          onClick: () => {
+            const url = getDownloadUrl(record)
+            navigator.clipboard.writeText(url).then(() => {
+              message.success('下载地址已复制')
+            }).catch(() => {
+              message.error('复制失败')
+            })
+          },
+        })
 
-        // 二维码：仅当版本未失效时显示
-        if (record.status !== 'superseded') {
-          actions.push({
-            key: 'qrcode',
-            label: '二维码',
-            icon: <QrcodeOutlined />,
-            onClick: () => setQrCodeVersion(record),
-          })
-        }
+        // 二维码
+        actions.push({
+          key: 'qrcode',
+          label: '二维码',
+          icon: <QrcodeOutlined />,
+          onClick: () => setQrCodeVersion(record),
+        })
 
-        // 下载APK：仅当版本未失效时显示
-        if (record.status !== 'superseded') {
-          actions.push({
-            key: 'download',
-            label: '下载APK',
-            icon: <DownloadOutlined />,
-            onClick: () => {
-              const url = getDownloadUrl(record)
-              if (url) {
-                window.open(url, '_blank')
-              } else {
-                message.warning('该版本没有下载地址')
-              }
-            },
-          })
-        }
+        // 下载APK
+        actions.push({
+          key: 'download',
+          label: '下载APK',
+          icon: <DownloadOutlined />,
+          onClick: () => {
+            const url = getDownloadUrl(record)
+            if (url) {
+              window.open(url, '_blank')
+            } else {
+              message.warning('该版本没有下载地址')
+            }
+          },
+        })
 
         actions.push({
           key: 'delete',
