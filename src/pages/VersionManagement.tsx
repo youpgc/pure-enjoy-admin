@@ -59,7 +59,7 @@ interface AppVersion {
   created_by?: string
   checksum?: string
   file_name?: string
-  is_active: boolean
+
   created_at: string
   updated_at: string
 }
@@ -67,7 +67,7 @@ interface AppVersion {
 interface VersionFilters {
   keyword: string
   platform: string | undefined
-  isActive: boolean | undefined
+  status: string | undefined
 }
 
 // ==================== 组件 ====================
@@ -79,7 +79,7 @@ const VersionManagement: React.FC = () => {
   const [filters, setFilters] = useState<VersionFilters>({
     keyword: '',
     platform: undefined,
-    isActive: undefined,
+    status: undefined,
   })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [modalVisible, setModalVisible] = useState(false)
@@ -103,8 +103,8 @@ const VersionManagement: React.FC = () => {
         if (filters.platform) {
           query = query.eq('platform', filters.platform)
         }
-        if (filters.isActive !== undefined) {
-          query = query.eq('is_active', filters.isActive)
+        if (filters.status) {
+          query = query.eq('status', filters.status)
         }
         return query
       })
@@ -117,9 +117,9 @@ const VersionManagement: React.FC = () => {
       setVersions(result.data?.data || [])
       setTotal(result.data?.total || 0)
 
-      // 获取当前激活版本（is_active=true 的最新版本）
+      // 获取当前发布版本（status=released 的最新版本）
       const activeRes = await versionService.findAll((q: any) =>
-        q.eq('is_active', true).order('created_at', { ascending: false }).limit(1)
+        q.eq('status', 'released').order('created_at', { ascending: false }).limit(1)
       )
       if (activeRes.data && activeRes.data.length > 0) {
         setCurrentVersion(activeRes.data[0] as AppVersion)
@@ -146,7 +146,7 @@ const VersionManagement: React.FC = () => {
     setFilters({
       keyword: '',
       platform: undefined,
-      isActive: undefined,
+      status: undefined,
     })
     resetPage()
   }
@@ -171,7 +171,6 @@ const VersionManagement: React.FC = () => {
       apk_size: record.apk_size,
       checksum: record.checksum,
       is_force_update: record.is_force_update,
-      is_active: record.is_active,
       status: record.status,
     })
     setModalVisible(true)
@@ -224,7 +223,7 @@ const VersionManagement: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          // 1. 将所有 released 版本标记为 revoked（只改 status，不改 is_active）
+          // 1. 将所有 released 版本标记为 revoked
           const { error: revokeError } = await supabase
             .from('app_versions')
             .update({
@@ -239,7 +238,7 @@ const VersionManagement: React.FC = () => {
             return
           }
 
-          // 2. 将目标版本标记为 released（只改 status，不改 is_active）
+          // 2. 将目标版本标记为 released
           const { error: releaseError } = await supabase
             .from('app_versions')
             .update({
@@ -384,6 +383,7 @@ const VersionManagement: React.FC = () => {
         const statusMap: Record<string, { color: string; label: string }> = {
           released: { color: 'green', label: '已发布' },
           revoked: { color: 'orange', label: '已下架' },
+          superseded: { color: 'default', label: '已失效' },
         }
         const info = statusMap[status] || { color: 'default', label: status }
         return <Tag color={info.color}>{info.label}</Tag>
@@ -471,8 +471,8 @@ const VersionManagement: React.FC = () => {
           },
         ]
 
-        // 回滚：仅对非激活版本(is_active=false)显示
-        if (!record.is_active) {
+        // 回滚：仅对非发布版本(status!=released)显示
+        if (record.status !== 'released') {
           actions.push({
             key: 'rollback',
             label: '回滚',
@@ -492,8 +492,8 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        // 复制下载地址：仅当版本激活时显示
-        if (record.is_active) {
+        // 复制下载地址：仅当版本未失效时显示
+        if (record.status !== 'superseded') {
           actions.push({
             key: 'copyUrl',
             label: '复制地址',
@@ -509,8 +509,8 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        // 二维码：仅当版本激活时显示
-        if (record.is_active) {
+        // 二维码：仅当版本未失效时显示
+        if (record.status !== 'superseded') {
           actions.push({
             key: 'qrcode',
             label: '二维码',
@@ -519,8 +519,8 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        // 下载APK：仅当版本激活时显示
-        if (record.is_active) {
+        // 下载APK：仅当版本未失效时显示
+        if (record.status !== 'superseded') {
           actions.push({
             key: 'download',
             label: '下载APK',
@@ -651,13 +651,14 @@ const VersionManagement: React.FC = () => {
           />
           <Select
             placeholder="状态"
-            value={filters.isActive}
-            onChange={(value) => setFilters(prev => ({ ...prev, isActive: value }))}
+            value={filters.status}
+            onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
             style={{ width: 120 }}
             allowClear
             options={[
-              { label: '激活', value: true },
-              { label: '停用', value: false },
+              { label: '已发布', value: 'released' },
+              { label: '已下架', value: 'revoked' },
+              { label: '已失效', value: 'superseded' },
             ]}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
@@ -786,13 +787,7 @@ const VersionManagement: React.FC = () => {
           >
             <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
-          <Form.Item
-            name="is_active"
-            label="激活状态"
-            valuePropName="checked"
-          >
-            <Switch checkedChildren="激活" unCheckedChildren="停用" />
-          </Form.Item>
+
         </Form>
       </Modal>
 
