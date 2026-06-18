@@ -465,8 +465,6 @@ const VersionManagement: React.FC = () => {
     },
     getActionColumn<AppVersion>(
       (record) => {
-        const hasApk = !!record.apk_url
-
         const actions: ActionButton[] = [
           {
             key: 'edit',
@@ -498,8 +496,8 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        // 复制下载地址：仅当apk存在且版本激活时显示
-        if (hasApk && record.is_active) {
+        // 复制下载地址：仅当版本激活时显示
+        if (record.is_active) {
           actions.push({
             key: 'copyUrl',
             label: '复制地址',
@@ -515,8 +513,8 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        // 二维码：仅当apk存在且版本激活时显示
-        if (hasApk && record.is_active) {
+        // 二维码：仅当版本激活时显示
+        if (record.is_active) {
           actions.push({
             key: 'qrcode',
             label: '二维码',
@@ -525,8 +523,8 @@ const VersionManagement: React.FC = () => {
           })
         }
 
-        // 下载APK：仅当apk存在且版本激活时显示
-        if (hasApk && record.is_active) {
+        // 下载APK：仅当版本激活时显示
+        if (record.is_active) {
           actions.push({
             key: 'download',
             label: '下载APK',
