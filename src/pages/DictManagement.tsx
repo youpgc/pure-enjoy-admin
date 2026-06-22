@@ -70,6 +70,7 @@ const DictManagement: React.FC = () => {
   const [typeLoading, setTypeLoading] = useState(false)
   const [typeSearchKeyword, setTypeSearchKeyword] = useState('')
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null)
+  const { pagination: typePagination, resetPage: resetTypePage, setTotal: setTypeTotal, tablePagination: typeTablePagination } = usePagination()
 
   // 字典类型弹窗状态
   const [typeModalVisible, setTypeModalVisible] = useState(false)
@@ -106,7 +107,7 @@ const DictManagement: React.FC = () => {
   const loadDictTypes = useCallback(async () => {
     setTypeLoading(true)
     try {
-      const result = await typeService.findAll((q) => {
+      const result = await typeService.paginate(typePagination.current, typePagination.pageSize, (q) => {
         if (typeSearchKeyword) {
           return q.or(`code.ilike.%${typeSearchKeyword}%,name.ilike.%${typeSearchKeyword}%`)
         }
@@ -116,8 +117,9 @@ const DictManagement: React.FC = () => {
         handleApiError(result.errorMessage, 'DictManagement-加载字典类型')
         return
       }
-      const types = result.data || []
+      const types = result.data?.data || []
       setDictTypes(types)
+      setTypeTotal(result.data?.total || 0)
       // 如果没有选中类型，默认选中第一个
       if (!selectedTypeId && types.length > 0 && types[0]) {
         setSelectedTypeId(types[0].id)
@@ -135,7 +137,7 @@ const DictManagement: React.FC = () => {
     } finally {
       setTypeLoading(false)
     }
-  }, [typeSearchKeyword, selectedTypeId])
+  }, [typeSearchKeyword, selectedTypeId, typePagination.current, typePagination.pageSize, typeService, setTypeTotal])
 
   // 加载字典项
   const loadDictItems = useCallback(async () => {
@@ -175,6 +177,7 @@ const DictManagement: React.FC = () => {
 
   // 类型搜索
   const handleTypeSearch = () => {
+    resetTypePage()
     loadDictTypes()
   }
 
@@ -518,7 +521,7 @@ const DictManagement: React.FC = () => {
           rowKey="id"
           loading={typeLoading}
           size="middle"
-          pagination={false}
+          pagination={typeTablePagination}
           scroll={{ x: 'max-content' }}
           onRow={(record) => ({
             onClick: () => handleSelectType(record),
