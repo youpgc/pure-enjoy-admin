@@ -87,12 +87,19 @@ const DictManagement: React.FC = () => {
   const [editingItem, setEditingItem] = useState<DictItem | null>(null)
   const [itemForm] = Form.useForm()
 
-  const typeService = new BaseService<DictType>('dict_types', {
-    defaultOrder: { column: 'sort_order', ascending: true },
-  })
-  const itemService = new BaseService<DictItem>('dict_items', {
-    defaultOrder: { column: 'sort_order', ascending: true },
-  })
+  // 使用 useMemo 缓存 Service 实例，避免每次渲染重新创建导致 useEffect 无限循环
+  const typeService = React.useMemo(
+    () => new BaseService<DictType>('dict_types', {
+      defaultOrder: { column: 'sort_order', ascending: true },
+    }),
+    []
+  )
+  const itemService = React.useMemo(
+    () => new BaseService<DictItem>('dict_items', {
+      defaultOrder: { column: 'sort_order', ascending: true },
+    }),
+    []
+  )
 
   // ==================== 字典类型操作 ====================
 

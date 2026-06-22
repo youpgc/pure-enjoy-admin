@@ -89,7 +89,7 @@ const VersionManagement: React.FC = () => {
   const [qrCodeVersion, setQrCodeVersion] = useState<AppVersion | null>(null)
   const { isAdmin: _isAdmin } = usePermission()
 
-  const versionService = new BaseService<AppVersion>('app_versions', { defaultOrder: { column: 'created_at', ascending: false } })
+  const versionService = React.useMemo(() => new BaseService<AppVersion>('app_versions', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
   // 加载版本列表
   const loadVersions = useCallback(async () => {

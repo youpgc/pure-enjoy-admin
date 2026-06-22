@@ -69,7 +69,7 @@ const FileManagement: React.FC = () => {
   const [_uploading, setUploading] = useState(false)
   const { isAdmin: _isAdmin } = usePermission()
 
-  const fileService = new BaseService<FileItem>('files', { defaultOrder: { column: 'created_at', ascending: false } })
+  const fileService = React.useMemo(() => new BaseService<FileItem>('files', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
   // 加载文件列表
   const loadFiles = useCallback(async () => {

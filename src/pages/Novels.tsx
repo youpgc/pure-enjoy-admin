@@ -133,7 +133,7 @@ const Novels: React.FC = () => {
   const [form] = Form.useForm()
   const { isAdmin: _isAdmin } = usePermission()
 
-  const novelService = new BaseService<Novel>('novels', { defaultOrder: { column: 'created_at', ascending: false } })
+  const novelService = React.useMemo(() => new BaseService<Novel>('novels', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
   // 加载小说列表
   const loadNovels = useCallback(async () => {

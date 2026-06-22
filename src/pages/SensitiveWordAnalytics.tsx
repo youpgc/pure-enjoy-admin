@@ -77,7 +77,7 @@ const SensitiveWordAnalytics: React.FC = () => {
   const [topWords, setTopWords] = useState<{ word: string; count: number }[]>([])
   const { pagination, tablePagination, setTotal } = usePagination()
 
-  const hitService = new BaseService<SensitiveWordHit>('sensitive_word_logs', { defaultOrder: { column: 'created_at', ascending: false } })
+  const hitService = React.useMemo(() => new BaseService<SensitiveWordHit>('sensitive_word_logs', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
   // 加载全量数据用于统计（不受分页影响）
   const loadAllDataForAnalytics = useCallback(async (startDate: string, endDate: string): Promise<SensitiveWordHit[]> => {

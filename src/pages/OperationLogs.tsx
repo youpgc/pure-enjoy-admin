@@ -74,9 +74,9 @@ const OperationLogs: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
 
-  const logService = new BaseService<OperationLog>('operation_logs', {
+  const logService = React.useMemo(() => new BaseService<OperationLog>('operation_logs', {
     defaultOrder: { column: 'created_at', ascending: false },
-  })
+  }), [])
 
   // 加载日志列表
   const loadLogs = useCallback(async () => {

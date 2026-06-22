@@ -54,7 +54,7 @@ const AppConfigs: React.FC = () => {
   const [editingConfig, setEditingConfig] = useState<AppConfig | null>(null)
   const [form] = Form.useForm()
 
-  const service = new BaseService<AppConfig>('app_configs', { defaultOrder: { column: 'sort_order', ascending: true } })
+  const service = React.useMemo(() => new BaseService<AppConfig>('app_configs', { defaultOrder: { column: 'sort_order', ascending: true } }), [])
 
   // 加载数据
   const loadData = useCallback(async () => {

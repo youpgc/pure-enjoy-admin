@@ -61,7 +61,7 @@ const Announcements: React.FC = () => {
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null)
   const [form] = Form.useForm()
 
-  const service = new BaseService<Announcement>('announcements', { defaultOrder: { column: 'created_at', ascending: false } })
+  const service = React.useMemo(() => new BaseService<Announcement>('announcements', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
   // 加载数据
   const loadData = useCallback(async () => {

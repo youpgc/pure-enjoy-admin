@@ -74,9 +74,9 @@ const Notifications: React.FC = () => {
   const [form] = Form.useForm()
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
 
-  const notificationService = new BaseService<Notification>('notifications', {
+  const notificationService = React.useMemo(() => new BaseService<Notification>('notifications', {
     defaultOrder: { column: 'created_at', ascending: false },
-  })
+  }), [])
 
   // 加载通知列表
   const loadNotifications = useCallback(async () => {

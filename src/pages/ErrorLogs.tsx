@@ -61,9 +61,9 @@ const ErrorLogs: React.FC = () => {
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
 
-  const errorLogService = new BaseService<ErrorLog>('error_logs', {
+  const errorLogService = React.useMemo(() => new BaseService<ErrorLog>('error_logs', {
     defaultOrder: { column: 'created_at', ascending: false },
-  })
+  }), [])
 
   // 加载错误日志列表
   const loadErrorLogs = useCallback(async () => {

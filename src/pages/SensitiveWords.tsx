@@ -77,7 +77,7 @@ const SensitiveWords: React.FC = () => {
   const [form] = Form.useForm()
   const { isAdmin: _isAdmin } = usePermission()
 
-  const wordService = new BaseService<SensitiveWord>('sensitive_words', { defaultOrder: { column: 'created_at', ascending: false } })
+  const wordService = React.useMemo(() => new BaseService<SensitiveWord>('sensitive_words', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
   // 加载敏感词列表
   const loadWords = useCallback(async () => {
