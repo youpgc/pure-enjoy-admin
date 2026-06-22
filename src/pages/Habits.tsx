@@ -1,12 +1,11 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
-import { Tag, Modal, Descriptions, Statistic, Row, Col, Calendar, Badge, Typography, Empty, Spin, Timeline, Button, message } from 'antd'
+import { Tag, Modal, Descriptions, Statistic, Row, Col, Calendar, Badge, Typography, Empty, Spin, Timeline, Button, Card } from 'antd'
 import { CheckCircleOutlined, CalendarOutlined, FireOutlined, TrophyOutlined, HistoryOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import type { ColumnsType } from 'antd/es/table'
-import { BaseService } from '../utils/apiClient'
-import { handleApiError } from '../utils/supabase'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 // ==================== 打卡记录弹窗 ====================
 
@@ -198,10 +197,10 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
                   <Descriptions.Item label="本月打卡">{stats.thisMonth} 次</Descriptions.Item>
                   <Descriptions.Item label="本周打卡">{stats.thisWeek} 次</Descriptions.Item>
                   <Descriptions.Item label="首次打卡">
-                    {checkins.length > 0 ? dayjs(checkins[checkins.length - 1].checkin_at).format('YYYY-MM-DD') : '-'}
+                    {checkins.length > 0 ? dayjs(checkins[checkins.length - 1]!.checkin_at).format('YYYY-MM-DD') : '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="最近打卡" span={2}>
-                    {checkins.length > 0 ? dayjs(checkins[0].checkin_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
+                    {checkins.length > 0 ? dayjs(checkins[0]!.checkin_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
                   </Descriptions.Item>
                 </Descriptions>
               )}
@@ -246,11 +245,11 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
 const Habits: React.FC = () => {
   const [checkinModalVisible, setCheckinModalVisible] = useState(false)
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
-  const [selectedHabitName, setSelectedHabitName] = useState('')
+  const [selectedHabitName, setSelectedHabitName] = useState<string>('')
 
   const showCheckinModal = useCallback((record: RecordItem) => {
     setSelectedHabitId(record.id)
-    setSelectedHabitName(record.name || '未命名习惯')
+    setSelectedHabitName((record.name as string) || '未命名习惯')
     setCheckinModalVisible(true)
   }, [])
 
