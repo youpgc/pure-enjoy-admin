@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 declare const process: { env: Record<string, string | undefined> } | undefined;
 const isDev = typeof process !== 'undefined' && process!.env && process!.env.NODE_ENV === 'development'
 
-// 强制在浏览器中也能看到关键日志
-const enableDebugLog = true
+// 根据环境控制调试日志：开发环境开启，生产环境关闭
+const enableDebugLog = isDev
 
 const SUPABASE_URL = 'https://mhdrbjpqmzswswoazwjg.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_wFx9tlxImVfEpRN4NMkS1g_QOm64aj6'
@@ -65,6 +65,51 @@ async function flushErrorLogs() {
 // 定期刷新错误日志
 setInterval(flushErrorLogs, 5000)
 
+// 敏感字段列表（日志中需要脱敏的字段）
+const SENSITIVE_FIELDS = ['password', 'password_hash', 'token', 'apikey', 'authorization', 'secret', 'phone', 'email']
+
+/**
+ * 对字符串进行脱敏处理
+ * 检测并替换敏感信息为 ***
+ */
+function sanitizeLogContent(content: string): string {
+  let sanitized = content
+  // 脱敏邮箱
+  sanitized = sanitized.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '***@***.***')
+  // 脱敏手机号（中国大陆）
+  sanitized = sanitized.replace(/1[3-9]\d{9}/g, '1**********')
+  // 脱敏 UUID
+  sanitized = sanitized.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '***UUID***')
+  return sanitized
+}
+
+/**
+ * 递归脱敏对象中的敏感字段
+ */
+function sanitizeObject(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return obj
+  if (typeof obj === 'string') return sanitizeLogContent(obj)
+  if (typeof obj !== 'object') return obj
+
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeObject)
+  }
+
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    const lowerKey = key.toLowerCase()
+    if (SENSITIVE_FIELDS.some(f => lowerKey.includes(f))) {
+      result[key] = '***'
+    } else if (typeof value === 'string' && value.length > 200) {
+      // 截断过长的字符串
+      result[key] = value.substring(0, 200) + '...'
+    } else {
+      result[key] = sanitizeObject(value)
+    }
+  }
+  return result
+}
+
 // 全局错误记录函数（直接写入数据库）
 export async function reportError(
   level: 'error' | 'warning' | 'info',
@@ -79,38 +124,52 @@ export async function reportError(
     try {
       adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
     } catch (e) {
-      console.error('Failed to parse admin_user from localStorage:', e)
+      if (isDev) {
+        console.error('Failed to parse admin_user from localStorage:', e)
+      }
       localStorage.removeItem('admin_user')
     }
+
+    // 脱敏处理
+    const sanitizedMessage = sanitizeLogContent(message)
+    const sanitizedDetail = sanitizeLogContent(detail || message)
+    const sanitizedStack = error?.stack ? sanitizeLogContent(error.stack) : undefined
 
     const errorLog = {
       level,
       module,
-      message,
+      message: sanitizedMessage,
       detail: {
-        description: detail || message,
-        stack_trace: error?.stack,
+        description: sanitizedDetail,
+        stack_trace: sanitizedStack,
       },
       user_id: adminUser?.id || null,
       created_at: new Date().toISOString(),
     }
-    
-    // 控制台输出
-    if (level === 'error') {
-      console.error(`[${level.toUpperCase()}][${module}] ${message}`, { detail, error })
-    } else if (level === 'warning') {
-      console.warn(`[${level.toUpperCase()}][${module}] ${message}`, { detail, error })
-    } else if (isDev) {
-      console.log(`[${level.toUpperCase()}][${module}] ${message}`, { detail, error })
+
+    // 控制台输出（仅开发环境输出详细信息，生产环境只输出级别和模块）
+    if (isDev) {
+      if (level === 'error') {
+        console.error(`[${level.toUpperCase()}][${module}] ${sanitizedMessage}`, { detail: sanitizedDetail, error })
+      } else if (level === 'warning') {
+        console.warn(`[${level.toUpperCase()}][${module}] ${sanitizedMessage}`, { detail: sanitizedDetail, error })
+      } else {
+        console.log(`[${level.toUpperCase()}][${module}] ${sanitizedMessage}`, { detail: sanitizedDetail, error })
+      }
+    } else if (level === 'error') {
+      // 生产环境仅输出极简错误标记，不含任何详情
+      console.error(`[ERROR][${module}] 系统错误`)
     }
-    
+
     // 直接写入数据库
     const { error: insertError } = await supabase.from('error_logs').insert(errorLog)
-    if (insertError) {
+    if (insertError && isDev) {
       console.error('[ErrorLogger] 写入失败:', insertError)
     }
   } catch (err) {
-    console.error('[ErrorLogger] 记录异常:', err)
+    if (isDev) {
+      console.error('[ErrorLogger] 记录异常:', err)
+    }
   }
 }
 
@@ -282,15 +341,18 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       }
 
       if (enableDebugLog) {
-        console.log(`[Supabase] ${method} ${tableName} - 请求开始, x-user-id: ${userId || 'none'}`)
+        // 脱敏：不输出实际 userId，仅输出是否存在
+        console.log(`[Supabase] ${method} ${tableName} - 请求开始`)
       }
 
       return fetch(url, options).then(async (response) => {
         const duration = Date.now() - startTime
-        
+
         // 处理 401 未授权 — 清除登录状态并跳转登录页
         if (response.status === 401) {
-          console.error(`[Supabase] ${method} ${tableName} - 401 未授权，清除登录状态`)
+          if (isDev) {
+            console.error(`[Supabase] ${method} ${tableName} - 401 未授权，清除登录状态`)
+          }
           localStorage.removeItem('admin_user')
           // 如果不在登录页，则跳转
           if (!window.location.pathname.includes('/login')) {
@@ -298,7 +360,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           }
           return response
         }
-        
+
         if (!response.ok) {
           // 尝试解析错误信息
           let errorMessage = `HTTP ${response.status}`
@@ -309,31 +371,33 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           } catch {
             // 无法解析 JSON 错误
           }
-          
-          // 记录 API 错误到错误日志
+
+          // 记录 API 错误到错误日志（reportError 内部会进行脱敏）
           reportError(
             'error',
             'SupabaseAPI',
             `API请求失败: ${method} ${tableName}`,
             `状态码: ${response.status}, 消息: ${errorMessage}, 代码: ${errorData?.code || 'unknown'}`,
           )
-          
-          console.error(`[Supabase] ${method} ${tableName} - 请求失败 (${duration}ms):`, {
-            status: response.status,
-            message: errorMessage,
-            url: url.toString().split('?')[0], // 移除查询参数，保护敏感信息
-          })
+
+          if (isDev) {
+            console.error(`[Supabase] ${method} ${tableName} - 请求失败 (${duration}ms):`, {
+              status: response.status,
+              message: errorMessage,
+              url: url.toString().split('?')[0], // 移除查询参数，保护敏感信息
+            })
+          }
         } else {
           if (enableDebugLog) {
             console.log(`[Supabase] ${method} ${tableName} - 请求成功 (${duration}ms)`)
           }
         }
-        
+
         return response
       }).catch((error) => {
         const duration = Date.now() - startTime
-        
-        // 记录网络错误到错误日志
+
+        // 记录网络错误到错误日志（reportError 内部会进行脱敏）
         reportError(
           'error',
           'SupabaseAPI',
@@ -341,8 +405,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           error.message || '网络请求失败',
           error
         )
-        
-        console.error(`[Supabase] ${method} ${tableName} - 网络错误 (${duration}ms):`, error)
+
+        if (isDev) {
+          console.error(`[Supabase] ${method} ${tableName} - 网络错误 (${duration}ms):`, error)
+        }
         throw error
       })
     },
@@ -351,7 +417,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 
 // 错误处理辅助函数（逻辑与 apiClient.ts 中的 mapSupabaseError 一致，独立实现以避免循环依赖）
 export const handleSupabaseError = (error: any, context?: string): string => {
-  console.error(`[Supabase] ${context} 错误:`, error)
+  if (isDev) {
+    console.error(`[Supabase] ${context} 错误:`, error)
+  }
 
   const codeMap: Record<string, string> = {
     PGRST116: '数据不存在或已被删除',
