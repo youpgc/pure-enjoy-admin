@@ -7,7 +7,6 @@ import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 // ==================== 详情弹窗列定义 ====================
 
 const detailColumns: ColumnsType<RecordItem> = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 80, ellipsis: true },
   {
     title: '体重(kg)',
     dataIndex: 'weight',
@@ -42,7 +41,7 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'created_at',
     key: 'created_at',
     width: 170,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
   },
 ]
 

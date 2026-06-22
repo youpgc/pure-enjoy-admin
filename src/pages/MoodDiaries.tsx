@@ -31,7 +31,6 @@ const MOOD_COLOR_MAP: Record<string, string> = {
 // ==================== 详情弹窗列定义 ====================
 
 const detailColumns: ColumnsType<RecordItem> = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 80, ellipsis: true },
   {
     title: '心情',
     dataIndex: 'mood',
@@ -61,7 +60,7 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'created_at',
     key: 'created_at',
     width: 170,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
   },
 ]
 

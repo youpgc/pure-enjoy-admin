@@ -201,7 +201,7 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
                     {checkins.length > 0 ? dayjs(checkins[checkins.length - 1].checkin_at).format('YYYY-MM-DD') : '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="最近打卡" span={2}>
-                    {checkins.length > 0 ? dayjs(checkins[0].checkin_at).format('YYYY-MM-DD HH:mm') : '-'}
+                    {checkins.length > 0 ? dayjs(checkins[0].checkin_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
                   </Descriptions.Item>
                 </Descriptions>
               )}
@@ -220,7 +220,7 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
                       color: 'green',
                       children: (
                         <div>
-                          <Typography.Text strong>{dayjs(c.checkin_at).format('YYYY-MM-DD HH:mm')}</Typography.Text>
+                          <Typography.Text strong>{dayjs(c.checkin_at).format('YYYY-MM-DD HH:mm:ss')}</Typography.Text>
                           {c.note && <Typography.Text type="secondary" className="ml-2">- {c.note}</Typography.Text>}
                         </div>
                       ),
@@ -256,7 +256,6 @@ const Habits: React.FC = () => {
 
   // 详情弹窗列定义（含"查看打卡记录"操作列）
   const detailColumns: ColumnsType<RecordItem> = useMemo(() => [
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 80, ellipsis: true },
     { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
     { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true, render: (v: string) => v || '-' },
     {
@@ -292,7 +291,7 @@ const Habits: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
     },
     {
       title: '操作',

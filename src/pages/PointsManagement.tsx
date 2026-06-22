@@ -24,7 +24,6 @@ const STATUS_MAP: Record<string, { color: string; label: string }> = {
 // ==================== 详情弹窗列定义 ====================
 
 const detailColumns: ColumnsType<RecordItem> = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 80, ellipsis: true },
   {
     title: '类型',
     dataIndex: 'type',
@@ -69,14 +68,14 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'expires_at',
     key: 'expires_at',
     width: 170,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
   },
   {
     title: '创建时间',
     dataIndex: 'created_at',
     key: 'created_at',
     width: 170,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
   },
 ]
 

@@ -380,7 +380,7 @@ const Novels: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
     getActionColumn<Novel>(
       (record) => [

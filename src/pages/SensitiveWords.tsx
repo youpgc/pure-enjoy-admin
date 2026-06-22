@@ -48,6 +48,20 @@ interface SensitiveWord {
   updated_at?: string
 }
 
+const CATEGORY_MAP: Record<string, { color: string; label: string }> = {
+  political: { color: 'red', label: '政治' },
+  pornographic: { color: 'orange', label: '色情' },
+  violence: { color: 'volcano', label: '暴力' },
+  advertising: { color: 'blue', label: '广告' },
+  other: { color: 'default', label: '其他' },
+}
+
+const LEVEL_MAP: Record<string, { color: string; label: string }> = {
+  low: { color: 'orange', label: '低' },
+  medium: { color: 'red', label: '中' },
+  high: { color: 'purple', label: '高' },
+}
+
 const MATCH_MODE_MAP: Record<string, { color: string; label: string }> = {
   exact: { color: 'blue', label: '精确' },
   fuzzy: { color: 'orange', label: '模糊' },
@@ -247,7 +261,10 @@ const SensitiveWords: React.FC = () => {
       dataIndex: 'category',
       key: 'category',
       width: 120,
-      render: (category: string) => <Tag>{category}</Tag>,
+      render: (category: string) => {
+        const info = CATEGORY_MAP[category] || { color: 'default', label: category }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
     },
     {
       title: '等级',
@@ -255,12 +272,7 @@ const SensitiveWords: React.FC = () => {
       key: 'level',
       width: 100,
       render: (level: string) => {
-        const levelMap: Record<string, { color: string; label: string }> = {
-          low: { color: 'orange', label: '低' },
-          medium: { color: 'red', label: '中' },
-          high: { color: 'purple', label: '高' },
-        }
-        const info = levelMap[level] || { color: 'default', label: level }
+        const info = LEVEL_MAP[level] || { color: 'default', label: level }
         return <Tag color={info.color}>{info.label}</Tag>
       },
     },
@@ -314,7 +326,7 @@ const SensitiveWords: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
     getActionColumn<SensitiveWord>(
       (record) => [

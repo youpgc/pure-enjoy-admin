@@ -7,14 +7,25 @@ import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 // ==================== 详情弹窗列定义 ====================
 
 const detailColumns: ColumnsType<RecordItem> = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 80, ellipsis: true },
-  { title: '小说ID', dataIndex: 'novel_id', key: 'novel_id', width: 80, ellipsis: true },
+  {
+    title: '小说名称',
+    dataIndex: 'novel_id',
+    key: 'novel_name',
+    width: 120,
+    ellipsis: true,
+    render: (_: string, record: RecordItem) => {
+      const name = record.novel_name || record.title || record.name
+      if (name) return name
+      const id = String(record.novel_id || '')
+      return id ? id.slice(0, 8) : '-'
+    },
+  },
   {
     title: '最后阅读时间',
     dataIndex: 'last_read_at',
     key: 'last_read_at',
     width: 170,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
   },
   {
     title: '阅读进度',
@@ -28,7 +39,7 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'created_at',
     key: 'created_at',
     width: 170,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
   },
 ]
 

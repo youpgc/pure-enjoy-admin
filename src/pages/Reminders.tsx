@@ -21,7 +21,6 @@ const REPEAT_TYPE_MAP: Record<string, string> = {
 // ==================== 详情弹窗列定义 ====================
 
 const detailColumns: ColumnsType<RecordItem> = [
-  { title: 'ID', dataIndex: 'id', key: 'id', width: 80, ellipsis: true },
   { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
   { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true, render: (v: string) => v || '-' },
   {
@@ -29,7 +28,7 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'remind_at',
     key: 'remind_at',
     width: 170,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
   },
   {
     title: '是否完成',
@@ -57,7 +56,7 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'created_at',
     key: 'created_at',
     width: 170,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
   },
 ]
 

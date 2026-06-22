@@ -59,6 +59,13 @@ const NOTIFICATION_TYPE_MAP: Record<string, { color: string; label: string }> = 
   activity: { color: 'orange', label: '活动' },
 }
 
+const NOTIFICATION_TYPE_TAG_MAP: Record<string, string> = {
+  system: '系统通知',
+  user: '用户通知',
+  novel: '小说通知',
+  activity: '活动通知',
+}
+
 // ==================== 组件 ====================
 
 const Notifications: React.FC = () => {
@@ -222,7 +229,9 @@ const Notifications: React.FC = () => {
             {record.body}
           </Text>
           <div>
-            <Tag>{record.type}</Tag>
+            <Tag color={NOTIFICATION_TYPE_MAP[record.type]?.color || 'default'}>
+              {NOTIFICATION_TYPE_TAG_MAP[record.type] || record.type}
+            </Tag>
           </div>
         </div>
       ),
@@ -251,7 +260,7 @@ const Notifications: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
     getActionColumn<Notification>(
       (record) => [

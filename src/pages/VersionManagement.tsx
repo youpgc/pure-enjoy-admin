@@ -457,7 +457,7 @@ const VersionManagement: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
     getActionColumn<AppVersion>(
       (record) => {
@@ -611,7 +611,7 @@ const VersionManagement: React.FC = () => {
                   {currentVersion.release_notes || '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="创建时间">
-                  {dayjs(currentVersion.created_at).format('YYYY-MM-DD HH:mm')}
+                  {dayjs(currentVersion.created_at).format('YYYY-MM-DD HH:mm:ss')}
                 </Descriptions.Item>
                 <Descriptions.Item label="操作">
                   <Button

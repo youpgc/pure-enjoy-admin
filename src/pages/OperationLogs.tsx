@@ -51,10 +51,24 @@ interface LogFilters {
   dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null
 }
 
+// ==================== 操作映射 ====================
+
+const ACTION_MAP: Record<string, { color: string; label: string }> = {
+  create: { color: 'green', label: '创建' },
+  update: { color: 'blue', label: '更新' },
+  delete: { color: 'red', label: '删除' },
+  read: { color: 'default', label: '查询' },
+  create_user: { color: 'green', label: '创建用户' },
+  update_user: { color: 'blue', label: '更新用户' },
+  delete_user: { color: 'red', label: '删除用户' },
+  toggle_user_status: { color: 'orange', label: '切换用户状态' },
+}
+
 // ==================== 模块映射 ====================
 
 const MODULE_MAP: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
   user: { color: 'blue', label: '用户', icon: <UserOutlined /> },
+  users: { color: 'blue', label: '用户', icon: <UserOutlined /> },
   system: { color: 'purple', label: '系统', icon: <SettingOutlined /> },
   novel: { color: 'green', label: '小说', icon: <BookOutlined /> },
   content: { color: 'orange', label: '内容', icon: <FileTextOutlined /> },
@@ -185,8 +199,11 @@ const OperationLogs: React.FC = () => {
       title: '操作',
       dataIndex: 'action',
       key: 'action',
-      width: 100,
-      render: (action: string) => <Tag color="blue">{action}</Tag>,
+      width: 120,
+      render: (action: string) => {
+        const info = ACTION_MAP[action] || { color: 'default', label: action }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
     },
     {
       title: '模块',
@@ -231,7 +248,7 @@ const OperationLogs: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
     getActionColumn<OperationLog>(
       (record) => [

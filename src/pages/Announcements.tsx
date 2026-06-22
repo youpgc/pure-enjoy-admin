@@ -41,7 +41,6 @@ interface Announcement {
   publish_at?: string
   expire_at?: string | null
   created_at: string
-  updated_at: string
 }
 
 const PRIORITY_MAP: Record<string, { color: string; label: string }> = {
@@ -133,7 +132,6 @@ const Announcements: React.FC = () => {
     try {
       const updateData: Partial<Announcement> = {
         is_published: !record.is_published,
-        updated_at: new Date().toISOString(),
       }
       if (!record.is_published) {
         updateData.publish_at = new Date().toISOString()
@@ -161,10 +159,7 @@ const Announcements: React.FC = () => {
         values.publish_at = new Date().toISOString()
       }
       if (editingAnnouncement) {
-        const result = await service.update(editingAnnouncement.id, {
-          ...values,
-          updated_at: new Date().toISOString(),
-        })
+        const result = await service.update(editingAnnouncement.id, values)
         if (!result.success) {
           handleApiError(result.errorMessage, 'Announcements-更新')
           return
@@ -174,7 +169,6 @@ const Announcements: React.FC = () => {
         const result = await service.create({
           ...values,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'Announcements-创建')
@@ -253,7 +247,7 @@ const Announcements: React.FC = () => {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
     {
       title: '操作',
