@@ -47,6 +47,8 @@ export interface ModuleConfig {
   detailColumns: ColumnsType<RecordItem>
   detailTitle?: string
   onUserSelect?: (userId: string) => void
+  /** 详情弹窗中表格下方的自定义内容（如打卡记录查看按钮） */
+  detailExtraContent?: (record: RecordItem) => React.ReactNode
 }
 
 // ==================== 常量定义 ====================
