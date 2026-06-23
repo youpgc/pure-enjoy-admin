@@ -9,59 +9,6 @@ const enableDebugLog = isDev
 const SUPABASE_URL = 'https://mhdrbjpqmzswswoazwjg.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_wFx9tlxImVfEpRN4NMkS1g_QOm64aj6'
 
-// 错误日志队列（用于批量写入）
-interface ErrorLog {
-  id?: string
-  level: 'error' | 'warning' | 'info'
-  module: string
-  message: string
-  detail?: Record<string, unknown> // JSONB 类型，存储任意结构化数据
-  user_id?: string
-  created_at?: string
-}
-
-const errorLogQueue: ErrorLog[] = []
-let isFlushing = false
-
-// 批量写入错误日志到数据库
-async function flushErrorLogs() {
-  if (isFlushing || errorLogQueue.length === 0) return
-
-  isFlushing = true
-  const logsToFlush = [...errorLogQueue]
-  errorLogQueue.length = 0
-
-  try {
-    // 从 Supabase Auth 获取当前用户ID
-    const { data: { user } } = await supabase.auth.getUser()
-
-    const logsWithMetadata = logsToFlush.map(log => ({
-      ...log,
-      user_id: log.user_id || user?.id || null,
-      created_at: new Date().toISOString(),
-    }))
-
-    const { error } = await supabase.from('error_logs').insert(logsWithMetadata)
-    if (error) {
-      if (isDev) {
-        console.error('[ErrorLogger] 写入错误日志失败:', error)
-      }
-      // 如果写入失败，将日志放回队列
-      errorLogQueue.unshift(...logsToFlush)
-    }
-  } catch (err) {
-    if (isDev) {
-      console.error('[ErrorLogger] 刷新错误日志异常:', err)
-    }
-    errorLogQueue.unshift(...logsToFlush)
-  } finally {
-    isFlushing = false
-  }
-}
-
-// 定期刷新错误日志
-setInterval(flushErrorLogs, 5000)
-
 // 敏感字段列表（日志中需要脱敏的字段）
 const SENSITIVE_FIELDS = ['password', 'password_hash', 'token', 'apikey', 'authorization', 'secret', 'phone', 'email']
 
@@ -162,72 +109,6 @@ export async function reportError(
   }
 }
 
-// 操作日志队列（用于批量写入和失败重试）
-interface OperationLogItem {
-  user_id: string | null
-  action: string
-  module: string
-  target_id: string | null
-  ip: string
-  details: string | null
-  created_at: string
-  retryCount: number
-}
-
-const operationLogQueue: OperationLogItem[] = []
-let isFlushingLogs = false
-
-// 批量写入操作日志
-async function flushOperationLogs() {
-  if (isFlushingLogs || operationLogQueue.length === 0) return
-
-  isFlushingLogs = true
-  const logsToFlush = operationLogQueue.splice(0, 50) // 每次最多处理50条
-
-  try {
-    const { error } = await supabase.from('operation_logs').insert(
-      logsToFlush.map(log => ({
-        user_id: log.user_id,
-        action: log.action,
-        module: log.module,
-        target_id: log.target_id,
-        ip: log.ip,
-        details: log.details,
-        created_at: log.created_at,
-      }))
-    )
-
-    if (error) {
-      if (isDev) {
-        console.error('[OperationLog] 批量写入失败:', error)
-      }
-      // 将失败的日志重新加入队列（限制重试次数）
-      const failedLogs = logsToFlush
-        .filter(log => log.retryCount < 3)
-        .map(log => ({ ...log, retryCount: log.retryCount + 1 }))
-      operationLogQueue.unshift(...failedLogs)
-    }
-  } catch (err) {
-    if (isDev) {
-      console.error('[OperationLog] 批量写入异常:', err)
-    }
-    // 将失败的日志重新加入队列
-    const failedLogs = logsToFlush
-      .filter(log => log.retryCount < 3)
-      .map(log => ({ ...log, retryCount: log.retryCount + 1 }))
-    operationLogQueue.unshift(...failedLogs)
-  } finally {
-    isFlushingLogs = false
-    // 如果队列中还有日志，继续处理
-    if (operationLogQueue.length > 0) {
-      setTimeout(flushOperationLogs, 1000)
-    }
-  }
-}
-
-// 定期刷新日志（每30秒）
-setInterval(flushOperationLogs, 30000)
-
 // 操作日志记录函数（直接写入，不使用队列）
 export async function logOperation(params: {
   action: string
@@ -291,7 +172,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       'X-Client-Info': 'pure-enjoy-admin',
     },
     // 请求拦截器 - 用于日志记录和错误上报
-    fetch: (url, options = {}) => {
+    fetch: async (url, options = {}) => {
       const startTime = Date.now()
       const method = options.method || 'GET'
 
@@ -313,19 +194,23 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         console.log(`[Supabase] ${method} ${tableName} - 请求开始`)
       }
 
-      return fetch(url, options).then(async (response) => {
+      try {
+        const response = await fetch(url, options)
         const duration = Date.now() - startTime
 
         // 处理 401 未授权 — 清除登录状态并跳转登录页
         if (response.status === 401) {
           if (isDev) {
-            console.error(`[Supabase] ${method} ${tableName} - 401 未授权，清除登录状态`)
+            console.error(`[Supabase] ${method} ${tableName} - 401 未授权`)
           }
-          await supabase.auth.signOut()
-          // 如果不在登录页，则跳转
-          if (!window.location.pathname.includes('/login')) {
-            window.location.href = '/pure-enjoy-admin/login'
-          }
+          // 使用 setTimeout 避免在拦截器中直接调用 signOut 导致的循环问题
+          setTimeout(() => {
+            supabase.auth.signOut().then(() => {
+              if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/pure-enjoy-admin/login'
+              }
+            })
+          }, 0)
           return response
         }
 
@@ -340,14 +225,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             // 无法解析 JSON 错误
           }
 
-          // 记录 API 错误到错误日志（reportError 内部会进行脱敏）
-          reportError(
-            'error',
-            'SupabaseAPI',
-            `API请求失败: ${method} ${tableName}`,
-            `状态码: ${response.status}, 消息: ${errorMessage}, 代码: ${errorData?.code || 'unknown'}`,
-          )
-
+          // 控制台输出（仅开发环境）
           if (isDev) {
             console.error(`[Supabase] ${method} ${tableName} - 请求失败 (${duration}ms):`, {
               status: response.status,
@@ -362,23 +240,14 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         }
 
         return response
-      }).catch((error) => {
+      } catch (error: any) {
         const duration = Date.now() - startTime
-
-        // 记录网络错误到错误日志（reportError 内部会进行脱敏）
-        reportError(
-          'error',
-          'SupabaseAPI',
-          `API网络错误: ${method} ${tableName}`,
-          error.message || '网络请求失败',
-          error
-        )
 
         if (isDev) {
           console.error(`[Supabase] ${method} ${tableName} - 网络错误 (${duration}ms):`, error)
         }
         throw error
-      })
+      }
     },
   },
 })
