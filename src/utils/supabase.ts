@@ -1,4 +1,4 @@
-import { createClient, User } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 
 declare const process: { env: Record<string, string | undefined> } | undefined;
 const isDev = typeof process !== 'undefined' && process!.env && process!.env.NODE_ENV === 'development'

@@ -105,6 +105,18 @@ export const usePermission = () => {
     return isAdmin()
   }, [isAdmin])
 
+  const canReadFeedback = useCallback(() => {
+    return isAdmin()
+  }, [isAdmin])
+
+  const canWriteFeedback = useCallback(() => {
+    return isAdmin()
+  }, [isAdmin])
+
+  const canDeleteFeedback = useCallback(() => {
+    return isAdmin()
+  }, [isAdmin])
+
   const canManagePoints = useCallback(() => {
     return isAdmin()
   }, [isAdmin])
@@ -142,6 +154,9 @@ export const usePermission = () => {
     canManageNotifications: canManageNotifications(),
     canManageAnnouncements: canManageAnnouncements(),
     canManageFeedback: canManageFeedback(),
+    canReadFeedback: canReadFeedback(),
+    canWriteFeedback: canWriteFeedback(),
+    canDeleteFeedback: canDeleteFeedback(),
     canManagePoints: canManagePoints(),
     canManageAppConfigs: canManageAppConfigs(),
     canViewSystemMonitor: canViewSystemMonitor(),

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Card, Form, Input, Button, message, Typography } from 'antd'
-import { UserOutlined, LockOutlined } from '@ant/icons'
+import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
 
 const { Title, Text } = Typography
