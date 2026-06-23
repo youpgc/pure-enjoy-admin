@@ -15,8 +15,11 @@ export const usePermission = () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         if (session?.user) {
-          const userRole = session.user.user_metadata?.role as string
-          setRole(userRole || '')
+          // 优先读取 user_metadata.role（自定义管理员角色），其次 app_metadata.role（Supabase 默认角色）
+          const userMetadata = session.user.user_metadata || {}
+          const appMetadata = session.user.app_metadata || {}
+          const userRole = (userMetadata.role || appMetadata.role || '') as string
+          setRole(userRole)
         } else {
           setRole('')
         }
@@ -36,8 +39,11 @@ export const usePermission = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (session?.user) {
-          const userRole = session.user.user_metadata?.role as string
-          setRole(userRole || '')
+          // 优先读取 user_metadata.role（自定义管理员角色），其次 app_metadata.role（Supabase 默认角色）
+          const userMetadata = session.user.user_metadata || {}
+          const appMetadata = session.user.app_metadata || {}
+          const userRole = (userMetadata.role || appMetadata.role || '') as string
+          setRole(userRole)
         } else {
           setRole('')
         }

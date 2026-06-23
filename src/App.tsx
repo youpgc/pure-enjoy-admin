@@ -95,13 +95,17 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLoading, setIsLoading] = useState(true)
 
   // 从 Supabase Auth 会话构建 AdminUser
+  // 注意：Supabase Auth 的 role 字段在 app_metadata 中，user_metadata 中的是自定义角色
   const buildAdminUser = useCallback((authUser: any): AdminUser | null => {
     if (!authUser) return null
     const metadata = authUser.user_metadata || {}
+    const appMetadata = authUser.app_metadata || {}
+    // 优先读取 user_metadata.role（自定义管理员角色），其次 app_metadata.role（Supabase 默认角色）
+    const role = metadata.role || appMetadata.role || 'viewer'
     return {
       id: authUser.id,
       email: authUser.email || '',
-      role: metadata.role || 'viewer',
+      role: role,
       nickname: metadata.nickname || metadata.name || '',
       avatar_url: metadata.avatar_url,
       created_at: authUser.created_at,

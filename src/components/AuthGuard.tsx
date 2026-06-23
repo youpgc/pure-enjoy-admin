@@ -40,7 +40,10 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         }
 
         // 检查用户角色是否为管理员
-        const role = session.user.user_metadata?.role as string
+        // 优先读取 user_metadata.role（自定义管理员角色），其次 app_metadata.role（Supabase 默认角色）
+        const userMetadata = session.user.user_metadata || {}
+        const appMetadata = session.user.app_metadata || {}
+        const role = (userMetadata.role || appMetadata.role || '') as string
         if (!['admin', 'super_admin'].includes(role)) {
           // 非管理员角色，登出并跳转
           await supabase.auth.signOut()

@@ -28,8 +28,11 @@ const Login: React.FC = () => {
         throw new Error('登录失败，未获取到用户信息')
       }
 
-      // 从 user_metadata 中获取角色信息
-      const role = authData.user.user_metadata?.role as string
+      // 从 user_metadata 或 app_metadata 中获取角色信息
+      // 优先读取 user_metadata.role（自定义管理员角色），其次 app_metadata.role（Supabase 默认角色）
+      const userMetadata = authData.user.user_metadata || {}
+      const appMetadata = authData.user.app_metadata || {}
+      const role = (userMetadata.role || appMetadata.role || '') as string
 
       // 检查角色权限
       if (!['admin', 'super_admin'].includes(role)) {
