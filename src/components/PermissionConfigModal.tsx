@@ -127,7 +127,7 @@ const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
     <Modal
       title={
         <span>
-          配置权限 - {role?.display_name}
+          配置权限 - {role?.name}
           {readOnly && <Tag color="orange" style={{ marginLeft: 8 }}>只读模式</Tag>}
         </span>
       }
@@ -147,10 +147,9 @@ const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
     >
       {role && (
         <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
-          <div style={{ fontWeight: 500, marginBottom: 4 }}>{role.display_name}</div>
+          <div style={{ fontWeight: 500, marginBottom: 4 }}>{role.name}</div>
           <div style={{ color: '#666', fontSize: 13 }}>{role.description}</div>
           <div style={{ marginTop: 8 }}>
-            <Tag color="blue">Level {role.level}</Tag>
             <Tag color="green">{selectedPermissionIds.length} 个权限</Tag>
           </div>
         </div>

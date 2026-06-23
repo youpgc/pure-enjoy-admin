@@ -91,7 +91,7 @@ const Users: React.FC = () => {
 
   // 权限
   const { user: adminUser } = useAuth()
-  const { canManageUsers } = usePermission()
+  const { hasPermission } = usePermission()
 
   // 字典查询
   const { options: roleOptions } = useDictOptions('user_role', USER_ROLE_OPTIONS)
@@ -603,7 +603,7 @@ const Users: React.FC = () => {
             onClick: () => handleViewUser(record),
           },
         ]
-        if (canManageUsers) {
+        if (hasPermission('users:write') || hasPermission('users:delete')) {
           actions.push(
             {
               key: 'edit',
@@ -668,7 +668,7 @@ const Users: React.FC = () => {
           </Col>
           <Col>
             <Space size="middle">
-              {canManageUsers && (
+              {(hasPermission('users:write') || hasPermission('users:delete')) && (
                 <>
                   <Button
                     type="primary"
@@ -778,7 +778,7 @@ const Users: React.FC = () => {
         onChange={pag => fetchUsers(pag.current, pag.pageSize)}
         scroll={{ x: 1400 }}
         rowSelection={
-          canManageUsers
+          (hasPermission('users:write') || hasPermission('users:delete'))
             ? {
                 selectedRowKeys,
                 onChange: (keys: Key[]) => setSelectedRowKeys(keys),

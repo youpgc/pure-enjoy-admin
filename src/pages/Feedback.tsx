@@ -265,7 +265,7 @@ const FlowHistoryModal: React.FC<{
 // ==================== 主组件 ====================
 
 const Feedback: React.FC = () => {
-  const { canReadFeedback, canWriteFeedback, canDeleteFeedback } = usePermission()
+  const { hasPermission } = usePermission()
 
   // 列表数据
   const [data, setData] = useState<FeedbackRecord[]>([])
@@ -319,8 +319,8 @@ const Feedback: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    if (canReadFeedback) fetchData()
-  }, [canReadFeedback, fetchData])
+    if (hasPermission('feedback:read')) fetchData()
+  }, [hasPermission, fetchData])
 
   // 执行状态流转
   const handleAction = async (remark: string) => {
@@ -388,7 +388,7 @@ const Feedback: React.FC = () => {
 
   // 打开操作弹窗
   const openActionModal = (record: FeedbackRecord, action: string) => {
-    if (!canWriteFeedback) {
+    if (!hasPermission('feedback:write')) {
       message.warning('您没有操作反馈的权限')
       return
     }
@@ -511,7 +511,7 @@ const Feedback: React.FC = () => {
                 style={{ padding: '0 6px' }}
               />
             </Tooltip>
-            {canDeleteFeedback && (
+            {hasPermission('feedback:delete') && (
               <Popconfirm
                 title="确定删除此反馈？"
                 description="删除后将记录流转历史"
@@ -529,10 +529,10 @@ const Feedback: React.FC = () => {
         )
       },
     },
-  ], [canWriteFeedback, canDeleteFeedback, pagination.current, pagination.pageSize])
+  ], [hasPermission, pagination.current, pagination.pageSize])
 
   // 权限检查
-  if (!canReadFeedback) {
+  if (!hasPermission('feedback:read')) {
     return <NoPermission module="反馈" />
   }
 

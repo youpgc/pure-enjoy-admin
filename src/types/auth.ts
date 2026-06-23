@@ -1,22 +1,32 @@
-export type Role = 'super_admin' | 'admin' | 'viewer'
+// ==================== 认证类型定义 ====================
+
+export type RoleCode = 'super_admin' | 'admin' | string
 
 export interface AdminUser {
   id: string
   email: string
-  role: Role
+  role: RoleCode
   nickname?: string
   avatar_url?: string
-  created_at: string
+  created_at?: string
 }
 
-export const ROLE_DISPLAY_NAMES: Record<Role, string> = {
+export const ROLE_DISPLAY_NAMES: Record<string, string> = {
   super_admin: '超级管理员',
   admin: '管理员',
-  viewer: '查看者',
 }
 
-export const ROLE_PERMISSIONS: Record<Role, string[]> = {
-  super_admin: ['manage_users', 'manage_versions', 'view_data', 'manage_data'],
-  admin: ['manage_versions', 'view_data', 'manage_data'],
-  viewer: ['view_data'],
+// 从 Supabase Auth 的 user_metadata 或 app_metadata 中获取角色
+export const getUserRole = (authUser: any): string => {
+  if (!authUser) return ''
+  const userMetadata = authUser.user_metadata || {}
+  const appMetadata = authUser.app_metadata || {}
+  return (userMetadata.role || appMetadata.role || '') as string
+}
+
+// 从 Supabase Auth 的 user_metadata 中获取昵称
+export const getUserNickname = (authUser: any): string => {
+  if (!authUser) return ''
+  const metadata = authUser.user_metadata || {}
+  return (metadata.nickname || metadata.name || '') as string
 }
