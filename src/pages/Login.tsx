@@ -1,13 +1,7 @@
 import React, { useState } from 'react'
 import { Card, Form, Input, Button, message, Typography } from 'antd'
-import { UserOutlined, LockOutlined } from '@ant-design/icons'
-import sha256 from 'crypto-js/sha256'
+import { UserOutlined, LockOutlined } from '@ant/icons'
 import { supabase } from '../utils/supabase'
-
-/// 对密码进行 SHA-256 哈希（与App端保持一致）
-function hashPassword(password: string): string {
-  return sha256(password).toString()
-}
 
 const { Title, Text } = Typography
 
@@ -17,59 +11,42 @@ const Login: React.FC = () => {
   const handleLogin = async (values: { username: string; password: string }) => {
     setLoading(true)
     try {
-      // 对密码进行哈希（与App端保持一致）
-      const passwordHash = hashPassword(values.password)
+      // 使用 Supabase Auth 进行登录
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: values.username,
+        password: values.password,
+      })
 
-      // 直接查询 admin_users 表
-      // eslint-disable-next-line no-template-curly-in-string
-      const { data: users, error } = await supabase
-        .from(`admin${'\x5f'}users`)
-        .select('*')
-        .eq('email', values.username)
-
-      if (error) {
-        console.error('[Login] 查询失败:', error)
-        throw new Error('登录失败，请稍后重试')
+      if (authError) {
+        if (authError.message.includes('Invalid login credentials')) {
+          throw new Error('用户名或密码错误')
+        }
+        throw new Error(authError.message)
       }
 
-      if (!users || users.length === 0) {
-        throw new Error('用户不存在')
+      if (!authData.user) {
+        throw new Error('登录失败，未获取到用户信息')
       }
 
-      const user = users[0]
+      // 从 user_metadata 中获取角色信息
+      const role = authData.user.user_metadata?.role as string
 
-      // 哈希密码比较（与App端保持一致）
-      if (user.password_hash !== passwordHash) {
-        // 开发环境提示：如果密码不匹配，提示用户需要在Supabase更新密码
-        console.error('[Login] 密码不匹配!')
-        console.error('[Login] 输入密码hash:', passwordHash)
-        console.error('[Login] 数据库hash:', user.password_hash)
-        throw new Error('用户名或密码错误（如刚更新过密码，请在Supabase SQL Editor执行 update_admin_password.sql）')
-      }
-
-      // 检查角色
-      if (!['admin', 'super_admin'].includes(user.role)) {
+      // 检查角色权限
+      if (!['admin', 'super_admin'].includes(role)) {
+        // 角色不匹配，登出并提示
+        await supabase.auth.signOut()
         throw new Error('该用户无权登录管理后台')
       }
 
-      // 存储用户信息
-      const adminUser = {
-        id: String(user.id),
-        email: user.email,
-        role: user.role,
-        name: user.name || user.nickname || '',
-        created_at: user.created_at,
-      }
-
-      localStorage.setItem('admin_user', JSON.stringify(adminUser))
-
       message.success('登录成功')
-      // 刷新页面让 AuthGuard 读取新的 localStorage
+      // 刷新页面让 AuthGuard 读取新的会话状态
       window.location.href = '/pure-enjoy-admin/'
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '登录失败'
       message.error(errorMessage)
-      console.error('[Login] 登录失败:', err)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Login] 登录失败:', err)
+      }
     } finally {
       setLoading(false)
     }
@@ -96,7 +73,7 @@ const Login: React.FC = () => {
             name="username"
             rules={[{ required: true, message: '请输入用户名' }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="用户名" />
+            <Input prefix={<UserOutlined />} placeholder="用户名/邮箱" />
           </Form.Item>
 
           <Form.Item

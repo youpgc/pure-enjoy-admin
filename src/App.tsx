@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout, Menu, theme } from 'antd'
 import type { MenuProps } from 'antd'
@@ -67,44 +67,92 @@ import Announcements from './pages/Announcements'
 import Feedback from './pages/Feedback'
 import PointsManagement from './pages/PointsManagement'
 import ErrorLogs from './pages/ErrorLogs'
-
+import { supabase } from './utils/supabase'
 
 const { Header, Sider, Content } = Layout
 
-// ========== AuthContext (内联定义，避免Vite缓存问题) ==========
+// ========== AuthContext (使用 Supabase Auth) ==========
 interface AuthContextType {
   user: AdminUser | null
+  isLoading: boolean
   login: (username: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
   hasPermission: (permission: string) => boolean
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  isLoading: true,
   login: async () => {},
-  logout: () => {},
+  logout: async () => {},
   hasPermission: () => false,
 })
 
 export const useAuth = () => useContext(AuthContext)
 
 const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AdminUser | null>(() => {
-    try {
-      const stored = localStorage.getItem('admin_user')
-      return stored ? JSON.parse(stored) : null
-    } catch {
-      return null
+  const [user, setUser] = useState<AdminUser | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // 从 Supabase Auth 会话构建 AdminUser
+  const buildAdminUser = useCallback((authUser: any): AdminUser | null => {
+    if (!authUser) return null
+    const metadata = authUser.user_metadata || {}
+    return {
+      id: authUser.id,
+      email: authUser.email || '',
+      role: metadata.role || 'viewer',
+      nickname: metadata.nickname || metadata.name || '',
+      avatar_url: metadata.avatar_url,
+      created_at: authUser.created_at,
     }
-  })
+  }, [])
+
+  // 监听 Supabase Auth 状态变化
+  useEffect(() => {
+    // 初始化时获取当前会话
+    const initSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          setUser(buildAdminUser(session.user))
+        }
+      } catch (e) {
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Auth] 获取会话失败:', e)
+        }
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    initSession()
+
+    // 订阅 Auth 状态变化
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          setUser(buildAdminUser(session.user))
+        } else {
+          setUser(null)
+        }
+        setIsLoading(false)
+      }
+    )
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [buildAdminUser])
 
   const login = useCallback(async (_username: string, _password: string) => {
+    // 登录逻辑在 Login.tsx 中处理，此处仅作为占位
     throw new Error('请使用 Login.tsx 中的登录逻辑')
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut()
     setUser(null)
-    localStorage.removeItem('admin_user')
   }, [])
 
   const hasPermission = useCallback((permission: string) => {
@@ -117,7 +165,7 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [user])
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, hasPermission }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, hasPermission }}>
       {children}
     </AuthContext.Provider>
   )

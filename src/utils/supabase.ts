@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, User } from '@supabase/supabase-js'
 
 declare const process: { env: Record<string, string | undefined> } | undefined;
 const isDev = typeof process !== 'undefined' && process!.env && process!.env.NODE_ENV === 'development'
@@ -26,36 +26,33 @@ let isFlushing = false
 // 批量写入错误日志到数据库
 async function flushErrorLogs() {
   if (isFlushing || errorLogQueue.length === 0) return
-  
+
   isFlushing = true
   const logsToFlush = [...errorLogQueue]
   errorLogQueue.length = 0
-  
+
   try {
-    // 获取当前用户信息
-    const adminUserStr = localStorage.getItem('admin_user')
-    let adminUser = null
-    try {
-      adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
-    } catch (e) {
-      console.error('Failed to parse admin_user from localStorage:', e)
-      localStorage.removeItem('admin_user')
-    }
-    
+    // 从 Supabase Auth 获取当前用户ID
+    const { data: { user } } = await supabase.auth.getUser()
+
     const logsWithMetadata = logsToFlush.map(log => ({
       ...log,
-      user_id: log.user_id || adminUser?.id || null,
+      user_id: log.user_id || user?.id || null,
       created_at: new Date().toISOString(),
     }))
-    
+
     const { error } = await supabase.from('error_logs').insert(logsWithMetadata)
     if (error) {
-      console.error('[ErrorLogger] 写入错误日志失败:', error)
+      if (isDev) {
+        console.error('[ErrorLogger] 写入错误日志失败:', error)
+      }
       // 如果写入失败，将日志放回队列
       errorLogQueue.unshift(...logsToFlush)
     }
   } catch (err) {
-    console.error('[ErrorLogger] 刷新错误日志异常:', err)
+    if (isDev) {
+      console.error('[ErrorLogger] 刷新错误日志异常:', err)
+    }
     errorLogQueue.unshift(...logsToFlush)
   } finally {
     isFlushing = false
@@ -119,16 +116,8 @@ export async function reportError(
   error?: Error
 ) {
   try {
-    const adminUserStr = localStorage.getItem('admin_user')
-    let adminUser = null
-    try {
-      adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
-    } catch (e) {
-      if (isDev) {
-        console.error('Failed to parse admin_user from localStorage:', e)
-      }
-      localStorage.removeItem('admin_user')
-    }
+    // 从 Supabase Auth 获取当前用户
+    const { data: { user } } = await supabase.auth.getUser()
 
     // 脱敏处理
     const sanitizedMessage = sanitizeLogContent(message)
@@ -143,7 +132,7 @@ export async function reportError(
         description: sanitizedDetail,
         stack_trace: sanitizedStack,
       },
-      user_id: adminUser?.id || null,
+      user_id: user?.id || null,
       created_at: new Date().toISOString(),
     }
 
@@ -191,10 +180,10 @@ let isFlushingLogs = false
 // 批量写入操作日志
 async function flushOperationLogs() {
   if (isFlushingLogs || operationLogQueue.length === 0) return
-  
+
   isFlushingLogs = true
   const logsToFlush = operationLogQueue.splice(0, 50) // 每次最多处理50条
-  
+
   try {
     const { error } = await supabase.from('operation_logs').insert(
       logsToFlush.map(log => ({
@@ -207,9 +196,11 @@ async function flushOperationLogs() {
         created_at: log.created_at,
       }))
     )
-    
+
     if (error) {
-      console.error('[OperationLog] 批量写入失败:', error)
+      if (isDev) {
+        console.error('[OperationLog] 批量写入失败:', error)
+      }
       // 将失败的日志重新加入队列（限制重试次数）
       const failedLogs = logsToFlush
         .filter(log => log.retryCount < 3)
@@ -217,7 +208,9 @@ async function flushOperationLogs() {
       operationLogQueue.unshift(...failedLogs)
     }
   } catch (err) {
-    console.error('[OperationLog] 批量写入异常:', err)
+    if (isDev) {
+      console.error('[OperationLog] 批量写入异常:', err)
+    }
     // 将失败的日志重新加入队列
     const failedLogs = logsToFlush
       .filter(log => log.retryCount < 3)
@@ -245,14 +238,8 @@ export async function logOperation(params: {
   immediate?: boolean // 保留参数但忽略，始终立即写入
 }) {
   try {
-    const adminUserStr = localStorage.getItem('admin_user')
-    let adminUser = null
-    try {
-      adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
-    } catch (e) {
-      console.error('Failed to parse admin_user from localStorage:', e)
-      localStorage.removeItem('admin_user')
-    }
+    // 从 Supabase Auth 获取当前用户
+    const { data: { user } } = await supabase.auth.getUser()
 
     // 将 detail 转换为对象格式（数据库期望 JSON）
     let details: object | null = null
@@ -263,9 +250,9 @@ export async function logOperation(params: {
         details = params.detail
       }
     }
-    
+
     const logData = {
-      user_id: adminUser?.id || null,
+      user_id: user?.id || null,
       action: params.action,
       module: params.module,
       target_id: params.target_id || null,
@@ -273,19 +260,21 @@ export async function logOperation(params: {
       details: details,
       created_at: new Date().toISOString(),
     }
-    
+
     if (isDev) {
-      console.log('[OperationLog] 记录操作日志:', logData)
+      console.log('[OperationLog] 记录操作日志:', sanitizeObject(logData))
     }
-    
+
     // 直接写入数据库
     const { error } = await supabase.from('operation_logs').insert(logData)
-    
-    if (error) {
+
+    if (error && isDev) {
       console.error('[OperationLog] 写入失败:', error)
     }
   } catch (err) {
-    console.error('[OperationLog] 记录操作日志异常:', err)
+    if (isDev) {
+      console.error('[OperationLog] 记录操作日志异常:', err)
+    }
   }
 }
 
@@ -294,6 +283,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
+    detectSessionInUrl: true,
   },
   global: {
     // 添加请求头
@@ -304,27 +294,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     fetch: (url, options = {}) => {
       const startTime = Date.now()
       const method = options.method || 'GET'
-
-      // 自动注入 x-user-id Header（用于RLS策略）
-      // admin用户需要发送x-user-id以便RLS中的is_current_user_admin()能识别管理员身份
-      const adminUserStr = localStorage.getItem('admin_user')
-      let adminUser = null
-      try {
-        adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
-      } catch (e) {
-        console.error('Failed to parse admin_user from localStorage:', e)
-        localStorage.removeItem('admin_user')
-      }
-      const userId = adminUser?.id || adminUser?.user_id || null
-
-      // 统一使用新的 Headers 实例来确保 header 被正确设置
-      if (userId) {
-        const newHeaders = new Headers(options.headers)
-        if (!newHeaders.has('x-user-id')) {
-          newHeaders.set('x-user-id', userId)
-        }
-        options.headers = newHeaders
-      }
 
       // 解析表名（用于日志）
       let tableName = 'unknown'
@@ -341,7 +310,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       }
 
       if (enableDebugLog) {
-        // 脱敏：不输出实际 userId，仅输出是否存在
         console.log(`[Supabase] ${method} ${tableName} - 请求开始`)
       }
 
@@ -353,7 +321,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           if (isDev) {
             console.error(`[Supabase] ${method} ${tableName} - 401 未授权，清除登录状态`)
           }
-          localStorage.removeItem('admin_user')
+          await supabase.auth.signOut()
           // 如果不在登录页，则跳转
           if (!window.location.pathname.includes('/login')) {
             window.location.href = '/pure-enjoy-admin/login'
