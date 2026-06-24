@@ -376,6 +376,17 @@ const Novels: React.FC = () => {
       width: 100,
     },
     {
+      title: '总字数',
+      dataIndex: 'word_count',
+      key: 'word_count',
+      width: 120,
+      render: (count: number) => {
+        if (!count) return '-'
+        if (count >= 10000) return `${(count / 10000).toFixed(1)}万`
+        return `${count}`
+      },
+    },
+    {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
