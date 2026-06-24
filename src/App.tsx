@@ -228,7 +228,7 @@ const MainLayout: React.FC = () => {
           ...(hasMenuPermission('menu:users', ['points:read', 'points:write']) ? [
             { key: 'points', icon: <StarFilled />, label: '积分管理' },
           ] : []),
-        ].filter(Boolean),
+        ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
       },
     ] : []),
     // 内容管理
@@ -247,7 +247,7 @@ const MainLayout: React.FC = () => {
           ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
             { key: 'sensitive_word_analytics', icon: <LineChartOutlined />, label: '敏感词统计' },
           ] : []),
-        ].filter(Boolean),
+        ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
       },
     ] : []),
     // 生活服务
@@ -278,7 +278,7 @@ const MainLayout: React.FC = () => {
           ...(hasMenuPermission('menu:life', ['habits:read', 'habits:write', 'habits:delete']) ? [
             { key: 'habits', icon: <CheckCircleOutlined />, label: '习惯打卡' },
           ] : []),
-        ].filter(Boolean),
+        ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
       },
     ] : []),
     // 运营管理
@@ -303,7 +303,7 @@ const MainLayout: React.FC = () => {
           ...(hasMenuPermission('menu:operations', ['analytics:read']) ? [
             { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析' },
           ] : []),
-        ].filter(Boolean),
+        ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
       },
     ] : []),
     // 系统设置
@@ -334,7 +334,7 @@ const MainLayout: React.FC = () => {
           ...(hasMenuPermission('menu:system', ['error_logs:read']) ? [
             { key: 'error_logs', icon: <AlertOutlined />, label: '错误日志' },
           ] : []),
-        ].filter(Boolean),
+        ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
       },
     ] : []),
   ].filter(Boolean)

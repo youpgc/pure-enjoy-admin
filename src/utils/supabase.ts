@@ -103,6 +103,7 @@ export async function reportError(
       console.error('[ErrorLogger] 写入失败:', insertError)
     }
   } catch (err) {
+    // 记录错误时出错，仅控制台输出，避免递归调用 reportError
     if (isDev) {
       console.error('[ErrorLogger] 记录异常:', err)
     }

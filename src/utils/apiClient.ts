@@ -38,7 +38,10 @@ export function handleApiError(error: unknown, context?: string): string {
   const msg = error instanceof Error ? error.message : mapSupabaseError(error)
   console.error(`[API${context ? ` - ${context}` : ''}]`, error)
   message.error(msg)
-  reportError('error', context || 'api', msg, undefined, error instanceof Error ? error : undefined)
+  // 避免在 error_logs 相关操作的错误处理中递归调用 reportError
+  if (context && !context.includes('ErrorLogs') && !context.includes('error_logs')) {
+    reportError('error', context || 'api', msg, undefined, error instanceof Error ? error : undefined)
+  }
   return msg
 }
 
