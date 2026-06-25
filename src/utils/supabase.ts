@@ -6,8 +6,15 @@ const isDev = typeof process !== 'undefined' && process!.env && process!.env.NOD
 // 根据环境控制调试日志：开发环境开启，生产环境关闭
 const enableDebugLog = isDev
 
-const SUPABASE_URL = 'https://mhdrbjpqmzswswoazwjg.supabase.co'
-const SUPABASE_ANON_KEY = 'sb_publishable_wFx9tlxImVfEpRN4NMkS1g_QOm64aj6'
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://mhdrbjpqmzswswoazwjg.supabase.co'
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!SUPABASE_ANON_KEY) {
+  throw new Error(
+    'VITE_SUPABASE_ANON_KEY is not defined. ' +
+    'Please create a .env file with VITE_SUPABASE_ANON_KEY=xxx or set the environment variable.',
+  )
+}
 
 // 敏感字段列表（日志中需要脱敏的字段）
 const SENSITIVE_FIELDS = ['password', 'password_hash', 'token', 'apikey', 'authorization', 'secret', 'phone', 'email']

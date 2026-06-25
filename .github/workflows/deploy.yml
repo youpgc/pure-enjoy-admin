@@ -35,6 +35,11 @@ jobs:
         run: npm ci
         timeout-minutes: 5
 
+      - name: Setup environment variables
+        run: |
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_SUPABASE_URL=https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co" >> .env
+
       - name: Build
         run: npm run build
         timeout-minutes: 5
