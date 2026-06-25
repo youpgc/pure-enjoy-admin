@@ -4,12 +4,9 @@ import {
   Table,
   Button,
   Input,
-  Space,
   Form,
   message,
-  Tag,
   Typography,
-  Switch,
 } from 'antd'
 import {
   PlusOutlined,
@@ -54,7 +51,42 @@ const NovelChapterModal: React.FC<{
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editingChapter, setEditingChapter] = useState<NovelChapter | null>(null)
   const [form] = Form.useForm()
-  const { pagination, tablePagination, setTotal } = usePagination()
+  const { pagination, tablePagination, setTotal, resetPage } = usePagination()
+
+  // 章节号转中文数字（1→第一章，2→第二章，...，999→第九百九十九章）
+  const toChineseNumber = (num: number): string => {
+    const chineseNums = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九']
+    const chineseUnits = ['', '十', '百']
+
+    if (num === 0) return '零'
+
+    const digits = num.toString().split('').map(Number)
+    let result = ''
+
+    for (let i = 0; i < digits.length; i++) {
+      const digit = digits[i]!
+      const unitIndex = digits.length - 1 - i
+
+      if (digit === 0) {
+        // 当前位是0，检查下一位是否也是0或已到末尾
+        const nextDigit = digits[i + 1]
+        if (i < digits.length - 1 && nextDigit !== undefined && nextDigit !== 0) {
+          result += chineseNums[0]
+        }
+      } else {
+        const unit = chineseUnits[unitIndex]
+        result += chineseNums[digit] + (unit ?? '')
+      }
+    }
+
+    // 处理特殊简写：十一~十九 简化为 十一~十九（不需要"一"前缀）
+    // 十 简化为 十（不需要"一十"）
+    if (num >= 10 && num < 20) {
+      result = result.replace(/^一/, '')
+    }
+
+    return result
+  }
 
   const chapterService = new BaseService<NovelChapter>('novel_chapters', { defaultOrder: { column: 'chapter_num', ascending: true } })
 
@@ -83,9 +115,10 @@ const NovelChapterModal: React.FC<{
 
   useEffect(() => {
     if (open && novelId) {
+      resetPage() // 每次打开弹窗重置到第1页
       loadChapters()
     }
-  }, [open, novelId, loadChapters])
+  }, [open, novelId, loadChapters, resetPage])
 
   // 打开新增弹窗（查询全局最大章节号，避免与已有章节冲突）
   const handleAdd = async () => {
@@ -239,22 +272,18 @@ const NovelChapterModal: React.FC<{
   // 表格列定义
   const columns: ColumnsType<NovelChapter> = [
     {
-      title: '章节号',
+      title: '序号',
       dataIndex: 'chapter_num',
       key: 'chapter_num',
-      width: 80,
+      width: 120,
+      render: (num: number) => `第${toChineseNumber(num)}章`,
       sorter: (a, b) => a.chapter_num - b.chapter_num,
     },
     {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
-      render: (title: string, record: NovelChapter) => (
-        <Space>
-          <Text strong>{title}</Text>
-          {!record.is_free && <Tag color="gold">VIP</Tag>}
-        </Space>
-      ),
+      render: (title: string) => <Text strong>{title}</Text>,
     },
     {
       title: '字数',
@@ -370,13 +399,6 @@ const NovelChapterModal: React.FC<{
             rules={[{ required: true, message: '请输入内容' }]}
           >
             <Input.TextArea rows={10} placeholder="请输入章节内容" />
-          </Form.Item>
-          <Form.Item
-            name="is_free"
-            label="免费章节"
-            valuePropName="checked"
-          >
-            <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
         </Form>
       </Modal>

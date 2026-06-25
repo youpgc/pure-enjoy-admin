@@ -11,7 +11,6 @@ import {
   Form,
   Select,
   Popconfirm,
-  Switch,
   Badge,
   Typography,
 } from 'antd'
@@ -22,10 +21,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   BookOutlined,
-  EyeOutlined,
   FileTextOutlined,
-  CheckCircleOutlined,
-  StopOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -110,7 +106,6 @@ interface NovelFilters {
   keyword: string
   category: string | undefined
   status: string | undefined
-  isFree: boolean | undefined
 }
 
 // ==================== 组件 ====================
@@ -123,7 +118,6 @@ const Novels: React.FC = () => {
     keyword: '',
     category: undefined,
     status: undefined,
-    isFree: undefined,
   })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [modalVisible, setModalVisible] = useState(false)
@@ -149,9 +143,6 @@ const Novels: React.FC = () => {
         }
         if (filters.status) {
           query = query.eq('status', filters.status)
-        }
-        if (filters.isFree !== undefined) {
-          query = query.eq('is_free', filters.isFree)
         }
         return query
       })
@@ -186,7 +177,6 @@ const Novels: React.FC = () => {
       keyword: '',
       category: undefined,
       status: undefined,
-      isFree: undefined,
     })
     resetPage()
   }
@@ -243,37 +233,6 @@ const Novels: React.FC = () => {
       loadNovels()
     } catch (error) {
       handleApiError(error, 'Novels-批量删除')
-    }
-  }
-
-  // 切换小说状态
-  const handleToggleStatus = async (record: Novel) => {
-    try {
-      const newStatus = record.status === 'completed' ? 'ongoing' : 'completed'
-      const result = await novelService.update(record.id, { status: newStatus })
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'Novels-切换状态')
-        return
-      }
-      message.success(`小说已${newStatus === 'completed' ? '标记完结' : '恢复连载'}`)
-      loadNovels()
-    } catch (error) {
-      handleApiError(error, 'Novels-切换状态')
-    }
-  }
-
-  // 切换免费状态
-  const handleToggleFree = async (record: Novel) => {
-    try {
-      const result = await novelService.update(record.id, { is_free: !record.is_free })
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'Novels-切换免费')
-        return
-      }
-      message.success(`已${!record.is_free ? '设为免费' : '取消免费'}`)
-      loadNovels()
-    } catch (error) {
-      handleApiError(error, 'Novels-切换免费')
     }
   }
 
@@ -343,7 +302,6 @@ const Novels: React.FC = () => {
           <div>
             <div style={{ fontWeight: 500 }}>{record.title}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>{record.author}</Text>
-            {record.is_free && <Tag color="green" style={{ marginLeft: 4 }}>免费</Tag>}
           </div>
         </Space>
       ),
@@ -409,18 +367,6 @@ const Novels: React.FC = () => {
           onClick: () => handleEdit(record),
         },
         {
-          key: 'status',
-          label: record.status === 'completed' ? '恢复连载' : '标记完结',
-          icon: record.status === 'completed' ? <CheckCircleOutlined /> : <StopOutlined />,
-          onClick: () => handleToggleStatus(record),
-        },
-        {
-          key: 'free',
-          label: record.is_free ? '取消免费' : '设为免费',
-          icon: <EyeOutlined />,
-          onClick: () => handleToggleFree(record),
-        },
-        {
           key: 'delete',
           label: '删除',
           icon: <DeleteOutlined />,
@@ -461,17 +407,6 @@ const Novels: React.FC = () => {
             style={{ width: 120 }}
             allowClear
             options={NOVEL_STATUS_OPTIONS}
-          />
-          <Select
-            placeholder="免费"
-            value={filters.isFree}
-            onChange={(value) => setFilters(prev => ({ ...prev, isFree: value }))}
-            style={{ width: 120 }}
-            allowClear
-            options={[
-              { label: '免费', value: true },
-              { label: '付费', value: false },
-            ]}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
@@ -579,13 +514,6 @@ const Novels: React.FC = () => {
               placeholder="请选择状态"
               options={NOVEL_STATUS_OPTIONS}
             />
-          </Form.Item>
-          <Form.Item
-            name="is_free"
-            label="免费"
-            valuePropName="checked"
-          >
-            <Switch checkedChildren="是" unCheckedChildren="否" />
           </Form.Item>
         </Form>
       </Modal>
