@@ -87,14 +87,29 @@ const NovelChapterModal: React.FC<{
     }
   }, [open, novelId, loadChapters])
 
-  // 打开新增弹窗
-  const handleAdd = () => {
+  // 打开新增弹窗（查询全局最大章节号，避免与已有章节冲突）
+  const handleAdd = async () => {
     setEditingChapter(null)
     form.resetFields()
-    // 自动设置章节号
-    const nextNumber = chapters.length > 0
-      ? Math.max(...chapters.map(c => c.chapter_num)) + 1
-      : 1
+    // 查询该小说全局最大章节号
+    let nextNumber = 1
+    try {
+      const { data, error } = await supabase
+        .from('novel_chapters')
+        .select('chapter_num')
+        .eq('novel_id', novelId)
+        .order('chapter_num', { ascending: false })
+        .limit(1)
+        .single()
+      if (!error && data) {
+        nextNumber = (data.chapter_num || 0) + 1
+      }
+    } catch (err) {
+      // 查询失败时使用当前页数据兜底
+      nextNumber = chapters.length > 0
+        ? Math.max(...chapters.map(c => c.chapter_num)) + 1
+        : 1
+    }
     form.setFieldsValue({ chapter_num: nextNumber })
     setEditModalOpen(true)
   }
@@ -161,18 +176,42 @@ const NovelChapterModal: React.FC<{
     }
   }
 
-  // 调整章节顺序
+  // 调整章节顺序（查询数据库真实相邻章节，支持跨页移动）
   const handleMoveChapter = async (chapter: NovelChapter, direction: 'up' | 'down') => {
-    const currentIndex = chapters.findIndex(c => c.id === chapter.id)
-    if (currentIndex === -1) return
-
-    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-    if (targetIndex < 0 || targetIndex >= chapters.length) return
-
-    const targetChapter = chapters[targetIndex]
-    if (!targetChapter) return
-
     try {
+      // 上移：查询 chapter_num < 当前值 的最大值（降序取第一条）
+      // 下移：查询 chapter_num > 当前值 的最小值（升序取第一条）
+      let query = supabase
+        .from('novel_chapters')
+        .select('id, chapter_num')
+        .eq('novel_id', novelId)
+        .neq('id', chapter.id)
+
+      if (direction === 'up') {
+        query = query.lt('chapter_num', chapter.chapter_num).order('chapter_num', { ascending: false })
+      } else {
+        query = query.gt('chapter_num', chapter.chapter_num).order('chapter_num', { ascending: true })
+      }
+
+      const { data: targetData, error: targetError } = await query.limit(1)
+
+      if (targetError || !targetData || targetData.length === 0) {
+        message.warning(direction === 'up' ? '已经是第一章' : '已经是最后一章')
+        return
+      }
+
+      const targetChapter = targetData[0]
+      if (!targetChapter) {
+        message.warning(direction === 'up' ? '已经是第一章' : '已经是最后一章')
+        return
+      }
+
+      // 如果目标章节的 chapter_num 和当前章节相同，说明数据有重复，需要先重排
+      if (targetChapter.chapter_num === chapter.chapter_num) {
+        message.error('章节号存在重复，请先使用"重新编号"功能整理')
+        return
+      }
+
       // 交换章节号
       const [update1, update2] = await Promise.all([
         apiExecute(
