@@ -66,6 +66,7 @@ import Announcements from './pages/Announcements'
 import Feedback from './pages/Feedback'
 import PointsManagement from './pages/PointsManagement'
 import ErrorLogs from './pages/ErrorLogs'
+import NovelComments from './pages/NovelComments'
 import { supabase } from './utils/supabase'
 
 const { Header, Sider, Content } = Layout
@@ -174,7 +175,7 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 // ========== Navigation Context ==========
 type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
-  'novels' | 'novel_bookshelves' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
+  'novels' | 'novel_bookshelves' | 'novel_comments' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
   | 'anniversaries' | 'points' | 'error_logs'
@@ -241,6 +242,9 @@ const MainLayout: React.FC = () => {
         children: [
           ...(hasMenuPermission('menu:content', ['novels:read', 'novels:write', 'novels:delete']) ? [
             { key: 'novels', icon: <ReadOutlined />, label: '小说管理' },
+          ] : []),
+          ...(hasMenuPermission('menu:content', ['novels:read']) ? [
+            { key: 'novel_comments', icon: <MessageOutlined />, label: '评论管理' },
           ] : []),
           ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
             { key: 'sensitive_words', icon: <SafetyOutlined />, label: '敏感词管理' },
@@ -358,6 +362,8 @@ const MainLayout: React.FC = () => {
         return <Notes />
       case 'novels':
         return <Novels />
+      case 'novel_comments':
+        return <NovelComments />
       case 'novel_bookshelves':
         return <NovelBookshelves />
       case 'versions':
@@ -411,6 +417,7 @@ const MainLayout: React.FC = () => {
       weight: '体重记录',
       notes: '笔记本',
       novels: '小说管理',
+      novel_comments: '评论管理',
       novel_bookshelves: '书架管理',
       versions: '版本管理',
       analytics: '数据分析',
