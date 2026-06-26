@@ -6,6 +6,7 @@ import zhCN from 'antd/locale/zh_CN'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import App from './App'
+import ErrorBoundary from './components/ErrorBoundary'
 import './index.css'
 
 // 设置 dayjs 为中文
@@ -13,12 +14,14 @@ dayjs.locale('zh-cn')
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ConfigProvider
-      locale={zhCN}
-    >
-      <BrowserRouter basename="/pure-enjoy-admin">
-        <App />
-      </BrowserRouter>
-    </ConfigProvider>
+    <ErrorBoundary global>
+      <ConfigProvider
+        locale={zhCN}
+      >
+        <BrowserRouter basename="/pure-enjoy-admin">
+          <App />
+        </BrowserRouter>
+      </ConfigProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 )

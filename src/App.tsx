@@ -36,6 +36,7 @@ import {
 } from '@ant-design/icons'
 import type { AdminUser } from './types/auth'
 import AuthGuard from './components/AuthGuard'
+import ErrorBoundary from './components/ErrorBoundary'
 import { usePermission } from './hooks/usePermission'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
@@ -522,7 +523,9 @@ const MainLayout: React.FC = () => {
               currentPage,
               setCurrentPage,
             }}>
-              {renderPage()}
+              <ErrorBoundary>
+                {renderPage()}
+              </ErrorBoundary>
             </NavigationContext.Provider>
           </div>
         </Content>
