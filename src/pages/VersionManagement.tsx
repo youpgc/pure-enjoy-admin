@@ -38,6 +38,7 @@ import { usePermission } from '../hooks/usePermission'
 import { getActionColumn, type ActionButton } from '../components/ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { VERSION_STATUS_MAP, VERSION_STATUS_OPTIONS, VERSION_PLATFORM_MAP, VERSION_PLATFORM_OPTIONS } from '../constants'
 
 const { Text } = Typography
 
@@ -380,12 +381,7 @@ const VersionManagement: React.FC = () => {
       key: 'status',
       width: 120,
       render: (status: string) => {
-        const statusMap: Record<string, { color: string; label: string }> = {
-          released: { color: 'green', label: '已发布' },
-          revoked: { color: 'orange', label: '已下架' },
-          superseded: { color: 'default', label: '已失效' },
-        }
-        const info = statusMap[status] || { color: 'default', label: status }
+        const info = VERSION_STATUS_MAP[status] || { color: 'default', label: status }
         return <Tag color={info.color}>{info.label}</Tag>
       },
     },
@@ -395,12 +391,7 @@ const VersionManagement: React.FC = () => {
       key: 'platform',
       width: 100,
       render: (platform: string) => {
-        const platformMap: Record<string, { color: string; label: string }> = {
-          ios: { color: 'blue', label: 'iOS' },
-          android: { color: 'green', label: 'Android' },
-          web: { color: 'purple', label: 'Web' },
-        }
-        const info = platformMap[platform] || { color: 'default', label: platform }
+        const info = VERSION_PLATFORM_MAP[platform] || { color: 'default', label: platform }
         return <Tag color={info.color}>{info.label}</Tag>
       },
     },
@@ -650,11 +641,7 @@ const VersionManagement: React.FC = () => {
             onChange={(value) => setFilters(prev => ({ ...prev, platform: value }))}
             style={{ width: 120 }}
             allowClear
-            options={[
-              { label: 'iOS', value: 'ios' },
-              { label: 'Android', value: 'android' },
-              { label: 'Web', value: 'web' },
-            ]}
+            options={VERSION_PLATFORM_OPTIONS}
           />
           <Select
             placeholder="状态"
@@ -662,11 +649,7 @@ const VersionManagement: React.FC = () => {
             onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
             style={{ width: 120 }}
             allowClear
-            options={[
-              { label: '已发布', value: 'released' },
-              { label: '已下架', value: 'revoked' },
-              { label: '已失效', value: 'superseded' },
-            ]}
+            options={VERSION_STATUS_OPTIONS}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
@@ -736,11 +719,7 @@ const VersionManagement: React.FC = () => {
           >
             <Select
               placeholder="请选择平台"
-              options={[
-                { label: 'iOS', value: 'ios' },
-                { label: 'Android', value: 'android' },
-                { label: 'Web', value: 'web' },
-              ]}
+              options={VERSION_PLATFORM_OPTIONS}
             />
           </Form.Item>
           <Form.Item

@@ -4,16 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
-
-// ==================== 分类映射 ====================
-
-const FAVORITE_CATEGORY_MAP: Record<string, string> = {
-  other: '其他',
-  novel: '小说',
-  note: '笔记',
-  expense: '消费',
-  mood: '心情',
-}
+import { FAVORITE_CATEGORY_MAP } from '../constants'
 
 // ==================== 详情弹窗列定义 ====================
 

@@ -28,6 +28,14 @@ import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import {
+  SENSITIVE_CATEGORY_MAP,
+  SENSITIVE_CATEGORY_OPTIONS,
+  SENSITIVE_LEVEL_MAP,
+  SENSITIVE_LEVEL_OPTIONS,
+  SENSITIVE_MATCH_MODE_MAP,
+  SENSITIVE_MATCH_MODE_OPTIONS,
+} from '../constants'
 
 const { Text } = Typography
 
@@ -46,26 +54,6 @@ interface SensitiveWord {
   created_by?: string
   created_at: string
   updated_at?: string
-}
-
-const CATEGORY_MAP: Record<string, { color: string; label: string }> = {
-  political: { color: 'red', label: '政治' },
-  pornographic: { color: 'orange', label: '色情' },
-  violence: { color: 'volcano', label: '暴力' },
-  advertising: { color: 'blue', label: '广告' },
-  other: { color: 'default', label: '其他' },
-}
-
-const LEVEL_MAP: Record<string, { color: string; label: string }> = {
-  low: { color: 'orange', label: '低' },
-  medium: { color: 'red', label: '中' },
-  high: { color: 'purple', label: '高' },
-}
-
-const MATCH_MODE_MAP: Record<string, { color: string; label: string }> = {
-  exact: { color: 'blue', label: '精确' },
-  fuzzy: { color: 'orange', label: '模糊' },
-  regex: { color: 'purple', label: '正则' },
 }
 
 interface SensitiveWordFilters {
@@ -262,7 +250,7 @@ const SensitiveWords: React.FC = () => {
       key: 'category',
       width: 120,
       render: (category: string) => {
-        const info = CATEGORY_MAP[category] || { color: 'default', label: category }
+        const info = SENSITIVE_CATEGORY_MAP[category] || { color: 'default', label: category }
         return <Tag color={info.color}>{info.label}</Tag>
       },
     },
@@ -272,7 +260,7 @@ const SensitiveWords: React.FC = () => {
       key: 'level',
       width: 100,
       render: (level: string) => {
-        const info = LEVEL_MAP[level] || { color: 'default', label: level }
+        const info = SENSITIVE_LEVEL_MAP[level] || { color: 'default', label: level }
         return <Tag color={info.color}>{info.label}</Tag>
       },
     },
@@ -289,7 +277,7 @@ const SensitiveWords: React.FC = () => {
       key: 'match_mode',
       width: 100,
       render: (mode: string) => {
-        const info = MATCH_MODE_MAP[mode] || { color: 'default', label: mode }
+        const info = SENSITIVE_MATCH_MODE_MAP[mode] || { color: 'default', label: mode }
         return <Tag color={info.color}>{info.label}</Tag>
       },
     },
@@ -369,13 +357,7 @@ const SensitiveWords: React.FC = () => {
             onChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
             style={{ width: 120 }}
             allowClear
-            options={[
-              { label: '政治', value: 'political' },
-              { label: '色情', value: 'pornographic' },
-              { label: '暴力', value: 'violence' },
-              { label: '广告', value: 'advertising' },
-              { label: '其他', value: 'other' },
-            ]}
+            options={SENSITIVE_CATEGORY_OPTIONS}
           />
           <Select
             placeholder="等级"
@@ -383,11 +365,7 @@ const SensitiveWords: React.FC = () => {
             onChange={(value) => setFilters(prev => ({ ...prev, level: value }))}
             style={{ width: 120 }}
             allowClear
-            options={[
-              { label: '低', value: 'low' },
-              { label: '中', value: 'medium' },
-              { label: '高', value: 'high' },
-            ]}
+            options={SENSITIVE_LEVEL_OPTIONS}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
@@ -476,13 +454,7 @@ const SensitiveWords: React.FC = () => {
           >
             <Select
               placeholder="请选择分类"
-              options={[
-                { label: '政治', value: 'political' },
-                { label: '色情', value: 'pornographic' },
-                { label: '暴力', value: 'violence' },
-                { label: '广告', value: 'advertising' },
-                { label: '其他', value: 'other' },
-              ]}
+              options={SENSITIVE_CATEGORY_OPTIONS}
             />
           </Form.Item>
           <Form.Item
@@ -492,11 +464,7 @@ const SensitiveWords: React.FC = () => {
           >
             <Select
               placeholder="请选择等级"
-              options={[
-                { label: '低', value: 'low' },
-                { label: '中', value: 'medium' },
-                { label: '高', value: 'high' },
-              ]}
+              options={SENSITIVE_LEVEL_OPTIONS}
             />
           </Form.Item>
           <Form.Item
@@ -506,11 +474,7 @@ const SensitiveWords: React.FC = () => {
           >
             <Select
               placeholder="请选择匹配模式"
-              options={[
-                { label: '精确', value: 'exact' },
-                { label: '模糊', value: 'fuzzy' },
-                { label: '正则', value: 'regex' },
-              ]}
+              options={SENSITIVE_MATCH_MODE_OPTIONS}
             />
           </Form.Item>
           <Form.Item

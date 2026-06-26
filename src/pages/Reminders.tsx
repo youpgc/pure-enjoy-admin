@@ -4,19 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
-
-// ==================== 重复类型映射 ====================
-
-const REPEAT_TYPE_MAP: Record<string, string> = {
-  none: '不重复',
-  daily: '每天',
-  weekly: '每周',
-  monthly: '每月',
-  yearly: '每年',
-  weekday: '工作日',
-  weekend: '周末',
-  custom: '自定义',
-}
+import { REPEAT_TYPE_MAP } from '../constants'
 
 // ==================== 详情弹窗列定义 ====================
 

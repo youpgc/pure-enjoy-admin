@@ -4,20 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
-
-// ==================== 分类映射 ====================
-
-const CATEGORY_MAP: Record<string, string> = {
-  food: '餐饮',
-  transport: '交通',
-  communication: '通讯',
-  shopping: '购物',
-  entertainment: '娱乐',
-  health: '医疗',
-  housing: '居住',
-  education: '教育',
-  other: '其他',
-}
+import { EXPENSE_CATEGORY_MAP } from '../constants'
 
 // ==================== 详情弹窗列定义 ====================
 
@@ -34,7 +21,7 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'category',
     key: 'category',
     width: 80,
-    render: (v: string) => CATEGORY_MAP[v] || v || '-',
+    render: (v: string) => EXPENSE_CATEGORY_MAP[v] || v || '-',
   },
   { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
   { title: '笔记', dataIndex: 'note', key: 'note', ellipsis: true, render: (v: string) => v || '-' },

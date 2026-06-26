@@ -26,6 +26,7 @@ import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { getActionColumn } from '../components/ActionColumn'
+import { ACTION_MAP, OP_MODULE_MAP, ACTION_OPTIONS, MODULE_OPTIONS } from '../constants'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
@@ -51,27 +52,14 @@ interface LogFilters {
   dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null
 }
 
-// ==================== 操作映射 ====================
-
-const ACTION_MAP: Record<string, { color: string; label: string }> = {
-  create: { color: 'green', label: '创建' },
-  update: { color: 'blue', label: '更新' },
-  delete: { color: 'red', label: '删除' },
-  read: { color: 'default', label: '查询' },
-  create_user: { color: 'green', label: '创建用户' },
-  update_user: { color: 'blue', label: '更新用户' },
-  delete_user: { color: 'red', label: '删除用户' },
-  toggle_user_status: { color: 'orange', label: '切换用户状态' },
-}
-
-// ==================== 模块映射 ====================
+// ==================== 模块映射（合并本地图标） ====================
 
 const MODULE_MAP: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
-  user: { color: 'blue', label: '用户', icon: <UserOutlined /> },
-  users: { color: 'blue', label: '用户', icon: <UserOutlined /> },
-  system: { color: 'purple', label: '系统', icon: <SettingOutlined /> },
-  novel: { color: 'green', label: '小说', icon: <BookOutlined /> },
-  content: { color: 'orange', label: '内容', icon: <FileTextOutlined /> },
+  user: { color: OP_MODULE_MAP.user!.color, label: OP_MODULE_MAP.user!.label, icon: <UserOutlined /> },
+  users: { color: OP_MODULE_MAP.users!.color, label: OP_MODULE_MAP.users!.label, icon: <UserOutlined /> },
+  system: { color: OP_MODULE_MAP.system!.color, label: OP_MODULE_MAP.system!.label, icon: <SettingOutlined /> },
+  novel: { color: OP_MODULE_MAP.novel!.color, label: OP_MODULE_MAP.novel!.label, icon: <BookOutlined /> },
+  content: { color: OP_MODULE_MAP.content!.color, label: OP_MODULE_MAP.content!.label, icon: <FileTextOutlined /> },
 }
 
 // ==================== 组件 ====================
@@ -284,12 +272,7 @@ const OperationLogs: React.FC = () => {
             onChange={(value) => setFilters(prev => ({ ...prev, action: value }))}
             style={{ width: 120 }}
             allowClear
-            options={[
-              { label: '创建', value: 'create' },
-              { label: '更新', value: 'update' },
-              { label: '删除', value: 'delete' },
-              { label: '查询', value: 'read' },
-            ]}
+            options={ACTION_OPTIONS}
           />
           <Select
             placeholder="模块"
@@ -297,12 +280,7 @@ const OperationLogs: React.FC = () => {
             onChange={(value) => setFilters(prev => ({ ...prev, module: value }))}
             style={{ width: 120 }}
             allowClear
-            options={[
-              { label: '用户', value: 'user' },
-              { label: '系统', value: 'system' },
-              { label: '小说', value: 'novel' },
-              { label: '内容', value: 'content' },
-            ]}
+            options={MODULE_OPTIONS}
           />
           <RangePicker
             value={filters.dateRange}

@@ -16,10 +16,11 @@ import {
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import { UploadOutlined, UserOutlined } from '@ant-design/icons'
-import type { User, UserFormData, UserRole, MemberLevel, UserStatus } from '../types/user'
+import type { User, UserFormData } from '../types/user'
 import { supabase } from '../utils/supabase'
 import { useDictOptions } from '../hooks/useDictOptions'
 import { apiExecute, handleApiError } from '../utils/apiClient'
+import { DEFAULT_USER_FORM_VALUES } from '../constants'
 
 interface UserFormModalProps {
   open: boolean
@@ -74,13 +75,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
         setAvatarUrl(user.avatar_url || '')
       } else {
         form.resetFields()
-        form.setFieldsValue({
-          gender: '保密',
-          role: 'user',
-          member_level: 'normal',
-          status: 'active',
-          points: 0,
-        })
+        form.setFieldsValue(DEFAULT_USER_FORM_VALUES)
         setAvatarUrl('')
       }
     }
@@ -180,12 +175,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
         form={form}
         layout="vertical"
         initialValues={{
-          gender: '保密',
-          role: 'user' as UserRole,
-          member_level: 'normal' as MemberLevel,
-          status: 'active' as UserStatus,
-          points: 0,
-        }}
+          ...DEFAULT_USER_FORM_VALUES,
+        } as any}
       >
         <Divider orientation="left">基本信息</Divider>
 

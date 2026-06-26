@@ -1,5 +1,7 @@
 // ==================== 认证类型定义 ====================
 
+import { USER_ROLE_LABELS } from '../constants'
+
 export type RoleCode = 'super_admin' | 'admin' | string
 
 export interface AdminUser {
@@ -11,10 +13,7 @@ export interface AdminUser {
   created_at?: string
 }
 
-export const ROLE_DISPLAY_NAMES: Record<string, string> = {
-  super_admin: '超级管理员',
-  admin: '管理员',
-}
+export const ROLE_DISPLAY_NAMES = USER_ROLE_LABELS
 
 // 从 Supabase Auth 的 user_metadata 或 app_metadata 中获取角色
 export const getUserRole = (authUser: any): string => {

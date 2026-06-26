@@ -25,27 +25,7 @@ import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 import { handleApiError, apiQuery } from '../utils/apiClient'
-
-// ==================== 操作映射（降级） ====================
-const ACTION_MAP: Record<string, string> = {
-  create: '创建',
-  update: '更新',
-  delete: '删除',
-  read: '查询',
-  create_user: '创建用户',
-  update_user: '更新用户',
-  delete_user: '删除用户',
-  toggle_user_status: '切换用户状态',
-}
-
-// ==================== 模块映射（降级） ====================
-const MODULE_MAP: Record<string, string> = {
-  user: '用户',
-  users: '用户',
-  system: '系统',
-  novel: '小说',
-  content: '内容',
-}
+import { ACTION_LABEL_MAP, OP_MODULE_LABEL_MAP } from '../constants'
 
 // ==================== 类型定义 ====================
 interface UserTrendItem {
@@ -455,7 +435,7 @@ const Dashboard: React.FC = () => {
                   key: 'action',
                   render: (text: string) => {
                     const dictOpt = actionOptions.find(opt => opt.value === text)
-                    const label = dictOpt?.label || ACTION_MAP[text] || text
+                    const label = dictOpt?.label || ACTION_LABEL_MAP[text] || text
                     return <Tag color={getActionColor(text) || 'default'}>{label}</Tag>
                   },
                 },
@@ -465,7 +445,7 @@ const Dashboard: React.FC = () => {
                   key: 'module',
                   render: (text: string) => {
                     const dictOpt = moduleOptions.find(opt => opt.value === text)
-                    const label = dictOpt?.label || MODULE_MAP[text] || text
+                    const label = dictOpt?.label || OP_MODULE_LABEL_MAP[text] || text
                     return (
                       <span>{label}</span>
                     )

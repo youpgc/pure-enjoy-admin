@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { SUPABASE_ERROR_CODE_MAP } from '../constants'
 
 declare const process: { env: Record<string, string | undefined> } | undefined;
 const isDev = typeof process !== 'undefined' && process!.env && process!.env.NODE_ENV === 'development'
@@ -266,13 +267,7 @@ export const handleSupabaseError = (error: any, context?: string): string => {
     console.error(`[Supabase] ${context} 错误:`, error)
   }
 
-  const codeMap: Record<string, string> = {
-    PGRST116: '数据不存在或已被删除',
-    PGRST301: '没有权限执行此操作',
-    '23505': '数据已存在（唯一性冲突）',
-    '23503': '关联数据不存在（外键约束）',
-    '42501': '没有权限执行此操作',
-  }
+  const codeMap = SUPABASE_ERROR_CODE_MAP
   const code = error?.code as string | undefined
   if (code && codeMap[code]) return codeMap[code]
   if (error?.message?.includes('JWT')) return '认证已过期，请重新登录'

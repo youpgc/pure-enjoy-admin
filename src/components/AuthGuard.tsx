@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import { supabase } from '../utils/supabase'
+import { ADMIN_ROLE_CODES } from '../constants'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -44,7 +45,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         const userMetadata = session.user.user_metadata || {}
         const appMetadata = session.user.app_metadata || {}
         const role = (userMetadata.role || appMetadata.role || '') as string
-        if (!['admin', 'super_admin'].includes(role)) {
+        if (!(ADMIN_ROLE_CODES as readonly string[]).includes(role)) {
           // 非管理员角色，登出并跳转
           await supabase.auth.signOut()
           setIsAuthenticated(false)

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../utils/supabase'
 import { hasPermission as checkPermission } from '../types/permission'
+import { ROLE_SUPER_ADMIN, ROLE_ADMIN } from '../constants'
 
 // ==================== 权限 Hook ====================
 
@@ -27,7 +28,7 @@ export const usePermission = () => {
       setRole(userRole)
 
       // 超级管理员直接拥有所有权限
-      if (userRole === 'super_admin') {
+      if (userRole === ROLE_SUPER_ADMIN) {
         const { data: allPerms } = await supabase
           .from('permissions')
           .select('name')
@@ -77,32 +78,32 @@ export const usePermission = () => {
 
   // 判断是否有某个权限
   const hasPermission = useCallback((permissionName: string): boolean => {
-    if (role === 'super_admin') return true
+    if (role === ROLE_SUPER_ADMIN) return true
     return checkPermission(permissions, permissionName)
   }, [permissions, role])
 
   // 判断是否有任意一个权限
   const hasAnyPermission = useCallback((permissionNames: string[]): boolean => {
-    if (role === 'super_admin') return true
+    if (role === ROLE_SUPER_ADMIN) return true
     return permissionNames.some(name => permissions.includes(name))
   }, [permissions, role])
 
   // 判断是否有所有指定权限
   const hasAllPermissions = useCallback((permissionNames: string[]): boolean => {
-    if (role === 'super_admin') return true
+    if (role === ROLE_SUPER_ADMIN) return true
     return permissionNames.every(name => permissions.includes(name))
   }, [permissions, role])
 
   // 菜单可见性判断（有菜单权限或菜单下任意操作权限）
   const hasMenuPermission = useCallback((menuPermissionName: string, actionPermissions: string[]): boolean => {
-    if (role === 'super_admin') return true
+    if (role === ROLE_SUPER_ADMIN) return true
     if (permissions.includes(menuPermissionName)) return true
     return actionPermissions.some(name => permissions.includes(name))
   }, [permissions, role])
 
   // 快捷判断
-  const isSuperAdmin = useCallback(() => role === 'super_admin', [role])
-  const isAdmin = useCallback(() => role === 'super_admin' || role === 'admin', [role])
+  const isSuperAdmin = useCallback(() => role === ROLE_SUPER_ADMIN, [role])
+  const isAdmin = useCallback(() => role === ROLE_SUPER_ADMIN || role === ROLE_ADMIN, [role])
 
   useEffect(() => {
     loadPermissions()

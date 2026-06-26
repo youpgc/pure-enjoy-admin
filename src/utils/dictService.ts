@@ -116,10 +116,11 @@ export async function getExpenseCategoryOptions(): Promise<Array<{ label: string
     return [
       { label: '餐饮', value: 'food' },
       { label: '交通', value: 'transport' },
+      { label: '通讯', value: 'communication' },
       { label: '购物', value: 'shopping' },
       { label: '娱乐', value: 'entertainment' },
       { label: '居住', value: 'housing' },
-      { label: '医疗', value: 'medical' },
+      { label: '医疗', value: 'health' },
       { label: '教育', value: 'education' },
       { label: '其他', value: 'other' },
     ]
@@ -152,14 +153,17 @@ export async function getNovelCategoryOptions(): Promise<Array<{ label: string; 
   const options = await getDictOptions('novel_category')
   if (options.length === 0) {
     return [
-      { label: '玄幻', value: 'fantasy' },
-      { label: '都市', value: 'urban' },
-      { label: '言情', value: 'romance' },
-      { label: '科幻', value: 'scifi' },
-      { label: '历史', value: 'history' },
-      { label: '游戏', value: 'game' },
-      { label: '悬疑', value: 'mystery' },
-      { label: '其他', value: 'other' },
+      { label: '玄幻', value: '玄幻' },
+      { label: '修真', value: '修真' },
+      { label: '都市', value: '都市' },
+      { label: '言情', value: '言情' },
+      { label: '科幻', value: '科幻' },
+      { label: '历史', value: '历史' },
+      { label: '游戏', value: '游戏' },
+      { label: '悬疑', value: '悬疑' },
+      { label: '武侠', value: '武侠' },
+      { label: '灵异', value: '灵异' },
+      { label: '其他', value: '其他' },
     ]
   }
   return options
@@ -174,7 +178,6 @@ export async function getNovelStatusOptions(): Promise<Array<{ label: string; va
     return [
       { label: '连载中', value: 'ongoing' },
       { label: '已完结', value: 'completed' },
-      { label: '暂停更新', value: 'paused' },
     ]
   }
   return options
@@ -203,10 +206,12 @@ export async function getFeedbackStatusOptions(): Promise<Array<{ label: string;
   const options = await getDictOptions('feedback_status')
   if (options.length === 0) {
     return [
-      { label: '待处理', value: 'pending' },
-      { label: '处理中', value: 'processing' },
-      { label: '已解决', value: 'resolved' },
+      { label: '待确认', value: 'pending' },
+      { label: '已确认', value: 'confirmed' },
+      { label: '处理中', value: 'in_progress' },
+      { label: '已完结', value: 'resolved' },
       { label: '已拒绝', value: 'rejected' },
+      { label: '已滞后', value: 'delayed' },
     ]
   }
   return options
@@ -220,7 +225,6 @@ export async function getAnnouncementTypeOptions(): Promise<Array<{ label: strin
   if (options.length === 0) {
     return [
       { label: '系统公告', value: 'system' },
-      { label: '功能更新', value: 'feature' },
       { label: '活动通知', value: 'activity' },
       { label: '维护通知', value: 'maintenance' },
     ]
@@ -235,10 +239,9 @@ export async function getPriorityOptions(): Promise<Array<{ label: string; value
   const options = await getDictOptions('priority_level')
   if (options.length === 0) {
     return [
-      { label: '低', value: 'low' },
-      { label: '中', value: 'normal' },
       { label: '高', value: 'high' },
-      { label: '紧急', value: 'urgent' },
+      { label: '中', value: 'medium' },
+      { label: '低', value: 'low' },
     ]
   }
   return options

@@ -26,6 +26,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { ANNOUNCEMENT_TYPE_MAP, ANNOUNCEMENT_TYPE_OPTIONS, PRIORITY_MAP, PRIORITY_OPTIONS } from '../constants'
 
 const { Text, Paragraph } = Typography
 
@@ -41,12 +42,6 @@ interface Announcement {
   publish_at?: string
   expire_at?: string | null
   created_at: string
-}
-
-const PRIORITY_MAP: Record<string, { color: string; label: string }> = {
-  high: { color: 'red', label: '高' },
-  medium: { color: 'orange', label: '中' },
-  low: { color: 'blue', label: '低' },
 }
 
 // ==================== 组件 ====================
@@ -210,12 +205,7 @@ const Announcements: React.FC = () => {
       key: 'type',
       width: 100,
       render: (type: string) => {
-        const map: Record<string, { color: string; label: string }> = {
-          system: { color: 'blue', label: '系统' },
-          activity: { color: 'green', label: '活动' },
-          maintenance: { color: 'orange', label: '维护' },
-        }
-        const info = map[type] || { color: 'default', label: type }
+        const info = ANNOUNCEMENT_TYPE_MAP[type] || { color: 'default', label: type }
         return <Tag color={info.color}>{info.label}</Tag>
       },
     },
@@ -347,11 +337,7 @@ const Announcements: React.FC = () => {
           >
             <Select
               placeholder="请选择类型"
-              options={[
-                { label: '系统', value: 'system' },
-                { label: '活动', value: 'activity' },
-                { label: '维护', value: 'maintenance' },
-              ]}
+              options={ANNOUNCEMENT_TYPE_OPTIONS}
             />
           </Form.Item>
           <Form.Item
@@ -361,11 +347,7 @@ const Announcements: React.FC = () => {
           >
             <Select
               placeholder="请选择优先级"
-              options={[
-                { label: '高', value: 'high' },
-                { label: '中', value: 'medium' },
-                { label: '低', value: 'low' },
-              ]}
+              options={PRIORITY_OPTIONS}
             />
           </Form.Item>
           <Form.Item

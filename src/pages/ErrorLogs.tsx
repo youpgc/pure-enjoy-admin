@@ -21,6 +21,7 @@ import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { getActionColumn } from '../components/ActionColumn'
+import { ERROR_LOG_LEVEL_MAP, ERROR_LOG_LEVEL_OPTIONS } from '../constants'
 
 const { Text } = Typography
 
@@ -39,14 +40,6 @@ interface ErrorLog {
 interface ErrorLogFilters {
   keyword: string
   level: string | undefined
-}
-
-// ==================== 级别映射 ====================
-
-const LEVEL_MAP: Record<string, { color: string; label: string }> = {
-  error: { color: 'red', label: 'ERROR' },
-  warning: { color: 'orange', label: 'WARNING' },
-  info: { color: 'blue', label: 'INFO' },
 }
 
 // ==================== 组件 ====================
@@ -156,7 +149,7 @@ const ErrorLogs: React.FC = () => {
       key: 'level',
       width: 100,
       render: (v: string) => {
-        const info = LEVEL_MAP[v] || { color: 'default', label: v?.toUpperCase() }
+        const info = ERROR_LOG_LEVEL_MAP[v] || { color: 'default', label: v?.toUpperCase() }
         return <Tag color={info.color}>{info.label}</Tag>
       },
     },
@@ -241,11 +234,7 @@ const ErrorLogs: React.FC = () => {
             onChange={(value) => setFilters(prev => ({ ...prev, level: value }))}
             style={{ width: 120 }}
             allowClear
-            options={[
-              { label: 'ERROR', value: 'error' },
-              { label: 'WARNING', value: 'warning' },
-              { label: 'INFO', value: 'info' },
-            ]}
+            options={ERROR_LOG_LEVEL_OPTIONS}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索

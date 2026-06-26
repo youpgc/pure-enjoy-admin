@@ -4,29 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
-
-// ==================== 心情映射 ====================
-
-const MOOD_TYPE_MAP: Record<string, string> = {
-  happy: '开心',
-  excited: '兴奋',
-  calm: '平静',
-  neutral: '一般',
-  sad: '难过',
-  anxious: '焦虑',
-  angry: '生气',
-  tired: '疲惫',
-  grateful: '感恩',
-}
-
-const MOOD_COLOR_MAP: Record<string, string> = {
-  happy: '#52c41a',
-  sad: '#1890ff',
-  angry: '#ff4d4f',
-  anxious: '#faad14',
-  calm: '#13c2c2',
-  excited: '#eb2f96',
-}
+import { MOOD_TYPE_MAP, MOOD_COLOR_MAP } from '../constants'
 
 // ==================== 详情弹窗列定义 ====================
 

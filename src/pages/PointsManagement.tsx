@@ -4,22 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
-
-// ==================== 类型映射 ====================
-
-const TYPE_MAP: Record<string, { color: string; label: string }> = {
-  checkin: { color: 'green', label: '签到' },
-  earn: { color: 'green', label: '获得' },
-  spend: { color: 'red', label: '消费' },
-  adjust: { color: 'blue', label: '调整' },
-  admin: { color: 'purple', label: '管理员' },
-}
-
-const STATUS_MAP: Record<string, { color: string; label: string }> = {
-  active: { color: 'green', label: '有效' },
-  expired: { color: 'default', label: '已过期' },
-  used: { color: 'orange', label: '已使用' },
-}
+import { POINT_TYPE_MAP, POINT_STATUS_MAP } from '../constants'
 
 // ==================== 详情弹窗列定义 ====================
 
@@ -30,7 +15,7 @@ const detailColumns: ColumnsType<RecordItem> = [
     key: 'type',
     width: 80,
     render: (v: string) => {
-      const info = TYPE_MAP[v] || { color: 'default', label: v }
+      const info = POINT_TYPE_MAP[v] || { color: 'default', label: v }
       return <Tag color={info.color}>{info.label}</Tag>
     },
   },
@@ -59,7 +44,7 @@ const detailColumns: ColumnsType<RecordItem> = [
     key: 'status',
     width: 80,
     render: (v: string) => {
-      const info = STATUS_MAP[v] || { color: 'default', label: v }
+      const info = POINT_STATUS_MAP[v] || { color: 'default', label: v }
       return <Tag color={info.color}>{info.label}</Tag>
     },
   },

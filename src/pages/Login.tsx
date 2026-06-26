@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Card, Form, Input, Button, message, Typography } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
+import { ADMIN_ROLE_CODES } from '../constants'
 
 const { Title, Text } = Typography
 
@@ -35,7 +36,7 @@ const Login: React.FC = () => {
       const role = (userMetadata.role || appMetadata.role || '') as string
 
       // 检查角色权限
-      if (!['admin', 'super_admin'].includes(role)) {
+      if (!(ADMIN_ROLE_CODES as readonly string[]).includes(role)) {
         // 角色不匹配，登出并提示
         await supabase.auth.signOut()
         throw new Error('该用户无权登录管理后台')

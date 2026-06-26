@@ -26,6 +26,7 @@ import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { getActionColumn } from '../components/ActionColumn'
+import { NOTIFICATION_TYPE_MAP, NOTIFICATION_TYPE_TAG_MAP, NOTIFICATION_TYPE_OPTIONS } from '../constants'
 
 const { Text } = Typography
 
@@ -48,22 +49,6 @@ interface Notification {
 interface NotificationFilters {
   keyword: string
   type: string | undefined
-}
-
-// ==================== 类型映射 ====================
-
-const NOTIFICATION_TYPE_MAP: Record<string, { color: string; label: string }> = {
-  system: { color: 'blue', label: '系统' },
-  user: { color: 'green', label: '用户' },
-  novel: { color: 'purple', label: '小说' },
-  activity: { color: 'orange', label: '活动' },
-}
-
-const NOTIFICATION_TYPE_TAG_MAP: Record<string, string> = {
-  system: '系统通知',
-  user: '用户通知',
-  novel: '小说通知',
-  activity: '活动通知',
 }
 
 // ==================== 组件 ====================
@@ -303,12 +288,7 @@ const Notifications: React.FC = () => {
             onChange={(value) => setFilters(prev => ({ ...prev, type: value }))}
             style={{ width: 120 }}
             allowClear
-            options={[
-              { label: '系统', value: 'system' },
-              { label: '用户', value: 'user' },
-              { label: '小说', value: 'novel' },
-              { label: '活动', value: 'activity' },
-            ]}
+            options={NOTIFICATION_TYPE_OPTIONS}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
@@ -392,12 +372,7 @@ const Notifications: React.FC = () => {
           >
             <Select
               placeholder="请选择类型"
-              options={[
-                { label: '系统', value: 'system' },
-                { label: '用户', value: 'user' },
-                { label: '小说', value: 'novel' },
-                { label: '活动', value: 'activity' },
-              ]}
+              options={NOTIFICATION_TYPE_OPTIONS}
             />
           </Form.Item>
           <Form.Item

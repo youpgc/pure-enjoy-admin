@@ -1,5 +1,6 @@
 import { supabase, reportError } from './supabase'
 import { message } from 'antd'
+import { SUPABASE_ERROR_CODE_MAP } from '../constants'
 
 /// 统一 API 响应封装
 export interface ApiResponse<T> {
@@ -19,13 +20,7 @@ function errorResponse<T>(msg: string, statusCode?: number): ApiResponse<T> {
 
 /// 统一 Supabase 错误码映射
 export function mapSupabaseError(error: any): string {
-  const codeMap: Record<string, string> = {
-    PGRST116: '数据不存在或已被删除',
-    PGRST301: '没有权限执行此操作',
-    '23505': '数据已存在（唯一性冲突）',
-    '23503': '关联数据不存在（外键约束）',
-    '42501': '没有权限执行此操作',
-  }
+  const codeMap = SUPABASE_ERROR_CODE_MAP
   const code = error?.code as string | undefined
   if (code && codeMap[code]) return codeMap[code]
   if (error?.message?.includes('JWT')) return '认证已过期，请重新登录'

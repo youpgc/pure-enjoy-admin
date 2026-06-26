@@ -3,14 +3,34 @@
  * 对应数据库 users 表结构
  */
 
-// 用户角色类型
-export type UserRole = 'user' | 'admin' | 'super_admin'
+import {
+  UserRole,
+  MemberLevel,
+  UserStatus,
+  USER_ROLE_LABELS,
+  USER_ROLE_COLORS,
+  MEMBER_LEVEL_LABELS,
+  MEMBER_LEVEL_COLORS,
+  USER_STATUS_LABELS,
+  USER_STATUS_COLORS,
+  USER_ROLE_OPTIONS,
+  MEMBER_LEVEL_OPTIONS,
+  USER_STATUS_OPTIONS,
+} from '../constants'
 
-// 会员等级类型
-export type MemberLevel = 'normal' | 'member' | 'super_member'
-
-// 用户状态类型
-export type UserStatus = 'active' | 'abnormal' | 'disabled' | 'banned'
+// 统一从 constants 重新导出，保持向后兼容
+export type { UserRole, MemberLevel, UserStatus }
+export {
+  USER_ROLE_LABELS,
+  USER_ROLE_COLORS,
+  MEMBER_LEVEL_LABELS,
+  MEMBER_LEVEL_COLORS,
+  USER_STATUS_LABELS,
+  USER_STATUS_COLORS,
+  USER_ROLE_OPTIONS,
+  MEMBER_LEVEL_OPTIONS,
+  USER_STATUS_OPTIONS,
+}
 
 // 用户接口
 export interface User {
@@ -86,69 +106,3 @@ export interface OperationLog {
   user_agent: string | null
   created_at: string
 }
-
-// 角色显示名称
-export const USER_ROLE_LABELS: Record<UserRole, string> = {
-  user: '普通用户',
-  admin: '管理员',
-  super_admin: '超级管理员',
-}
-
-// 角色标签颜色
-export const USER_ROLE_COLORS: Record<UserRole, string> = {
-  user: 'default',
-  admin: 'blue',
-  super_admin: 'purple',
-}
-
-// 会员等级显示名称
-export const MEMBER_LEVEL_LABELS: Record<MemberLevel, string> = {
-  normal: '普通会员',
-  member: '会员',
-  super_member: '超级会员',
-}
-
-// 会员等级标签颜色
-export const MEMBER_LEVEL_COLORS: Record<MemberLevel, string> = {
-  normal: 'default',
-  member: 'gold',
-  super_member: 'cyan',
-}
-
-// 用户状态显示名称
-export const USER_STATUS_LABELS: Record<UserStatus, string> = {
-  active: '正常',
-  abnormal: '异常',
-  disabled: '禁用',
-  banned: '封禁',
-}
-
-// 用户状态标签颜色
-export const USER_STATUS_COLORS: Record<UserStatus, string> = {
-  active: 'green',
-  abnormal: 'orange',
-  disabled: 'default',
-  banned: 'red',
-}
-
-// 角色选项
-export const USER_ROLE_OPTIONS = [
-  { label: '普通用户', value: 'user' as UserRole },
-  { label: '管理员', value: 'admin' as UserRole },
-  { label: '超级管理员', value: 'super_admin' as UserRole },
-]
-
-// 会员等级选项
-export const MEMBER_LEVEL_OPTIONS = [
-  { label: '普通会员', value: 'normal' as MemberLevel },
-  { label: '会员', value: 'member' as MemberLevel },
-  { label: '超级会员', value: 'super_member' as MemberLevel },
-]
-
-// 用户状态选项
-export const USER_STATUS_OPTIONS = [
-  { label: '正常', value: 'active' as UserStatus },
-  { label: '异常', value: 'abnormal' as UserStatus },
-  { label: '禁用', value: 'disabled' as UserStatus },
-  { label: '封禁', value: 'banned' as UserStatus },
-]

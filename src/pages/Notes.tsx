@@ -3,17 +3,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
-
-// ==================== 分类映射 ====================
-
-const NOTE_CATEGORY_MAP: Record<string, string> = {
-  work: '工作',
-  life: '生活',
-  study: '学习',
-  idea: '灵感',
-  travel: '旅行',
-  other: '其他',
-}
+import { NOTE_CATEGORY_MAP } from '../constants'
 
 // ==================== 详情弹窗列定义 ====================
 
