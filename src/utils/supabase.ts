@@ -7,14 +7,7 @@ const isDev = typeof process !== 'undefined' && process!.env && process!.env.NOD
 const enableDebugLog = isDev
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://mhdrbjpqmzswswoazwjg.supabase.co'
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-if (!SUPABASE_ANON_KEY) {
-  throw new Error(
-    'VITE_SUPABASE_ANON_KEY is not defined. ' +
-    'Please create a .env file with VITE_SUPABASE_ANON_KEY=xxx or set the environment variable.',
-  )
-}
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oZHJianBxbXpzd3N3b2F6d2pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MjAyMTMsImV4cCI6MjA5NDE5NjIxM30.VCMNj6BaSwiMRhTCXF52Ftbs2-gRgDkVZd8fTTT0g_E'
 
 // 敏感字段列表（日志中需要脱敏的字段）
 const SENSITIVE_FIELDS = ['password', 'password_hash', 'token', 'apikey', 'authorization', 'secret', 'phone', 'email']
