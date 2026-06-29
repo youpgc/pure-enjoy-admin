@@ -14,7 +14,7 @@ const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3Mi
 // 校验环境变量是否有效（防止 CI Secret 为空时生成 'https://.supabase.co' 等无效值）
 const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
-const SUPABASE_URL = (envUrl && envUrl.includes('.supabase.co') && !envUrl.match(/^https:\/\/\.supabase\.co/)) ? envUrl : DEFAULT_SUPABASE_URL
+export const SUPABASE_URL = (envUrl && envUrl.includes('.supabase.co') && !envUrl.match(/^https:\/\/\.supabase\.co/)) ? envUrl : DEFAULT_SUPABASE_URL
 const SUPABASE_ANON_KEY = (envKey && envKey.length > 50) ? envKey : DEFAULT_SUPABASE_ANON_KEY
 
 // 敏感字段列表（日志中需要脱敏的字段）

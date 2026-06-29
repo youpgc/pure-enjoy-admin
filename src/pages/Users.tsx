@@ -44,7 +44,7 @@ import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 import { generateUserId } from '../utils/userId'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { getActionColumn } from '../components/ActionColumn'
-import { supabase } from '../utils/supabase'
+import { supabase , SUPABASE_URL } from '../utils/supabase'
 import { useAuth } from '../App'
 import { usePermission } from '../hooks/usePermission'
 import { formatDateTime } from '../utils/format'
@@ -222,6 +222,47 @@ const Users: React.FC = () => {
     }
   }, [adminUser])
 
+  
+  /**
+   * 同步创建 Supabase Auth 用户（仅管理员操作）
+   * 使用 service_role key 调用 Admin API，确保 App 端可登录
+   */
+  const createAuthUser = async (user: User, plainPassword: string) => {
+    try {
+      const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string
+      if (!serviceKey) {
+        console.warn('未配置 service_role key，跳过 auth.users 同步')
+        return
+      }
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: {
+          'apikey': serviceKey,
+          'Authorization': `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email,
+          password: plainPassword,
+          email_confirm: true,
+          phone: user.phone || undefined,
+          user_metadata: {
+            app_user_id: user.id,
+            username: user.username || undefined,
+            nickname: user.nickname || undefined,
+            role: user.role,
+          },
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.warn('auth.users 同步失败:', err.msg || res.status)
+      }
+    } catch (err) {
+      console.warn('auth.users 同步异常:', err)
+    }
+  }
+
   // 新增用户
   const handleCreate = useCallback(async (formData: UserFormData) => {
     // 对密码进行 SHA-256 哈希
@@ -270,6 +311,9 @@ const Users: React.FC = () => {
         message.error('创建用户失败: ' + error.message)
         return
       }
+
+      // 2. 同步创建 auth.users 记录（使 App 端可通过 Supabase Auth 登录）
+      await createAuthUser(newUser, formData.password || '123456')
       await fetchUsers()
       await logOperation('create_user', newUser.id, { email: newUser.email })
     } catch (err) {
