@@ -10,6 +10,7 @@ import {
   SmileOutlined,
   LineChartOutlined,
   BookOutlined,
+  CalendarOutlined,
   ReadOutlined,
   MobileOutlined,
   LogoutOutlined,
@@ -256,7 +257,7 @@ const MainLayout: React.FC = () => {
       },
     ] : []),
     // 生活服务
-    ...(hasMenuPermission('menu:life', ['expenses:read', 'mood:read', 'weight:read', 'notes:read', 'favorites:read', 'reminders:read', 'habits:read']) ? [
+    ...(hasMenuPermission('menu:life', ['expenses:read', 'mood:read', 'weight:read', 'notes:read', 'favorites:read', 'reminders:read', 'habits:read', 'anniversaries:read']) ? [
       {
         key: 'life',
         icon: <AppstoreOutlined />,
@@ -282,6 +283,9 @@ const MainLayout: React.FC = () => {
           ] : []),
           ...(hasMenuPermission('menu:life', ['habits:read', 'habits:write', 'habits:delete']) ? [
             { key: 'habits', icon: <CheckCircleOutlined />, label: '习惯打卡' },
+          ] : []),
+          ...(hasMenuPermission('menu:life', ['anniversaries:read', 'anniversaries:write', 'anniversaries:delete']) ? [
+            { key: 'anniversaries', icon: <CalendarOutlined />, label: '纪念日' },
           ] : []),
         ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
       },
