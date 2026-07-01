@@ -208,21 +208,48 @@ const RolePermissionPage: React.FC = () => {
     }
   }
 
-  // 构建权限树
+  // 从 action 名称中提取资源名称（如"查看小说" -> "小说"）
+  const extractResourceName = (displayName: string): string => {
+    const prefixes = ['查看', '编辑', '删除', '导出']
+    for (const prefix of prefixes) {
+      if (displayName.startsWith(prefix)) {
+        return displayName.slice(prefix.length)
+      }
+    }
+    return displayName
+  }
+
+  // 构建权限树：目录 -> 菜单 -> 权限（三层）
   const buildPermissionTree = useCallback(() => {
     const menuPerms = permissions.filter(p => p.type === 'menu')
     const actionPerms = permissions.filter(p => p.type === 'action')
 
-    return menuPerms.map(menu => ({
-      title: menu.display_name,
-      key: menu.id,
-      children: actionPerms
-        .filter(action => action.parent_id === menu.id)
-        .map(action => ({
-          title: action.display_name,
-          key: action.id,
+    return menuPerms.map(menu => {
+      const menuActions = actionPerms.filter(action => action.parent_id === menu.id)
+
+      // 按资源名称分组形成菜单层
+      const groups: Record<string, Permission[]> = {}
+      menuActions.forEach(action => {
+        const resourceName = extractResourceName(action.display_name)
+        if (!groups[resourceName]) {
+          groups[resourceName] = []
+        }
+        groups[resourceName].push(action)
+      })
+
+      return {
+        title: menu.display_name,
+        key: `menu_${menu.id}`,
+        children: Object.entries(groups).map(([resourceName, actions]) => ({
+          title: `${resourceName}管理`,
+          key: `group_${menu.id}_${resourceName}`,
+          children: actions.map(action => ({
+            title: action.display_name,
+            key: action.id,
+          })),
         })),
-    }))
+      }
+    })
   }, [permissions])
 
   // 表格列定义
@@ -375,7 +402,11 @@ const RolePermissionPage: React.FC = () => {
                 treeData={buildPermissionTree()}
                 checkedKeys={selectedPermissions}
                 onCheck={(checkedKeys) => {
-                  setSelectedPermissions(checkedKeys as number[])
+                  // 只保留 action 节点的 key（纯数字），过滤掉 group/menu 层的字符串 key
+                  const keys = (checkedKeys as React.Key[]).filter(
+                    k => typeof k === 'number' || /^\d+$/.test(String(k))
+                  )
+                  setSelectedPermissions(keys.map(k => Number(k)))
                 }}
               />
             </Card>
