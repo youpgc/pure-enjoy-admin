@@ -10,6 +10,7 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false)
 
   const handleLogin = async (values: { username: string; password: string }) => {
+    if (loading) return
     setLoading(true)
     try {
       // 使用 Supabase Auth 进行登录

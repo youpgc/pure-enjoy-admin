@@ -194,6 +194,7 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
   wrapperCol,
 }) => {
   const [form] = Form.useForm()
+  const [submitting, setSubmitting] = useState(false)
 
   // 当打开弹窗或初始值变化时，重置表单
   React.useEffect(() => {
@@ -237,7 +238,9 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
 
   // 提交
   const handleOk = async () => {
+    if (submitting) return
     try {
+      setSubmitting(true)
       const values = await form.validateFields()
       // 处理日期类型的值
       const processedValues: Record<string, unknown> = {}
@@ -257,6 +260,8 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
       form.resetFields()
     } catch (error) {
       console.error('Form validation failed:', error)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -378,7 +383,7 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
       title={title}
       onOk={handleOk}
       onCancel={handleCancel}
-      confirmLoading={confirmLoading}
+      confirmLoading={submitting || confirmLoading}
       destroyOnClose={destroyOnClose}
       width={width}
       okText={mode === 'create' ? '创建' : '保存'}

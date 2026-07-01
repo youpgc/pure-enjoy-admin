@@ -77,6 +77,7 @@ const SensitiveWords: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingWord, setEditingWord] = useState<SensitiveWord | null>(null)
   const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
   const { isAdmin: _isAdmin } = usePermission()
 
   const wordService = React.useMemo(() => new BaseService<SensitiveWord>('sensitive_words', { defaultOrder: { column: 'created_at', ascending: false } }), [])
@@ -207,7 +208,9 @@ const SensitiveWords: React.FC = () => {
 
   // 保存敏感词
   const handleSave = async () => {
+    if (saving) return
     try {
+      setSaving(true)
       const values = await form.validateFields()
       if (editingWord) {
         const result = await wordService.update(editingWord.id, values)
@@ -233,6 +236,8 @@ const SensitiveWords: React.FC = () => {
       loadWords()
     } catch (error) {
       handleApiError(error, 'SensitiveWords-保存')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -420,6 +425,7 @@ const SensitiveWords: React.FC = () => {
         title={editingWord ? '编辑敏感词' : '新增敏感词'}
         open={modalVisible}
         onOk={handleSave}
+        confirmLoading={saving}
         onCancel={() => {
           setModalVisible(false)
           setEditingWord(null)

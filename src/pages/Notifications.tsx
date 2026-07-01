@@ -64,6 +64,7 @@ const Notifications: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingNotification, setEditingNotification] = useState<Notification | null>(null)
   const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
 
   const notificationService = React.useMemo(() => new BaseService<Notification>('notifications', {
@@ -171,7 +172,9 @@ const Notifications: React.FC = () => {
 
   // 保存通知
   const handleSave = async () => {
+    if (saving) return
     try {
+      setSaving(true)
       const values = await form.validateFields()
       if (editingNotification) {
         const result = await notificationService.update(editingNotification.id, values)
@@ -198,6 +201,8 @@ const Notifications: React.FC = () => {
       loadNotifications()
     } catch (error) {
       handleApiError(error, 'Notifications-保存')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -343,6 +348,7 @@ const Notifications: React.FC = () => {
         title={editingNotification ? '编辑通知' : '新增通知'}
         open={modalVisible}
         onOk={handleSave}
+        confirmLoading={saving}
         onCancel={() => {
           setModalVisible(false)
           setEditingNotification(null)

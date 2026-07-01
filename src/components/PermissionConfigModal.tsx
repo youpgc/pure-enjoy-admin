@@ -97,6 +97,7 @@ const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
 
   // 保存权限配置
   const handleSave = async () => {
+    if (saving) return
     if (!role || readOnly) return
     setSaving(true)
     try {

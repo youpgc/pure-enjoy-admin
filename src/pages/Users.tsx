@@ -81,6 +81,7 @@ const Users: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   // 详情抽屉状态
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -265,6 +266,7 @@ const Users: React.FC = () => {
 
   // 新增用户
   const handleCreate = useCallback(async (formData: UserFormData) => {
+    if (submitting) return
     // 对密码进行 SHA-256 哈希
     const passwordHash = formData.password
       ? sha256(formData.password).toString()
@@ -306,6 +308,7 @@ const Users: React.FC = () => {
     }
 
     try {
+      setSubmitting(true)
       const { error } = await supabase.from('users').insert(newUser)
       if (error) {
         message.error('创建用户失败: ' + error.message)
@@ -318,11 +321,14 @@ const Users: React.FC = () => {
       await logOperation('create_user', newUser.id, { email: newUser.email })
     } catch (err) {
       message.error('创建用户失败，请检查网络连接后重试')
+    } finally {
+      setSubmitting(false)
     }
-  }, [supabase, fetchUsers, logOperation])
+  }, [supabase, fetchUsers, logOperation, submitting])
 
   // 编辑用户
   const handleEdit = useCallback(async (formData: UserFormData) => {
+    if (submitting) return
     if (!currentUser) return
 
     // 处理 birthday 字段：如果是 Dayjs 对象，转换为字符串
@@ -333,6 +339,7 @@ const Users: React.FC = () => {
       : null
 
     try {
+      setSubmitting(true)
       const updateData: Record<string, string | number | null> = {
         phone: formData.phone || null,
         nickname: formData.nickname || null,
@@ -371,8 +378,10 @@ const Users: React.FC = () => {
       await logOperation('update_user', currentUser.id, { changes: formData })
     } catch (err) {
       message.error('更新用户失败，请检查网络连接后重试')
+    } finally {
+      setSubmitting(false)
     }
-  }, [currentUser, supabase, fetchUsers, logOperation])
+  }, [currentUser, supabase, fetchUsers, logOperation, submitting])
 
   // 删除用户（软删除）
   const handleDelete = useCallback(async (ids: string[]) => {

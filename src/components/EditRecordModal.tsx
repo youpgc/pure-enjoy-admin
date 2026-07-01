@@ -82,6 +82,7 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
   }
 
   const handleSubmit = async () => {
+    if (saving) return
     try {
       const values = await form.validateFields()
       setSaving(true)

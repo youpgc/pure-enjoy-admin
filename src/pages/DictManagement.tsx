@@ -76,6 +76,7 @@ const DictManagement: React.FC = () => {
   const [typeModalVisible, setTypeModalVisible] = useState(false)
   const [editingType, setEditingType] = useState<DictType | null>(null)
   const [typeForm] = Form.useForm()
+  const [savingType, setSavingType] = useState(false)
 
   // 字典项状态
   const [dictItems, setDictItems] = useState<DictItem[]>([])
@@ -87,6 +88,7 @@ const DictManagement: React.FC = () => {
   const [itemModalVisible, setItemModalVisible] = useState(false)
   const [editingItem, setEditingItem] = useState<DictItem | null>(null)
   const [itemForm] = Form.useForm()
+  const [savingItem, setSavingItem] = useState(false)
 
   // 使用 useMemo 缓存 Service 实例，避免每次渲染重新创建导致 useEffect 无限循环
   const typeService = React.useMemo(
@@ -232,7 +234,9 @@ const DictManagement: React.FC = () => {
 
   // 保存类型
   const handleSaveType = async () => {
+    if (savingType) return
     try {
+      setSavingType(true)
       const values = await typeForm.validateFields()
       if (editingType) {
         const result = await typeService.update(editingType.id, {
@@ -262,6 +266,8 @@ const DictManagement: React.FC = () => {
       loadDictTypes()
     } catch (error) {
       handleApiError(error, 'DictManagement-保存字典类型')
+    } finally {
+      setSavingType(false)
     }
   }
 
@@ -315,7 +321,9 @@ const DictManagement: React.FC = () => {
 
   // 保存字典项
   const handleSaveItem = async () => {
+    if (savingItem) return
     try {
+      setSavingItem(true)
       const values = await itemForm.validateFields()
       if (editingItem) {
         const result = await itemService.update(editingItem.id, {
@@ -346,6 +354,8 @@ const DictManagement: React.FC = () => {
       loadDictItems()
     } catch (error) {
       handleApiError(error, 'DictManagement-保存字典项')
+    } finally {
+      setSavingItem(false)
     }
   }
 
@@ -603,6 +613,7 @@ const DictManagement: React.FC = () => {
         title={editingType ? '编辑字典类型' : '新增字典类型'}
         open={typeModalVisible}
         onOk={handleSaveType}
+        confirmLoading={savingType}
         onCancel={() => {
           setTypeModalVisible(false)
           setEditingType(null)
@@ -652,6 +663,7 @@ const DictManagement: React.FC = () => {
         title={editingItem ? '编辑字典项' : '新增字典项'}
         open={itemModalVisible}
         onOk={handleSaveItem}
+        confirmLoading={savingItem}
         onCancel={() => {
           setItemModalVisible(false)
           setEditingItem(null)

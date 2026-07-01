@@ -53,6 +53,7 @@ const AppConfigs: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingConfig, setEditingConfig] = useState<AppConfig | null>(null)
   const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
 
   const service = React.useMemo(() => new BaseService<AppConfig>('app_configs', { defaultOrder: { column: 'sort_order', ascending: true } }), [])
 
@@ -141,7 +142,9 @@ const AppConfigs: React.FC = () => {
 
   // 保存记录
   const handleSave = async () => {
+    if (saving) return
     try {
+      setSaving(true)
       const values = await form.validateFields()
       if (editingConfig) {
         const result = await service.update(editingConfig.id, {
@@ -171,6 +174,8 @@ const AppConfigs: React.FC = () => {
       loadData()
     } catch (error) {
       handleApiError(error, 'AppConfigs-保存')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -303,6 +308,7 @@ const AppConfigs: React.FC = () => {
         title={editingConfig ? '编辑配置' : '新增配置'}
         open={modalVisible}
         onOk={handleSave}
+        confirmLoading={saving}
         onCancel={() => {
           setModalVisible(false)
           setEditingConfig(null)

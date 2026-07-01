@@ -51,6 +51,7 @@ const NovelChapterModal: React.FC<{
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [editingChapter, setEditingChapter] = useState<NovelChapter | null>(null)
   const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
   const { pagination, tablePagination, setTotal, resetPage } = usePagination()
 
   // 章节号转中文数字（1→第一章，2→第二章，...，999→第九百九十九章）
@@ -173,7 +174,9 @@ const NovelChapterModal: React.FC<{
 
   // 保存章节
   const handleSave = async () => {
+    if (saving) return
     try {
+      setSaving(true)
       const values = await form.validateFields()
       if (editingChapter) {
         const result = await chapterService.update(editingChapter.id, {
@@ -206,6 +209,8 @@ const NovelChapterModal: React.FC<{
       loadChapters()
     } catch (error) {
       handleApiError(error, 'NovelChapterModal-保存章节')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -371,6 +376,7 @@ const NovelChapterModal: React.FC<{
         title={editingChapter ? '编辑章节' : '新增章节'}
         open={editModalOpen}
         onOk={handleSave}
+        confirmLoading={saving}
         onCancel={() => {
           setEditModalOpen(false)
           setEditingChapter(null)

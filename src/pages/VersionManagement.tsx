@@ -88,6 +88,7 @@ const VersionManagement: React.FC = () => {
   const [form] = Form.useForm()
   const [currentVersion, setCurrentVersion] = useState<AppVersion | null>(null)
   const [qrCodeVersion, setQrCodeVersion] = useState<AppVersion | null>(null)
+  const [saving, setSaving] = useState(false)
   const { isAdmin: _isAdmin } = usePermission()
 
   const versionService = React.useMemo(() => new BaseService<AppVersion>('app_versions', { defaultOrder: { column: 'created_at', ascending: false } }), [])
@@ -305,7 +306,9 @@ const VersionManagement: React.FC = () => {
 
   // 保存版本
   const handleSave = async () => {
+    if (saving) return
     try {
+      setSaving(true)
       const values = await form.validateFields()
 
       // 如果将版本设为 released，确保没有其他已发布的版本
@@ -356,6 +359,8 @@ const VersionManagement: React.FC = () => {
       loadVersions()
     } catch (error) {
       handleApiError(error, 'VersionManagement-保存')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -704,6 +709,7 @@ const VersionManagement: React.FC = () => {
         title={editingVersion ? '编辑版本' : '新增版本'}
         open={modalVisible}
         onOk={handleSave}
+        confirmLoading={saving}
         onCancel={() => {
           setModalVisible(false)
           setEditingVersion(null)

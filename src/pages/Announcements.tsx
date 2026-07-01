@@ -54,6 +54,7 @@ const Announcements: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null)
   const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
 
   const service = React.useMemo(() => new BaseService<Announcement>('announcements', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
@@ -145,7 +146,9 @@ const Announcements: React.FC = () => {
 
   // 保存记录
   const handleSave = async () => {
+    if (saving) return
     try {
+      setSaving(true)
       const values = await form.validateFields()
       // 格式化 expire_at
       values.expire_at = values.expire_at?.format('YYYY-MM-DD HH:mm:ss') || null
@@ -177,6 +180,8 @@ const Announcements: React.FC = () => {
       loadData()
     } catch (error) {
       handleApiError(error, 'Announcements-保存')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -308,6 +313,7 @@ const Announcements: React.FC = () => {
         title={editingAnnouncement ? '编辑公告' : '新增公告'}
         open={modalVisible}
         onOk={handleSave}
+        confirmLoading={saving}
         onCancel={() => {
           setModalVisible(false)
           setEditingAnnouncement(null)

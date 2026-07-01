@@ -38,6 +38,7 @@ const RolePermissionPage: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editingRole, setEditingRole] = useState<Role | null>(null)
   const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
   const [selectedPermissions, setSelectedPermissions] = useState<number[]>([])
 
   // 加载角色列表
@@ -114,7 +115,9 @@ const RolePermissionPage: React.FC = () => {
 
   // 保存角色
   const handleSave = async () => {
+    if (saving) return
     try {
+      setSaving(true)
       const values = await form.validateFields()
       const roleData = {
         name: values.name,
@@ -179,6 +182,8 @@ const RolePermissionPage: React.FC = () => {
       loadRoles()
     } catch (error) {
       handleApiError(error, 'RolePermission-保存角色')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -322,6 +327,7 @@ const RolePermissionPage: React.FC = () => {
         title={editingRole ? '编辑角色' : '新增角色'}
         open={modalVisible}
         onOk={handleSave}
+        confirmLoading={saving}
         onCancel={() => setModalVisible(false)}
         width={700}
         destroyOnClose

@@ -131,6 +131,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
   }
 
   const handleSubmit = async () => {
+    if (submitting) return
     try {
       const values = await form.validateFields()
       // 处理日期字段 - DatePicker 返回 dayjs 对象
