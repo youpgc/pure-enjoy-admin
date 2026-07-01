@@ -53,6 +53,7 @@ const NovelChapterModal: React.FC<{
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const { pagination, tablePagination, setTotal, resetPage } = usePagination()
+  const hasResetRef = React.useRef(false)
 
   // 章节号转中文数字（1→第一章，2→第二章，...，999→第九百九十九章）
   const toChineseNumber = (num: number): string => {
@@ -116,8 +117,14 @@ const NovelChapterModal: React.FC<{
 
   useEffect(() => {
     if (open && novelId) {
-      resetPage() // 每次打开弹窗重置到第1页
+      // 仅在弹窗从关闭到打开时重置页码，翻页时不重置
+      if (!hasResetRef.current) {
+        resetPage()
+        hasResetRef.current = true
+      }
       loadChapters()
+    } else if (!open) {
+      hasResetRef.current = false
     }
   }, [open, novelId, loadChapters, resetPage])
 
