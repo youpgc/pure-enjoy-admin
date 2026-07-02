@@ -1,281 +1,327 @@
-import React, { useEffect, useState, useMemo } from 'react'
-import { Card, Table, Input, Select, DatePicker, Button, Tag, Space, Spin, Empty, Tooltip } from 'antd'
-import { SearchOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons'
-import type { Dayjs } from 'dayjs'
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  Table,
+  Button,
+  Input,
+  Space,
+  Tag,
+  Card,
+  message,
+  Select,
+  DatePicker,
+  Tooltip,
+  Typography,
+} from 'antd'
+import {
+  SearchOutlined,
+  ReloadOutlined,
+  DeleteOutlined,
+  UserOutlined,
+  SettingOutlined,
+  BookOutlined,
+  FileTextOutlined,
+} from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { usePermission } from '../hooks/usePermission'
-import { mockOperationLogs } from '../utils/mockData'
-import type { OperationLogItem } from '../utils/mockData'
-import { exportToCSV } from '../utils/export'
+import { BaseService, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
+import { getActionColumn } from '../components/ActionColumn'
+import { ACTION_MAP, OP_MODULE_MAP, ACTION_OPTIONS, MODULE_OPTIONS } from '../constants'
 
+const { Text } = Typography
 const { RangePicker } = DatePicker
 
-const MODULE_OPTIONS = [
-  { label: '用户管理', value: '用户管理' },
-  { label: '消费记录', value: '消费记录' },
-  { label: '心情日记', value: '心情日记' },
-  { label: '体重记录', value: '体重记录' },
-  { label: '笔记', value: '笔记' },
-  { label: '小说', value: '小说' },
-  { label: '版本管理', value: '版本管理' },
-  { label: '系统', value: '系统' },
-]
+// ==================== 类型定义 ====================
 
-const ACTION_OPTIONS = [
-  { label: '创建', value: '创建' },
-  { label: '更新', value: '更新' },
-  { label: '删除', value: '删除' },
-  { label: '查看', value: '查看' },
-  { label: '导出', value: '导出' },
-  { label: '登录', value: '登录' },
-  { label: '登出', value: '登出' },
-  { label: '修改密码', value: '修改密码' },
-  { label: '修改状态', value: '修改状态' },
-  { label: '上传', value: '上传' },
-]
-
-const MODULE_COLOR_MAP: Record<string, string> = {
-  '用户管理': 'blue',
-  '消费记录': 'orange',
-  '心情日记': 'green',
-  '体重记录': 'cyan',
-  '笔记': 'purple',
-  '小说': 'geekblue',
-  '版本管理': 'magenta',
-  '系统': 'default',
+interface OperationLog {
+  id: string
+  user_id: string
+  action: string
+  module: string
+  target_id?: string
+  details?: Record<string, unknown>
+  ip?: string
+  user_agent?: string
+  created_at: string
 }
 
-const ACTION_COLOR_MAP: Record<string, string> = {
-  '创建': 'green',
-  '更新': 'blue',
-  '删除': 'red',
-  '查看': 'default',
-  '导出': 'purple',
-  '登录': 'cyan',
-  '登出': 'default',
-  '修改密码': 'orange',
-  '修改状态': 'blue',
-  '上传': 'geekblue',
+interface LogFilters {
+  keyword: string
+  action: string | undefined
+  module: string | undefined
+  dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null
 }
+
+// ==================== 模块映射（合并本地图标） ====================
+
+const MODULE_MAP: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
+  user: { color: OP_MODULE_MAP.user!.color, label: OP_MODULE_MAP.user!.label, icon: <UserOutlined /> },
+  users: { color: OP_MODULE_MAP.users!.color, label: OP_MODULE_MAP.users!.label, icon: <UserOutlined /> },
+  system: { color: OP_MODULE_MAP.system!.color, label: OP_MODULE_MAP.system!.label, icon: <SettingOutlined /> },
+  novel: { color: OP_MODULE_MAP.novel!.color, label: OP_MODULE_MAP.novel!.label, icon: <BookOutlined /> },
+  content: { color: OP_MODULE_MAP.content!.color, label: OP_MODULE_MAP.content!.label, icon: <FileTextOutlined /> },
+}
+
+// ==================== 组件 ====================
 
 const OperationLogs: React.FC = () => {
-  const { isAdmin } = usePermission()
-  const [loading, setLoading] = useState(true)
-  const [logs, setLogs] = useState<OperationLogItem[]>([])
-  const [searchUser, setSearchUser] = useState('')
-  const [filterModule, setFilterModule] = useState<string | undefined>(undefined)
-  const [filterAction, setFilterAction] = useState<string | undefined>(undefined)
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [logs, setLogs] = useState<OperationLog[]>([])
+  const [loading, setLoading] = useState(false)
+  const [filters, setFilters] = useState<LogFilters>({
+    keyword: '',
+    action: undefined,
+    module: undefined,
+    dateRange: null,
+  })
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
+  const { pagination, resetPage, setTotal, tablePagination } = usePagination()
+
+  const logService = React.useMemo(() => new BaseService<OperationLog>('operation_logs', {
+    defaultOrder: { column: 'created_at', ascending: false },
+  }), [])
+
+  // 加载日志列表
+  const loadLogs = useCallback(async () => {
+    setLoading(true)
+    try {
+      const result = await logService.paginate(pagination.current, pagination.pageSize, (q) => {
+        let query = q
+        if (filters.keyword) {
+          query = query.or(`action.ilike.%${filters.keyword}%,module.ilike.%${filters.keyword}%,user_id.ilike.%${filters.keyword}%`)
+        }
+        if (filters.action) {
+          query = query.eq('action', filters.action)
+        }
+        if (filters.module) {
+          query = query.eq('module', filters.module)
+        }
+        if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
+          query = query
+            .gte('created_at', filters.dateRange[0].format('YYYY-MM-DD'))
+            .lte('created_at', filters.dateRange[1].format('YYYY-MM-DD') + 'T23:59:59')
+        }
+        return query
+      })
+
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'OperationLogs-加载日志')
+        return
+      }
+
+      setLogs(result.data?.data || [])
+      setTotal(result.data?.total || 0)
+    } catch (error) {
+      handleApiError(error, 'OperationLogs-加载日志')
+    } finally {
+      setLoading(false)
+    }
+  }, [pagination.current, pagination.pageSize, filters])
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setLogs(mockOperationLogs)
-      setLoading(false)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [])
+    loadLogs()
+  }, [loadLogs])
 
-  // 筛选后的数据
-  const filteredLogs = useMemo(() => {
-    return logs.filter(log => {
-      // 用户搜索
-      if (searchUser && !log.user_name.includes(searchUser)) return false
-      // 模块筛选
-      if (filterModule && log.module !== filterModule) return false
-      // 操作类型筛选
-      if (filterAction && log.action !== filterAction) return false
-      // 时间范围筛选
-      if (dateRange && dateRange[0] && dateRange[1]) {
-        const logTime = dayjs(log.time)
-        if (logTime.isBefore(dateRange[0], 'day') || logTime.isAfter(dateRange[1], 'day')) return false
-      }
-      return true
-    })
-  }, [logs, searchUser, filterModule, filterAction, dateRange])
-
-  // 分页后的数据
-  const paginatedLogs = useMemo(() => {
-    const start = (currentPage - 1) * pageSize
-    return filteredLogs.slice(start, start + pageSize)
-  }, [filteredLogs, currentPage, pageSize])
+  // 搜索
+  const handleSearch = () => {
+    resetPage()
+    loadLogs()
+  }
 
   // 重置筛选
   const handleReset = () => {
-    setSearchUser('')
-    setFilterModule(undefined)
-    setFilterAction(undefined)
-    setDateRange(null)
-    setCurrentPage(1)
+    setFilters({
+      keyword: '',
+      action: undefined,
+      module: undefined,
+      dateRange: null,
+    })
+    resetPage()
   }
 
-  // 导出 CSV
-  const handleExport = () => {
-    exportToCSV(
-      filteredLogs,
-      [
-        { title: '时间', dataIndex: 'time' },
-        { title: '用户', dataIndex: 'user_name' },
-        { title: '操作', dataIndex: 'action' },
-        { title: '模块', dataIndex: 'module' },
-        { title: '目标', dataIndex: 'target' },
-        { title: 'IP', dataIndex: 'ip' },
-        { title: '详情', dataIndex: 'detail' },
-      ],
-      `操作日志_${dayjs().format('YYYYMMDD_HHmmss')}`
-    )
+  // 删除单条
+  const handleDelete = async (id: string) => {
+    try {
+      const result = await logService.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'OperationLogs-删除')
+        return
+      }
+      message.success('删除成功')
+      loadLogs()
+    } catch (error) {
+      handleApiError(error, 'OperationLogs-删除')
+    }
+  }
+
+  // 批量删除
+  const handleBatchDelete = async () => {
+    if (selectedRowKeys.length === 0) {
+      message.warning('请先选择要删除的日志')
+      return
+    }
+    try {
+      const result = await logService.batchDelete(selectedRowKeys as string[])
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'OperationLogs-批量删除')
+        return
+      }
+      message.success(`成功删除 ${selectedRowKeys.length} 条日志`)
+      setSelectedRowKeys([])
+      loadLogs()
+    } catch (error) {
+      handleApiError(error, 'OperationLogs-批量删除')
+    }
   }
 
   // 表格列定义
-  const columns = [
+  const columns: ColumnsType<OperationLog> = [
     {
-      title: '时间',
-      dataIndex: 'time',
-      key: 'time',
-      width: 170,
-      sorter: (a: OperationLogItem, b: OperationLogItem) => dayjs(a.time).unix() - dayjs(b.time).unix(),
-      defaultSortOrder: 'descend' as const,
-    },
-    {
-      title: '用户',
-      dataIndex: 'user_name',
-      key: 'user_name',
-      width: 100,
+      title: '用户ID',
+      dataIndex: 'user_id',
+      key: 'user_id',
+      width: 200,
+      ellipsis: true,
+      render: (v: string) => v || '-',
     },
     {
       title: '操作',
       dataIndex: 'action',
       key: 'action',
-      width: 100,
-      render: (action: string) => (
-        <Tag color={ACTION_COLOR_MAP[action] || 'default'}>{action}</Tag>
-      ),
+      width: 120,
+      render: (action: string) => {
+        const info = ACTION_MAP[action] || { color: 'default', label: action }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
     },
     {
       title: '模块',
       dataIndex: 'module',
       key: 'module',
-      width: 100,
-      render: (module: string) => (
-        <Tag color={MODULE_COLOR_MAP[module] || 'default'}>{module}</Tag>
-      ),
+      width: 120,
+      render: (module: string) => {
+        const info = MODULE_MAP[module] || { color: 'default', label: module, icon: null }
+        return <Tag color={info.color} icon={info.icon}>{info.label}</Tag>
+      },
     },
     {
-      title: '目标',
-      dataIndex: 'target',
-      key: 'target',
-      width: 180,
+      title: '目标ID',
+      dataIndex: 'target_id',
+      key: 'target_id',
+      width: 120,
+      render: (v: string) => v || '-',
+    },
+    {
+      title: '详情',
+      dataIndex: 'details',
+      key: 'details',
       ellipsis: true,
+      render: (v: Record<string, unknown>) => {
+        if (!v) return '-'
+        try {
+          return <Tooltip title={JSON.stringify(v)}><Text ellipsis>{JSON.stringify(v)}</Text></Tooltip>
+        } catch {
+          return String(v)
+        }
+      },
     },
     {
       title: 'IP',
       dataIndex: 'ip',
       key: 'ip',
-      width: 140,
+      width: 130,
+      render: (v: string) => v || '-',
     },
     {
-      title: '详情',
-      dataIndex: 'detail',
-      key: 'detail',
-      ellipsis: true,
-      render: (detail: string) => (
-        <Tooltip title={detail}>
-          <span>{detail}</span>
-        </Tooltip>
-      ),
+      title: '时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 170,
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
+    getActionColumn<OperationLog>(
+      (record) => [
+        {
+          key: 'delete',
+          label: '删除',
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => handleDelete(record.id),
+        },
+      ],
+      { width: 100, maxVisible: 1 }
+    ),
   ]
 
-  if (!isAdmin) {
-    return (
-      <div style={{ textAlign: 'center', padding: 100 }}>
-        <Empty description="无权限访问此页面" />
-      </div>
-    )
-  }
-
-  if (loading) {
-    return (
-      <div style={{ textAlign: 'center', padding: 100 }}>
-        <Spin size="large" tip="加载操作日志..." />
-      </div>
-    )
-  }
-
   return (
-    <div>
-      {/* 搜索和筛选 */}
-      <Card style={{ borderRadius: 8, marginBottom: 16 }}>
-        <Space wrap style={{ width: '100%' }} size="middle">
+    <div style={{ padding: 24 }}>
+      {/* 筛选栏 */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
           <Input
-            placeholder="搜索用户名"
+            placeholder="搜索操作/详情"
+            value={filters.keyword}
+            onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
+            onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            value={searchUser}
-            onChange={e => { setSearchUser(e.target.value); setCurrentPage(1) }}
-            style={{ width: 180 }}
+            style={{ width: 220 }}
             allowClear
           />
           <Select
             placeholder="操作类型"
-            value={filterAction}
-            onChange={val => { setFilterAction(val); setCurrentPage(1) }}
-            options={ACTION_OPTIONS}
-            style={{ width: 140 }}
+            value={filters.action}
+            onChange={(value) => setFilters(prev => ({ ...prev, action: value }))}
+            style={{ width: 120 }}
             allowClear
+            options={ACTION_OPTIONS}
           />
           <Select
             placeholder="模块"
-            value={filterModule}
-            onChange={val => { setFilterModule(val); setCurrentPage(1) }}
-            options={MODULE_OPTIONS}
-            style={{ width: 140 }}
+            value={filters.module}
+            onChange={(value) => setFilters(prev => ({ ...prev, module: value }))}
+            style={{ width: 120 }}
             allowClear
+            options={MODULE_OPTIONS}
           />
           <RangePicker
-            value={dateRange as [Dayjs, Dayjs] | null}
-            onChange={(dates) => { setDateRange(dates as [Dayjs | null, Dayjs | null] | null); setCurrentPage(1) }}
-            placeholder={['开始日期', '结束日期']}
+            value={filters.dateRange}
+            onChange={(dates) => setFilters(prev => ({ ...prev, dateRange: dates as any }))}
           />
+          <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
+            搜索
+          </Button>
           <Button icon={<ReloadOutlined />} onClick={handleReset}>
             重置
           </Button>
-          <Button
-            type="primary"
-            icon={<ExportOutlined />}
-            onClick={handleExport}
-            disabled={filteredLogs.length === 0}
-          >
-            导出
-          </Button>
         </Space>
-        <div style={{ marginTop: 8, color: '#8c8c8c', fontSize: 13 }}>
-          共 {filteredLogs.length} 条记录
-        </div>
       </Card>
 
-      {/* 日志列表 */}
-      <Card style={{ borderRadius: 8 }}>
-        <Table
-          dataSource={paginatedLogs}
-          columns={columns}
-          rowKey="id"
-          pagination={{
-            current: currentPage,
-            pageSize,
-            total: filteredLogs.length,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} / 共 ${total} 条`,
-            onChange: (page, size) => {
-              setCurrentPage(page)
-              setPageSize(size)
-            },
-          }}
-          scroll={{ x: 1000 }}
-          size="middle"
-        />
-      </Card>
+      {/* 操作栏 */}
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <Space>
+          {selectedRowKeys.length > 0 && (
+            <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete}>
+              批量删除 ({selectedRowKeys.length})
+            </Button>
+          )}
+        </Space>
+        <Button icon={<ReloadOutlined />} onClick={loadLogs} loading={loading}>
+          刷新
+        </Button>
+      </div>
+
+      {/* 日志表格 */}
+      <Table
+        columns={columns}
+        dataSource={logs}
+        rowKey="id"
+        loading={loading}
+        pagination={tablePagination}
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+        }}
+        scroll={{ x: 'max-content' }}
+      />
     </div>
   )
 }

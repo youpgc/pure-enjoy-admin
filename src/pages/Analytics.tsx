@@ -1,419 +1,397 @@
-import React, { useEffect, useState } from 'react'
-import { Row, Col, Card, Statistic, Spin, DatePicker, Table, Tag, Empty, Tabs } from 'antd'
+import React, { useState, useEffect } from 'react'
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  DatePicker,
+  Button,
+  Spin,
+  Empty,
+  Table,
+  Tag,
+} from 'antd'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts'
 import {
   UserOutlined,
-  UserAddOutlined,
-  WalletOutlined,
-  FireOutlined,
   BookOutlined,
-  SmileOutlined,
   ReadOutlined,
-  DollarOutlined,
+  MessageOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons'
-import {
-  LineChart, Line, AreaChart, Area, BarChart, Bar,
-  PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer,
-} from 'recharts'
 import dayjs from 'dayjs'
-import type { Dayjs } from 'dayjs'
-import { usePermission } from '../hooks/usePermission'
-import {
-  mockAnalyticsMetrics,
-  mockUserTrend,
-  mockUserActivity,
-  mockRetentionRates,
-  mockUserByRole,
-  mockUserByMemberLevel,
-  mockUserByStatus,
-  mockExpenseTrend,
-  mockExpenseByCategory,
-  mockMoodTrend,
-  mockWeightAnalytics,
-  mockNoteActivity,
-} from '../utils/mockData'
-import type {
-  AnalyticsKeyMetrics,
-  UserTrendItem,
-  UserActivityItem,
-  RetentionRate,
-  ExpenseTrendItem,
-  MoodTrendItem,
-  WeightAnalyticsItem,
-  NoteActivityItem,
-} from '../utils/mockData'
+import { supabase } from '../utils/supabase'
+import { apiQuery, handleApiError } from '../utils/apiClient'
 
 const { RangePicker } = DatePicker
 
+const COLORS = ['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2']
+
+interface DailyStat {
+  date: string
+  newUsers: number
+  activeUsers: number
+  newNovels: number
+  newChapters: number
+  newFeedback: number
+}
+
+interface NovelStat {
+  category: string
+  count: number
+}
+
+interface TopNovel {
+  title: string
+  author: string
+  read_count: number
+  chapter_count: number
+}
+
 const Analytics: React.FC = () => {
-  const { isAdmin } = usePermission()
-  const [loading, setLoading] = useState(true)
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([
+  const [loading, setLoading] = useState(false)
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().subtract(30, 'day'),
     dayjs(),
   ])
+  const [dailyStats, setDailyStats] = useState<DailyStat[]>([])
+  const [novelStats, setNovelStats] = useState<NovelStat[]>([])
+  const [topNovels, setTopNovels] = useState<TopNovel[]>([])
+  const [summary, setSummary] = useState({
+    totalUsers: 0,
+    totalNovels: 0,
+    totalChapters: 0,
+    totalFeedback: 0,
+  })
 
-  const [metrics, setMetrics] = useState<AnalyticsKeyMetrics | null>(null)
-  const [userTrend, setUserTrend] = useState<UserTrendItem[]>([])
-  const [userActivity, setUserActivity] = useState<UserActivityItem[]>([])
-  const [retentionRates, setRetentionRates] = useState<RetentionRate[]>([])
-  const [expenseTrend, setExpenseTrend] = useState<ExpenseTrendItem[]>([])
-  const [moodTrend, setMoodTrend] = useState<MoodTrendItem[]>([])
-  const [weightAnalytics, setWeightAnalytics] = useState<WeightAnalyticsItem[]>([])
-  const [noteActivity, setNoteActivity] = useState<NoteActivityItem[]>([])
+  const fetchAnalytics = async () => {
+    setLoading(true)
+    try {
+      const startDate = dateRange[0].format('YYYY-MM-DD')
+      const endDate = dateRange[1].format('YYYY-MM-DD')
+
+      // 并行查询
+      const [usersRes, novelsRes, chaptersRes, feedbackRes, topNovelsRes] = await Promise.all([
+        apiQuery(() =>
+          supabase
+            .from('users')
+            .select('created_at')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate + 'T23:59:59')
+            .limit(5000) as any,
+          'Analytics-用户数据'
+        ),
+        apiQuery(() =>
+          supabase
+            .from('novels')
+            .select('created_at, category')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate + 'T23:59:59')
+            .limit(5000) as any,
+          'Analytics-小说数据'
+        ),
+        apiQuery(() =>
+          supabase
+            .from('novel_chapters')
+            .select('created_at')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate + 'T23:59:59')
+            .limit(5000) as any,
+          'Analytics-章节数据'
+        ),
+        apiQuery(() =>
+          supabase
+            .from('user_feedback')
+            .select('created_at')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate + 'T23:59:59')
+            .limit(5000) as any,
+          'Analytics-反馈数据'
+        ),
+        apiQuery(() =>
+          supabase
+            .from('novels')
+            .select('title, author, read_count, chapter_count')
+            .order('read_count', { ascending: false })
+            .limit(10) as any,
+          'Analytics-热门小说'
+        ),
+      ])
+
+      // 处理每日统计
+      const dateMap = new Map<string, DailyStat>()
+      const days = dateRange[1].diff(dateRange[0], 'day') + 1
+      for (let i = 0; i < days; i++) {
+        const date = dateRange[0].add(i, 'day').format('MM-DD')
+        dateMap.set(date, {
+          date,
+          newUsers: 0,
+          activeUsers: 0,
+          newNovels: 0,
+          newChapters: 0,
+          newFeedback: 0,
+        })
+      }
+
+      ;(usersRes.data as any)?.forEach((item: any) => {
+        const date = dayjs(item.created_at).format('MM-DD')
+        if (dateMap.has(date)) {
+          const stat = dateMap.get(date)!
+          stat.newUsers++
+        }
+      })
+
+      ;(novelsRes.data as any)?.forEach((item: any) => {
+        const date = dayjs(item.created_at).format('MM-DD')
+        if (dateMap.has(date)) {
+          const stat = dateMap.get(date)!
+          stat.newNovels++
+        }
+      })
+
+      ;(chaptersRes.data as any)?.forEach((item: any) => {
+        const date = dayjs(item.created_at).format('MM-DD')
+        if (dateMap.has(date)) {
+          const stat = dateMap.get(date)!
+          stat.newChapters++
+        }
+      })
+
+      ;(feedbackRes.data as any)?.forEach((item: any) => {
+        const date = dayjs(item.created_at).format('MM-DD')
+        if (dateMap.has(date)) {
+          const stat = dateMap.get(date)!
+          stat.newFeedback++
+        }
+      })
+
+      setDailyStats(Array.from(dateMap.values()))
+
+      // 处理小说分类统计
+      const categoryMap = new Map<string, number>()
+      ;(novelsRes.data as any)?.forEach((item: any) => {
+        const category = item.category || '未分类'
+        categoryMap.set(category, (categoryMap.get(category) || 0) + 1)
+      })
+      setNovelStats(
+        Array.from(categoryMap.entries()).map(([category, count]) => ({
+          category,
+          count,
+        }))
+      )
+
+      // 处理热门小说
+      setTopNovels((topNovelsRes.data as any) || [])
+
+      // 汇总数据
+      setSummary({
+        totalUsers: (usersRes.data as any)?.length || 0,
+        totalNovels: (novelsRes.data as any)?.length || 0,
+        totalChapters: (chaptersRes.data as any)?.length || 0,
+        totalFeedback: (feedbackRes.data as any)?.length || 0,
+      })
+    } catch (error) {
+      handleApiError(error, 'Analytics-加载数据')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setMetrics(mockAnalyticsMetrics)
-      setUserTrend(mockUserTrend)
-      setUserActivity(mockUserActivity)
-      setRetentionRates(mockRetentionRates)
-      setExpenseTrend(mockExpenseTrend)
-      setMoodTrend(mockMoodTrend)
-      setWeightAnalytics(mockWeightAnalytics)
-      setNoteActivity(mockNoteActivity)
-      setLoading(false)
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [])
+    fetchAnalytics()
+  }, [dateRange])
 
-  if (!isAdmin) {
-    return (
-      <div style={{ textAlign: 'center', padding: 100 }}>
-        <Empty description="无权限访问此页面" />
-      </div>
-    )
-  }
-
-  if (loading || !metrics) {
-    return (
-      <div style={{ textAlign: 'center', padding: 100 }}>
-        <Spin size="large" tip="加载分析数据..." />
-      </div>
-    )
-  }
-
-  // ==================== 关键指标卡片 ====================
-  const metricCards = [
-    { title: '总用户数', value: metrics.totalUsers, icon: <UserOutlined />, color: '#1890ff' },
-    { title: '今日新增', value: metrics.todayNewUsers, icon: <UserAddOutlined />, color: '#36cfc9' },
-    { title: '活跃用户', value: metrics.activeUsers, icon: <FireOutlined />, color: '#597ef7' },
-    { title: '总消费额', value: metrics.totalExpense, icon: <WalletOutlined />, color: '#f759ab', precision: 1, prefix: '\u00A5' },
-    { title: '平均消费', value: metrics.avgExpense, icon: <DollarOutlined />, color: '#fa8c16', precision: 1, prefix: '\u00A5' },
-    { title: '总笔记数', value: metrics.totalNotes, icon: <BookOutlined />, color: '#9254de' },
-    { title: '总日记数', value: metrics.totalDiaries, icon: <SmileOutlined />, color: '#52c41a' },
-    { title: '小说阅读量', value: metrics.novelReadCount, icon: <ReadOutlined />, color: '#ff7a45' },
-  ]
-
-  // ==================== 留存率表格列 ====================
-  const retentionColumns = [
-    { title: '留存周期', dataIndex: 'period', key: 'period' },
+  const topNovelColumns = [
     {
-      title: '留存率',
-      dataIndex: 'rate',
-      key: 'rate',
-      render: (rate: number) => (
-        <span style={{ color: rate >= 50 ? '#52c41a' : rate >= 30 ? '#faad14' : '#ff4d4f', fontWeight: 600 }}>
-          {rate}%
-        </span>
-      ),
+      title: '排名',
+      key: 'rank',
+      width: 60,
+      render: (_: any, __: any, index: number) => index + 1,
     },
     {
-      title: '用户数',
-      dataIndex: 'userCount',
-      key: 'userCount',
-      render: (count: number) => count.toLocaleString(),
+      title: '书名',
+      dataIndex: 'title',
+      key: 'title',
     },
     {
-      title: '留存比例',
-      key: 'bar',
-      render: (_: unknown, record: RetentionRate) => (
-        <div style={{ width: '100%', maxWidth: 200 }}>
-          <div
-            style={{
-              height: 8,
-              borderRadius: 4,
-              background: '#f0f0f0',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                height: '100%',
-                width: `${record.rate}%`,
-                borderRadius: 4,
-                background: record.rate >= 50 ? '#52c41a' : record.rate >= 30 ? '#faad14' : '#ff4d4f',
-                transition: 'width 0.3s',
-              }}
-            />
-          </div>
-        </div>
-      ),
+      title: '作者',
+      dataIndex: 'author',
+      key: 'author',
+    },
+    {
+      title: '阅读量',
+      dataIndex: 'read_count',
+      key: 'read_count',
+      render: (count: number) => <Tag color="blue">{count}</Tag>,
+    },
+    {
+      title: '章节数',
+      dataIndex: 'chapter_count',
+      key: 'chapter_count',
     },
   ]
-
-  // ==================== Tooltip 样式 ====================
-  const tooltipStyle = {
-    borderRadius: 8,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-  }
-
-  // ==================== 渲染饼图 ====================
-  const renderPieChart = (data: { name: string; value: number; color: string }[], title: string) => (
-    <Card title={title} style={{ borderRadius: 8, height: '100%' }}>
-      <ResponsiveContainer width="100%" height={280}>
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            innerRadius={50}
-            outerRadius={90}
-            paddingAngle={3}
-            dataKey="value"
-            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-            labelLine={{ stroke: '#999' }}
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={entry.color} />
-            ))}
-          </Pie>
-          <Tooltip contentStyle={tooltipStyle} />
-        </PieChart>
-      </ResponsiveContainer>
-    </Card>
-  )
 
   return (
-    <div>
-      {/* 日期范围筛选 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>数据分析总览</h3>
-        <RangePicker
-          value={dateRange as [Dayjs, Dayjs]}
-          onChange={(dates) => setDateRange(dates as [Dayjs | null, Dayjs | null])}
-          allowClear={false}
-          presets={[
-            { label: '最近7天', value: [dayjs().subtract(7, 'day'), dayjs()] },
-            { label: '最近30天', value: [dayjs().subtract(30, 'day'), dayjs()] },
-            { label: '最近90天', value: [dayjs().subtract(90, 'day'), dayjs()] },
-          ]}
-        />
-      </div>
-
-      {/* 关键指标卡片 */}
-      <Row gutter={[16, 16]}>
-        {metricCards.map((card, index) => (
-          <Col xs={12} sm={8} md={6} lg={3} key={index}>
-            <Card hoverable style={{ borderRadius: 8 }} bodyStyle={{ padding: '16px 20px' }}>
-              <Statistic
-                title={<span style={{ fontSize: 13, color: '#8c8c8c' }}>{card.title}</span>}
-                value={card.value}
-                precision={card.precision}
-                prefix={
-                  <span style={{ color: card.color, marginRight: 6, fontSize: 16 }}>{card.icon}</span>
+    <div style={{ padding: 24 }}>
+      <Card style={{ marginBottom: 16 }}>
+        <Row gutter={16} align="middle">
+          <Col>
+            <RangePicker
+              value={dateRange}
+              onChange={(dates) => {
+                if (dates && dates[0] && dates[1]) {
+                  setDateRange([dates[0], dates[1]])
                 }
-                suffix={card.prefix}
-                valueStyle={{ color: card.color, fontWeight: 600, fontSize: 20 }}
-              />
-            </Card>
+              }}
+            />
           </Col>
-        ))}
+          <Col>
+            <Button icon={<ReloadOutlined />} onClick={fetchAnalytics}>
+              刷新
+            </Button>
+          </Col>
+        </Row>
+      </Card>
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="新增用户"
+              value={summary.totalUsers}
+              prefix={<UserOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="新增小说"
+              value={summary.totalNovels}
+              prefix={<BookOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="新增章节"
+              value={summary.totalChapters}
+              prefix={<ReadOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="新增反馈"
+              value={summary.totalFeedback}
+              prefix={<MessageOutlined />}
+            />
+          </Card>
+        </Col>
       </Row>
 
-      {/* 用户行为分析 */}
-      <Tabs
-        defaultActiveKey="user"
-        items={[
-          {
-            key: 'user',
-            label: '用户行为分析',
-            children: (
-              <div>
-                {/* 用户增长趋势 */}
-                <Card title="用户增长趋势" extra={<Tag color="blue">最近30天</Tag>} style={{ borderRadius: 8, marginTop: 16 }}>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <LineChart data={userTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                      <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-                      <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-                      <Tooltip contentStyle={tooltipStyle} />
-                      <Legend />
-                      <Line yAxisId="left" type="monotone" dataKey="count" name="每日新增" stroke="#1890ff" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line yAxisId="right" type="monotone" dataKey="cumulative" name="累计用户" stroke="#36cfc9" strokeWidth={2} dot={false} />
-                    </LineChart>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 100 }}>
+          <Spin size="large" />
+        </div>
+      ) : (
+        <>
+          <Card title="每日数据统计" style={{ marginBottom: 16 }}>
+            {dailyStats.length > 0 ? (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={dailyStats}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="newUsers"
+                    name="新增用户"
+                    stroke="#1890ff"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="newNovels"
+                    name="新增小说"
+                    stroke="#52c41a"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="newChapters"
+                    name="新增章节"
+                    stroke="#faad14"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="newFeedback"
+                    name="新增反馈"
+                    stroke="#ff4d4f"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <Empty description="暂无数据" />
+            )}
+          </Card>
+
+          <Row gutter={[16, 16]}>
+            <Col xs={24} lg={12}>
+              <Card title="小说分类分布">
+                {novelStats.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={novelStats}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        dataKey="count"
+                        nameKey="category"
+                        label={({ category, count }) => `${category}: ${count}`}
+                      >
+                        {novelStats.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
                   </ResponsiveContainer>
-                </Card>
-
-                {/* 用户活跃度 + 用户留存率 */}
-                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                  <Col xs={24} lg={14}>
-                    <Card title="用户活跃度" extra={<Tag color="cyan">DAU/WAU/MAU</Tag>} style={{ borderRadius: 8 }}>
-                      <ResponsiveContainer width="100%" height={320}>
-                        <BarChart data={userActivity} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip contentStyle={tooltipStyle} />
-                          <Legend />
-                          <Bar dataKey="DAU" name="日活(DAU)" fill="#1890ff" radius={[2, 2, 0, 0]} barSize={8} />
-                          <Bar dataKey="WAU" name="周活(WAU)" fill="#36cfc9" radius={[2, 2, 0, 0]} barSize={8} />
-                          <Bar dataKey="MAU" name="月活(MAU)" fill="#597ef7" radius={[2, 2, 0, 0]} barSize={8} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={10}>
-                    <Card title="用户留存率" style={{ borderRadius: 8 }}>
-                      <Table
-                        dataSource={retentionRates}
-                        columns={retentionColumns}
-                        pagination={false}
-                        size="small"
-                        rowKey="period"
-                      />
-                    </Card>
-                  </Col>
-                </Row>
-
-                {/* 用户分布饼图 */}
-                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                  <Col xs={24} md={8}>
-                    {renderPieChart(mockUserByRole, '用户角色分布')}
-                  </Col>
-                  <Col xs={24} md={8}>
-                    {renderPieChart(mockUserByMemberLevel, '会员等级分布')}
-                  </Col>
-                  <Col xs={24} md={8}>
-                    {renderPieChart(mockUserByStatus, '用户状态分布')}
-                  </Col>
-                </Row>
-              </div>
-            ),
-          },
-          {
-            key: 'data',
-            label: '数据趋势图表',
-            children: (
-              <div>
-                {/* 消费趋势 */}
-                <Card title="消费趋势" extra={<Tag color="orange">每日消费金额</Tag>} style={{ borderRadius: 8, marginTop: 16 }}>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <AreaChart data={expenseTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f759ab" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#f759ab" stopOpacity={0.02} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip
-                        contentStyle={tooltipStyle}
-                        formatter={(value: number) => [`\u00A5${value.toLocaleString()}`, '消费金额']}
-                      />
-                      <Area
-                        type="monotone"
-                        dataKey="amount"
-                        name="消费金额"
-                        stroke="#f759ab"
-                        strokeWidth={2}
-                        fillOpacity={1}
-                        fill="url(#expenseGradient)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </Card>
-
-                {/* 消费分类占比 + 心情分布 */}
-                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                  <Col xs={24} lg={12}>
-                    <Card title="消费分类占比" extra={<Tag color="purple">环形图</Tag>} style={{ borderRadius: 8 }}>
-                      <ResponsiveContainer width="100%" height={320}>
-                        <PieChart>
-                          <Pie
-                            data={mockExpenseByCategory}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={65}
-                            outerRadius={100}
-                            paddingAngle={3}
-                            dataKey="value"
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                            labelLine={{ stroke: '#999' }}
-                          >
-                            {mockExpenseByCategory.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={tooltipStyle}
-                            formatter={(value: number) => [`\u00A5${value.toLocaleString()}`, '']}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={12}>
-                    <Card title="心情分布趋势" extra={<Tag color="green">最近14天</Tag>} style={{ borderRadius: 8 }}>
-                      <ResponsiveContainer width="100%" height={320}>
-                        <BarChart data={moodTrend} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                          <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip contentStyle={tooltipStyle} />
-                          <Legend />
-                          <Bar dataKey="开心" stackId="mood" fill="#52c41a" />
-                          <Bar dataKey="平静" stackId="mood" fill="#1890ff" />
-                          <Bar dataKey="一般" stackId="mood" fill="#faad14" />
-                          <Bar dataKey="难过" stackId="mood" fill="#ff4d4f" />
-                          <Bar dataKey="焦虑" stackId="mood" fill="#722ed1" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </Card>
-                  </Col>
-                </Row>
-
-                {/* 体重趋势 + 笔记活跃度 */}
-                <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                  <Col xs={24} lg={12}>
-                    <Card title="体重趋势" extra={<Tag color="cyan">平均体重 + 平均BMI</Tag>} style={{ borderRadius: 8 }}>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={weightAnalytics} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                          <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-                          <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-                          <Tooltip contentStyle={tooltipStyle} />
-                          <Legend />
-                          <Line yAxisId="left" type="monotone" dataKey="avgWeight" name="平均体重(kg)" stroke="#1890ff" strokeWidth={2} dot={{ r: 3 }} />
-                          <Line yAxisId="right" type="monotone" dataKey="avgBMI" name="平均BMI" stroke="#f759ab" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </Card>
-                  </Col>
-                  <Col xs={24} lg={12}>
-                    <Card title="笔记活跃度" extra={<Tag color="geekblue">每日新增笔记</Tag>} style={{ borderRadius: 8 }}>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={noteActivity} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                          <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                          <YAxis tick={{ fontSize: 12 }} />
-                          <Tooltip contentStyle={tooltipStyle} />
-                          <Bar dataKey="count" name="新增笔记数" fill="#597ef7" radius={[4, 4, 0, 0]} barSize={16} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </Card>
-                  </Col>
-                </Row>
-              </div>
-            ),
-          },
-        ]}
-      />
+                ) : (
+                  <Empty description="暂无数据" />
+                )}
+              </Card>
+            </Col>
+            <Col xs={24} lg={12}>
+              <Card title="热门小说 Top 10">
+                <Table
+                  dataSource={topNovels}
+                  columns={topNovelColumns}
+                  rowKey="title"
+                  pagination={false}
+                  size="small"
+                />
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
     </div>
   )
 }

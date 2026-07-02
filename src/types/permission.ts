@@ -1,66 +1,58 @@
-/**
- * 权限类型定义
- */
+// ==================== 权限系统类型定义 ====================
 
-// 角色接口
 export interface Role {
   id: number
-  name: string // user/admin/super_admin
-  display_name: string
-  description: string | null
-  level: number
+  name: string
+  code: string
+  description?: string
+  is_system: boolean
+  status: 'active' | 'disabled'
   created_at: string
+  updated_at: string
 }
 
-// 权限接口
 export interface Permission {
   id: number
-  name: string // users:read, users:write, users:delete
+  name: string
   display_name: string
-  module: string // users/expenses/moods/weights/notes/novels/versions/system
-  action: string // read/write/delete
-  description: string | null
+  type: 'menu' | 'action'
+  parent_id: number | null
+  sort_order: number
+  module: string
+  description?: string
   created_at: string
+  children?: Permission[]
 }
 
-// 角色权限关联接口
 export interface RolePermission {
   role_id: number
   permission_id: number
 }
 
-// 带权限的角色接口
 export interface RoleWithPermissions extends Role {
   permissions: Permission[]
 }
 
-// 模块显示名称
-export const MODULE_DISPLAY_NAMES: Record<string, string> = {
-  users: '用户管理',
-  expenses: '消费记录',
-  moods: '心情日记',
-  weights: '体重记录',
-  notes: '笔记本',
-  novels: '小说书架',
-  versions: '版本管理',
-  system: '系统设置',
+// 权限判断辅助函数
+export const hasPermission = (permissions: string[], permissionName: string): boolean => {
+  if (!permissions || permissions.length === 0) return false
+  return permissions.includes(permissionName)
 }
 
-// 操作显示名称
-export const ACTION_DISPLAY_NAMES: Record<string, string> = {
-  read: '查看',
-  write: '编辑',
-  delete: '删除',
+export const hasAnyPermission = (permissions: string[], permissionNames: string[]): boolean => {
+  if (!permissions || permissions.length === 0) return false
+  return permissionNames.some(name => permissions.includes(name))
 }
 
-// 模块图标颜色
-export const MODULE_COLORS: Record<string, string> = {
-  users: '#6C63FF',
-  expenses: '#FF6B6B',
-  moods: '#4ECDC4',
-  weights: '#45B7D1',
-  notes: '#96CEB4',
-  novels: '#FFEAA7',
-  versions: '#DDA0DD',
-  system: '#87CEEB',
+export const hasAllPermissions = (permissions: string[], permissionNames: string[]): boolean => {
+  if (!permissions || permissions.length === 0) return false
+  return permissionNames.every(name => permissions.includes(name))
 }
+
+export {
+  ROLE_STATUS_LABELS,
+  ROLE_STATUS_COLORS,
+  PERMISSION_TYPE_LABELS,
+  MODULE_DISPLAY_NAMES,
+  MODULE_COLORS,
+} from '../constants'

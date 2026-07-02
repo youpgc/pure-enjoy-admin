@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Table,
   Button,
@@ -33,23 +33,21 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import sha256 from 'crypto-js/sha256'
 import type { User, UserFormData, UserStats, OperationLog, UserRole, MemberLevel, UserStatus } from '../types/user'
 import {
-  USER_ROLE_LABELS,
-  USER_ROLE_COLORS,
-  MEMBER_LEVEL_LABELS,
-  MEMBER_LEVEL_COLORS,
-  USER_STATUS_LABELS,
-  USER_STATUS_COLORS,
   USER_ROLE_OPTIONS,
   MEMBER_LEVEL_OPTIONS,
   USER_STATUS_OPTIONS,
 } from '../types/user'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 import { generateUserId } from '../utils/userId'
 import { exportToCSV, exportToExcel } from '../utils/export'
-import { supabase } from '../utils/supabase'
-import { useAuth } from '../context/auth'
+import { getActionColumn } from '../components/ActionColumn'
+import { supabase , SUPABASE_URL } from '../utils/supabase'
+import { useAuth } from '../App'
 import { usePermission } from '../hooks/usePermission'
+import { formatDateTime } from '../utils/format'
 import UserFormModal from '../components/UserFormModal'
 import UserDetailDrawer from '../components/UserDetailDrawer'
 
@@ -83,6 +81,7 @@ const Users: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
   const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
   // 详情抽屉状态
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -93,82 +92,115 @@ const Users: React.FC = () => {
 
   // 权限
   const { user: adminUser } = useAuth()
-  const { canManageUsers } = usePermission()
+  const { hasPermission } = usePermission()
+
+  // 字典查询
+  const { options: roleOptions } = useDictOptions('user_role', USER_ROLE_OPTIONS)
+  const { options: statusOptions } = useDictOptions('user_status', USER_STATUS_OPTIONS)
+  const { options: memberLevelOptions } = useDictOptions('member_level', MEMBER_LEVEL_OPTIONS)
+  const { getColor: getRoleColor } = useDictColors('user_role')
+  const { getColor: getStatusColor } = useDictColors('user_status')
+  const { getColor: getMemberLevelColor } = useDictColors('member_level')
 
   // ==================== 数据加载 ====================
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = useCallback(async (page = 1, pageSize = 10) => {
     setLoading(true)
+
     try {
-      // 尝试从 Supabase 获取数据
-      const { data: users, error } = await supabase
+      // 构建带筛选条件的查询 - 使用limit(1)代替head:true，确保count正确返回
+      let query = supabase
+        .from('users')
+        .select('*', { count: 'exact' })
+        .limit(1)
+
+      // 关键词搜索下推到数据库
+      if (searchText.trim()) {
+        const keyword = searchText.trim()
+        const conditions: string[] = []
+        conditions.push(`email.ilike.%${keyword}%`)
+        conditions.push(`nickname.ilike.%${keyword}%`)
+        conditions.push(`phone.ilike.%${keyword}%`)
+        conditions.push(`id.ilike.%${keyword}%`)
+        query = query.or(conditions.join(','))
+      }
+
+      // 角色筛选
+      if (filterValues.role) {
+        query = query.eq('role', filterValues.role)
+      }
+
+      // 状态筛选
+      if (filterValues.status) {
+        query = query.eq('status', filterValues.status)
+      }
+
+      // 会员等级筛选
+      if (filterValues.member_level) {
+        query = query.eq('member_level', filterValues.member_level)
+      }
+
+      // 注册时间范围筛选
+      if (filterValues.dateRange && filterValues.dateRange[0] && filterValues.dateRange[1]) {
+        query = query.gte('created_at', filterValues.dateRange[0]).lte('created_at', filterValues.dateRange[1] + 'T23:59:59')
+      }
+
+      // 先获取筛选后的总数
+      const { count, error: countError } = await query
+      if (countError) throw countError
+
+      // 分页查询（同样带筛选条件）
+      let dataQuery = supabase
         .from('users')
         .select('*')
         .order('created_at', { ascending: false })
 
+      // 重复应用筛选条件到数据查询
+      if (searchText.trim()) {
+        const keyword = searchText.trim()
+        const conditions: string[] = []
+        conditions.push(`email.ilike.%${keyword}%`)
+        conditions.push(`nickname.ilike.%${keyword}%`)
+        conditions.push(`phone.ilike.%${keyword}%`)
+        conditions.push(`id.ilike.%${keyword}%`)
+        dataQuery = dataQuery.or(conditions.join(','))
+      }
+      if (filterValues.role) {
+        dataQuery = dataQuery.eq('role', filterValues.role)
+      }
+      if (filterValues.status) {
+        dataQuery = dataQuery.eq('status', filterValues.status)
+      }
+      if (filterValues.member_level) {
+        dataQuery = dataQuery.eq('member_level', filterValues.member_level)
+      }
+      if (filterValues.dateRange && filterValues.dateRange[0] && filterValues.dateRange[1]) {
+        dataQuery = dataQuery.gte('created_at', filterValues.dateRange[0]).lte('created_at', filterValues.dateRange[1] + 'T23:59:59')
+      }
+
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      const { data: users, error } = await dataQuery.range(from, to)
+
       if (error) {
-        // 如果数据库查询失败，使用本地数据
-        console.log('Supabase query failed, using local data:', error)
-        const { mockUsers } = await import('../utils/mockData')
-        setData(mockUsers as User[])
+        console.error('[Users] Supabase 查询失败:', error)
+        message.error('获取用户列表失败: ' + error.message)
+        setData([])
       } else {
         setData(users || [])
+        setPagination(prev => ({ ...prev, current: page, pageSize, total: count || 0 }))
       }
     } catch (err) {
-      console.error('Failed to fetch users:', err)
-      // 使用本地数据
-      const { mockUsers } = await import('../utils/mockData')
-      setData(mockUsers as User[])
+      console.error('[Users] 获取用户列表失败:', err)
+      message.error('获取用户列表失败，请检查网络连接后重试')
+      setData([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [searchText, filterValues])
 
   useEffect(() => {
     fetchUsers()
   }, [fetchUsers])
-
-  // ==================== 筛选逻辑 ====================
-  const filteredData = useMemo(() => {
-    let result = [...data]
-
-    // 关键词搜索
-    if (searchText.trim()) {
-      const keyword = searchText.trim().toLowerCase()
-      result = result.filter(user => {
-        return (
-          user.email.toLowerCase().includes(keyword) ||
-          (user.nickname && user.nickname.toLowerCase().includes(keyword)) ||
-          (user.phone && user.phone.includes(keyword)) ||
-          user.id.toLowerCase().includes(keyword)
-        )
-      })
-    }
-
-    // 角色筛选
-    if (filterValues.role) {
-      result = result.filter(user => user.role === filterValues.role)
-    }
-
-    // 状态筛选
-    if (filterValues.status) {
-      result = result.filter(user => user.status === filterValues.status)
-    }
-
-    // 会员等级筛选
-    if (filterValues.member_level) {
-      result = result.filter(user => user.member_level === filterValues.member_level)
-    }
-
-    // 注册时间范围筛选
-    if (filterValues.dateRange && filterValues.dateRange[0] && filterValues.dateRange[1]) {
-      result = result.filter(user => {
-        const createdAt = user.created_at?.split('T')[0]
-        return createdAt && createdAt >= filterValues.dateRange![0] && createdAt <= filterValues.dateRange![1]
-      })
-    }
-
-    return result
-  }, [data, searchText, filterValues])
 
   // ==================== 操作处理 ====================
   // 记录操作日志
@@ -191,14 +223,78 @@ const Users: React.FC = () => {
     }
   }, [adminUser])
 
+  
+  /**
+   * 同步创建 Supabase Auth 用户（仅管理员操作）
+   * 使用 service_role key 调用 Admin API，确保 App 端可登录
+   */
+  const createAuthUser = async (user: User, plainPassword: string) => {
+    try {
+      const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string
+      if (!serviceKey) {
+        console.warn('未配置 service_role key，跳过 auth.users 同步')
+        return
+      }
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: {
+          'apikey': serviceKey,
+          'Authorization': `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email,
+          password: plainPassword,
+          email_confirm: true,
+          phone: user.phone || undefined,
+          user_metadata: {
+            app_user_id: user.id,
+            username: user.username || undefined,
+            nickname: user.nickname || undefined,
+            role: user.role,
+          },
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.warn('auth.users 同步失败:', err.msg || res.status)
+      }
+    } catch (err) {
+      console.warn('auth.users 同步异常:', err)
+    }
+  }
+
   // 新增用户
   const handleCreate = useCallback(async (formData: UserFormData) => {
+    if (submitting) return
+    // 对密码进行 SHA-256 哈希
+    const passwordHash = formData.password
+      ? sha256(formData.password).toString()
+      : sha256('123456').toString() // 默认密码
+
+    // 处理 birthday 字段
+    const birthdayValue = formData.birthday
+      ? (typeof formData.birthday === 'string'
+          ? formData.birthday
+          : (formData.birthday as dayjs.Dayjs).format('YYYY-MM-DD'))
+      : null
+
     const newUser: User = {
       id: generateUserId(),
       email: formData.email,
       phone: formData.phone || null,
+      password_hash: passwordHash,
       nickname: formData.nickname || null,
-      avatar_url: null,
+      avatar_url: formData.avatar_url || null,
+      // 扩展资料字段
+      username: formData.username || null,
+      bio: formData.bio || null,
+      gender: formData.gender || null,
+      birthday: birthdayValue,
+      location: formData.location || null,
+      occupation: formData.occupation || null,
+      company: formData.company || null,
+      website: formData.website || null,
       role: formData.role,
       member_level: formData.member_level,
       points: formData.points,
@@ -212,76 +308,80 @@ const Users: React.FC = () => {
     }
 
     try {
+      setSubmitting(true)
       const { error } = await supabase.from('users').insert(newUser)
       if (error) {
-        // 本地添加
-        setData(prev => [newUser, ...prev])
-      } else {
-        await fetchUsers()
+        message.error('创建用户失败: ' + error.message)
+        return
       }
+
+      // 2. 同步创建 auth.users 记录（使 App 端可通过 Supabase Auth 登录）
+      await createAuthUser(newUser, formData.password || '123456')
+      await fetchUsers()
       await logOperation('create_user', newUser.id, { email: newUser.email })
     } catch (err) {
-      // 本地添加
-      setData(prev => [newUser, ...prev])
+      message.error('创建用户失败，请检查网络连接后重试')
+    } finally {
+      setSubmitting(false)
     }
-  }, [supabase, fetchUsers, logOperation])
+  }, [supabase, fetchUsers, logOperation, submitting])
 
   // 编辑用户
   const handleEdit = useCallback(async (formData: UserFormData) => {
+    if (submitting) return
     if (!currentUser) return
 
+    // 处理 birthday 字段：如果是 Dayjs 对象，转换为字符串
+    const birthdayValue = formData.birthday
+      ? (typeof formData.birthday === 'string'
+          ? formData.birthday
+          : (formData.birthday as dayjs.Dayjs).format('YYYY-MM-DD'))
+      : null
+
     try {
+      setSubmitting(true)
+      const updateData: Record<string, string | number | null> = {
+        phone: formData.phone || null,
+        nickname: formData.nickname || null,
+        avatar_url: formData.avatar_url || null,
+        // 扩展资料字段
+        username: formData.username || null,
+        bio: formData.bio || null,
+        gender: formData.gender || null,
+        birthday: birthdayValue,
+        location: formData.location || null,
+        occupation: formData.occupation || null,
+        company: formData.company || null,
+        website: formData.website || null,
+        role: formData.role,
+        member_level: formData.member_level,
+        status: formData.status,
+        points: formData.points,
+        updated_at: new Date().toISOString(),
+      }
+
+      // 如果填写了新密码，更新密码哈希
+      if (formData.password) {
+        updateData.password_hash = sha256(formData.password).toString()
+      }
+
       const { error } = await supabase
         .from('users')
-        .update({
-          phone: formData.phone || null,
-          nickname: formData.nickname || null,
-          role: formData.role,
-          member_level: formData.member_level,
-          status: formData.status,
-          points: formData.points,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', currentUser.id)
 
       if (error) {
-        // 本地更新
-        setData(prev => prev.map(user => 
-          user.id === currentUser.id
-            ? {
-                ...user,
-                phone: formData.phone || null,
-                nickname: formData.nickname || null,
-                role: formData.role,
-                member_level: formData.member_level,
-                status: formData.status,
-                points: formData.points,
-                updated_at: new Date().toISOString(),
-              }
-            : user
-        ))
-      } else {
-        await fetchUsers()
+        message.error('更新用户失败: ' + error.message)
+        return
       }
+      await fetchUsers()
       await logOperation('update_user', currentUser.id, { changes: formData })
     } catch (err) {
-      // 本地更新
-      setData(prev => prev.map(user => 
-        user.id === currentUser.id
-          ? {
-              ...user,
-              phone: formData.phone || null,
-              nickname: formData.nickname || null,
-              role: formData.role,
-              member_level: formData.member_level,
-              status: formData.status,
-              points: formData.points,
-              updated_at: new Date().toISOString(),
-            }
-          : user
-      ))
+      message.error('更新用户失败，请检查网络连接后重试')
+    } finally {
+      setSubmitting(false)
     }
-  }, [currentUser, supabase, fetchUsers, logOperation])
+  }, [currentUser, supabase, fetchUsers, logOperation, submitting])
 
   // 删除用户（软删除）
   const handleDelete = useCallback(async (ids: string[]) => {
@@ -292,19 +392,16 @@ const Users: React.FC = () => {
         .in('id', ids)
 
       if (error) {
-        // 本地删除
-        setData(prev => prev.filter(user => !ids.includes(user.id)))
-      } else {
-        await fetchUsers()
+        message.error('禁用用户失败: ' + error.message)
+        return
       }
+      await fetchUsers()
       for (const id of ids) {
         await logOperation('delete_user', id, { type: 'soft_delete' })
       }
       message.success(`成功禁用 ${ids.length} 个用户`)
     } catch (err) {
-      // 本地删除
-      setData(prev => prev.filter(user => !ids.includes(user.id)))
-      message.success(`成功删除 ${ids.length} 个用户`)
+      message.error('禁用用户失败，请检查网络连接后重试')
     }
     setSelectedRowKeys([])
   }, [supabase, fetchUsers, logOperation])
@@ -320,20 +417,14 @@ const Users: React.FC = () => {
         .eq('id', user.id)
 
       if (error) {
-        // 本地更新
-        setData(prev => prev.map(u => 
-          u.id === user.id ? { ...u, status: newStatus } : u
-        ))
-      } else {
-        await fetchUsers()
+        message.error('切换用户状态失败: ' + error.message)
+        return
       }
+      await fetchUsers()
       await logOperation('toggle_user_status', user.id, { from: user.status, to: newStatus })
       message.success(`用户已${newStatus === 'active' ? '启用' : '禁用'}`)
     } catch (err) {
-      // 本地更新
-      setData(prev => prev.map(u => 
-        u.id === user.id ? { ...u, status: newStatus } : u
-      ))
+      message.error('切换用户状态失败，请检查网络连接后重试')
     }
   }, [supabase, fetchUsers, logOperation])
 
@@ -400,32 +491,44 @@ const Users: React.FC = () => {
       { title: '用户ID', dataIndex: 'id' },
       { title: '邮箱', dataIndex: 'email' },
       { title: '昵称', dataIndex: 'nickname', render: (v: unknown) => String(v || '') },
+      { title: '用户名', dataIndex: 'username', render: (v: unknown) => String(v || '') },
       { title: '手机号', dataIndex: 'phone', render: (v: unknown) => String(v || '') },
-      { title: '角色', dataIndex: 'role', render: (v: unknown) => USER_ROLE_LABELS[v as UserRole] || String(v) },
-      { title: '会员等级', dataIndex: 'member_level', render: (v: unknown) => MEMBER_LEVEL_LABELS[v as MemberLevel] || String(v) },
+      { title: '性别', dataIndex: 'gender', render: (v: unknown) => String(v || '') },
+      { title: '个性签名', dataIndex: 'bio', render: (v: unknown) => String(v || '') },
+      { title: '所在地', dataIndex: 'location', render: (v: unknown) => String(v || '') },
+      { title: '职业', dataIndex: 'occupation', render: (v: unknown) => String(v || '') },
+      { title: '公司', dataIndex: 'company', render: (v: unknown) => String(v || '') },
+      { title: '角色', dataIndex: 'role', render: (v: unknown) => roleOptions.find(opt => opt.value === v)?.label || String(v) },
+      { title: '会员等级', dataIndex: 'member_level', render: (v: unknown) => memberLevelOptions.find(opt => opt.value === v)?.label || String(v) },
       { title: '积分', dataIndex: 'points' },
-      { title: '状态', dataIndex: 'status', render: (v: unknown) => USER_STATUS_LABELS[v as UserStatus] || String(v) },
+      { title: '状态', dataIndex: 'status', render: (v: unknown) => statusOptions.find(opt => opt.value === v)?.label || String(v) },
       { title: '注册时间', dataIndex: 'created_at', render: (v: unknown) => dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss') },
     ]
-    exportToCSV(filteredData as unknown as Record<string, unknown>[], columns, '用户列表')
+    exportToCSV(data as unknown as Record<string, unknown>[], columns, '用户列表')
     message.success('CSV 导出成功')
-  }, [filteredData])
+  }, [data, roleOptions, memberLevelOptions, statusOptions])
 
   const handleExportExcel = useCallback(() => {
     const columns = [
       { title: '用户ID', dataIndex: 'id' },
       { title: '邮箱', dataIndex: 'email' },
       { title: '昵称', dataIndex: 'nickname', render: (v: unknown) => String(v || '') },
+      { title: '用户名', dataIndex: 'username', render: (v: unknown) => String(v || '') },
       { title: '手机号', dataIndex: 'phone', render: (v: unknown) => String(v || '') },
-      { title: '角色', dataIndex: 'role', render: (v: unknown) => USER_ROLE_LABELS[v as UserRole] || String(v) },
-      { title: '会员等级', dataIndex: 'member_level', render: (v: unknown) => MEMBER_LEVEL_LABELS[v as MemberLevel] || String(v) },
+      { title: '性别', dataIndex: 'gender', render: (v: unknown) => String(v || '') },
+      { title: '个性签名', dataIndex: 'bio', render: (v: unknown) => String(v || '') },
+      { title: '所在地', dataIndex: 'location', render: (v: unknown) => String(v || '') },
+      { title: '职业', dataIndex: 'occupation', render: (v: unknown) => String(v || '') },
+      { title: '公司', dataIndex: 'company', render: (v: unknown) => String(v || '') },
+      { title: '角色', dataIndex: 'role', render: (v: unknown) => roleOptions.find(opt => opt.value === v)?.label || String(v) },
+      { title: '会员等级', dataIndex: 'member_level', render: (v: unknown) => memberLevelOptions.find(opt => opt.value === v)?.label || String(v) },
       { title: '积分', dataIndex: 'points' },
-      { title: '状态', dataIndex: 'status', render: (v: unknown) => USER_STATUS_LABELS[v as UserStatus] || String(v) },
+      { title: '状态', dataIndex: 'status', render: (v: unknown) => statusOptions.find(opt => opt.value === v)?.label || String(v) },
       { title: '注册时间', dataIndex: 'created_at', render: (v: unknown) => dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss') },
     ]
-    exportToExcel(filteredData as unknown as Record<string, unknown>[], columns, '用户列表')
+    exportToExcel(data as unknown as Record<string, unknown>[], columns, '用户列表')
     message.success('Excel 导出成功')
-  }, [filteredData])
+  }, [data, roleOptions, memberLevelOptions, statusOptions])
 
   const exportMenuItems = [
     { key: 'csv', label: '导出 CSV', icon: <ExportOutlined /> },
@@ -450,7 +553,10 @@ const Users: React.FC = () => {
       fixed: 'left',
       render: (id: string) => (
         <Tooltip title="点击查看详情">
-          <a onClick={() => handleViewUser(data.find(u => u.id === id)!)}>
+          <a onClick={() => {
+            const found = data.find(u => u.id === id)
+            if (found) handleViewUser(found)
+          }}>
             <Text style={{ fontSize: 12 }}>{id}</Text>
           </a>
         </Tooltip>
@@ -471,12 +577,33 @@ const Users: React.FC = () => {
       render: (nickname: string | null) => nickname || <Text type="secondary">未设置</Text>,
     },
     {
+      title: '手机号',
+      dataIndex: 'phone',
+      key: 'phone',
+      width: 130,
+      render: (phone: string | null) => phone || <Text type="secondary">未设置</Text>,
+    },
+    {
+      title: '用户名',
+      dataIndex: 'username',
+      key: 'username',
+      width: 100,
+      render: (username: string | null) => username || <Text type="secondary">-</Text>,
+    },
+    {
+      title: '性别',
+      dataIndex: 'gender',
+      key: 'gender',
+      width: 70,
+      render: (gender: string | null) => gender || <Text type="secondary">-</Text>,
+    },
+    {
       title: '角色',
       dataIndex: 'role',
       key: 'role',
       width: 100,
       render: (role: UserRole) => (
-        <Tag color={USER_ROLE_COLORS[role]}>{USER_ROLE_LABELS[role]}</Tag>
+        <Tag color={getRoleColor(role)}>{roleOptions.find(opt => opt.value === role)?.label || role}</Tag>
       ),
     },
     {
@@ -485,7 +612,7 @@ const Users: React.FC = () => {
       key: 'member_level',
       width: 100,
       render: (level: MemberLevel) => (
-        <Tag color={MEMBER_LEVEL_COLORS[level]}>{MEMBER_LEVEL_LABELS[level]}</Tag>
+        <Tag color={getMemberLevelColor(level)}>{memberLevelOptions.find(opt => opt.value === level)?.label || level}</Tag>
       ),
     },
     {
@@ -502,7 +629,7 @@ const Users: React.FC = () => {
       key: 'status',
       width: 80,
       render: (status: UserStatus) => (
-        <Tag color={USER_STATUS_COLORS[status]}>{USER_STATUS_LABELS[status]}</Tag>
+        <Tag color={getStatusColor(status)}>{statusOptions.find(opt => opt.value === status)?.label || status}</Tag>
       ),
     },
     {
@@ -510,72 +637,53 @@ const Users: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 160,
-      sorter: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => formatDateTime(date),
     },
     {
       title: '最后登录',
       dataIndex: 'last_login_at',
       key: 'last_login_at',
       width: 160,
-      sorter: (a, b) => {
-        if (!a.last_login_at) return 1
-        if (!b.last_login_at) return -1
-        return new Date(a.last_login_at).getTime() - new Date(b.last_login_at).getTime()
+      render: (date: string | null) => date ? formatDateTime(date) : <Text type="secondary">从未登录</Text>,
+    },
+    getActionColumn<User>(
+      (record) => {
+        const actions: import('../components/ActionColumn').ActionButton[] = [
+          {
+            key: 'view',
+            label: '查看',
+            icon: <EyeOutlined />,
+            onClick: () => handleViewUser(record),
+          },
+        ]
+        if (hasPermission('users:write') || hasPermission('users:delete')) {
+          actions.push(
+            {
+              key: 'edit',
+              label: '编辑',
+              icon: <EditOutlined />,
+              onClick: () => handleOpenEdit(record),
+            },
+            {
+              key: 'toggle',
+              label: record.status === 'active' ? '禁用' : '启用',
+              icon: record.status === 'active' ? <StopOutlined /> : <CheckCircleOutlined />,
+              danger: record.status === 'active',
+              onClick: () => handleToggleStatus(record),
+            },
+            {
+              key: 'delete',
+              label: '删除',
+              icon: <DeleteOutlined />,
+              danger: true,
+              onClick: () => handleDelete([record.id]),
+            }
+          )
+        }
+        return actions
       },
-      render: (date: string | null) => date ? dayjs(date).format('YYYY-MM-DD HH:mm') : <Text type="secondary">从未登录</Text>,
-    },
-    {
-      title: '操作',
-      key: 'action',
-      fixed: 'right',
-      width: 200,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewUser(record)}
-          >
-            查看
-          </Button>
-          {canManageUsers && (
-            <>
-              <Button
-                type="link"
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => handleOpenEdit(record)}
-              >
-                编辑
-              </Button>
-              <Button
-                type="link"
-                size="small"
-                icon={record.status === 'active' ? <StopOutlined /> : <CheckCircleOutlined />}
-                onClick={() => handleToggleStatus(record)}
-                danger={record.status === 'active'}
-              >
-                {record.status === 'active' ? '禁用' : '启用'}
-              </Button>
-              <Popconfirm
-                title="确认删除"
-                description="删除后用户将无法恢复，是否继续？"
-                onConfirm={() => handleDelete([record.id])}
-                okText="删除"
-                cancelText="取消"
-                okButtonProps={{ danger: true }}
-              >
-                <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-                  删除
-                </Button>
-              </Popconfirm>
-            </>
-          )}
-        </Space>
-      ),
-    },
+      { width: 240, maxVisible: 2 }
+    ),
   ]
 
   // ==================== 渲染 ====================
@@ -613,7 +721,7 @@ const Users: React.FC = () => {
           </Col>
           <Col>
             <Space size="middle">
-              {canManageUsers && (
+              {(hasPermission('users:write') || hasPermission('users:delete')) && (
                 <>
                   <Button
                     type="primary"
@@ -668,7 +776,7 @@ const Users: React.FC = () => {
                 allowClear
                 value={filterValues.role}
                 onChange={value => setFilterValues(prev => ({ ...prev, role: value as UserRole | undefined }))}
-                options={USER_ROLE_OPTIONS}
+                options={roleOptions}
               />
             </Col>
             <Col xs={24} sm={12} md={6}>
@@ -678,7 +786,7 @@ const Users: React.FC = () => {
                 allowClear
                 value={filterValues.status}
                 onChange={value => setFilterValues(prev => ({ ...prev, status: value as UserStatus | undefined }))}
-                options={USER_STATUS_OPTIONS}
+                options={statusOptions}
               />
             </Col>
             <Col xs={24} sm={12} md={6}>
@@ -688,7 +796,7 @@ const Users: React.FC = () => {
                 allowClear
                 value={filterValues.member_level}
                 onChange={value => setFilterValues(prev => ({ ...prev, member_level: value as MemberLevel | undefined }))}
-                options={MEMBER_LEVEL_OPTIONS}
+                options={memberLevelOptions}
               />
             </Col>
             <Col xs={24} sm={12} md={6}>
@@ -710,17 +818,20 @@ const Users: React.FC = () => {
       {/* 数据表格 */}
       <Table<User>
         columns={columns}
-        dataSource={filteredData}
+        dataSource={data}
         rowKey="id"
         loading={loading}
         pagination={{
           ...pagination,
-          total: filteredData.length,
+          showSizeChanger: true,
+          showQuickJumper: true,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
         }}
-        onChange={pag => setPagination(pag)}
+        onChange={pag => fetchUsers(pag.current, pag.pageSize)}
         scroll={{ x: 1400 }}
         rowSelection={
-          canManageUsers
+          (hasPermission('users:write') || hasPermission('users:delete'))
             ? {
                 selectedRowKeys,
                 onChange: (keys: Key[]) => setSelectedRowKeys(keys),

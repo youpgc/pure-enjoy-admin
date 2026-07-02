@@ -1,243 +1,140 @@
-import { useMemo } from 'react'
-import { useAuth } from '../context/auth'
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '../utils/supabase'
+import { hasPermission as checkPermission } from '../types/permission'
+import { ROLE_SUPER_ADMIN, ROLE_ADMIN } from '../constants'
 
-// 权限模块定义
-export type PermissionModule = 
-  | 'users' 
-  | 'expenses' 
-  | 'moods' 
-  | 'weights' 
-  | 'notes' 
-  | 'novels' 
-  | 'versions' 
-  | 'system'
-
-// 权限操作定义
-export type PermissionAction = 'read' | 'write' | 'delete' | 'export' | 'release'
-
-// 权限字符串类型
-export type PermissionString = `${PermissionModule}:${PermissionAction}`
-
-// 角色权限映射
-const ROLE_PERMISSIONS_MAP: Record<string, PermissionString[]> = {
-  super_admin: [
-    // 用户管理
-    'users:read', 'users:write', 'users:delete', 'users:export',
-    // 消费记录
-    'expenses:read', 'expenses:write', 'expenses:delete', 'expenses:export',
-    // 心情日记
-    'moods:read', 'moods:write', 'moods:delete', 'moods:export',
-    // 体重记录
-    'weights:read', 'weights:write', 'weights:delete', 'weights:export',
-    // 笔记
-    'notes:read', 'notes:write', 'notes:delete', 'notes:export',
-    // 小说
-    'novels:read', 'novels:write', 'novels:delete', 'novels:export',
-    // 版本管理
-    'versions:read', 'versions:write', 'versions:delete', 'versions:release',
-    // 系统
-    'system:read', 'system:write',
-  ],
-  admin: [
-    // 用户管理
-    'users:read', 'users:write', 'users:delete', 'users:export',
-    // 消费记录
-    'expenses:read', 'expenses:write', 'expenses:delete', 'expenses:export',
-    // 心情日记
-    'moods:read', 'moods:write', 'moods:delete', 'moods:export',
-    // 体重记录
-    'weights:read', 'weights:write', 'weights:delete', 'weights:export',
-    // 笔记
-    'notes:read', 'notes:write', 'notes:delete', 'notes:export',
-    // 小说
-    'novels:read', 'novels:write', 'novels:delete', 'novels:export',
-    // 版本管理
-    'versions:read', 'versions:write', 'versions:release',
-    // 系统
-    'system:read',
-  ],
-  viewer: [
-    // 只读权限
-    'expenses:read', 'moods:read', 'weights:read', 'notes:read', 'novels:read',
-  ],
-}
+// ==================== 权限 Hook ====================
 
 export const usePermission = () => {
-  const { user } = useAuth()
+  const [permissions, setPermissions] = useState<string[]>([])
+  const [role, setRole] = useState<string>('')
+  const [loading, setLoading] = useState(true)
 
-  // 获取当前用户的权限列表
-  const permissions = useMemo(() => {
-    if (!user) return []
-    return ROLE_PERMISSIONS_MAP[user.role] || []
-  }, [user])
+  // 加载当前用户的权限列表
+  const loadPermissions = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) {
+        setPermissions([])
+        setRole('')
+        setLoading(false)
+        return
+      }
 
-  // 检查是否拥有特定权限
-  const hasPermission = (permission: PermissionString): boolean => {
-    return permissions.includes(permission)
-  }
+      // 从 user_metadata 或 app_metadata 获取角色
+      const userMetadata = session.user.user_metadata || {}
+      const appMetadata = session.user.app_metadata || {}
+      const userRole = (userMetadata.role || appMetadata.role || '') as string
+      setRole(userRole)
 
-  // 检查是否拥有模块的某个操作权限
-  const hasModulePermission = (module: PermissionModule, action: PermissionAction): boolean => {
-    return hasPermission(`${module}:${action}`)
-  }
+      // 超级管理员直接拥有所有权限
+      if (userRole === ROLE_SUPER_ADMIN) {
+        const { data: allPerms } = await supabase
+          .from('permissions')
+          .select('name')
+        setPermissions(allPerms?.map(p => p.name) || [])
+        setLoading(false)
+        return
+      }
 
-  // 检查是否拥有模块的任意操作权限
-  const hasAnyModulePermission = (module: PermissionModule): boolean => {
-    return permissions.some(p => p.startsWith(`${module}:`))
-  }
+      // 其他角色从数据库查询权限列表
+      const { data: roleData } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('code', userRole)
+        .single()
 
-  // 检查是否拥有多个权限中的任意一个
-  const hasAnyPermission = (permissionList: PermissionString[]): boolean => {
-    return permissionList.some(p => permissions.includes(p))
-  }
+      if (!roleData) {
+        setPermissions([])
+        setLoading(false)
+        return
+      }
 
-  // 检查是否拥有所有权限
-  const hasAllPermissions = (permissionList: PermissionString[]): boolean => {
-    return permissionList.every(p => permissions.includes(p))
-  }
+      const { data: rolePerms } = await supabase
+        .from('role_permissions')
+        .select('permission_id')
+        .eq('role_id', roleData.id)
 
-  // ========== 模块权限快捷方法 ==========
+      if (!rolePerms || rolePerms.length === 0) {
+        setPermissions([])
+        setLoading(false)
+        return
+      }
 
-  // 用户管理权限
-  const canReadUsers = hasModulePermission('users', 'read')
-  const canWriteUsers = hasModulePermission('users', 'write')
-  const canDeleteUsers = hasModulePermission('users', 'delete')
-  const canExportUsers = hasModulePermission('users', 'export')
-  const canManageUsers = canReadUsers && canWriteUsers
+      const permissionIds = rolePerms.map(rp => rp.permission_id)
+      const { data: permData } = await supabase
+        .from('permissions')
+        .select('name')
+        .in('id', permissionIds)
 
-  // 消费记录权限
-  const canReadExpenses = hasModulePermission('expenses', 'read')
-  const canWriteExpenses = hasModulePermission('expenses', 'write')
-  const canDeleteExpenses = hasModulePermission('expenses', 'delete')
-  const canExportExpenses = hasModulePermission('expenses', 'export')
-  const canManageExpenses = canReadExpenses && canWriteExpenses
+      setPermissions(permData?.map(p => p.name) || [])
+    } catch (error) {
+      console.error('[usePermission] 加载权限失败:', error)
+      setPermissions([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  // 心情日记权限
-  const canReadMoods = hasModulePermission('moods', 'read')
-  const canWriteMoods = hasModulePermission('moods', 'write')
-  const canDeleteMoods = hasModulePermission('moods', 'delete')
-  const canExportMoods = hasModulePermission('moods', 'export')
-  const canManageMoods = canReadMoods && canWriteMoods
+  // 判断是否有某个权限
+  const hasPermission = useCallback((permissionName: string): boolean => {
+    if (role === ROLE_SUPER_ADMIN) return true
+    return checkPermission(permissions, permissionName)
+  }, [permissions, role])
 
-  // 体重记录权限
-  const canReadWeights = hasModulePermission('weights', 'read')
-  const canWriteWeights = hasModulePermission('weights', 'write')
-  const canDeleteWeights = hasModulePermission('weights', 'delete')
-  const canExportWeights = hasModulePermission('weights', 'export')
-  const canManageWeights = canReadWeights && canWriteWeights
+  // 判断是否有任意一个权限
+  const hasAnyPermission = useCallback((permissionNames: string[]): boolean => {
+    if (role === ROLE_SUPER_ADMIN) return true
+    return permissionNames.some(name => permissions.includes(name))
+  }, [permissions, role])
 
-  // 笔记权限
-  const canReadNotes = hasModulePermission('notes', 'read')
-  const canWriteNotes = hasModulePermission('notes', 'write')
-  const canDeleteNotes = hasModulePermission('notes', 'delete')
-  const canExportNotes = hasModulePermission('notes', 'export')
-  const canManageNotes = canReadNotes && canWriteNotes
+  // 判断是否有所有指定权限
+  const hasAllPermissions = useCallback((permissionNames: string[]): boolean => {
+    if (role === ROLE_SUPER_ADMIN) return true
+    return permissionNames.every(name => permissions.includes(name))
+  }, [permissions, role])
 
-  // 小说权限
-  const canReadNovels = hasModulePermission('novels', 'read')
-  const canWriteNovels = hasModulePermission('novels', 'write')
-  const canDeleteNovels = hasModulePermission('novels', 'delete')
-  const canExportNovels = hasModulePermission('novels', 'export')
-  const canManageNovels = canReadNovels && canWriteNovels
+  // 菜单可见性判断（有菜单权限或菜单下任意操作权限）
+  const hasMenuPermission = useCallback((menuPermissionName: string, actionPermissions: string[]): boolean => {
+    if (role === ROLE_SUPER_ADMIN) return true
+    if (permissions.includes(menuPermissionName)) return true
+    return actionPermissions.some(name => permissions.includes(name))
+  }, [permissions, role])
 
-  // 版本管理权限
-  const canReadVersions = hasModulePermission('versions', 'read')
-  const canWriteVersions = hasModulePermission('versions', 'write')
-  const canDeleteVersions = hasModulePermission('versions', 'delete')
-  const canReleaseVersions = hasModulePermission('versions', 'release')
-  const canManageVersions = canReadVersions && canWriteVersions
+  // 快捷判断
+  const isSuperAdmin = useCallback(() => role === ROLE_SUPER_ADMIN, [role])
+  const isAdmin = useCallback(() => role === ROLE_SUPER_ADMIN || role === ROLE_ADMIN, [role])
 
-  // 系统权限
-  const canReadSystem = hasModulePermission('system', 'read')
-  const canWriteSystem = hasModulePermission('system', 'write')
-  const canManageSystem = canReadSystem && canWriteSystem
+  useEffect(() => {
+    loadPermissions()
 
-  // ========== 角色判断 ==========
+    // 监听 Auth 状态变化
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          loadPermissions()
+        } else {
+          setPermissions([])
+          setRole('')
+        }
+      }
+    )
 
-  const isSuperAdmin = user?.role === 'super_admin'
-  const isAdmin = user?.role === 'admin' || isSuperAdmin
-  const isViewer = user?.role === 'viewer'
-
-  // ========== 数据权限 ==========
-
-  // 是否可以查看所有用户的数据（管理员权限）
-  const canViewAllUsersData = isAdmin
-
-  // 是否只能查看自己的数据（普通用户权限）
-  const canOnlyViewOwnData = !isAdmin
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [loadPermissions])
 
   return {
-    // 基础方法
     permissions,
+    role,
+    loading,
     hasPermission,
-    hasModulePermission,
-    hasAnyModulePermission,
     hasAnyPermission,
     hasAllPermissions,
-
-    // 用户管理权限
-    canReadUsers,
-    canWriteUsers,
-    canDeleteUsers,
-    canExportUsers,
-    canManageUsers,
-
-    // 消费记录权限
-    canReadExpenses,
-    canWriteExpenses,
-    canDeleteExpenses,
-    canExportExpenses,
-    canManageExpenses,
-
-    // 心情日记权限
-    canReadMoods,
-    canWriteMoods,
-    canDeleteMoods,
-    canExportMoods,
-    canManageMoods,
-
-    // 体重记录权限
-    canReadWeights,
-    canWriteWeights,
-    canDeleteWeights,
-    canExportWeights,
-    canManageWeights,
-
-    // 笔记权限
-    canReadNotes,
-    canWriteNotes,
-    canDeleteNotes,
-    canExportNotes,
-    canManageNotes,
-
-    // 小说权限
-    canReadNovels,
-    canWriteNovels,
-    canDeleteNovels,
-    canExportNovels,
-    canManageNovels,
-
-    // 版本管理权限
-    canReadVersions,
-    canWriteVersions,
-    canDeleteVersions,
-    canReleaseVersions,
-    canManageVersions,
-
-    // 系统权限
-    canReadSystem,
-    canWriteSystem,
-    canManageSystem,
-
-    // 角色判断
+    hasMenuPermission,
     isSuperAdmin,
     isAdmin,
-    isViewer,
-
-    // 数据权限
-    canViewAllUsersData,
-    canOnlyViewOwnData,
+    reload: loadPermissions,
   }
 }
-
-export default usePermission

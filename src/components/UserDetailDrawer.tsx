@@ -21,17 +21,15 @@ import {
   EnvironmentOutlined,
   TrophyOutlined,
   LoginOutlined,
+  IdcardOutlined,
+  CalendarOutlined,
+  HomeOutlined,
+  SolutionOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons'
 import type { User, UserStats, OperationLog } from '../types/user'
-import {
-  USER_ROLE_LABELS,
-  USER_ROLE_COLORS,
-  MEMBER_LEVEL_LABELS,
-  MEMBER_LEVEL_COLORS,
-  USER_STATUS_LABELS,
-  USER_STATUS_COLORS,
-} from '../types/user'
 import dayjs from 'dayjs'
+import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 const { Text, Title } = Typography
 
@@ -52,6 +50,14 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
   loading = false,
   onClose,
 }) => {
+  // 字典查询
+  const { options: roleOptions } = useDictOptions('user_role')
+  const { options: levelOptions } = useDictOptions('member_level')
+  const { options: statusOptions } = useDictOptions('user_status')
+  const { getColor: getRoleColor } = useDictColors('user_role')
+  const { getColor: getLevelColor } = useDictColors('member_level')
+  const { getColor: getStatusColor } = useDictColors('user_status')
+
   if (!user) return null
 
   return (
@@ -79,14 +85,14 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
 
         {/* 状态标签 */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Tag color={USER_ROLE_COLORS[user.role]} style={{ marginRight: 8 }}>
-            {USER_ROLE_LABELS[user.role]}
+          <Tag color={getRoleColor(user.role) || 'default'} style={{ marginRight: 8 }}>
+            {roleOptions.find(opt => opt.value === user.role)?.label || user.role}
           </Tag>
-          <Tag color={MEMBER_LEVEL_COLORS[user.member_level]} style={{ marginRight: 8 }}>
-            {MEMBER_LEVEL_LABELS[user.member_level]}
+          <Tag color={getLevelColor(user.member_level) || 'default'} style={{ marginRight: 8 }}>
+            {levelOptions.find(opt => opt.value === user.member_level)?.label || user.member_level}
           </Tag>
-          <Tag color={USER_STATUS_COLORS[user.status]}>
-            {USER_STATUS_LABELS[user.status]}
+          <Tag color={getStatusColor(user.status) || 'default'}>
+            {statusOptions.find(opt => opt.value === user.status)?.label || user.status}
           </Tag>
         </div>
 
@@ -124,6 +130,78 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
           <Descriptions.Item label="登录次数">
             <LoginOutlined style={{ marginRight: 4 }} />
             {user.login_count} 次
+          </Descriptions.Item>
+        </Descriptions>
+
+        <Divider />
+
+        {/* 个人资料（扩展字段） */}
+        <Title level={5}>
+          <IdcardOutlined style={{ marginRight: 8 }} />
+          个人资料
+        </Title>
+        <Descriptions column={2} size="small" bordered>
+          <Descriptions.Item label="用户名">
+            {user.username ? (
+              <Text strong>{user.username}</Text>
+            ) : (
+              <Text type="secondary">未设置</Text>
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="性别">
+            <Tag color={user.gender === '男' ? 'blue' : user.gender === '女' ? 'pink' : 'default'}>
+              {user.gender || '保密'}
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="生日">
+            {user.birthday ? (
+              <>
+                <CalendarOutlined style={{ marginRight: 4 }} />
+                {dayjs(user.birthday).format('YYYY-MM-DD')}
+              </>
+            ) : (
+              <Text type="secondary">未设置</Text>
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="所在地">
+            {user.location ? (
+              <>
+                <HomeOutlined style={{ marginRight: 4 }} />
+                {user.location}
+              </>
+            ) : (
+              <Text type="secondary">未设置</Text>
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="职业">
+            {user.occupation ? (
+              <>
+                <SolutionOutlined style={{ marginRight: 4 }} />
+                {user.occupation}
+              </>
+            ) : (
+              <Text type="secondary">未设置</Text>
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="公司">
+            {user.company || <Text type="secondary">未设置</Text>}
+          </Descriptions.Item>
+          <Descriptions.Item label="个人网站" span={2}>
+            {user.website ? (
+              <a href={user.website} target="_blank" rel="noopener noreferrer">
+                <GlobalOutlined style={{ marginRight: 4 }} />
+                {user.website}
+              </a>
+            ) : (
+              <Text type="secondary">未设置</Text>
+            )}
+          </Descriptions.Item>
+          <Descriptions.Item label="个人简介" span={2}>
+            {user.bio ? (
+              <Text style={{ whiteSpace: 'pre-wrap' }}>{user.bio}</Text>
+            ) : (
+              <Text type="secondary">未设置</Text>
+            )}
           </Descriptions.Item>
         </Descriptions>
 

@@ -1,330 +1,420 @@
-import React, { useState, useMemo } from 'react'
-import { Card, Row, Col, Button, Table, Tag, Typography, Tooltip } from 'antd'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
-  UserOutlined,
-  TeamOutlined,
-  CrownOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  SettingOutlined,
+  Card,
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  Switch,
+  Tag,
+  Tree,
+  Space,
+  message,
+  Popconfirm,
+  Typography,
+  Row,
+  Col,
+} from 'antd'
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  SafetyOutlined,
 } from '@ant-design/icons'
-import type { RoleWithPermissions, Permission } from '../types/permission'
-import { MODULE_DISPLAY_NAMES, MODULE_COLORS } from '../types/permission'
-import { getRolesWithPermissions, mockPermissions } from '../utils/mockData'
-import PermissionConfigModal from '../components/PermissionConfigModal'
-import { useAuth } from '../context/auth'
+import { supabase } from '../utils/supabase'
+import { handleApiError } from '../utils/apiClient'
+import type { Role, Permission } from '../types/permission'
+import { ROLE_STATUS_LABELS, ROLE_STATUS_COLORS } from '../types/permission'
 
-const { Title, Text } = Typography
+const { Title } = Typography
 
-// 角色图标和颜色
-const ROLE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bgColor: string }> = {
-  user: {
-    icon: <UserOutlined style={{ fontSize: 32 }} />,
-    color: '#52c41a',
-    bgColor: '#f6ffed',
-  },
-  admin: {
-    icon: <TeamOutlined style={{ fontSize: 32 }} />,
-    color: '#1890ff',
-    bgColor: '#e6f7ff',
-  },
-  super_admin: {
-    icon: <CrownOutlined style={{ fontSize: 32 }} />,
-    color: '#722ed1',
-    bgColor: '#f9f0ff',
-  },
-}
+// ==================== 角色管理页面 ====================
 
-const RolePermission: React.FC = () => {
+const RolePermissionPage: React.FC = () => {
+  const [roles, setRoles] = useState<Role[]>([])
+  const [permissions, setPermissions] = useState<Permission[]>([])
+  const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
-  const [selectedRole, setSelectedRole] = useState<RoleWithPermissions | null>(null)
-  const [rolesWithPerms, setRolesWithPerms] = useState<RoleWithPermissions[]>(() => getRolesWithPermissions())
+  const [editingRole, setEditingRole] = useState<Role | null>(null)
+  const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
+  const [selectedPermissions, setSelectedPermissions] = useState<number[]>([])
 
-  const { user } = useAuth()
+  // 加载角色列表
+  const loadRoles = useCallback(async () => {
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('roles')
+        .select('*')
+        .order('id')
 
-  // 检查是否是超级管理员
-  const isSuperAdmin = user?.role === 'super_admin'
-  // 检查是否是管理员（可以查看但不能修改）
-  const isAdmin = user?.role === 'admin'
+      if (error) throw error
+      setRoles(data || [])
+    } catch (error) {
+      handleApiError(error, 'RolePermission-加载角色')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  // 是否可以编辑权限（只有超级管理员可以）
-  const canEdit = isSuperAdmin
+  // 加载权限列表
+  const loadPermissions = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('permissions')
+        .select('*')
+        .order('sort_order')
 
-  // 打开权限配置弹窗
-  const handleConfigClick = (role: RoleWithPermissions) => {
-    setSelectedRole(role)
+      if (error) throw error
+      setPermissions(data || [])
+    } catch (error) {
+      handleApiError(error, 'RolePermission-加载权限')
+    }
+  }, [])
+
+  // 加载角色的权限
+  const loadRolePermissions = useCallback(async (roleId: number) => {
+    try {
+      const { data, error } = await supabase
+        .from('role_permissions')
+        .select('permission_id')
+        .eq('role_id', roleId)
+
+      if (error) throw error
+      setSelectedPermissions(data?.map(rp => rp.permission_id) || [])
+    } catch (error) {
+      handleApiError(error, 'RolePermission-加载角色权限')
+    }
+  }, [])
+
+  useEffect(() => {
+    loadRoles()
+    loadPermissions()
+  }, [loadRoles, loadPermissions])
+
+  // 打开新增/编辑弹窗
+  const handleOpenModal = (role?: Role) => {
+    if (role) {
+      setEditingRole(role)
+      form.setFieldsValue({
+        name: role.name,
+        code: role.code,
+        description: role.description,
+        status: role.status === 'active',
+      })
+      loadRolePermissions(role.id)
+    } else {
+      setEditingRole(null)
+      form.resetFields()
+      setSelectedPermissions([])
+    }
     setModalVisible(true)
   }
 
-  // 保存权限配置
-  const handleSavePermissions = async (roleId: number, permissionIds: number[]) => {
-    // 模拟保存到数据库
-    return new Promise<void>(resolve => {
-      setTimeout(() => {
-        // 更新本地状态
-        setRolesWithPerms(prev =>
-          prev.map(role => {
-            if (role.id === roleId) {
-              return {
-                ...role,
-                permissions: mockPermissions.filter(p => permissionIds.includes(p.id)),
-              }
-            }
-            return role
-          })
-        )
-        resolve()
-      }, 500)
-    })
+  // 保存角色
+  const handleSave = async () => {
+    if (saving) return
+    try {
+      setSaving(true)
+      const values = await form.validateFields()
+      const roleData = {
+        name: values.name,
+        code: values.code,
+        description: values.description,
+        status: values.status ? 'active' : 'disabled',
+      }
+
+      if (editingRole) {
+        // 更新角色
+        const { error } = await supabase
+          .from('roles')
+          .update(roleData)
+          .eq('id', editingRole.id)
+
+        if (error) throw error
+
+        // 更新权限关联
+        await supabase
+          .from('role_permissions')
+          .delete()
+          .eq('role_id', editingRole.id)
+
+        if (selectedPermissions.length > 0) {
+          const rolePerms = selectedPermissions.map(pid => ({
+            role_id: editingRole.id,
+            permission_id: pid,
+          }))
+          const { error: rpError } = await supabase
+            .from('role_permissions')
+            .insert(rolePerms)
+          if (rpError) throw rpError
+        }
+
+        message.success('角色更新成功')
+      } else {
+        // 新增角色
+        const { data, error } = await supabase
+          .from('roles')
+          .insert(roleData)
+          .select()
+          .single()
+
+        if (error) throw error
+
+        // 添加权限关联
+        if (selectedPermissions.length > 0 && data) {
+          const rolePerms = selectedPermissions.map(pid => ({
+            role_id: data.id,
+            permission_id: pid,
+          }))
+          const { error: rpError } = await supabase
+            .from('role_permissions')
+            .insert(rolePerms)
+          if (rpError) throw rpError
+        }
+
+        message.success('角色创建成功')
+      }
+
+      setModalVisible(false)
+      loadRoles()
+    } catch (error) {
+      handleApiError(error, 'RolePermission-保存角色')
+    } finally {
+      setSaving(false)
+    }
   }
 
-  // 权限矩阵数据
-  const matrixData = useMemo(() => {
-    // 按模块分组权限
-    const groupedPermissions: Record<string, Permission[]> = {}
-    mockPermissions.forEach(permission => {
-      if (!groupedPermissions[permission.module]) {
-        groupedPermissions[permission.module] = []
+  // 删除角色
+  const handleDelete = async (role: Role) => {
+    try {
+      if (role.is_system) {
+        message.error('系统内置角色不能删除')
+        return
       }
-      groupedPermissions[permission.module]!.push(permission)
-    })
 
-    // 构建表格数据
-    const data: Array<{
-      key: string
-      module: string
-      permission: string
-      permissionId: number
-      isModuleHeader?: boolean
-      user: boolean
-      admin: boolean
-      super_admin: boolean
-    }> = []
+      const { error } = await supabase
+        .from('roles')
+        .delete()
+        .eq('id', role.id)
 
-    Object.entries(groupedPermissions).forEach(([module, permissions]) => {
-      // 添加模块标题行
-      data.push({
-        key: `module_${module}`,
-        module: MODULE_DISPLAY_NAMES[module] || module,
-        permission: '',
-        permissionId: 0,
-        isModuleHeader: true,
-        user: false,
-        admin: false,
-        super_admin: false,
-      })
+      if (error) throw error
+      message.success('角色删除成功')
+      loadRoles()
+    } catch (error) {
+      handleApiError(error, 'RolePermission-删除角色')
+    }
+  }
 
-      // 添加权限行
-      permissions.forEach(permission => {
-        const rolePerms = rolesWithPerms.reduce(
-          (acc, role) => {
-            acc[role.name] = role.permissions.some(p => p.id === permission.id)
-            return acc
-          },
-          {} as Record<string, boolean>
-        )
+  // 从 action 名称中提取资源名称（如"查看小说" -> "小说"）
+  const extractResourceName = (displayName: string): string => {
+    const prefixes = ['查看', '编辑', '删除', '导出']
+    for (const prefix of prefixes) {
+      if (displayName.startsWith(prefix)) {
+        return displayName.slice(prefix.length)
+      }
+    }
+    return displayName
+  }
 
-        data.push({
-          key: `perm_${permission.id}`,
-          module: '',
-          permission: permission.display_name,
-          permissionId: permission.id,
-          user: rolePerms['user'] || false,
-          admin: rolePerms['admin'] || false,
-          super_admin: rolePerms['super_admin'] || false,
-        })
-      })
-    })
+  // 构建权限树：目录 -> 菜单 -> 权限（三层）
+  const buildPermissionTree = useCallback(() => {
+    const menuPerms = permissions.filter(p => p.type === 'menu')
+    const actionPerms = permissions.filter(p => p.type === 'action')
 
-    return data
-  }, [rolesWithPerms])
+    return menuPerms.map(menu => {
+      const menuActions = actionPerms.filter(action => action.parent_id === menu.id)
 
-  // 权限矩阵表格列
-  const matrixColumns = [
-    {
-      title: '权限名称',
-      dataIndex: 'permission',
-      key: 'permission',
-      width: 200,
-      render: (text: string, record: typeof matrixData[0]) => {
-        if (record.isModuleHeader) {
-          return (
-            <span style={{ fontWeight: 600, color: MODULE_COLORS[record.key.replace('module_', '')] || '#333' }}>
-              {record.module}
-            </span>
-          )
+      // 按资源名称分组形成菜单层
+      const groups: Record<string, Permission[]> = {}
+      menuActions.forEach(action => {
+        const resourceName = extractResourceName(action.display_name)
+        if (!groups[resourceName]) {
+          groups[resourceName] = []
         }
-        return <span style={{ paddingLeft: 16, color: '#666' }}>{text}</span>
-      },
+        groups[resourceName].push(action)
+      })
+
+      return {
+        title: menu.display_name,
+        key: `menu_${menu.id}`,
+        children: Object.entries(groups).map(([resourceName, actions]) => ({
+          title: `${resourceName}管理`,
+          key: `group_${menu.id}_${resourceName}`,
+          children: actions.map(action => ({
+            title: action.display_name,
+            key: action.id,
+          })),
+        })),
+      }
+    })
+  }, [permissions])
+
+  // 表格列定义
+  const columns = [
+    {
+      title: '角色名称',
+      dataIndex: 'name',
+      key: 'name',
     },
     {
-      title: '普通用户',
-      dataIndex: 'user',
-      key: 'user',
-      width: 100,
-      align: 'center' as const,
-      render: (checked: boolean, record: typeof matrixData[0]) => {
-        if (record.isModuleHeader) return null
-        return checked ? (
-          <CheckOutlined style={{ color: '#52c41a', fontSize: 16 }} />
-        ) : (
-          <CloseOutlined style={{ color: '#d9d9d9', fontSize: 16 }} />
-        )
-      },
+      title: '角色编码',
+      dataIndex: 'code',
+      key: 'code',
     },
     {
-      title: '管理员',
-      dataIndex: 'admin',
-      key: 'admin',
-      width: 100,
-      align: 'center' as const,
-      render: (checked: boolean, record: typeof matrixData[0]) => {
-        if (record.isModuleHeader) return null
-        return checked ? (
-          <CheckOutlined style={{ color: '#52c41a', fontSize: 16 }} />
-        ) : (
-          <CloseOutlined style={{ color: '#d9d9d9', fontSize: 16 }} />
-        )
-      },
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
     },
     {
-      title: '超级管理员',
-      dataIndex: 'super_admin',
-      key: 'super_admin',
-      width: 120,
-      align: 'center' as const,
-      render: (checked: boolean, record: typeof matrixData[0]) => {
-        if (record.isModuleHeader) return null
-        return checked ? (
-          <CheckOutlined style={{ color: '#52c41a', fontSize: 16 }} />
-        ) : (
-          <CloseOutlined style={{ color: '#d9d9d9', fontSize: 16 }} />
-        )
-      },
+      title: '类型',
+      dataIndex: 'is_system',
+      key: 'is_system',
+      render: (isSystem: boolean) => (
+        <Tag color={isSystem ? 'blue' : 'default'}>
+          {isSystem ? '系统内置' : '自定义'}
+        </Tag>
+      ),
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => (
+        <Tag color={ROLE_STATUS_COLORS[status]}>
+          {ROLE_STATUS_LABELS[status]}
+        </Tag>
+      ),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_: any, record: Role) => (
+        <Space>
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleOpenModal(record)}
+          >
+            编辑
+          </Button>
+          {!record.is_system && (
+            <Popconfirm
+              title="确认删除"
+              description={`确定要删除角色 "${record.name}" 吗？`}
+              onConfirm={() => handleDelete(record)}
+              okText="删除"
+              cancelText="取消"
+            >
+              <Button type="link" danger icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          )}
+        </Space>
+      ),
     },
   ]
 
   return (
     <div>
-      {/* 角色卡片区域 */}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ marginBottom: 16 }}>
-          角色列表
-        </Title>
-        <Row gutter={[16, 16]}>
-          {rolesWithPerms.map(role => {
-            const config = ROLE_CONFIG[role.name] || ROLE_CONFIG['user']!
-            return (
-              <Col key={role.id} xs={24} sm={12} md={8}>
-                <Card
-                  hoverable
-                  style={{
-                    borderRadius: 12,
-                    border: `2px solid ${config.color}20`,
-                    overflow: 'hidden',
-                  }}
-                  styles={{
-                    body: { padding: 0 },
-                  }}
-                >
-                  <div
-                    style={{
-                      background: config.bgColor,
-                      padding: '24px 16px',
-                      textAlign: 'center',
-                      borderBottom: `1px solid ${config.color}20`,
-                    }}
-                  >
-                    <div style={{ color: config.color, marginBottom: 8 }}>{config.icon}</div>
-                    <Title level={4} style={{ margin: 0, color: config.color }}>
-                      {role.display_name}
-                    </Title>
-                    <Tag color={config.color} style={{ marginTop: 8 }}>
-                      Level {role.level}
-                    </Tag>
-                  </div>
-                  <div style={{ padding: 16 }}>
-                    <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>
-                      {role.description}
-                    </Text>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Text>
-                        <Text strong style={{ fontSize: 18, color: config.color }}>
-                          {role.permissions.length}
-                        </Text>{' '}
-                        个权限
-                      </Text>
-                      <Tooltip title={!canEdit ? '只有超级管理员可以修改权限' : ''}>
-                        <Button
-                          type="primary"
-                          icon={<SettingOutlined />}
-                          onClick={() => handleConfigClick(role)}
-                          disabled={!canEdit && !isAdmin}
-                          style={{
-                            background: canEdit ? config.color : undefined,
-                            borderColor: canEdit ? config.color : undefined,
-                          }}
-                        >
-                          {canEdit ? '配置权限' : '查看权限'}
-                        </Button>
-                      </Tooltip>
-                    </div>
-                  </div>
-                </Card>
-              </Col>
-            )
-          })}
-        </Row>
-      </div>
+      <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+        <Col>
+          <Title level={4} style={{ margin: 0 }}>
+            <SafetyOutlined /> 角色权限管理
+          </Title>
+        </Col>
+        <Col>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => handleOpenModal()}
+          >
+            新增角色
+          </Button>
+        </Col>
+      </Row>
 
-      {/* 权限矩阵区域 */}
-      <div>
-        <Title level={4} style={{ marginBottom: 16 }}>
-          权限矩阵
-        </Title>
-        <Card style={{ borderRadius: 8 }}>
-          <Table
-            dataSource={matrixData}
-            columns={matrixColumns}
-            pagination={false}
-            size="small"
-            rowClassName={(record) =>
-              record.isModuleHeader ? 'module-header-row' : ''
-            }
-            style={{
-              '--module-header-bg': '#fafafa',
-            } as React.CSSProperties}
-          />
-          <style>{`
-            .module-header-row {
-              background: #fafafa;
-            }
-            .module-header-row td {
-              font-weight: 600;
-            }
-          `}</style>
-        </Card>
-      </div>
+      <Card>
+        <Table
+          columns={columns}
+          dataSource={roles}
+          rowKey="id"
+          loading={loading}
+          pagination={{ pageSize: 10 }}
+        />
+      </Card>
 
-      {/* 权限配置弹窗 */}
-      <PermissionConfigModal
-        visible={modalVisible}
-        role={selectedRole}
-        onClose={() => {
-          setModalVisible(false)
-          setSelectedRole(null)
-        }}
-        onSave={handleSavePermissions}
-        readOnly={!canEdit}
-      />
+      {/* 新增/编辑角色弹窗 */}
+      <Modal
+        title={editingRole ? '编辑角色' : '新增角色'}
+        open={modalVisible}
+        onOk={handleSave}
+        confirmLoading={saving}
+        onCancel={() => setModalVisible(false)}
+        width={700}
+        destroyOnClose
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={{ status: true }}
+        >
+          <Form.Item
+            name="name"
+            label="角色名称"
+            rules={[{ required: true, message: '请输入角色名称' }]}
+          >
+            <Input placeholder="如：运营管理员" />
+          </Form.Item>
+          <Form.Item
+            name="code"
+            label="角色编码"
+            rules={[
+              { required: true, message: '请输入角色编码' },
+              { pattern: /^[a-z0-9_]+$/, message: '只能使用小写字母、数字和下划线' },
+            ]}
+          >
+            <Input placeholder="如：operation_admin" disabled={!!editingRole} />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="描述"
+          >
+            <Input.TextArea rows={2} placeholder="角色描述" />
+          </Form.Item>
+          <Form.Item
+            name="status"
+            label="状态"
+            valuePropName="checked"
+          >
+            <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+          </Form.Item>
+
+          <Form.Item label="权限配置">
+            <Card size="small" title="选择权限" style={{ maxHeight: 400, overflow: 'auto' }}>
+              <Tree
+                checkable
+                treeData={buildPermissionTree()}
+                checkedKeys={selectedPermissions}
+                onCheck={(checkedKeys) => {
+                  // 只保留 action 节点的 key（纯数字），过滤掉 group/menu 层的字符串 key
+                  const keys = (checkedKeys as React.Key[]).filter(
+                    k => typeof k === 'number' || /^\d+$/.test(String(k))
+                  )
+                  setSelectedPermissions(keys.map(k => Number(k)))
+                }}
+              />
+            </Card>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }
 
-export default RolePermission
+export default RolePermissionPage

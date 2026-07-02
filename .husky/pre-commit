@@ -1,0 +1,27 @@
+#!/bin/sh
+
+# 检查是否在 CI 环境或没有 npm 命令时跳过
+if [ -n "$CI" ] || ! command -v npm >/dev/null 2>&1; then
+    echo "⚠️  跳过提交前验证（CI 环境或未安装 npm）"
+    exit 0
+fi
+
+echo "🔍 正在运行提交前构建验证..."
+
+# 运行 TypeScript 类型检查
+echo "📦 运行 TypeScript 类型检查..."
+npx tsc -b --noEmit
+if [ $? -ne 0 ]; then
+    echo "❌ TypeScript 类型检查失败，请修复错误后再提交"
+    exit 1
+fi
+
+# 运行构建
+echo "🏗️  运行生产构建..."
+npm run build
+if [ $? -ne 0 ]; then
+    echo "❌ 构建失败，请修复错误后再提交"
+    exit 1
+fi
+
+echo "✅ 提交前验证通过"

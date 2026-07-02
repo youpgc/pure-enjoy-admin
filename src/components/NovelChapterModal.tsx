@@ -1,454 +1,417 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Modal,
   Table,
   Button,
-  Space,
-  Popconfirm,
-  message,
-  Form,
   Input,
-  InputNumber,
-  Switch,
+  Form,
+  message,
   Typography,
-  Empty,
-  Spin,
-  Tag,
 } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
 import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  ImportOutlined,
+  ReloadOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
 } from '@ant-design/icons'
-import type { NovelRecord } from '../pages/NovelManagement'
+import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
+import { getActionColumn } from './ActionColumn'
+import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
+import { usePagination } from '../hooks/usePagination'
 
-const { Title, Text } = Typography
-const { TextArea } = Input
+const { Text } = Typography
 
 // ==================== 类型定义 ====================
 
-interface ChapterRecord {
+interface NovelChapter {
   id: string
-  key: string
   novel_id: string
   chapter_num: number
   title: string
   content: string
   word_count: number
   is_free: boolean
-  price: number
   created_at: string
+  updated_at: string
 }
 
-interface NovelChapterModalProps {
+// ==================== 组件 ====================
+
+const NovelChapterModal: React.FC<{
   open: boolean
-  novel: NovelRecord | null
+  novelId: string
   onClose: () => void
-}
-
-// ==================== 主组件 ====================
-
-const NovelChapterModal: React.FC<NovelChapterModalProps> = ({
-  open,
-  novel,
-  onClose,
-}) => {
+}> = ({ open, novelId, onClose }) => {
+  const [chapters, setChapters] = useState<NovelChapter[]>([])
   const [loading, setLoading] = useState(false)
-  const [chapters, setChapters] = useState<ChapterRecord[]>([])
   const [editModalOpen, setEditModalOpen] = useState(false)
-  const [editMode, setEditMode] = useState<'create' | 'edit'>('create')
-  const [editingChapter, setEditingChapter] = useState<ChapterRecord | null>(null)
-  const [confirmLoading, setConfirmLoading] = useState(false)
+  const [editingChapter, setEditingChapter] = useState<NovelChapter | null>(null)
   const [form] = Form.useForm()
+  const [saving, setSaving] = useState(false)
+  const { pagination, tablePagination, setTotal, resetPage } = usePagination()
+  const hasResetRef = React.useRef(false)
+
+  // 章节号转中文数字（1→第一章，2→第二章，...，999→第九百九十九章）
+  const toChineseNumber = (num: number): string => {
+    const chineseNums = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九']
+    const chineseUnits = ['', '十', '百']
+
+    if (num === 0) return '零'
+
+    const digits = num.toString().split('').map(Number)
+    let result = ''
+
+    for (let i = 0; i < digits.length; i++) {
+      const digit = digits[i]!
+      const unitIndex = digits.length - 1 - i
+
+      if (digit === 0) {
+        // 当前位是0，检查下一位是否也是0或已到末尾
+        const nextDigit = digits[i + 1]
+        if (i < digits.length - 1 && nextDigit !== undefined && nextDigit !== 0) {
+          result += chineseNums[0]
+        }
+      } else {
+        const unit = chineseUnits[unitIndex]
+        result += chineseNums[digit] + (unit ?? '')
+      }
+    }
+
+    // 处理特殊简写：十一~十九 简化为 十一~十九（不需要"一"前缀）
+    // 十 简化为 十（不需要"一十"）
+    if (num >= 10 && num < 20) {
+      result = result.replace(/^一/, '')
+    }
+
+    return result
+  }
+
+  const chapterService = new BaseService<NovelChapter>('novel_chapters', { defaultOrder: { column: 'chapter_num', ascending: true } })
 
   // 加载章节列表
-  const fetchChapters = useCallback(async () => {
-    if (!novel) return
-
+  const loadChapters = useCallback(async () => {
+    if (!novelId) return
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('novel_chapters')
-        .select('*')
-        .eq('novel_id', novel.id)
-        .order('chapter_num', { ascending: true })
-
-      if (error) throw error
-
-      const records: ChapterRecord[] = (data || []).map((chapter) => ({
-        ...chapter,
-        key: chapter.id,
-      }))
-
-      setChapters(records)
+      const result = await chapterService.paginate(
+        pagination.current,
+        pagination.pageSize,
+        (q) => q.eq('novel_id', novelId),
+      )
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'NovelChapterModal-加载章节')
+        return
+      }
+      setChapters(result.data?.data || [])
+      setTotal(result.data?.total || 0)
     } catch (error) {
-      console.error('获取章节列表失败:', error)
-      message.error('获取章节列表失败')
+      handleApiError(error, 'NovelChapterModal-加载章节')
     } finally {
       setLoading(false)
     }
-  }, [novel])
+  }, [novelId, pagination.current, pagination.pageSize, setTotal])
 
   useEffect(() => {
-    if (open && novel) {
-      fetchChapters()
+    if (open && novelId) {
+      // 仅在弹窗从关闭到打开时重置页码，翻页时不重置
+      if (!hasResetRef.current) {
+        resetPage()
+        hasResetRef.current = true
+      }
+      loadChapters()
+    } else if (!open) {
+      hasResetRef.current = false
     }
-  }, [open, novel, fetchChapters])
+  }, [open, novelId, loadChapters, resetPage])
 
-  // 新增章节
-  const handleCreate = useCallback(() => {
-    const nextChapterNum = chapters.length > 0
-      ? Math.max(...chapters.map(c => c.chapter_num)) + 1
-      : 1
-
-    setEditMode('create')
+  // 打开新增弹窗（查询全局最大章节号，避免与已有章节冲突）
+  const handleAdd = async () => {
     setEditingChapter(null)
     form.resetFields()
-    form.setFieldsValue({
-      chapter_num: nextChapterNum,
-      is_free: true,
-      price: 0,
-    })
+    // 查询该小说全局最大章节号
+    let nextNumber = 1
+    try {
+      const { data, error } = await supabase
+        .from('novel_chapters')
+        .select('chapter_num')
+        .eq('novel_id', novelId)
+        .order('chapter_num', { ascending: false })
+        .limit(1)
+        .single()
+      if (!error && data) {
+        nextNumber = (data.chapter_num || 0) + 1
+      }
+    } catch (err) {
+      // 查询失败时使用当前页数据兜底
+      nextNumber = chapters.length > 0
+        ? Math.max(...chapters.map(c => c.chapter_num)) + 1
+        : 1
+    }
+    form.setFieldsValue({ chapter_num: nextNumber })
     setEditModalOpen(true)
-  }, [chapters, form])
+  }
 
-  // 编辑章节
-  const handleEdit = useCallback((record: ChapterRecord) => {
-    setEditMode('edit')
+  // 打开编辑弹窗
+  const handleEdit = (record: NovelChapter) => {
     setEditingChapter(record)
     form.setFieldsValue({
-      chapter_num: record.chapter_num,
-      title: record.title,
-      content: record.content,
-      word_count: record.word_count,
-      is_free: record.is_free,
-      price: record.price,
+      ...record,
     })
     setEditModalOpen(true)
-  }, [form])
+  }
 
   // 删除章节
-  const handleDelete = useCallback(async (id: string) => {
+  const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('novel_chapters')
-        .delete()
-        .eq('id', id)
-
-      if (error) throw error
-
-      setChapters((prev) => prev.filter((item) => item.id !== id))
+      const result = await chapterService.delete(id)
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'NovelChapterModal-删除章节')
+        return
+      }
       message.success('删除成功')
+      loadChapters()
     } catch (error) {
-      console.error('删除失败:', error)
-      message.error('删除失败')
+      handleApiError(error, 'NovelChapterModal-删除章节')
     }
-  }, [])
+  }
 
-  // 提交表单
-  const handleFormSubmit = useCallback(async () => {
+  // 保存章节
+  const handleSave = async () => {
+    if (saving) return
     try {
+      setSaving(true)
       const values = await form.validateFields()
-
-      if (!novel) return
-
-      setConfirmLoading(true)
-
-      // 计算字数
-      const wordCount = values.content ? values.content.length : 0
-
-      const chapterData = {
-        novel_id: novel.id,
-        chapter_num: values.chapter_num,
-        title: values.title,
-        content: values.content || '',
-        word_count: wordCount,
-        is_free: values.is_free !== false,
-        price: values.price || 0,
-      }
-
-      if (editMode === 'create') {
-        const { data, error } = await supabase
-          .from('novel_chapters')
-          .insert(chapterData)
-          .select()
-          .single()
-
-        if (error) throw error
-
-        const newChapter: ChapterRecord = {
-          ...data,
-          key: data.id,
-        } as ChapterRecord
-
-        setChapters((prev) => [...prev, newChapter].sort((a, b) => a.chapter_num - b.chapter_num))
-        message.success('新增成功')
-      } else {
-        const { error } = await supabase
-          .from('novel_chapters')
-          .update({
-            ...chapterData,
-          })
-          .eq('id', editingChapter?.id)
-
-        if (error) throw error
-
-        setChapters((prev) =>
-          prev.map((item) =>
-            item.id === editingChapter?.id
-              ? { ...item, ...chapterData }
-              : item
-          )
-        )
+      if (editingChapter) {
+        const result = await chapterService.update(editingChapter.id, {
+          ...values,
+          word_count: values.content?.length || 0,
+          updated_at: new Date().toISOString(),
+        })
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'NovelChapterModal-更新章节')
+          return
+        }
         message.success('更新成功')
+      } else {
+        const result = await chapterService.create({
+          ...values,
+          novel_id: novelId,
+          word_count: values.content?.length || 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as any)
+        if (!result.success) {
+          handleApiError(result.errorMessage, 'NovelChapterModal-创建章节')
+          return
+        }
+        message.success('创建成功')
+      }
+      setEditModalOpen(false)
+      setEditingChapter(null)
+      form.resetFields()
+      loadChapters()
+    } catch (error) {
+      handleApiError(error, 'NovelChapterModal-保存章节')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // 调整章节顺序（查询数据库真实相邻章节，支持跨页移动）
+  const handleMoveChapter = async (chapter: NovelChapter, direction: 'up' | 'down') => {
+    try {
+      // 上移：查询 chapter_num < 当前值 的最大值（降序取第一条）
+      // 下移：查询 chapter_num > 当前值 的最小值（升序取第一条）
+      let query = supabase
+        .from('novel_chapters')
+        .select('id, chapter_num')
+        .eq('novel_id', novelId)
+        .neq('id', chapter.id)
+
+      if (direction === 'up') {
+        query = query.lt('chapter_num', chapter.chapter_num).order('chapter_num', { ascending: false })
+      } else {
+        query = query.gt('chapter_num', chapter.chapter_num).order('chapter_num', { ascending: true })
       }
 
-      setEditModalOpen(false)
+      const { data: targetData, error: targetError } = await query.limit(1)
+
+      if (targetError || !targetData || targetData.length === 0) {
+        message.warning(direction === 'up' ? '已经是第一章' : '已经是最后一章')
+        return
+      }
+
+      const targetChapter = targetData[0]
+      if (!targetChapter) {
+        message.warning(direction === 'up' ? '已经是第一章' : '已经是最后一章')
+        return
+      }
+
+      // 如果目标章节的 chapter_num 和当前章节相同，说明数据有重复，需要先重排
+      if (targetChapter.chapter_num === chapter.chapter_num) {
+        message.error('章节号存在重复，请先使用"重新编号"功能整理')
+        return
+      }
+
+      // 交换章节号
+      const [update1, update2] = await Promise.all([
+        apiExecute(
+          () => supabase.from('novel_chapters').update({ chapter_num: targetChapter.chapter_num }).eq('id', chapter.id) as any,
+          'NovelChapterModal-调整顺序1'
+        ),
+        apiExecute(
+          () => supabase.from('novel_chapters').update({ chapter_num: chapter.chapter_num }).eq('id', targetChapter.id) as any,
+          'NovelChapterModal-调整顺序2'
+        ),
+      ])
+
+      if (!update1.success || !update2.success) {
+        message.error('调整顺序失败')
+        return
+      }
+
+      message.success('调整成功')
+      loadChapters()
     } catch (error) {
-      console.error('操作失败:', error)
-      message.error('操作失败')
-    } finally {
-      setConfirmLoading(false)
+      handleApiError(error, 'NovelChapterModal-调整顺序')
     }
-  }, [novel, editMode, editingChapter, form])
+  }
 
-  // 批量导入
-  const handleBatchImport = useCallback(() => {
-    message.info('批量导入功能开发中...')
-  }, [])
-
-  // 表格列配置
-  const columns: ColumnsType<ChapterRecord> = [
+  // 表格列定义
+  const columns: ColumnsType<NovelChapter> = [
     {
-      title: '章节号',
+      title: '序号',
       dataIndex: 'chapter_num',
       key: 'chapter_num',
-      width: 80,
+      width: 120,
+      render: (num: number) => `第${toChineseNumber(num)}章`,
       sorter: (a, b) => a.chapter_num - b.chapter_num,
     },
     {
-      title: '章节标题',
+      title: '标题',
       dataIndex: 'title',
       key: 'title',
-      ellipsis: true,
-      render: (title: string) => (
-        <span style={{ fontWeight: 500 }}>{title}</span>
-      ),
+      render: (title: string) => <Text strong>{title}</Text>,
     },
     {
       title: '字数',
       dataIndex: 'word_count',
       key: 'word_count',
       width: 100,
-      render: (wordCount: number) => `${wordCount} 字`,
-    },
-    {
-      title: '免费',
-      dataIndex: 'is_free',
-      key: 'is_free',
-      width: 80,
-      render: (isFree: boolean) => (
-        <Tag color={isFree ? 'green' : 'orange'}>
-          {isFree ? '免费' : '付费'}
-        </Tag>
-      ),
-    },
-    {
-      title: '价格',
-      dataIndex: 'price',
-      key: 'price',
-      width: 80,
-      render: (price: number, record) => (
-        record.is_free ? '-' : `${price} 元`
-      ),
+      render: (count: number) => `${count || 0} 字`,
     },
     {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 160,
-      render: (date: string) => new Date(date).toLocaleString('zh-CN'),
+      width: 170,
+      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_, record) => (
-        <Space size="small">
-          <Button
-            type="link"
-            size="small"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除"
-            description="删除后无法恢复，是否继续？"
-            onConfirm={() => handleDelete(record.id)}
-            okText="删除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-          >
-            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    getActionColumn<NovelChapter>(
+      (record: NovelChapter) => [
+        {
+          key: 'up',
+          label: '上移',
+          icon: <ArrowUpOutlined />,
+          onClick: () => {
+            const idx = chapters.findIndex(c => c.id === record.id)
+            if (idx > 0) handleMoveChapter(record, 'up')
+          },
+        },
+        {
+          key: 'down',
+          label: '下移',
+          icon: <ArrowDownOutlined />,
+          onClick: () => {
+            const idx = chapters.findIndex(c => c.id === record.id)
+            if (idx >= 0 && idx < chapters.length - 1) handleMoveChapter(record, 'down')
+          },
+        },
+        {
+          key: 'edit',
+          label: '编辑',
+          icon: <EditOutlined />,
+          type: 'primary' as const,
+          onClick: () => handleEdit(record),
+        },
+        {
+          key: 'delete',
+          label: '删除',
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => handleDelete(record.id),
+        },
+      ],
+      { width: 240, maxVisible: 3 }
+    ),
   ]
 
   return (
     <>
       <Modal
+        title="章节管理"
         open={open}
-        title={
-          <Space>
-            <Title level={4} style={{ margin: 0 }}>
-              章节管理
-            </Title>
-            {novel && (
-              <Text type="secondary">
-                《{novel.title}》- 共 {chapters.length} 章
-              </Text>
-            )}
-          </Space>
-        }
         onCancel={onClose}
         footer={null}
-        width={1000}
-        destroyOnClose
+        width={900}
       >
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '50px 0' }}>
-            <Spin size="large" />
-          </div>
-        ) : chapters.length === 0 ? (
-          <Empty
-            description="暂无章节"
-            style={{ padding: '50px 0' }}
-          >
-            <Space>
-              <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-                新增章节
-              </Button>
-              <Button icon={<ImportOutlined />} onClick={handleBatchImport}>
-                批量导入
-              </Button>
-            </Space>
-          </Empty>
-        ) : (
-          <>
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-              <Text type="secondary">
-                总字数：{chapters.reduce((sum, c) => sum + c.word_count, 0).toLocaleString()} 字
-              </Text>
-              <Space>
-                <Button icon={<ImportOutlined />} onClick={handleBatchImport}>
-                  批量导入
-                </Button>
-                <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-                  新增章节
-                </Button>
-              </Space>
-            </div>
-            <Table<ChapterRecord>
-              columns={columns}
-              dataSource={chapters}
-              rowKey="id"
-              pagination={{
-                pageSize: 10,
-                showSizeChanger: true,
-                showTotal: (total) => `共 ${total} 章`,
-              }}
-              size="small"
-              scroll={{ y: 400 }}
-            />
-          </>
-        )}
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+            新增章节
+          </Button>
+          <Button icon={<ReloadOutlined />} onClick={loadChapters} loading={loading}>
+            刷新
+          </Button>
+        </div>
+
+        <Table
+          columns={columns}
+          dataSource={chapters}
+          rowKey="id"
+          loading={loading}
+          pagination={tablePagination}
+          size="small"
+        />
       </Modal>
 
-      {/* 新增/编辑章节弹窗 */}
+      {/* 章节编辑弹窗 */}
       <Modal
+        title={editingChapter ? '编辑章节' : '新增章节'}
         open={editModalOpen}
-        title={editMode === 'create' ? '新增章节' : '编辑章节'}
-        onOk={handleFormSubmit}
-        onCancel={() => setEditModalOpen(false)}
-        confirmLoading={confirmLoading}
+        onOk={handleSave}
+        confirmLoading={saving}
+        onCancel={() => {
+          setEditModalOpen(false)
+          setEditingChapter(null)
+          form.resetFields()
+        }}
         width={700}
-        destroyOnClose
       >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{
-            is_free: true,
-            price: 0,
-          }}
-        >
+        <Form form={form} layout="vertical">
           <Form.Item
             name="chapter_num"
             label="章节号"
             rules={[{ required: true, message: '请输入章节号' }]}
           >
-            <InputNumber min={1} style={{ width: '100%' }} placeholder="请输入章节号" />
+            <Input type="number" placeholder="请输入章节号" />
           </Form.Item>
-
           <Form.Item
             name="title"
-            label="章节标题"
-            rules={[{ required: true, message: '请输入章节标题' }]}
+            label="标题"
+            rules={[{ required: true, message: '请输入标题' }]}
           >
-            <Input placeholder="请输入章节标题" />
+            <Input placeholder="请输入标题" />
           </Form.Item>
-
           <Form.Item
             name="content"
-            label="章节内容"
+            label="内容"
+            rules={[{ required: true, message: '请输入内容' }]}
           >
-            <TextArea
-              rows={10}
-              placeholder="请输入章节内容"
-              showCount
-              style={{ fontFamily: 'monospace' }}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="word_count"
-            label="字数"
-          >
-            <InputNumber min={0} style={{ width: '100%' }} placeholder="自动计算" disabled />
-          </Form.Item>
-
-          <Form.Item
-            name="is_free"
-            label="是否免费"
-            valuePropName="checked"
-          >
-            <Switch checkedChildren="免费" unCheckedChildren="付费" />
-          </Form.Item>
-
-          <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) => prevValues.is_free !== currentValues.is_free}
-          >
-            {({ getFieldValue }) =>
-              !getFieldValue('is_free') && (
-                <Form.Item
-                  name="price"
-                  label="价格（元）"
-                  rules={[{ required: true, message: '请输入价格' }]}
-                >
-                  <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="请输入价格" />
-                </Form.Item>
-              )
-            }
+            <Input.TextArea rows={10} placeholder="请输入章节内容" />
           </Form.Item>
         </Form>
       </Modal>

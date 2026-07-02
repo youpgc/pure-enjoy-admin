@@ -1,33 +1,67 @@
 import React, { useState } from 'react'
 import { Card, Form, Input, Button, message, Typography } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/auth'
+import { supabase } from '../utils/supabase'
+import { ADMIN_ROLE_CODES } from '../constants'
 
 const { Title, Text } = Typography
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
-  const navigate = useNavigate()
 
-  const handleLogin = async (values: { email: string; password: string }) => {
+  const handleLogin = async (values: { username: string; password: string }) => {
+    if (loading) return
     setLoading(true)
     try {
-      await login(values.email, values.password)
+      // 使用 Supabase Auth 进行登录
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: values.username,
+        password: values.password,
+      })
+
+      if (authError) {
+        if (authError.message.includes('Invalid login credentials')) {
+          throw new Error('用户名或密码错误')
+        }
+        throw new Error(authError.message)
+      }
+
+      if (!authData.user) {
+        throw new Error('登录失败，未获取到用户信息')
+      }
+
+      // 从 user_metadata 或 app_metadata 中获取角色信息
+      // 优先读取 user_metadata.role（自定义管理员角色），其次 app_metadata.role（Supabase 默认角色）
+      const userMetadata = authData.user.user_metadata || {}
+      const appMetadata = authData.user.app_metadata || {}
+      const role = (userMetadata.role || appMetadata.role || '') as string
+
+      // 检查角色权限
+      if (!(ADMIN_ROLE_CODES as readonly string[]).includes(role)) {
+        // 角色不匹配，登出并提示
+        await supabase.auth.signOut()
+        throw new Error('该用户无权登录管理后台')
+      }
+
       message.success('登录成功')
-      navigate('/', { replace: true })
+      // 刷新页面让 AuthGuard 读取新的会话状态
+      window.location.href = '/pure-enjoy-admin/'
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '登录失败'
       message.error(errorMessage)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Login] 登录失败:', err)
+      }
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
     <div className="login-container">
       <Card className="login-card">
         <div className="login-logo">
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="logo" style={{ width: 64, height: 64, marginBottom: 12 }} />
           <Title level={2} style={{ color: '#6C63FF', marginBottom: 8 }}>
             纯享管理后台
           </Title>
@@ -41,13 +75,10 @@ const Login: React.FC = () => {
           size="large"
         >
           <Form.Item
-            name="email"
-            rules={[
-              { required: true, message: '请输入邮箱' },
-              { type: 'email', message: '请输入有效的邮箱地址' }
-            ]}
+            name="username"
+            rules={[{ required: true, message: '请输入用户名' }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="邮箱" />
+            <Input prefix={<UserOutlined />} placeholder="用户名/邮箱" />
           </Form.Item>
 
           <Form.Item

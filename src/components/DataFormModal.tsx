@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Modal,
   Form,
@@ -12,6 +12,7 @@ import {
 } from 'antd'
 import type { FormInstance, Rule } from 'antd/es/form'
 import dayjs from 'dayjs'
+import { getMoodTypeOptions } from '../utils/dictService'
 
 const { TextArea } = Input
 const { RangePicker } = DatePicker
@@ -67,30 +68,60 @@ export interface DataFormModalProps {
 
 // ==================== Emoji 选择器 ====================
 
-const EMOJI_OPTIONS = [
-  { label: '😊 开心', value: '开心' },
-  { label: '😌 平静', value: '平静' },
-  { label: '😐 一般', value: '一般' },
-  { label: '😢 难过', value: '难过' },
-  { label: '😰 焦虑', value: '焦虑' },
+// Emoji 映射：心情值 -> 对应的 Emoji
+const MOOD_EMOJI_MAP: Record<string, string> = {
+  happy: '😊',
+  calm: '😌',
+  normal: '😐',
+  sad: '😢',
+  anxious: '😰',
+  tired: '😴',
+  开心: '😊',
+  平静: '😌',
+  一般: '😐',
+  难过: '😢',
+  焦虑: '😰',
+  疲惫: '😴',
+}
+
+// Fallback 心情选项
+const FALLBACK_MOOD_OPTIONS = [
+  { label: '开心', value: '开心' },
+  { label: '平静', value: '平静' },
+  { label: '一般', value: '一般' },
+  { label: '难过', value: '难过' },
+  { label: '焦虑', value: '焦虑' },
 ]
 
 const EmojiSelect: React.FC<{
   value?: string
   onChange?: (value: string) => void
 }> = ({ value, onChange }) => {
+  const [moodOptions, setMoodOptions] = useState(FALLBACK_MOOD_OPTIONS)
+
+  useEffect(() => {
+    getMoodTypeOptions().then((options) => {
+      if (options.length > 0) {
+        setMoodOptions(options)
+      }
+    })
+  }, [])
+
   return (
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-      {EMOJI_OPTIONS.map((option) => (
-        <Button
-          key={option.value}
-          type={value === option.value ? 'primary' : 'default'}
-          onClick={() => onChange?.(option.value as string)}
-          style={{ fontSize: 18, padding: '4px 12px' }}
-        >
-          {option.label}
-        </Button>
-      ))}
+      {moodOptions.map((option) => {
+        const emoji = MOOD_EMOJI_MAP[option.value] || '😐'
+        return (
+          <Button
+            key={option.value}
+            type={value === option.value ? 'primary' : 'default'}
+            onClick={() => onChange?.(option.value as string)}
+            style={{ fontSize: 18, padding: '4px 12px' }}
+          >
+            {emoji} {option.label}
+          </Button>
+        )
+      })}
     </div>
   )
 }
@@ -163,6 +194,7 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
   wrapperCol,
 }) => {
   const [form] = Form.useForm()
+  const [submitting, setSubmitting] = useState(false)
 
   // 当打开弹窗或初始值变化时，重置表单
   React.useEffect(() => {
@@ -206,7 +238,9 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
 
   // 提交
   const handleOk = async () => {
+    if (submitting) return
     try {
+      setSubmitting(true)
       const values = await form.validateFields()
       // 处理日期类型的值
       const processedValues: Record<string, unknown> = {}
@@ -226,6 +260,8 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
       form.resetFields()
     } catch (error) {
       console.error('Form validation failed:', error)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -347,7 +383,7 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
       title={title}
       onOk={handleOk}
       onCancel={handleCancel}
-      confirmLoading={confirmLoading}
+      confirmLoading={submitting || confirmLoading}
       destroyOnClose={destroyOnClose}
       width={width}
       okText={mode === 'create' ? '创建' : '保存'}
