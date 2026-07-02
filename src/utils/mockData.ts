@@ -26,13 +26,23 @@ const mockUsers: User[] = userNames.map((name, i) => {
   const roles: UserRole[] = ['user', 'user', 'user', 'admin', 'super_admin']
   const memberLevels: MemberLevel[] = ['normal', 'normal', 'member', 'member', 'super_member']
   const statuses: UserStatus[] = ['active', 'active', 'active', 'abnormal', 'disabled', 'banned']
+  const emails = ['zhangsan', 'lisi', 'wangwu', 'zhaoliu', 'sunqi', 'zhouba', 'wujiu', 'zhengshi', 'chenxm', 'linxh', 'huangdw', 'liuml', 'yangzq', 'xujw', 'maty', 'zhuly', 'hujh', 'guoxm', 'heff', 'luowb']
   
   return {
     id: generateUserId(),
-    email: `${['zhangsan', 'lisi', 'wangwu', 'zhaoliu', 'sunqi', 'zhouba', 'wujiu', 'zhengshi', 'chenxm', 'linxh', 'huangdw', 'liuml', 'yangzq', 'xujw', 'maty', 'zhuly', 'hujh', 'guoxm', 'heff', 'luowb'][i]!}@example.com`,
+    email: `${emails[i]}@example.com`,
     phone: `1${3 + (i % 8)}${String(Math.floor(Math.random() * 100000000)).padStart(8, '0')}`,
+    password_hash: null,
     nickname: name,
     avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
+    username: emails[i]!,
+    bio: null,
+    gender: ['男', '女', '保密'][i % 3]!,
+    birthday: null,
+    location: null,
+    occupation: null,
+    company: null,
+    website: null,
     role: roles[i % roles.length]!,
     member_level: memberLevels[i % memberLevels.length]!,
     points: Math.floor(Math.random() * 10000),
@@ -459,26 +469,32 @@ export const mockRoles: Role[] = [
   {
     id: 1,
     name: 'user',
-    display_name: '普通用户',
+    code: 'user',
     description: '普通用户，拥有基本的查看和编辑自己数据的权限',
-    level: 1,
+    is_system: true,
+    status: 'active',
     created_at: '2024-01-01 00:00:00',
+    updated_at: '2024-01-01 00:00:00',
   },
   {
     id: 2,
     name: 'admin',
-    display_name: '管理员',
+    code: 'admin',
     description: '管理员，可以管理用户和大部分数据',
-    level: 2,
+    is_system: true,
+    status: 'active',
     created_at: '2024-01-01 00:00:00',
+    updated_at: '2024-01-01 00:00:00',
   },
   {
     id: 3,
     name: 'super_admin',
-    display_name: '超级管理员',
+    code: 'super_admin',
     description: '超级管理员，拥有所有权限',
-    level: 3,
+    is_system: true,
+    status: 'active',
     created_at: '2024-01-01 00:00:00',
+    updated_at: '2024-01-01 00:00:00',
   },
 ]
 
@@ -502,14 +518,16 @@ const permissionActions = [
 
 // 生成所有权限
 let permissionId = 1
-export const mockPermissions: Permission[] = permissionModules.flatMap(({ module }) =>
-  permissionActions.map(({ action, displayName }) => ({
+export const mockPermissions: Permission[] = permissionModules.flatMap(({ module }, moduleIndex) =>
+  permissionActions.map(({ action, displayName }, actionIndex) => ({
     id: permissionId++,
     name: `${module}:${action}`,
     display_name: `${permissionModules.find(m => m.module === module)!.displayName}${displayName}`,
+    type: 'action' as const,
+    parent_id: null,
+    sort_order: moduleIndex * 10 + actionIndex,
     module,
-    action,
-    description: null,
+    description: undefined,
     created_at: '2024-01-01 00:00:00',
   }))
 )
