@@ -49,20 +49,6 @@ jobs:
         with:
           path: ./dist
 
-      # 将构建产物推送到 Gitee gh-pages 分支，供 Gitee Pages 使用
-      # Gitee Pages 免费版不支持自动部署，推送后需在 Gitee 后台手动点击"更新"
-      - name: Deploy to Gitee gh-pages
-        env:
-          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
-        run: |
-          cd dist
-          git init
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add .
-          git commit -m "deploy: update gitee pages from GitHub Actions" || true
-          git push --force "https://oauth2:${GITEE_TOKEN}@gitee.com/YouPgC/pure-enjoy-admin.git" HEAD:gh-pages
-
   deploy:
     needs: build
     runs-on: ubuntu-latest
