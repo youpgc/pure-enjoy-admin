@@ -40,11 +40,6 @@ npm run dev
 npx tsc -b --noEmit && npm run build
 ```
 
-## 部署
+## 许可证
 
-推送 `master` 分支自动触发 GitHub Actions，构建后部署到 GitHub Pages：
-`https://youpgc.github.io/pure-enjoy-admin`
-
-## 相关仓库
-
-- **App 端**：[pure-enjoy](https://github.com/youpgc/pure-enjoy) — Flutter 跨平台应用
+MIT License
