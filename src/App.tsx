@@ -29,6 +29,7 @@ import {
   MenuFoldOutlined,
   SoundOutlined,
   MessageOutlined,
+  TrophyOutlined,
   ControlOutlined,
   SettingOutlined,
   ToolOutlined,
@@ -68,6 +69,11 @@ import Feedback from './pages/Feedback'
 import PointsManagement from './pages/PointsManagement'
 import ErrorLogs from './pages/ErrorLogs'
 import NovelComments from './pages/NovelComments'
+import Rankings from './pages/Rankings'
+import Bookmarks from './pages/Bookmarks'
+import Annotations from './pages/Annotations'
+import Recommendations from './pages/Recommendations'
+import TtsManagement from './pages/TtsManagement'
 import { supabase } from './utils/supabase'
 
 const { Header, Sider, Content } = Layout
@@ -176,10 +182,10 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 // ========== Navigation Context ==========
 type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
-  'novels' | 'novel_bookshelves' | 'novel_comments' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
+  'novels' | 'novel_bookshelves' | 'novel_comments' | 'rankings' | 'bookmarks' | 'annotations' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
-  | 'anniversaries' | 'points' | 'error_logs'
+  | 'anniversaries' | 'points' | 'error_logs' | 'recommendations' | 'tts_management'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -247,6 +253,15 @@ const MainLayout: React.FC = () => {
           ...(hasMenuPermission('menu:content', ['novels:read']) ? [
             { key: 'novel_comments', icon: <MessageOutlined />, label: '评论管理' },
           ] : []),
+          ...(hasMenuPermission('menu:content', ['novels:read']) ? [
+            { key: 'rankings', icon: <TrophyOutlined />, label: '排行榜' },
+          ] : []),
+          ...(hasMenuPermission('menu:content', ['novels:read']) ? [
+            { key: 'bookmarks', icon: <BookOutlined />, label: '阅读进度' },
+          ] : []),
+          ...(hasMenuPermission('menu:content', ['novels:read']) ? [
+            { key: 'annotations', icon: <MessageOutlined />, label: '批注管理' },
+          ] : []),
           ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
             { key: 'sensitive_words', icon: <SafetyOutlined />, label: '敏感词管理' },
           ] : []),
@@ -312,6 +327,9 @@ const MainLayout: React.FC = () => {
           ...(hasMenuPermission('menu:operations', ['analytics:read']) ? [
             { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析' },
           ] : []),
+          ...(hasMenuPermission('menu:operations', ['analytics:read']) ? [
+            { key: 'recommendations', icon: <StarOutlined />, label: '推荐管理' },
+          ] : []),
         ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
       },
     ] : []),
@@ -343,6 +361,9 @@ const MainLayout: React.FC = () => {
           ...(hasMenuPermission('menu:system', ['error_logs:read']) ? [
             { key: 'error_logs', icon: <AlertOutlined />, label: '错误日志' },
           ] : []),
+          ...(hasMenuPermission('menu:system', ['app_configs:read']) ? [
+            { key: 'tts_management', icon: <SoundOutlined />, label: '听书管理' },
+          ] : []),
         ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
       },
     ] : []),
@@ -370,6 +391,16 @@ const MainLayout: React.FC = () => {
         return <NovelComments />
       case 'novel_bookshelves':
         return <NovelBookshelves />
+      case 'rankings':
+        return <Rankings />
+      case 'bookmarks':
+        return <Bookmarks />
+      case 'annotations':
+        return <Annotations />
+      case 'recommendations':
+        return <Recommendations />
+      case 'tts_management':
+        return <TtsManagement />
       case 'versions':
         return <VersionManagement />
       case 'notifications':
@@ -423,6 +454,11 @@ const MainLayout: React.FC = () => {
       novels: '小说管理',
       novel_comments: '评论管理',
       novel_bookshelves: '书架管理',
+      rankings: '排行榜管理',
+      bookmarks: '阅读进度管理',
+      annotations: '批注管理',
+      recommendations: '推荐管理',
+      tts_management: '听书管理',
       versions: '版本管理',
       analytics: '数据分析',
       operation_logs: '操作日志',
