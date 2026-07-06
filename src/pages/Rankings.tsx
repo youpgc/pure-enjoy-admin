@@ -8,7 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   TrophyOutlined, ReloadOutlined, ExportOutlined,
   PushpinOutlined, EyeInvisibleOutlined,
-  SettingOutlined, InfoCircleOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { getActionColumn } from '../components/ActionColumn'
@@ -98,7 +98,7 @@ const Rankings: React.FC = () => {
   const [modalType, setModalType] = useState<'pin' | 'block'>('pin')
   const [rulesModalOpen, setRulesModalOpen] = useState(false)
   const [rules, setRules] = useState<RankingRules>(DEFAULT_RULES)
-  const { pagination, resetPage, setTotal, tablePagination } = usePagination(20)
+  const { setTotal, tablePagination } = usePagination(20)
 
   // 从 localStorage 加载运营干预配置
   useEffect(() => {
@@ -222,7 +222,7 @@ const Rankings: React.FC = () => {
         key: 'pin',
         label: isPinned ? '取消置顶' : '置顶',
         icon: <PushpinOutlined />,
-        type: isPinned ? 'primary' : 'default',
+        type: isPinned ? ('primary' as const) : ('default' as const),
         onClick: () => {
           const ids = isPinned
             ? intervention.pin_ids.filter(id => id !== record.novel_id)
@@ -339,12 +339,12 @@ const Rankings: React.FC = () => {
         <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
           上次刷新：{lastRefresh}
           {rankingType === 'avg_rating' && (
-            <Tag size='small' style={{ marginLeft: 8 }} color='blue'>
+            <Tag style={{ marginLeft: 8, fontSize: 12 }} color='blue'>
               评分门槛 ≥ {rules.rating_min_count} 人
             </Tag>
           )}
           {rankingType === 'new_books' && (
-            <Tag size='small' style={{ marginLeft: 8 }} color='green'>
+            <Tag style={{ marginLeft: 8, fontSize: 12 }} color='green'>
               近 {rules.new_book_days_threshold} 天上架
             </Tag>
           )}

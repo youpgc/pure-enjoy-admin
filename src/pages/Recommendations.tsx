@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   Card, Table, Statistic, Row, Col, Tag, Button, Space,
-  Select, Input, Switch, Slider, Spin, Empty, InputNumber, message,
+  Select, Input, Switch, Slider, Spin, InputNumber, message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  RobotOutlined, EyeOutlined, ReadOutlined, StarOutlined,
-  CloseOutlined, ReloadOutlined, SaveOutlined,
+  EyeOutlined, ReadOutlined, StarOutlined,
+  ReloadOutlined, SaveOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { usePagination } from '../hooks/usePagination'
-import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 
 // ==================== 类型定义 ====================
 
@@ -104,8 +104,11 @@ const Recommendations: React.FC = () => {
   }
 
   // 统计
-  const counts: Record<string, number> = { click: 0, dismiss: 0, collect: 0, read: 0, not_interested: 0 }
-  feedbackData.forEach(r => { if (counts[r.feedback_type] !== undefined) counts[r.feedback_type]++ })
+  const counts = { click: 0, dismiss: 0, collect: 0, read: 0, not_interested: 0 }
+  feedbackData.forEach(r => {
+    const key = r.feedback_type as keyof typeof counts
+    if (key in counts) counts[key]++
+  })
   const total = feedbackData.length
   const ctr = total > 0 ? (counts.click / total * 100).toFixed(1) : '0.0'
   const convRead = total > 0 ? (counts.read / total * 100).toFixed(1) : '0.0'

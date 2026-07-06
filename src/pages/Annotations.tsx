@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
-  Card, Table, Tabs, Tag, Button, Space, Input, Popconfirm,
+  Card, Table, Tabs, Tag, Button, Space, Input,
   Spin, Empty, Statistic, Row, Col, DatePicker, message,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -13,7 +13,7 @@ import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import { getActionColumn } from '../components/ActionColumn'
 import { usePagination } from '../hooks/usePagination'
-import { BaseService, apiQuery, apiExecute, handleApiError } from '../utils/apiClient'
+import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
 
 // ==================== 类型定义 ====================
 

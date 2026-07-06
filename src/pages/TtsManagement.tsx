@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   Card, Table, Statistic, Row, Col, Tag, Button, Space,
-  Input, InputNumber, Select, Spin, Empty, message, Tabs,
+  Input, InputNumber, Spin, Empty, Tabs,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { usePagination } from '../hooks/usePagination'
-import { BaseService, apiQuery, apiExecute, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
 
 // ==================== 类型定义 ====================

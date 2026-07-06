@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   Card, Table, Tabs, Progress, Tag, Statistic, Row, Col,
-  Input, Button, Space, Spin, Empty, InputNumber,
+  Input, Button, Space, Spin, Empty,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
