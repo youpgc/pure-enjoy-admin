@@ -463,11 +463,11 @@ export const REPEAT_TYPE_MAP: Record<string, string> = {
 // ==================== 积分 ====================
 
 export const POINT_TYPE_MAP: Record<string, { color: string; label: string }> = {
-  checkin: { color: 'green', label: '签到' },
-  earn: { color: 'green', label: '获得' },
-  spend: { color: 'red', label: '消费' },
-  adjust: { color: 'blue', label: '调整' },
-  admin: { color: 'purple', label: '管理员' },
+  checkin:      { color: 'green',  label: '签到' },
+  earn:         { color: 'green',  label: '获得' },
+  spend:        { color: 'red',    label: '消费' },
+  adjust:       { color: 'blue',   label: '调整' },
+  admin_adjust: { color: 'purple', label: '管理员调整' },
 }
 
 export const POINT_STATUS_MAP: Record<string, { color: string; label: string }> = {

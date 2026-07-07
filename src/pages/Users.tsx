@@ -297,7 +297,8 @@ const Users: React.FC = () => {
       website: formData.website || null,
       role: formData.role,
       member_level: formData.member_level,
-      points: formData.points,
+      // points 由 point_records 触发器自动维护，新用户默认 0
+      points: 0,
       status: formData.status,
       register_ip: null,
       last_login_ip: null,
@@ -315,7 +316,25 @@ const Users: React.FC = () => {
         return
       }
 
-      // 2. 同步创建 auth.users 记录（使 App 端可通过 Supabase Auth 登录）
+      // 如果管理员设置了初始积分，插入 point_records 流水（触发器自动同步 users.points）
+      const initPoints = formData.points ?? 0
+      if (initPoints > 0) {
+        const { error: recordError } = await supabase.from('point_records').insert({
+          user_id: newUser.id,
+          type: 'admin_adjust',
+          amount: initPoints,
+          remark: '创建用户时设置初始积分',
+          operator_name: adminUser?.nickname || adminUser?.email || '管理员',
+          operator_id: adminUser?.id,
+          status: 'active',
+          created_at: new Date().toISOString(),
+        })
+        if (recordError) {
+          console.warn('初始积分记录失败:', recordError.message)
+        }
+      }
+
+      // 同步创建 auth.users 记录（使 App 端可通过 Supabase Auth 登录）
       await createAuthUser(newUser, formData.password || '123456')
       await fetchUsers()
       await logOperation('create_user', newUser.id, { email: newUser.email })
@@ -324,7 +343,7 @@ const Users: React.FC = () => {
     } finally {
       setSubmitting(false)
     }
-  }, [supabase, fetchUsers, logOperation, submitting])
+  }, [supabase, fetchUsers, logOperation, submitting, adminUser])
 
   // 编辑用户
   const handleEdit = useCallback(async (formData: UserFormData) => {
@@ -340,6 +359,31 @@ const Users: React.FC = () => {
 
     try {
       setSubmitting(true)
+
+      // 积分调整：如果 points 变动，插入 point_records 流水记录
+      // 数据库触发器会自动同步 users.effective_points / points
+      const oldPoints = currentUser.points ?? 0
+      const newPoints = formData.points ?? 0
+      const delta = newPoints - oldPoints
+
+      if (delta !== 0) {
+        const { error: recordError } = await supabase.from('point_records').insert({
+          user_id: currentUser.id,
+          type: 'admin_adjust',
+          amount: delta,
+          remark: `管理员调整：${oldPoints} → ${newPoints}`,
+          operator_name: adminUser?.nickname || adminUser?.email || '管理员',
+          operator_id: adminUser?.id,
+          status: 'active',
+          created_at: new Date().toISOString(),
+        })
+        if (recordError) {
+          message.error('积分调整记录失败: ' + recordError.message)
+          setSubmitting(false)
+          return
+        }
+      }
+
       const updateData: Record<string, string | number | null> = {
         phone: formData.phone || null,
         nickname: formData.nickname || null,
@@ -356,7 +400,7 @@ const Users: React.FC = () => {
         role: formData.role,
         member_level: formData.member_level,
         status: formData.status,
-        points: formData.points,
+        // points 不再直接更新，由 point_records 触发器自动维护
         updated_at: new Date().toISOString(),
       }
 
@@ -381,7 +425,7 @@ const Users: React.FC = () => {
     } finally {
       setSubmitting(false)
     }
-  }, [currentUser, supabase, fetchUsers, logOperation, submitting])
+  }, [currentUser, supabase, fetchUsers, logOperation, submitting, adminUser])
 
   // 删除用户（软删除）
   const handleDelete = useCallback(async (ids: string[]) => {
