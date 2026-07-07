@@ -1,4 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
+/// TODO: 当项目查询模式规范化后，可注入 Database 类型：createClient<Database>(...)
+///       当前暂不注入，因为现有代码中存在大量动态查询与部分字段插入，
+///       与 Supabase SDK 的严格类型推导不兼容（会导致 40+ 编译错误）。
+///       database.ts 类型文件仍可作为类型参考和 IDE 提示使用。
 import { SUPABASE_ERROR_CODE_MAP } from '../constants'
 
 declare const process: { env: Record<string, string | undefined> } | undefined;
@@ -168,9 +172,7 @@ export async function logOperation(params: {
   }
 }
 
-// 创建 Supabase 客户端
-/// TODO: 待 Supabase CLI 生成完整类型后，改为 createClient<Database>(...)
-///       命令：npx supabase gen types typescript --project-id mhdrbjpqmzswswoazwjg --schema public > src/types/database.ts
+// 创建 Supabase 客户端（暂不注入 Database 类型，原因见上方注释）
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,

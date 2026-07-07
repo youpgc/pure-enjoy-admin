@@ -1,7 +1,7 @@
 import { supabase, reportError } from './supabase'
 import { message } from 'antd'
 import { SUPABASE_ERROR_CODE_MAP } from '../constants'
-/// Supabase 查询构建器类型（泛型基类，兼容未注入 Database 类型的 client）
+/// Supabase 查询构建器类型（泛型基类，兼容注入 Database 类型的 client）
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseQuery = any
 
