@@ -33,8 +33,8 @@ export async function getDictItems(typeCode: string, useCache = true): Promise<D
   }
 
   try {
-    // 尝试从Supabase字典表获取
-    const { data, error } = await supabase
+    // 尝试从Supabase字典表获取（get_dict_items 未在 Database.Functions 中定义）
+    const { data, error } = await (supabase as any)
       .rpc('get_dict_items', { p_type_code: typeCode })
 
     if (error) {
@@ -43,7 +43,7 @@ export async function getDictItems(typeCode: string, useCache = true): Promise<D
       return []
     }
 
-    const items: DictItem[] = (data || []).map((item: any) => ({
+    const items: DictItem[] = ((data || []) as any[]).map((item: any) => ({
       code: item.code ?? item.item_code,
       label: item.label ?? item.item_name,
       value: item.value ?? item.item_value,

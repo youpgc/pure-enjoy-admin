@@ -116,9 +116,9 @@ const UserDimensionList: React.FC<{
       for (let i = 0; i < uniqueIds.length; i += batchSize) {
         const batch = uniqueIds.slice(i, i + batchSize)
         const { data, error } = await supabase
-          .from('users')
+          .from('users' as any)
           .select('id, nickname, username')
-          .in('id', batch)
+          .in('id', batch) as any
         if (error) throw error
         for (const u of data || []) {
           map.set(u.id, { nickname: u.nickname || '', username: u.username || '' })
@@ -138,10 +138,10 @@ const UserDimensionList: React.FC<{
     try {
       // 优先尝试 RPC 后端聚合
       const rpcResult = await apiQuery<{ user_id: string; count: number; latest_record_at: string }[]>(
-        () => supabase.rpc('get_user_dimension_stats', {
+        () => (supabase.rpc('get_user_dimension_stats', {
           p_table_name: tableName,
           p_user_ids: null,
-        }),
+        } as any) as any),
         `UserDimensionList-${title}-RPC聚合`
       )
 

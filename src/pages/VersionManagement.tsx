@@ -205,9 +205,9 @@ const VersionManagement: React.FC = () => {
     }
     try {
       const { error } = await supabase
-        .from('app_versions')
+        .from('app_versions' as any)
         .delete()
-        .in('id', selectedRowKeys as string[])
+        .in('id', selectedRowKeys as string[]) as any
       if (error) {
         handleApiError(error, 'VersionManagement-批量删除')
         return
@@ -230,8 +230,8 @@ const VersionManagement: React.FC = () => {
       onOk: async () => {
         try {
           // 1. 将所有 released 版本标记为 revoked
-          const { error: revokeError } = await supabase
-            .from('app_versions')
+          const { error: revokeError } = await (supabase
+            .from('app_versions') as any)
             .update({
               status: 'revoked',
               revoked_at: new Date().toISOString(),
@@ -245,8 +245,8 @@ const VersionManagement: React.FC = () => {
           }
 
           // 2. 将目标版本标记为 released
-          const { error: releaseError } = await supabase
-            .from('app_versions')
+          const { error: releaseError } = await (supabase
+            .from('app_versions') as any)
             .update({
               status: 'released',
               released_at: new Date().toISOString(),
@@ -281,8 +281,8 @@ const VersionManagement: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          const { error } = await supabase
-            .from('app_versions')
+          const { error } = await (supabase
+            .from('app_versions') as any)
             .update({
               is_force_update: newForceUpdate,
               release_type: newForceUpdate ? 'force' : 'feature',
@@ -318,10 +318,10 @@ const VersionManagement: React.FC = () => {
       // 如果将版本设为 released，确保没有其他已发布的版本
       if (values.status === 'released') {
         const { data: existingReleased, error: checkError } = await supabase
-          .from('app_versions')
+          .from('app_versions' as any)
           .select('id, version, build_number')
           .eq('status', 'released')
-          .limit(1)
+          .limit(1) as any
 
         if (checkError) {
           handleApiError(checkError, 'VersionManagement-检查已发布版本')

@@ -48,9 +48,9 @@ const RolePermissionPage: React.FC = () => {
     setLoading(true)
     try {
       const { data, error } = await supabase
-        .from('roles')
+        .from('roles' as any)
         .select('*')
-        .order('id')
+        .order('id') as any
 
       if (error) throw error
       setRoles(data || [])
@@ -65,9 +65,9 @@ const RolePermissionPage: React.FC = () => {
   const loadPermissions = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('permissions')
+        .from('permissions' as any)
         .select('*')
-        .order('sort_order')
+        .order('sort_order') as any
 
       if (error) throw error
       setPermissions(data || [])
@@ -79,13 +79,13 @@ const RolePermissionPage: React.FC = () => {
   // 加载角色的权限
   const loadRolePermissions = useCallback(async (roleId: number) => {
     try {
-      const { data, error } = await supabase
-        .from('role_permissions')
+      const { data, error } = await (supabase
+        .from('role_permissions') as any)
         .select('permission_id')
         .eq('role_id', roleId)
 
       if (error) throw error
-      setSelectedPermissions(data?.map(rp => rp.permission_id) || [])
+      setSelectedPermissions(data?.map((rp: any) => rp.permission_id) || [])
     } catch (error) {
       handleApiError(error, 'RolePermission-加载角色权限')
     }
@@ -130,8 +130,8 @@ const RolePermissionPage: React.FC = () => {
 
       if (editingRole) {
         // 更新角色
-        const { error } = await supabase
-          .from('roles')
+        const { error } = await (supabase
+          .from('roles') as any)
           .update(roleData)
           .eq('id', editingRole.id)
 
@@ -139,9 +139,9 @@ const RolePermissionPage: React.FC = () => {
 
         // 更新权限关联
         await supabase
-          .from('role_permissions')
+          .from('role_permissions' as any)
           .delete()
-          .eq('role_id', editingRole.id)
+          .eq('role_id', editingRole.id) as any
 
         if (selectedPermissions.length > 0) {
           const rolePerms = selectedPermissions.map(pid => ({
@@ -149,8 +149,8 @@ const RolePermissionPage: React.FC = () => {
             permission_id: pid,
           }))
           const { error: rpError } = await supabase
-            .from('role_permissions')
-            .insert(rolePerms)
+            .from('role_permissions' as any)
+            .insert(rolePerms as any) as any
           if (rpError) throw rpError
         }
 
@@ -158,10 +158,10 @@ const RolePermissionPage: React.FC = () => {
       } else {
         // 新增角色
         const { data, error } = await supabase
-          .from('roles')
-          .insert(roleData)
+          .from('roles' as any)
+          .insert(roleData as any)
           .select()
-          .single()
+          .single() as any
 
         if (error) throw error
 
@@ -172,8 +172,8 @@ const RolePermissionPage: React.FC = () => {
             permission_id: pid,
           }))
           const { error: rpError } = await supabase
-            .from('role_permissions')
-            .insert(rolePerms)
+            .from('role_permissions' as any)
+            .insert(rolePerms as any) as any
           if (rpError) throw rpError
         }
 
@@ -198,9 +198,9 @@ const RolePermissionPage: React.FC = () => {
       }
 
       const { error } = await supabase
-        .from('roles')
+        .from('roles' as any)
         .delete()
-        .eq('id', role.id)
+        .eq('id', role.id) as any
 
       if (error) throw error
       message.success('角色删除成功')

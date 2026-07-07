@@ -99,7 +99,7 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
       })
 
       const result = await apiExecute(
-        () => supabase.from(tableName).update(updateData).eq('id', recordId) as any,
+        () => (supabase.from(tableName) as any).update(updateData).eq('id', recordId),
         'EditRecordModal-保存记录'
       )
 

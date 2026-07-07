@@ -136,12 +136,12 @@ const NovelChapterModal: React.FC<{
     let nextNumber = 1
     try {
       const { data, error } = await supabase
-        .from('novel_chapters')
+        .from('novel_chapters' as any)
         .select('chapter_num')
         .eq('novel_id', novelId)
         .order('chapter_num', { ascending: false })
         .limit(1)
-        .single()
+        .single() as any
       if (!error && data) {
         nextNumber = (data.chapter_num || 0) + 1
       }
@@ -226,8 +226,8 @@ const NovelChapterModal: React.FC<{
     try {
       // 上移：查询 chapter_num < 当前值 的最大值（降序取第一条）
       // 下移：查询 chapter_num > 当前值 的最小值（升序取第一条）
-      let query = supabase
-        .from('novel_chapters')
+      let query = (supabase
+        .from('novel_chapters') as any)
         .select('id, chapter_num')
         .eq('novel_id', novelId)
         .neq('id', chapter.id)
@@ -260,11 +260,11 @@ const NovelChapterModal: React.FC<{
       // 交换章节号
       const [update1, update2] = await Promise.all([
         apiExecute(
-          () => supabase.from('novel_chapters').update({ chapter_num: targetChapter.chapter_num }).eq('id', chapter.id) as any,
+          () => (supabase.from('novel_chapters') as any).update({ chapter_num: targetChapter.chapter_num }).eq('id', chapter.id),
           'NovelChapterModal-调整顺序1'
         ),
         apiExecute(
-          () => supabase.from('novel_chapters').update({ chapter_num: chapter.chapter_num }).eq('id', targetChapter.id) as any,
+          () => (supabase.from('novel_chapters') as any).update({ chapter_num: chapter.chapter_num }).eq('id', targetChapter.id),
           'NovelChapterModal-调整顺序2'
         ),
       ])

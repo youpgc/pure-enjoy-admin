@@ -1,8 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-/// TODO: 当项目查询模式规范化后，可注入 Database 类型：createClient<Database>(...)
-///       当前暂不注入，因为现有代码中存在大量动态查询与部分字段插入，
-///       与 Supabase SDK 的严格类型推导不兼容（会导致 40+ 编译错误）。
-///       database.ts 类型文件仍可作为类型参考和 IDE 提示使用。
+import type { Database } from '../types/database'
 import { SUPABASE_ERROR_CODE_MAP } from '../constants'
 
 declare const process: { env: Record<string, string | undefined> } | undefined;
@@ -92,7 +89,6 @@ export async function reportError(
         stack_trace: sanitizedStack,
       },
       user_id: user?.id || null,
-      created_at: new Date().toISOString(),
     }
 
     // 控制台输出（仅开发环境输出详细信息，生产环境只输出级别和模块）
@@ -110,7 +106,7 @@ export async function reportError(
     }
 
     // 直接写入数据库
-    const { error: insertError } = await supabase.from('error_logs').insert(errorLog)
+    const { error: insertError } = await (supabase.from('error_logs') as any).insert(errorLog)
     if (insertError && isDev) {
       console.error('[ErrorLogger] 写入失败:', insertError)
     }
@@ -152,7 +148,6 @@ export async function logOperation(params: {
       target_id: params.target_id || null,
       ip: params.ip || '127.0.0.1',
       details: details,
-      created_at: new Date().toISOString(),
     }
 
     if (isDev) {
@@ -160,7 +155,7 @@ export async function logOperation(params: {
     }
 
     // 直接写入数据库
-    const { error } = await supabase.from('operation_logs').insert(logData)
+    const { error } = await (supabase.from('operation_logs') as any).insert(logData)
 
     if (error && isDev) {
       console.error('[OperationLog] 写入失败:', error)
@@ -172,8 +167,8 @@ export async function logOperation(params: {
   }
 }
 
-// 创建 Supabase 客户端（暂不注入 Database 类型，原因见上方注释）
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+// 创建 Supabase 客户端（注入 Database 类型以获得查询自动推断）
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,

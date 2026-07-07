@@ -323,30 +323,30 @@ const Feedback: React.FC = () => {
 
       if (selectedAction === 'deleted') {
         // 删除：先记录流转，再删除
-        await supabase.from('feedback_flow_records').insert({
+        await supabase.from('feedback_flow_records' as any).insert({
           feedback_id: selectedRecord.id,
           action: 'deleted',
           remark: remark.trim() || '删除反馈记录',
           operator_id: operatorId,
           operator_name: operatorName,
-        })
-        const { error } = await supabase
-          .from('user_feedback')
+        } as any)
+        const { error } = await (supabase
+          .from('user_feedback') as any)
           .update({ is_deleted: true, deleted_at: new Date().toISOString() })
           .eq('id', selectedRecord.id)
         if (error) throw error
         message.success('删除成功')
       } else {
         // 状态流转：记录流转 + 更新状态
-        await supabase.from('feedback_flow_records').insert({
+        await supabase.from('feedback_flow_records' as any).insert({
           feedback_id: selectedRecord.id,
           action: selectedAction,
           remark: remark.trim(),
           operator_id: operatorId,
           operator_name: operatorName,
-        })
-        const { error } = await supabase
-          .from('user_feedback')
+        } as any)
+        const { error } = await (supabase
+          .from('user_feedback') as any)
           .update({ status: selectedAction, admin_reply: remark.trim() })
           .eq('id', selectedRecord.id)
         if (error) throw error

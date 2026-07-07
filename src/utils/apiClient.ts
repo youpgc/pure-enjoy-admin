@@ -133,7 +133,7 @@ export class BaseService<T extends Record<string, any>> {
   /// 更新
   async update(id: string | number, data: Partial<T>): Promise<ApiResponse<boolean>> {
     try {
-      const { error } = await supabase.from(this.tableName).update(data as any).eq('id', id)
+      const { error } = await ((supabase.from(this.tableName) as any).update(data).eq('id', id))
       if (error) throw error
       return successResponse(true)
     } catch (err) {
@@ -166,7 +166,7 @@ export class BaseService<T extends Record<string, any>> {
   /// 批量更新
   async batchUpdate(ids: (string | number)[], data: Partial<T>): Promise<ApiResponse<boolean>> {
     try {
-      const { error } = await supabase.from(this.tableName).update(data as any).in('id', ids)
+      const { error } = await ((supabase.from(this.tableName) as any).update(data).in('id', ids))
       if (error) throw error
       return successResponse(true)
     } catch (err) {

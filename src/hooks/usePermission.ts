@@ -31,15 +31,15 @@ export const usePermission = () => {
       if (userRole === ROLE_SUPER_ADMIN) {
         const { data: allPerms } = await supabase
           .from('permissions')
-          .select('name')
-        setPermissions(allPerms?.map(p => p.name) || [])
+          .select('name') as any
+        setPermissions(allPerms?.map((p: any) => p.name) || [])
         setLoading(false)
         return
       }
 
       // 其他角色从数据库查询权限列表
-      const { data: roleData } = await supabase
-        .from('roles')
+      const { data: roleData } = await (supabase
+        .from('roles') as any)
         .select('id')
         .eq('code', userRole)
         .single()
@@ -53,7 +53,7 @@ export const usePermission = () => {
       const { data: rolePerms } = await supabase
         .from('role_permissions')
         .select('permission_id')
-        .eq('role_id', roleData.id)
+        .eq('role_id', roleData.id) as any
 
       if (!rolePerms || rolePerms.length === 0) {
         setPermissions([])
@@ -61,13 +61,13 @@ export const usePermission = () => {
         return
       }
 
-      const permissionIds = rolePerms.map(rp => rp.permission_id)
+      const permissionIds = (rolePerms as any[])?.map((rp: any) => rp.permission_id) || []
       const { data: permData } = await supabase
         .from('permissions')
         .select('name')
-        .in('id', permissionIds)
+        .in('id', permissionIds) as any
 
-      setPermissions(permData?.map(p => p.name) || [])
+      setPermissions((permData as any[])?.map((p: any) => p.name) || [])
     } catch (error) {
       console.error('[usePermission] 加载权限失败:', error)
       setPermissions([])

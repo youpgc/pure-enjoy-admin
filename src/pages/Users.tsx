@@ -112,7 +112,7 @@ const Users: React.FC = () => {
     try {
       // 构建带筛选条件的查询 - 使用limit(1)代替head:true，确保count正确返回
       let query = supabase
-        .from('users')
+        .from('users' as any)
         .select('*', { count: 'exact' })
         .limit(1)
 
@@ -153,7 +153,7 @@ const Users: React.FC = () => {
 
       // 分页查询（同样带筛选条件）
       let dataQuery = supabase
-        .from('users')
+        .from('users' as any)
         .select('*')
         .order('created_at', { ascending: false })
 
@@ -216,14 +216,14 @@ const Users: React.FC = () => {
     details: Record<string, unknown>
   ) => {
     try {
-      await supabase.from('operation_logs').insert({
+      await supabase.from('operation_logs' as any).insert({
         user_id: adminUser?.id,
         action,
         module: 'users',
         target_id: targetId,
         details,
         created_at: new Date().toISOString(),
-      })
+      } as any)
     } catch (err) {
       console.error('Failed to log operation:', err)
     }
@@ -325,7 +325,7 @@ const Users: React.FC = () => {
 
     try {
       setSubmitting(true)
-      const { error } = await supabase.from('users').insert(newUser)
+      const { error } = await supabase.from('users' as any).insert(newUser as any)
       if (error) {
         message.error('创建用户失败: ' + error.message)
         return
@@ -334,7 +334,7 @@ const Users: React.FC = () => {
       // 如果管理员设置了初始积分，插入 point_records 流水（触发器自动同步 users.points）
       const initPoints = formData.points ?? 0
       if (initPoints > 0) {
-        const { error: recordError } = await supabase.from('point_records').insert({
+        const { error: recordError } = await supabase.from('point_records' as any).insert({
           user_id: newUser.id,
           type: 'admin_adjust',
           amount: initPoints,
@@ -343,7 +343,7 @@ const Users: React.FC = () => {
           operator_id: adminUser?.id,
           status: 'active',
           created_at: new Date().toISOString(),
-        })
+        } as any)
         if (recordError) {
           console.warn('初始积分记录失败:', recordError.message)
         }
@@ -382,7 +382,7 @@ const Users: React.FC = () => {
       const delta = newPoints - oldPoints
 
       if (delta !== 0) {
-        const { error: recordError } = await supabase.from('point_records').insert({
+        const { error: recordError } = await supabase.from('point_records' as any).insert({
           user_id: currentUser.id,
           type: 'admin_adjust',
           amount: delta,
@@ -391,7 +391,7 @@ const Users: React.FC = () => {
           operator_id: adminUser?.id,
           status: 'active',
           created_at: new Date().toISOString(),
-        })
+        } as any)
         if (recordError) {
           message.error('积分调整记录失败: ' + recordError.message)
           setSubmitting(false)
@@ -424,8 +424,8 @@ const Users: React.FC = () => {
         updateData.password_hash = sha256(formData.password).toString()
       }
 
-      const { error } = await supabase
-        .from('users')
+      const { error } = await (supabase
+        .from('users') as any)
         .update(updateData)
         .eq('id', currentUser.id)
 
@@ -445,8 +445,8 @@ const Users: React.FC = () => {
   // 删除用户（软删除）
   const handleDelete = useCallback(async (ids: string[]) => {
     try {
-      const { error } = await supabase
-        .from('users')
+      const { error } = await (supabase
+        .from('users') as any)
         .update({ status: 'disabled', updated_at: new Date().toISOString() })
         .in('id', ids)
 
@@ -470,8 +470,8 @@ const Users: React.FC = () => {
     const newStatus: UserStatus = user.status === 'active' ? 'disabled' : 'active'
     
     try {
-      const { error } = await supabase
-        .from('users')
+      const { error } = await (supabase
+        .from('users') as any)
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', user.id)
 
@@ -510,7 +510,7 @@ const Users: React.FC = () => {
         supabase.from('weight_records').select('id', { count: 'exact' }).eq('user_id', user.id),
         supabase.from('notes').select('id', { count: 'exact' }).eq('user_id', user.id),
         supabase.from('user_novels').select('id', { count: 'exact' }).eq('user_id', user.id),
-        supabase.from('operation_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
+        supabase.from('operation_logs' as any).select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10) as any,
       ])
 
       if (!mountedRef.current) return

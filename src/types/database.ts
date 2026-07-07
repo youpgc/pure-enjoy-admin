@@ -968,6 +968,9 @@ export interface Database {
       }
     }
     Enums: {}
+    CompositeTypes: {
+      [key: string]: never
+    }
   }
 }
 
