@@ -30,6 +30,7 @@ import {
 import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { useMounted } from '../hooks/useMounted'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -66,6 +67,7 @@ interface DailyStat {
 // ==================== 组件 ====================
 
 const SensitiveWordAnalytics: React.FC = () => {
+  const mountedRef = useMounted()
   const [loading, setLoading] = useState(false)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().subtract(30, 'day'),
@@ -130,6 +132,7 @@ const SensitiveWordAnalytics: React.FC = () => {
         return
       }
 
+      if (!mountedRef.current) return
       setHits(pageResult.data?.data || [])
       setTotal(pageResult.data?.total || 0)
 

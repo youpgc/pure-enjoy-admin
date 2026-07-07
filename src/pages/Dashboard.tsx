@@ -107,27 +107,27 @@ const Dashboard: React.FC = () => {
         userNovelsActiveRes,
       ] = await Promise.all([
         // 总用户数 - 使用 head:true 获取精确 count，不返回数据行
-        apiQuery(() => supabase.from('users').select('*', { count: 'exact', head: true }) as any, 'Dashboard-总用户数'),
+        apiQuery(() => supabase.from('users').select('*', { count: 'exact', head: true }), 'Dashboard-总用户数'),
         // 今日新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', todayStart) as any, 'Dashboard-今日新增用户'),
+        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', todayStart), 'Dashboard-今日新增用户'),
         // 本周新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo) as any, 'Dashboard-本周新增用户'),
+        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo), 'Dashboard-本周新增用户'),
         // 上周新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo) as any, 'Dashboard-上周新增用户'),
+        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo), 'Dashboard-上周新增用户'),
         // 最近7天活跃用户（包含模块信息）
-        apiQuery(() => supabase.from('operation_logs').select('user_id, module, created_at').gte('created_at', sevenDaysAgo).limit(1000) as any, 'Dashboard-7天活跃用户'),
+        apiQuery(() => supabase.from('operation_logs').select('user_id, module, created_at').gte('created_at', sevenDaysAgo).limit(1000), 'Dashboard-7天活跃用户'),
         // 上周活跃用户
-        apiQuery(() => supabase.from('operation_logs').select('user_id').gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo).limit(1000) as any, 'Dashboard-上周活跃用户'),
+        apiQuery(() => supabase.from('operation_logs').select('user_id').gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo).limit(1000), 'Dashboard-上周活跃用户'),
         // 用户增长趋势（30天）
-        apiQuery(() => supabase.from('users').select('created_at').gte('created_at', thirtyDaysAgo).limit(1000) as any, 'Dashboard-用户增长趋势'),
+        apiQuery(() => supabase.from('users').select('created_at').gte('created_at', thirtyDaysAgo).limit(1000), 'Dashboard-用户增长趋势'),
         // 最近操作日志
-        apiQuery(() => supabase.from('operation_logs').select('id, user_id, action, module, created_at').order('created_at', { ascending: false }).limit(20) as any, 'Dashboard-最近操作日志'),
+        apiQuery(() => supabase.from('operation_logs').select('id, user_id, action, module, created_at').order('created_at', { ascending: false }).limit(20), 'Dashboard-最近操作日志'),
         // 小说总数
-        apiQuery(() => supabase.from('novels').select('id', { count: 'exact', head: true }) as any, 'Dashboard-小说总数'),
+        apiQuery(() => supabase.from('novels').select('id', { count: 'exact', head: true }), 'Dashboard-小说总数'),
         // 小说总阅读量
-        apiQuery(() => supabase.from('novels').select('read_count').limit(1000) as any, 'Dashboard-小说阅读量'),
+        apiQuery(() => supabase.from('novels').select('read_count').limit(1000), 'Dashboard-小说阅读量'),
         // 活跃读者数（user_novels 最近7天有阅读记录的用户）
-        apiQuery(() => supabase.from('user_novels').select('user_id, last_read_at').gte('last_read_at', sevenDaysAgo).limit(1000) as any, 'Dashboard-活跃读者'),
+        apiQuery(() => supabase.from('user_novels').select('user_id, last_read_at').gte('last_read_at', sevenDaysAgo).limit(1000), 'Dashboard-活跃读者'),
       ])
 
       // ==================== 基础统计 ====================
@@ -137,8 +137,8 @@ const Dashboard: React.FC = () => {
       const lastWeekNewUsers = lastWeekNewUsersRes.count || 0
 
       // 活跃用户（去重）
-      const activeUserIds7d = new Set((operationLogs7dRes.data as any)?.map((l: any) => l.user_id).filter(Boolean) || [])
-      const activeUserIds14d = new Set((operationLogs14dRes.data as any)?.map((l: any) => l.user_id).filter(Boolean) || [])
+      const activeUserIds7d = new Set((operationLogs7dRes.data)?.map((l: any) => l.user_id).filter(Boolean) || [])
+      const activeUserIds14d = new Set((operationLogs14dRes.data)?.map((l: any) => l.user_id).filter(Boolean) || [])
       const activeUsers7d = activeUserIds7d.size
       const lastWeekActive = activeUserIds14d.size - activeUserIds7d.size
 
@@ -162,7 +162,7 @@ const Dashboard: React.FC = () => {
       })
 
       // ==================== 用户增长趋势（30天） ====================
-      const usersTrendData = (usersTrendRes.data as any) || []
+      const usersTrendData = (usersTrendRes.data) || []
       const newUsersByDate: Record<string, number> = {}
       usersTrendData.forEach((u: any) => {
         const dateKey = dayjs(u.created_at).format('MM-DD')
@@ -171,7 +171,7 @@ const Dashboard: React.FC = () => {
 
       // 活跃用户按日期分布（从 operation_logs 中统计）
       const activeUsersByDate: Record<string, Set<string>> = {}
-      ;((operationLogs7dRes.data as any) || []).forEach((log: any) => {
+      ;((operationLogs7dRes.data) || []).forEach((log: any) => {
         if (log.user_id && log.created_at) {
           const dateKey = dayjs(log.created_at).format('MM-DD')
           if (!activeUsersByDate[dateKey]) activeUsersByDate[dateKey] = new Set()
@@ -192,19 +192,19 @@ const Dashboard: React.FC = () => {
 
       // ==================== 最近动态 ====================
       // 获取用户昵称
-      const userIds = [...new Set((recentLogsRes.data as any)?.map((l: any) => l.user_id).filter(Boolean) || [])]
+      const userIds = [...new Set((recentLogsRes.data)?.map((l: any) => l.user_id).filter(Boolean) || [])]
       let userNames: Record<string, string> = {}
       if (userIds.length > 0) {
         const userNamesRes = await apiQuery(() =>
-          supabase.from('users').select('id, nickname').in('id', userIds) as any,
+          supabase.from('users').select('id, nickname').in('id', userIds),
           'Dashboard-用户昵称查询'
         )
         if (userNamesRes.success) {
-          (userNamesRes.data as any)?.forEach((u: any) => { userNames[u.id] = u.nickname || '未知用户' })
+          (userNamesRes.data)?.forEach((u: any) => { userNames[u.id] = u.nickname || '未知用户' })
         }
       }
 
-      const activities: UserActivityItem[] = ((recentLogsRes.data as any) || []).map((log: any) => ({
+      const activities: UserActivityItem[] = ((recentLogsRes.data) || []).map((log: any) => ({
         id: log.id,
         userId: log.user_id,
         userName: userNames[log.user_id] || '未知用户',
@@ -219,7 +219,7 @@ const Dashboard: React.FC = () => {
 
       // ==================== 模块使用统计 ====================
       const moduleCounts: Record<string, number> = {}
-      ;((operationLogs7dRes.data as any) || []).forEach((log: any) => {
+      ;((operationLogs7dRes.data) || []).forEach((log: any) => {
         if (log.module) {
           moduleCounts[log.module] = (moduleCounts[log.module] || 0) + 1
         }
@@ -237,8 +237,8 @@ const Dashboard: React.FC = () => {
 
       // ==================== 小说统计 ====================
       const totalNovels = novelsCountRes.count || 0
-      const totalNovelReadCount = ((novelsReadCountRes.data as any) || []).reduce((sum: number, n: any) => sum + (n.read_count || 0), 0) || 0
-      const activeReaderIds = new Set((userNovelsActiveRes.data as any)?.map((n: any) => n.user_id).filter(Boolean) || [])
+      const totalNovelReadCount = ((novelsReadCountRes.data) || []).reduce((sum: number, n: any) => sum + (n.read_count || 0), 0) || 0
+      const activeReaderIds = new Set((userNovelsActiveRes.data)?.map((n: any) => n.user_id).filter(Boolean) || [])
       setNovelDashboardStats({
         totalNovels,
         totalReadCount: totalNovelReadCount,

@@ -11,6 +11,7 @@ import {
 import dayjs from 'dayjs'
 import { usePagination } from '../hooks/usePagination'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { useMounted } from '../hooks/useMounted'
 
 // ==================== 类型定义 ====================
 
@@ -55,6 +56,7 @@ const FEEDBACK_TYPE_COLORS: Record<string, string> = {
 // ==================== 组件 ====================
 
 const Recommendations: React.FC = () => {
+  const mountedRef = useMounted()
   const [loading, setLoading] = useState(false)
   const [feedbackData, setFeedbackData] = useState<UserRecommendationFeedback[]>([])
   const [config, setConfig] = useState<RecConfig>({
@@ -86,6 +88,7 @@ const Recommendations: React.FC = () => {
     try {
       const result = await feedbackService.paginate(pagination.current, pagination.pageSize)
       if (result.success && result.data) {
+        if (!mountedRef.current) return
         setFeedbackData(result.data.data)
         setTotal(result.data.total)
       }

@@ -6,6 +6,7 @@ import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import type { ColumnsType } from 'antd/es/table'
 import { BaseService, handleApiError } from '../utils/apiClient'
+import { useMounted } from '../hooks/useMounted'
 
 // ==================== 打卡记录弹窗 ====================
 
@@ -25,6 +26,7 @@ interface CheckinModalProps {
 }
 
 const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName, onClose }) => {
+  const mountedRef = useMounted()
   const [checkins, setCheckins] = useState<CheckinRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'stats' | 'calendar' | 'timeline'>('stats')
@@ -39,6 +41,7 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
         q.eq('habit_id', habitId).order('checkin_at', { ascending: false })
       )
       if (result.success && result.data) {
+        if (!mountedRef.current) return
         setCheckins(result.data)
       } else {
         handleApiError(result.errorMessage, 'CheckinModal-加载打卡记录')

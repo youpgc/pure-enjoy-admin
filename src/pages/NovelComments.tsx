@@ -5,6 +5,7 @@ import { DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icon
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
+import { useMounted } from '../hooks/useMounted'
 import dayjs from 'dayjs'
 
 interface NovelComment {
@@ -29,6 +30,7 @@ interface Filters {
 }
 
 const NovelComments: React.FC = () => {
+  const mountedRef = useMounted()
   const service = useMemo(
     () => new BaseService<NovelComment>('novel_comments', {
       defaultOrder: { column: 'created_at', ascending: false },
@@ -64,6 +66,7 @@ const NovelComments: React.FC = () => {
         return
       }
 
+      if (!mountedRef.current) return
       setComments(result.data?.data || [])
       setTotal(result.data?.total || 0)
     } catch (error) {

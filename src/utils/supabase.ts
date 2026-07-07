@@ -169,6 +169,8 @@ export async function logOperation(params: {
 }
 
 // 创建 Supabase 客户端
+/// TODO: 待 Supabase CLI 生成完整类型后，改为 createClient<Database>(...)
+///       命令：npx supabase gen types typescript --project-id mhdrbjpqmzswswoazwjg --schema public > src/types/database.ts
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     autoRefreshToken: true,

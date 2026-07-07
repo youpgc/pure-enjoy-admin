@@ -16,6 +16,7 @@ import {
 } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
 import { handleApiError } from '../utils/apiClient'
+import { useMounted } from '../hooks/useMounted'
 
 const { Text } = Typography
 
@@ -39,6 +40,7 @@ const KNOWN_TABLES = [
 // ==================== 主组件 ====================
 
 const SystemMonitor: React.FC = () => {
+  const mountedRef = useMounted()
   const [tableStatsLoading, setTableStatsLoading] = useState(false)
   const [tables, setTables] = useState<TableInfo[]>([])
   const [dbConnected, setDbConnected] = useState(false)
@@ -64,6 +66,7 @@ const SystemMonitor: React.FC = () => {
           }
         })
       )
+      if (!mountedRef.current) return
       setTables(results)
     } catch (error) {
       handleApiError(error, 'SystemMonitor-表统计')
@@ -79,6 +82,7 @@ const SystemMonitor: React.FC = () => {
         .from('users')
         .select('id', { count: 'exact' })
         .limit(1)
+      if (!mountedRef.current) return
       setDbConnected(!error)
     } catch (error) {
       handleApiError(error, 'SystemMonitor-健康检查')

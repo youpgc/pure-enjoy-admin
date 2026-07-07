@@ -15,6 +15,7 @@ import { getActionColumn } from '../components/ActionColumn'
 import { usePagination } from '../hooks/usePagination'
 import { apiQuery, apiExecute, handleApiError } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
+import { useMounted } from '../hooks/useMounted'
 
 // ==================== 类型定义 ====================
 
@@ -89,6 +90,7 @@ const RankBadge = ({ rank }: { rank: number }) => {
 // ==================== 组件 ====================
 
 const Rankings: React.FC = () => {
+  const mountedRef = useMounted()
   const [loading, setLoading] = useState(false)
   const [rankingType, setRankingType] = useState<RankingType>('weekly_reads')
   const [data, setData] = useState<RankingItem[]>([])
@@ -159,6 +161,7 @@ const Rankings: React.FC = () => {
           const bPinned = intervention.pin_ids.includes(b.novel_id) ? 1 : 0
           return bPinned - aPinned
         })
+        if (!mountedRef.current) return
         setData(list)
         setTotal(list.length)
       }

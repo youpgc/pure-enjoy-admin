@@ -15,6 +15,7 @@ import { getActionColumn } from '../components/ActionColumn'
 import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
 import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
+import { useMounted } from '../hooks/useMounted'
 
 // ==================== 类型定义 ====================
 
@@ -60,6 +61,7 @@ const containsSensitive = (text: string) => SENSITIVE_WORDS.filter(w => text.inc
 // ==================== 组件 ====================
 
 const Annotations: React.FC = () => {
+  const mountedRef = useMounted()
   const [activeTab, setActiveTab] = useState('list')
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<NovelAnnotation[]>([])
@@ -88,6 +90,7 @@ const Annotations: React.FC = () => {
         return query
       })
       if (result.success && result.data) {
+        if (!mountedRef.current) return
         setData(result.data.data)
         setFiltered(result.data.data)
         setTotal(result.data.total)
@@ -122,6 +125,7 @@ const Annotations: React.FC = () => {
         const trend = Array.from(dateMap.entries())
           .map(([date, count]) => ({ date, count }))
           .sort((a, b) => a.date.localeCompare(b.date))
+        if (!mountedRef.current) return
         setTrendData(trend)
       }
     } catch (error) {

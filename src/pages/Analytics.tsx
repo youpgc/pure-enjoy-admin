@@ -93,7 +93,7 @@ const Analytics: React.FC = () => {
             .select('created_at')
             .gte('created_at', startDate)
             .lte('created_at', endDate + 'T23:59:59')
-            .limit(5000) as any,
+            .limit(5000),
           'Analytics-用户数据'
         ),
         apiQuery(() =>
@@ -102,7 +102,7 @@ const Analytics: React.FC = () => {
             .select('created_at, category')
             .gte('created_at', startDate)
             .lte('created_at', endDate + 'T23:59:59')
-            .limit(5000) as any,
+            .limit(5000),
           'Analytics-小说数据'
         ),
         apiQuery(() =>
@@ -111,7 +111,7 @@ const Analytics: React.FC = () => {
             .select('created_at')
             .gte('created_at', startDate)
             .lte('created_at', endDate + 'T23:59:59')
-            .limit(5000) as any,
+            .limit(5000),
           'Analytics-章节数据'
         ),
         apiQuery(() =>
@@ -120,7 +120,7 @@ const Analytics: React.FC = () => {
             .select('created_at')
             .gte('created_at', startDate)
             .lte('created_at', endDate + 'T23:59:59')
-            .limit(5000) as any,
+            .limit(5000),
           'Analytics-反馈数据'
         ),
         apiQuery(() =>
@@ -128,7 +128,7 @@ const Analytics: React.FC = () => {
             .from('novels')
             .select('title, author, read_count, chapter_count')
             .order('read_count', { ascending: false })
-            .limit(10) as any,
+            .limit(10),
           'Analytics-热门小说'
         ),
       ])
@@ -148,7 +148,7 @@ const Analytics: React.FC = () => {
         })
       }
 
-      ;(usersRes.data as any)?.forEach((item: any) => {
+      ;(usersRes.data)?.forEach((item: any) => {
         const date = dayjs(item.created_at).format('MM-DD')
         if (dateMap.has(date)) {
           const stat = dateMap.get(date)!
@@ -156,7 +156,7 @@ const Analytics: React.FC = () => {
         }
       })
 
-      ;(novelsRes.data as any)?.forEach((item: any) => {
+      ;(novelsRes.data)?.forEach((item: any) => {
         const date = dayjs(item.created_at).format('MM-DD')
         if (dateMap.has(date)) {
           const stat = dateMap.get(date)!
@@ -164,7 +164,7 @@ const Analytics: React.FC = () => {
         }
       })
 
-      ;(chaptersRes.data as any)?.forEach((item: any) => {
+      ;(chaptersRes.data)?.forEach((item: any) => {
         const date = dayjs(item.created_at).format('MM-DD')
         if (dateMap.has(date)) {
           const stat = dateMap.get(date)!
@@ -172,7 +172,7 @@ const Analytics: React.FC = () => {
         }
       })
 
-      ;(feedbackRes.data as any)?.forEach((item: any) => {
+      ;(feedbackRes.data)?.forEach((item: any) => {
         const date = dayjs(item.created_at).format('MM-DD')
         if (dateMap.has(date)) {
           const stat = dateMap.get(date)!
@@ -184,7 +184,7 @@ const Analytics: React.FC = () => {
 
       // 处理小说分类统计
       const categoryMap = new Map<string, number>()
-      ;(novelsRes.data as any)?.forEach((item: any) => {
+      ;(novelsRes.data)?.forEach((item: any) => {
         const category = item.category || '未分类'
         categoryMap.set(category, (categoryMap.get(category) || 0) + 1)
       })
@@ -199,14 +199,14 @@ const Analytics: React.FC = () => {
       )
 
       // 处理热门小说
-      setTopNovels((topNovelsRes.data as any) || [])
+      setTopNovels((topNovelsRes.data) || [])
 
       // 汇总数据
       setSummary({
-        totalUsers: (usersRes.data as any)?.length || 0,
-        totalNovels: (novelsRes.data as any)?.length || 0,
-        totalChapters: (chaptersRes.data as any)?.length || 0,
-        totalFeedback: (feedbackRes.data as any)?.length || 0,
+        totalUsers: (usersRes.data)?.length || 0,
+        totalNovels: (novelsRes.data)?.length || 0,
+        totalChapters: (chaptersRes.data)?.length || 0,
+        totalFeedback: (feedbackRes.data)?.length || 0,
       })
     } catch (error) {
       handleApiError(error, 'Analytics-加载数据')

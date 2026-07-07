@@ -28,6 +28,7 @@ import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { useMounted } from '../hooks/useMounted'
 import {
   SENSITIVE_CATEGORY_MAP,
   SENSITIVE_CATEGORY_OPTIONS,
@@ -65,6 +66,7 @@ interface SensitiveWordFilters {
 // ==================== 组件 ====================
 
 const SensitiveWords: React.FC = () => {
+  const mountedRef = useMounted()
   const [words, setWords] = useState<SensitiveWord[]>([])
   const [loading, setLoading] = useState(false)
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
@@ -105,6 +107,7 @@ const SensitiveWords: React.FC = () => {
         return
       }
 
+      if (!mountedRef.current) return
       setWords(result.data?.data || [])
       setTotal(result.data?.total || 0)
     } catch (error) {

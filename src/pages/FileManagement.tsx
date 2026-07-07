@@ -32,6 +32,7 @@ import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { useMounted } from '../hooks/useMounted'
 
 const { Text } = Typography
 const { Dragger } = Upload
@@ -57,6 +58,7 @@ interface FileFilters {
 // ==================== 组件 ====================
 
 const FileManagement: React.FC = () => {
+  const mountedRef = useMounted()
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(false)
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
@@ -91,6 +93,7 @@ const FileManagement: React.FC = () => {
         return
       }
 
+      if (!mountedRef.current) return
       setFiles(result.data?.data || [])
       setTotal(result.data?.total || 0)
     } catch (error) {

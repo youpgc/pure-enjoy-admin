@@ -38,6 +38,7 @@ import { usePermission } from '../hooks/usePermission'
 import { getActionColumn, type ActionButton } from '../components/ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { useMounted } from '../hooks/useMounted'
 import { VERSION_STATUS_MAP, VERSION_STATUS_OPTIONS, VERSION_PLATFORM_MAP, VERSION_PLATFORM_OPTIONS } from '../constants'
 
 const { Text } = Typography
@@ -74,6 +75,7 @@ interface VersionFilters {
 // ==================== 组件 ====================
 
 const VersionManagement: React.FC = () => {
+  const mountedRef = useMounted()
   const [versions, setVersions] = useState<AppVersion[]>([])
   const [loading, setLoading] = useState(false)
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
@@ -116,6 +118,7 @@ const VersionManagement: React.FC = () => {
         return
       }
 
+      if (!mountedRef.current) return
       setVersions(result.data?.data || [])
       setTotal(result.data?.total || 0)
 
@@ -124,6 +127,7 @@ const VersionManagement: React.FC = () => {
         q.eq('status', 'released').order('created_at', { ascending: false }).limit(1)
       )
       if (activeRes.data && activeRes.data.length > 0) {
+        if (!mountedRef.current) return
         setCurrentVersion(activeRes.data[0] as AppVersion)
       }
     } catch (error) {

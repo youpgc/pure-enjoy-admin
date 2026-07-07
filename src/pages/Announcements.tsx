@@ -26,6 +26,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { useMounted } from '../hooks/useMounted'
 import { ANNOUNCEMENT_TYPE_MAP, ANNOUNCEMENT_TYPE_OPTIONS, PRIORITY_MAP, PRIORITY_OPTIONS } from '../constants'
 
 const { Text, Paragraph } = Typography
@@ -47,6 +48,7 @@ interface Announcement {
 // ==================== 组件 ====================
 
 const Announcements: React.FC = () => {
+  const mountedRef = useMounted()
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -72,6 +74,7 @@ const Announcements: React.FC = () => {
         handleApiError(result.errorMessage, 'Announcements-加载数据')
         return
       }
+      if (!mountedRef.current) return
       setAnnouncements(result.data?.data || [])
       setTotal(result.data?.total || 0)
     } catch (error) {

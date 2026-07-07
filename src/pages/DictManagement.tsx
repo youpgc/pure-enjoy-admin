@@ -26,6 +26,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { useMounted } from '../hooks/useMounted'
 
 const { Text } = Typography
 
@@ -65,6 +66,7 @@ interface DictItem {
 // ==================== 组件 ====================
 
 const DictManagement: React.FC = () => {
+  const mountedRef = useMounted()
   // 字典类型状态
   const [dictTypes, setDictTypes] = useState<DictType[]>([])
   const [typeLoading, setTypeLoading] = useState(false)
@@ -120,6 +122,7 @@ const DictManagement: React.FC = () => {
         return
       }
       const types = result.data?.data || []
+      if (!mountedRef.current) return
       setDictTypes(types)
       setTypeTotal(result.data?.total || 0)
       // 如果没有选中类型，默认选中第一个
@@ -160,6 +163,7 @@ const DictManagement: React.FC = () => {
         handleApiError(result.errorMessage, 'DictManagement-加载字典项')
         return
       }
+      if (!mountedRef.current) return
       setDictItems(result.data?.data || [])
       setItemTotal(result.data?.total || 0)
     } catch (error) {

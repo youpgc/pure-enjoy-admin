@@ -26,6 +26,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { useMounted } from '../hooks/useMounted'
 
 const { Text, Paragraph } = Typography
 
@@ -46,6 +47,7 @@ interface AppConfig {
 // ==================== 组件 ====================
 
 const AppConfigs: React.FC = () => {
+  const mountedRef = useMounted()
   const [configs, setConfigs] = useState<AppConfig[]>([])
   const [loading, setLoading] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -71,6 +73,7 @@ const AppConfigs: React.FC = () => {
         handleApiError(result.errorMessage, 'AppConfigs-加载数据')
         return
       }
+      if (!mountedRef.current) return
       setConfigs(result.data?.data || [])
       setTotal(result.data?.total || 0)
     } catch (error) {

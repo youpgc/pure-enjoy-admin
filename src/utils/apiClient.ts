@@ -1,10 +1,9 @@
 import { supabase, reportError } from './supabase'
 import { message } from 'antd'
 import { SUPABASE_ERROR_CODE_MAP } from '../constants'
-import type { PostgrestFilterBuilder } from '@supabase/postgrest-js'
-
-/// Supabase 查询构建器类型（用于 Service 基类 query 参数）
-type SupabaseQuery = PostgrestFilterBuilder<any, any, any, any, any>
+/// Supabase 查询构建器类型（泛型基类，兼容未注入 Database 类型的 client）
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseQuery = any
 
 /// 统一 API 响应封装
 export interface ApiResponse<T> {
@@ -177,7 +176,7 @@ export class BaseService<T extends Record<string, any>> {
 }
 
 /// 快捷查询：直接执行 supabase 查询并统一处理错误
-export async function apiQuery<T>(
+export async function apiQuery<T = any>(
   queryFn: () => any,
   context?: string
 ): Promise<ApiResponse<T> & { count?: number | null }> {
