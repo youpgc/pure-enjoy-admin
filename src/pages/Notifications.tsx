@@ -25,7 +25,9 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
+import type { ActionButton } from '../components/ActionColumn'
 import { NOTIFICATION_TYPE_MAP, NOTIFICATION_TYPE_TAG_MAP, NOTIFICATION_TYPE_OPTIONS } from '../constants'
 
 const { Text } = Typography
@@ -66,6 +68,7 @@ const Notifications: React.FC = () => {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
+  const { hasPermission } = usePermission()
 
   const notificationService = React.useMemo(() => new BaseService<Notification>('notifications', {
     defaultOrder: { column: 'created_at', ascending: false },
@@ -253,22 +256,28 @@ const Notifications: React.FC = () => {
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
     getActionColumn<Notification>(
-      (record) => [
-        {
-          key: 'edit',
-          label: '编辑',
-          icon: <EditOutlined />,
-          type: 'primary',
-          onClick: () => handleEdit(record),
-        },
-        {
-          key: 'delete',
-          label: '删除',
-          icon: <DeleteOutlined />,
-          danger: true,
-          onClick: () => handleDelete(record.id),
-        },
-      ],
+      (record) => {
+        const actions: ActionButton[] = []
+        if (hasPermission('notifications:write')) {
+          actions.push({
+            key: 'edit',
+            label: '编辑',
+            icon: <EditOutlined />,
+            type: 'primary',
+            onClick: () => handleEdit(record),
+          })
+        }
+        if (hasPermission('notifications:delete')) {
+          actions.push({
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => handleDelete(record.id),
+          })
+        }
+        return actions
+      },
       { width: 200, maxVisible: 2 }
     ),
   ]

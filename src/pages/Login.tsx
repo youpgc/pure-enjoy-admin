@@ -49,7 +49,7 @@ const Login: React.FC = () => {
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '登录失败'
       message.error(errorMessage)
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.error('[Login] 登录失败:', err)
       }
     } finally {

@@ -103,14 +103,14 @@ const Dashboard: React.FC = () => {
         novelsReadCountRes,
         userNovelsActiveRes,
       ] = await Promise.all([
-        // 总用户数 - 使用limit(1)代替head:true，确保count正确返回
-        apiQuery(() => supabase.from('users').select('*', { count: 'exact' }).limit(1) as any, 'Dashboard-总用户数'),
+        // 总用户数 - 使用 head:true 获取精确 count，不返回数据行
+        apiQuery(() => supabase.from('users').select('*', { count: 'exact', head: true }) as any, 'Dashboard-总用户数'),
         // 今日新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact' }).gte('created_at', todayStart).limit(1) as any, 'Dashboard-今日新增用户'),
+        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', todayStart) as any, 'Dashboard-今日新增用户'),
         // 本周新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact' }).gte('created_at', sevenDaysAgo).limit(1) as any, 'Dashboard-本周新增用户'),
+        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo) as any, 'Dashboard-本周新增用户'),
         // 上周新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact' }).gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo).limit(1) as any, 'Dashboard-上周新增用户'),
+        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo) as any, 'Dashboard-上周新增用户'),
         // 最近7天活跃用户（包含模块信息）
         apiQuery(() => supabase.from('operation_logs').select('user_id, module, created_at').gte('created_at', sevenDaysAgo).limit(1000) as any, 'Dashboard-7天活跃用户'),
         // 上周活跃用户
@@ -120,7 +120,7 @@ const Dashboard: React.FC = () => {
         // 最近操作日志
         apiQuery(() => supabase.from('operation_logs').select('id, user_id, action, module, created_at').order('created_at', { ascending: false }).limit(20) as any, 'Dashboard-最近操作日志'),
         // 小说总数
-        apiQuery(() => supabase.from('novels').select('id', { count: 'exact' }).limit(1) as any, 'Dashboard-小说总数'),
+        apiQuery(() => supabase.from('novels').select('id', { count: 'exact', head: true }) as any, 'Dashboard-小说总数'),
         // 小说总阅读量
         apiQuery(() => supabase.from('novels').select('read_count').limit(1000) as any, 'Dashboard-小说阅读量'),
         // 活跃读者数（user_novels 最近7天有阅读记录的用户）

@@ -25,7 +25,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
-          if (process.env.NODE_ENV === 'development') {
+          if (import.meta.env.DEV) {
             console.error('[AuthGuard] 获取会话失败:', error)
           }
           setIsAuthenticated(false)
@@ -56,7 +56,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         // 会话有效且角色正确
         setIsAuthenticated(true)
       } catch (e) {
-        if (process.env.NODE_ENV === 'development') {
+        if (import.meta.env.DEV) {
           console.error('[AuthGuard] 认证检查异常:', e)
         }
         setIsAuthenticated(false)

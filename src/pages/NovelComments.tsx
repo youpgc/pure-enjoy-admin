@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { usePermission } from '../hooks/usePermission'
 import dayjs from 'dayjs'
 
 interface NovelComment {
@@ -40,6 +41,7 @@ const NovelComments: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [filters, setFilters] = useState<Filters>({ keyword: '', novelId: '' })
+  const { hasPermission } = usePermission()
 
   const loadComments = useCallback(async () => {
     setLoading(true)
@@ -164,18 +166,19 @@ const NovelComments: React.FC = () => {
       key: 'action',
       width: 80,
       fixed: 'right',
-      render: (_, record) => (
-        <Popconfirm
-          title="确定删除这条评论吗？"
-          onConfirm={() => handleDelete(record.id)}
-          okText="确定"
-          cancelText="取消"
-        >
-          <Button type="link" danger icon={<DeleteOutlined />} size="small">
-            删除
-          </Button>
-        </Popconfirm>
-      ),
+      render: (_, record) =>
+        hasPermission('novels:delete') ? (
+          <Popconfirm
+            title="确定删除这条评论吗？"
+            onConfirm={() => handleDelete(record.id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button type="link" danger icon={<DeleteOutlined />} size="small">
+              删除
+            </Button>
+          </Popconfirm>
+        ) : null,
     },
   ]
 

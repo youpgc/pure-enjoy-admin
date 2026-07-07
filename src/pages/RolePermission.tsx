@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
 import { handleApiError } from '../utils/apiClient'
+import { usePermission } from '../hooks/usePermission'
 import type { Role, Permission } from '../types/permission'
 import { ROLE_STATUS_LABELS, ROLE_STATUS_COLORS } from '../types/permission'
 
@@ -40,6 +41,7 @@ const RolePermissionPage: React.FC = () => {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const [selectedPermissions, setSelectedPermissions] = useState<number[]>([])
+  const { hasPermission } = usePermission()
 
   // 加载角色列表
   const loadRoles = useCallback(async () => {
@@ -295,14 +297,16 @@ const RolePermissionPage: React.FC = () => {
       key: 'action',
       render: (_: any, record: Role) => (
         <Space>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleOpenModal(record)}
-          >
-            编辑
-          </Button>
-          {!record.is_system && (
+          {hasPermission('roles:write') && (
+            <Button
+              type="link"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenModal(record)}
+            >
+              编辑
+            </Button>
+          )}
+          {!record.is_system && hasPermission('roles:delete') && (
             <Popconfirm
               title="确认删除"
               description={`确定要删除角色 "${record.name}" 吗？`}

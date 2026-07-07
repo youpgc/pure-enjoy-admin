@@ -13,6 +13,7 @@ import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
 import { getActionColumn } from '../components/ActionColumn'
 import { usePagination } from '../hooks/usePagination'
+import { usePermission } from '../hooks/usePermission'
 import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
 
 // ==================== 类型定义 ====================
@@ -70,6 +71,7 @@ const Annotations: React.FC = () => {
   const [trendData, setTrendData] = useState<TrendItem[]>([])
   const annotationService = React.useMemo(() => new BaseService<NovelAnnotation>('novel_annotations', { defaultOrder: { column: 'created_at', ascending: false } }), [])
   const { pagination, resetPage, setTotal, tablePagination } = usePagination(20)
+  const { hasPermission } = usePermission()
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -190,15 +192,19 @@ const Annotations: React.FC = () => {
     return containsSensitive(text).length > 0
   })
 
-  const renderActions = (record: NovelAnnotation) => [
-    {
-      key: 'delete',
-      label: '删除',
-      icon: <DeleteOutlined />,
-      danger: true,
-      onClick: () => handleDelete(record.id),
-    },
-  ]
+  const renderActions = (record: NovelAnnotation) => {
+    const actions = []
+    if (hasPermission('novels:delete')) {
+      actions.push({
+        key: 'delete',
+        label: '删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        onClick: () => handleDelete(record.id),
+      })
+    }
+    return actions
+  }
 
   const columns: ColumnsType<NovelAnnotation> = [
     {

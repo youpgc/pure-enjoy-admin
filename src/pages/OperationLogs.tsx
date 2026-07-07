@@ -25,6 +25,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
+import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import { ACTION_MAP, OP_MODULE_MAP, ACTION_OPTIONS, MODULE_OPTIONS } from '../constants'
 
@@ -75,6 +76,7 @@ const OperationLogs: React.FC = () => {
   })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
+  const { hasPermission } = usePermission()
 
   const logService = React.useMemo(() => new BaseService<OperationLog>('operation_logs', {
     defaultOrder: { column: 'created_at', ascending: false },
@@ -239,15 +241,19 @@ const OperationLogs: React.FC = () => {
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
     getActionColumn<OperationLog>(
-      (record) => [
-        {
-          key: 'delete',
-          label: '删除',
-          icon: <DeleteOutlined />,
-          danger: true,
-          onClick: () => handleDelete(record.id),
-        },
-      ],
+      (record) => {
+        const actions = []
+        if (hasPermission('operation_logs:delete')) {
+          actions.push({
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => handleDelete(record.id),
+          })
+        }
+        return actions
+      },
       { width: 100, maxVisible: 1 }
     ),
   ]
