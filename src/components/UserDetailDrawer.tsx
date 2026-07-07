@@ -319,9 +319,9 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
                       {dayjs(log.created_at).format('MM-DD HH:mm')}
                     </Text>
                   </div>
-                  {log.details && (
+                  {log.detail && (
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      {JSON.stringify(log.details)}
+                      {JSON.stringify(log.detail)}
                     </Text>
                   )}
                   {log.ip && (

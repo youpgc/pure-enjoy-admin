@@ -147,7 +147,7 @@ export async function logOperation(params: {
       module: params.module,
       target_id: params.target_id || null,
       ip: params.ip || '127.0.0.1',
-      details: details,
+      detail: details,
     }
 
     if (isDev) {

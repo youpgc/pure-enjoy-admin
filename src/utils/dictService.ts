@@ -33,22 +33,40 @@ export async function getDictItems(typeCode: string, useCache = true): Promise<D
   }
 
   try {
-    // 尝试从Supabase字典表获取（get_dict_items 未在 Database.Functions 中定义）
+    // 第1步：查询 dict_types 获取 type_id
+    const { data: typeData, error: typeError } = await (supabase as any)
+      .from('dict_types')
+      .select('id')
+      .eq('code', typeCode)
+      .eq('is_active', true)
+      .single()
+
+    if (typeError || !typeData) {
+      console.warn(`字典类型未找到(${typeCode}):`, typeError?.message)
+      return []
+    }
+
+    const typeId = typeData.id as string
+
+    // 第2步：查询 dict_items 获取字典项
     const { data, error } = await (supabase as any)
-      .rpc('get_dict_items', { p_type_code: typeCode })
+      .from('dict_items')
+      .select('code, label, value, sort_order, extra, item_code, item_name, item_value, extra_data')
+      .eq('type_id', typeId)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
 
     if (error) {
-      console.warn(`字典表查询失败(${typeCode}):`, error.message)
-      // 降级：返回空数组，调用方需处理
+      console.warn(`字典项查询失败(${typeCode}):`, error.message)
       return []
     }
 
     const items: DictItem[] = ((data || []) as any[]).map((item: any) => ({
-      code: item.code ?? item.item_code,
-      label: item.label ?? item.item_name,
-      value: item.value ?? item.item_value,
-      sort_order: item.sort_order,
-      extra: item.extra ?? item.extra_data,
+      code: item.code ?? item.item_code ?? '',
+      label: item.label ?? item.item_name ?? '',
+      value: item.value ?? item.item_value ?? null,
+      sort_order: item.sort_order ?? 0,
+      extra: item.extra ?? item.extra_data ?? null,
     }))
 
     // 更新缓存

@@ -114,6 +114,7 @@ const Users: React.FC = () => {
       let query = supabase
         .from('users' as any)
         .select('*', { count: 'exact' })
+        .eq('is_deleted', false)
         .limit(1)
 
       // 关键词搜索下推到数据库
@@ -155,6 +156,7 @@ const Users: React.FC = () => {
       let dataQuery = supabase
         .from('users' as any)
         .select('*')
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false })
 
       // 重复应用筛选条件到数据查询
@@ -221,7 +223,7 @@ const Users: React.FC = () => {
         action,
         module: 'users',
         target_id: targetId,
-        details,
+        detail: details,
         created_at: new Date().toISOString(),
       } as any)
     } catch (err) {

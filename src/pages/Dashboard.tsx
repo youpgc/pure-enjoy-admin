@@ -107,19 +107,19 @@ const Dashboard: React.FC = () => {
         userNovelsActiveRes,
       ] = await Promise.all([
         // 总用户数 - 使用 head:true 获取精确 count，不返回数据行
-        apiQuery(() => supabase.from('users').select('*', { count: 'exact', head: true }), 'Dashboard-总用户数'),
+        apiQuery(() => supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_deleted', false), 'Dashboard-总用户数'),
         // 今日新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', todayStart), 'Dashboard-今日新增用户'),
+        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', todayStart), 'Dashboard-今日新增用户'),
         // 本周新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo), 'Dashboard-本周新增用户'),
+        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', sevenDaysAgo), 'Dashboard-本周新增用户'),
         // 上周新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo), 'Dashboard-上周新增用户'),
+        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo), 'Dashboard-上周新增用户'),
         // 最近7天活跃用户（包含模块信息）
         apiQuery(() => supabase.from('operation_logs').select('user_id, module, created_at').gte('created_at', sevenDaysAgo).limit(1000), 'Dashboard-7天活跃用户'),
         // 上周活跃用户
         apiQuery(() => supabase.from('operation_logs').select('user_id').gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo).limit(1000), 'Dashboard-上周活跃用户'),
         // 用户增长趋势（30天）
-        apiQuery(() => supabase.from('users').select('created_at').gte('created_at', thirtyDaysAgo).limit(1000), 'Dashboard-用户增长趋势'),
+        apiQuery(() => supabase.from('users').select('created_at').eq('is_deleted', false).gte('created_at', thirtyDaysAgo).limit(1000), 'Dashboard-用户增长趋势'),
         // 最近操作日志
         apiQuery(() => supabase.from('operation_logs').select('id, user_id, action, module, created_at').order('created_at', { ascending: false }).limit(20), 'Dashboard-最近操作日志'),
         // 小说总数
@@ -196,7 +196,7 @@ const Dashboard: React.FC = () => {
       let userNames: Record<string, string> = {}
       if (userIds.length > 0) {
         const userNamesRes = await apiQuery(() =>
-          supabase.from('users').select('id, nickname').in('id', userIds),
+          supabase.from('users').select('id, nickname').eq('is_deleted', false).in('id', userIds),
           'Dashboard-用户昵称查询'
         )
         if (userNamesRes.success) {

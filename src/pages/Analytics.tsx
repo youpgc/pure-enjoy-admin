@@ -91,6 +91,7 @@ const Analytics: React.FC = () => {
           supabase
             .from('users')
             .select('created_at')
+            .eq('is_deleted', false)
             .gte('created_at', startDate)
             .lte('created_at', endDate + 'T23:59:59')
             .limit(5000),
@@ -118,6 +119,7 @@ const Analytics: React.FC = () => {
           supabase
             .from('user_feedback')
             .select('created_at')
+            .eq('is_deleted', false)
             .gte('created_at', startDate)
             .lte('created_at', endDate + 'T23:59:59')
             .limit(5000),
