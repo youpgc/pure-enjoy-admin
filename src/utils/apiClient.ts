@@ -1,6 +1,10 @@
 import { supabase, reportError } from './supabase'
 import { message } from 'antd'
 import { SUPABASE_ERROR_CODE_MAP } from '../constants'
+import type { PostgrestFilterBuilder } from '@supabase/postgrest-js'
+
+/// Supabase 查询构建器类型（用于 Service 基类 query 参数）
+type SupabaseQuery = PostgrestFilterBuilder<any, any, any, any, any>
 
 /// 统一 API 响应封装
 export interface ApiResponse<T> {
@@ -57,7 +61,7 @@ export class BaseService<T extends Record<string, any>> {
 
   /// 查询列表
   async findAll(
-    query?: (q: any) => any
+    query?: (q: SupabaseQuery) => SupabaseQuery
   ): Promise<ApiResponse<T[]>> {
     try {
       let q = supabase.from(this.tableName).select('*')
@@ -94,7 +98,7 @@ export class BaseService<T extends Record<string, any>> {
   async paginate(
     page: number,
     pageSize: number,
-    query?: (q: any) => any
+    query?: (q: SupabaseQuery) => SupabaseQuery
   ): Promise<ApiResponse<{ data: T[]; total: number }>> {
     try {
       const from = (page - 1) * pageSize

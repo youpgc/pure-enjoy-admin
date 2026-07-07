@@ -52,6 +52,15 @@ export interface User {
   role: UserRole
   member_level: MemberLevel
   points: number
+  effective_points: number
+  available_points: number
+  expiring_points: number
+  consecutive_checkin_days: number
+  last_checkin_date: string | null
+  tts_speech_rate: number | null
+  tts_timer_minutes: number | null
+  tts_playback_mode: string | null
+  tts_enabled: boolean
   status: UserStatus
   register_ip: string | null
   last_login_ip: string | null
@@ -83,6 +92,15 @@ export interface UserFormData {
   member_level: MemberLevel
   status: UserStatus
   points: number
+  effective_points?: number
+  available_points?: number
+  expiring_points?: number
+  consecutive_checkin_days?: number
+  last_checkin_date?: Dayjs | string | null
+  tts_speech_rate?: number | null
+  tts_timer_minutes?: number | null
+  tts_playback_mode?: string | null
+  tts_enabled?: boolean
 }
 
 // 用户统计数据

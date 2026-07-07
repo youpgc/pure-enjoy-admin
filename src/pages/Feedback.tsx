@@ -266,19 +266,20 @@ const Feedback: React.FC = () => {
   const fetchData = useCallback(async (page = 1, pageSize = 20) => {
     setLoading(true)
     try {
-      // 先获取总数
+      // 先获取总数（排除已软删除）
       const { count, error: countError } = await supabase
         .from('user_feedback')
-        .select('id', { count: 'exact' })
-        .limit(1)
+        .select('id', { count: 'exact', head: true })
+        .eq('is_deleted', false)
       if (countError) throw countError
 
-      // 分页查询
+      // 分页查询（排除已软删除）
       const from = (page - 1) * pageSize
       const to = from + pageSize - 1
       const { data: items, error } = await supabase
         .from('user_feedback')
         .select('*')
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .range(from, to)
 
@@ -324,7 +325,10 @@ const Feedback: React.FC = () => {
           operator_id: operatorId,
           operator_name: operatorName,
         })
-        const { error } = await supabase.from('user_feedback').delete().eq('id', selectedRecord.id)
+        const { error } = await supabase
+          .from('user_feedback')
+          .update({ is_deleted: true, deleted_at: new Date().toISOString() })
+          .eq('id', selectedRecord.id)
         if (error) throw error
         message.success('删除成功')
       } else {
