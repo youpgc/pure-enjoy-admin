@@ -13,6 +13,7 @@ import { usePermission } from '../hooks/usePermission'
 import { formatDateTime } from '../utils/format'
 import NoPermission from '../components/NoPermission'
 import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
+import { useMounted } from '../hooks/useMounted'
 import { FEEDBACK_STATUS_MAP, FEEDBACK_CATEGORY_MAP, FEEDBACK_STATUS_ACTIONS } from '../constants'
 
 // ==================== 类型定义 ====================
@@ -146,6 +147,7 @@ const FlowHistoryModal: React.FC<{
   record: FeedbackRecord | null
   onClose: () => void
 }> = ({ open, record, onClose }) => {
+  const mountedRef = useMounted()
   const [records, setRecords] = useState<FlowRecord[]>([])
   const [loading, setLoading] = useState(false)
   const { options: actionOptions } = useDictOptions('feedback_action', [])
@@ -172,6 +174,7 @@ const FlowHistoryModal: React.FC<{
         .order('created_at', { ascending: false })
         .then(({ data, error }) => {
           if (error) console.error('获取流转记录失败:', error)
+          if (!mountedRef.current) return
           setRecords(data || [])
           setLoading(false)
         })
@@ -241,6 +244,7 @@ const FlowHistoryModal: React.FC<{
 
 const Feedback: React.FC = () => {
   const { hasPermission } = usePermission()
+  const mountedRef = useMounted()
 
   // 列表数据
   const [data, setData] = useState<FeedbackRecord[]>([])
@@ -284,6 +288,7 @@ const Feedback: React.FC = () => {
         .range(from, to)
 
       if (error) throw error
+      if (!mountedRef.current) return
       setData(items || [])
       setPagination({ current: page, pageSize, total: count || 0 })
     } catch (error) {

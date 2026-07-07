@@ -26,6 +26,7 @@ import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
+import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
 import type { ActionButton } from '../components/ActionColumn'
 import { NOTIFICATION_TYPE_MAP, NOTIFICATION_TYPE_TAG_MAP, NOTIFICATION_TYPE_OPTIONS } from '../constants'
@@ -56,6 +57,8 @@ interface NotificationFilters {
 // ==================== 组件 ====================
 
 const Notifications: React.FC = () => {
+  const mountedRef = useMounted()
+
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState<NotificationFilters>({
@@ -93,6 +96,8 @@ const Notifications: React.FC = () => {
         handleApiError(result.errorMessage, 'Notifications-加载通知')
         return
       }
+
+      if (!mountedRef.current) return
 
       setNotifications(result.data?.data || [])
       setTotal(result.data?.total || 0)

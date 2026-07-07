@@ -34,6 +34,7 @@ import {
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { apiQuery, handleApiError } from '../utils/apiClient'
+import { useMounted } from '../hooks/useMounted'
 
 const { RangePicker } = DatePicker
 
@@ -61,6 +62,8 @@ interface TopNovel {
 }
 
 const Analytics: React.FC = () => {
+  const mountedRef = useMounted()
+
   const [loading, setLoading] = useState(false)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().subtract(30, 'day'),
@@ -185,6 +188,9 @@ const Analytics: React.FC = () => {
         const category = item.category || '未分类'
         categoryMap.set(category, (categoryMap.get(category) || 0) + 1)
       })
+
+      if (!mountedRef.current) return
+
       setNovelStats(
         Array.from(categoryMap.entries()).map(([category, count]) => ({
           category,

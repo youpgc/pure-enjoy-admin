@@ -25,6 +25,7 @@ import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 import { handleApiError, apiQuery } from '../utils/apiClient'
+import { useMounted } from '../hooks/useMounted'
 import { ACTION_LABEL_MAP, OP_MODULE_LABEL_MAP } from '../constants'
 
 // ==================== 类型定义 ====================
@@ -59,6 +60,8 @@ interface DashboardStats {
 }
 
 const Dashboard: React.FC = () => {
+  const mountedRef = useMounted()
+
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [userTrend, setUserTrend] = useState<UserTrendItem[]>([])
@@ -147,6 +150,8 @@ const Dashboard: React.FC = () => {
         ? parseFloat((((activeUsers7d - lastWeekActive) / lastWeekActive) * 100).toFixed(1))
         : activeUsers7d > 0 ? 100 : 0
 
+      if (!mountedRef.current) return
+
       setStats({
         totalUsers,
         todayNewUsers,
@@ -207,6 +212,9 @@ const Dashboard: React.FC = () => {
         module: log.module || '',
         time: dayjs(log.created_at).format('MM-DD HH:mm'),
       }))
+
+      if (!mountedRef.current) return
+
       setRecentActivities(activities)
 
       // ==================== 模块使用统计 ====================

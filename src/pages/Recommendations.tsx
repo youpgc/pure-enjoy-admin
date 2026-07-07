@@ -76,8 +76,8 @@ const Recommendations: React.FC = () => {
     try {
       const saved = localStorage.getItem('rec_config')
       if (saved) setConfig(JSON.parse(saved))
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('[Recommendations] localStorage 读取失败:', err)
     }
   }, [])
 

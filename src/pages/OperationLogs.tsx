@@ -26,6 +26,7 @@ import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
+import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
 import { ACTION_MAP, OP_MODULE_MAP, ACTION_OPTIONS, MODULE_OPTIONS } from '../constants'
 
@@ -66,6 +67,8 @@ const MODULE_MAP: Record<string, { color: string; label: string; icon: React.Rea
 // ==================== 组件 ====================
 
 const OperationLogs: React.FC = () => {
+  const mountedRef = useMounted()
+
   const [logs, setLogs] = useState<OperationLog[]>([])
   const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState<LogFilters>({
@@ -109,6 +112,8 @@ const OperationLogs: React.FC = () => {
         handleApiError(result.errorMessage, 'OperationLogs-加载日志')
         return
       }
+
+      if (!mountedRef.current) return
 
       setLogs(result.data?.data || [])
       setTotal(result.data?.total || 0)

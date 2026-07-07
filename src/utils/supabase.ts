@@ -196,7 +196,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
           tableName = pathParts[restIndex + 2] || 'unknown'
         }
       } catch {
-        // 忽略 URL 解析错误
+        /* URL 解析失败，返回默认值 */
       }
 
       if (enableDebugLog) {
@@ -231,7 +231,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             errorData = await response.clone().json()
             errorMessage = errorData.message || errorData.error_description || errorMessage
           } catch {
-            // 无法解析 JSON 错误
+            /* JSON 解析失败，使用默认错误信息 */
           }
 
           // 控制台输出（仅开发环境）

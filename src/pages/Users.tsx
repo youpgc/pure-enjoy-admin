@@ -47,6 +47,7 @@ import { getActionColumn } from '../components/ActionColumn'
 import { supabase , SUPABASE_URL } from '../utils/supabase'
 import { useAuth } from '../App'
 import { usePermission } from '../hooks/usePermission'
+import { useMounted } from '../hooks/useMounted'
 import { formatDateTime } from '../utils/format'
 import UserFormModal from '../components/UserFormModal'
 import UserDetailDrawer from '../components/UserDetailDrawer'
@@ -56,6 +57,8 @@ const { Text } = Typography
 
 // ==================== 主组件 ====================
 const Users: React.FC = () => {
+  const mountedRef = useMounted()
+
   // 状态
   const [data, setData] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
@@ -181,6 +184,8 @@ const Users: React.FC = () => {
       const to = from + pageSize - 1
       const { data: users, error } = await dataQuery.range(from, to)
 
+      if (!mountedRef.current) return
+
       if (error) {
         console.error('[Users] Supabase 查询失败:', error)
         message.error('获取用户列表失败: ' + error.message)
@@ -190,6 +195,7 @@ const Users: React.FC = () => {
         setPagination(prev => ({ ...prev, current: page, pageSize, total: count || 0 }))
       }
     } catch (err) {
+      if (!mountedRef.current) return
       console.error('[Users] 获取用户列表失败:', err)
       message.error('获取用户列表失败，请检查网络连接后重试')
       setData([])
@@ -506,6 +512,8 @@ const Users: React.FC = () => {
         supabase.from('user_novels').select('id', { count: 'exact' }).eq('user_id', user.id),
         supabase.from('operation_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
       ])
+
+      if (!mountedRef.current) return
 
       setUserStats({
         expense_count: expensesResult.count || 0,

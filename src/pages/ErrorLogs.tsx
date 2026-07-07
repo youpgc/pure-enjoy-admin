@@ -21,6 +21,7 @@ import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
+import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
 import { ERROR_LOG_LEVEL_MAP, ERROR_LOG_LEVEL_OPTIONS } from '../constants'
 
@@ -46,6 +47,8 @@ interface ErrorLogFilters {
 // ==================== 组件 ====================
 
 const ErrorLogs: React.FC = () => {
+  const mountedRef = useMounted()
+
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([])
   const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState<ErrorLogFilters>({
@@ -79,6 +82,8 @@ const ErrorLogs: React.FC = () => {
         handleApiError(result.errorMessage, 'ErrorLogs-加载错误日志')
         return
       }
+
+      if (!mountedRef.current) return
 
       setErrorLogs(result.data?.data || [])
       setTotal(result.data?.total || 0)

@@ -27,6 +27,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
+import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
 import NovelChapterModal from '../components/NovelChapterModal'
 import { BaseService, handleApiError } from '../utils/apiClient'
@@ -62,6 +63,8 @@ interface NovelFilters {
 // ==================== 组件 ====================
 
 const Novels: React.FC = () => {
+  const mountedRef = useMounted()
+
   const [novels, setNovels] = useState<Novel[]>([])
   const [loading, setLoading] = useState(false)
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
@@ -102,6 +105,8 @@ const Novels: React.FC = () => {
         handleApiError(result.errorMessage, 'Novels-加载小说列表')
         return
       }
+
+      if (!mountedRef.current) return
 
       setNovels(result.data?.data || [])
       setTotal(result.data?.total || 0)
