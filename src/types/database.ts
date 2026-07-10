@@ -876,6 +876,7 @@ export interface Database {
           location: string | null
           birthday: string | null
           gender: string | null
+          height: number | null
           occupation: string | null
           company: string | null
           website: string | null
