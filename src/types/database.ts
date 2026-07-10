@@ -123,11 +123,7 @@ export interface Database {
           status: string | null
           created_at: string | null
           updated_at: string | null
-          item_code: string | null
-          item_name: string | null
-          item_value: string | null
           is_active: boolean | null
-          extra_data: Json | null
         }
         Insert: Omit<Database['public']['Tables']['dict_items']['Row'], 'id' | 'created_at' | 'updated_at'> & {
           id?: string
@@ -150,8 +146,6 @@ export interface Database {
           created_at: string | null
           updated_at: string | null
           is_active: boolean | null
-          type_code: string | null
-          type_name: string | null
         }
         Insert: Omit<Database['public']['Tables']['dict_types']['Row'], 'id' | 'created_at' | 'updated_at'> & {
           id?: string
@@ -415,7 +409,6 @@ export interface Database {
           is_free: boolean
           price: number
           created_at: string
-          chapter_number: number | null
           updated_at: string | null
         }
         Insert: Omit<Database['public']['Tables']['novel_chapters']['Row'], 'id' | 'created_at' | 'updated_at'> & {
