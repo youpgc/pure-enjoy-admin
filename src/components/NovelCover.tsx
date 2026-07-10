@@ -34,7 +34,7 @@ function hashString(s: string): number {
 
 function getGradient(title: string): [string, string] {
   const idx = Math.abs(hashString(title)) % gradientPairs.length
-  return gradientPairs[idx]
+  return gradientPairs[idx]!
 }
 
 const NovelCover: React.FC<NovelCoverProps> = ({
