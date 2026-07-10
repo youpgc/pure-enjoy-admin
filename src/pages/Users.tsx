@@ -303,6 +303,7 @@ const Users: React.FC = () => {
       occupation: formData.occupation || null,
       company: formData.company || null,
       website: formData.website || null,
+      height: formData.height ?? null,
       role: formData.role,
       member_level: formData.member_level,
       // points 由 point_records 触发器自动维护，新用户默认 0
@@ -414,6 +415,7 @@ const Users: React.FC = () => {
         occupation: formData.occupation || null,
         company: formData.company || null,
         website: formData.website || null,
+        height: formData.height ?? null,
         role: formData.role,
         member_level: formData.member_level,
         status: formData.status,
@@ -659,6 +661,13 @@ const Users: React.FC = () => {
       key: 'gender',
       width: 70,
       render: (gender: string | null) => gender || <Text type="secondary">-</Text>,
+    },
+    {
+      title: '身高(cm)',
+      dataIndex: 'height',
+      key: 'height',
+      width: 100,
+      render: (height: number | null) => height != null ? `${height}` : <Text type="secondary">-</Text>,
     },
     {
       title: '角色',

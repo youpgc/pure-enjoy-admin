@@ -63,6 +63,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           bio: user.bio || '',
           gender: user.gender || '保密',
           birthday: user.birthday ? dayjs(user.birthday) : undefined,
+          height: user.height ?? undefined,
           location: user.location || '',
           occupation: user.occupation || '',
           company: user.company || '',
@@ -299,6 +300,13 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
             placeholder="选择生日"
             format="YYYY-MM-DD"
           />
+        </Form.Item>
+
+        <Form.Item
+          name="height"
+          label="身高(cm)"
+        >
+          <InputNumber placeholder="请输入身高" min={50} max={250} step={0.1} style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item
