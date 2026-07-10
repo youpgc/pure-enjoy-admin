@@ -20,7 +20,6 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  BookOutlined,
   FileTextOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -30,6 +29,7 @@ import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
 import NovelChapterModal from '../components/NovelChapterModal'
+import NovelCover from '../components/NovelCover'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { NOVEL_CATEGORY_MAP, NOVEL_CATEGORY_OPTIONS, NOVEL_STATUS_MAP, NOVEL_STATUS_OPTIONS, NOVEL_STATUS_COLORS } from '../constants'
@@ -37,22 +37,10 @@ import { NOVEL_CATEGORY_MAP, NOVEL_CATEGORY_OPTIONS, NOVEL_STATUS_MAP, NOVEL_STA
 const { Text } = Typography
 
 // ==================== 类型定义 ====================
+import type { DbNovel } from '../types/database'
 
-interface Novel {
-  id: string
-  title: string
-  author: string
-  category: string
-  description: string
-  cover_url: string
-  status: 'ongoing' | 'completed'
-  chapter_count: number
-  is_free: boolean
-  source_url?: string
-  word_count?: number
-  created_at: string
-  updated_at: string
-}
+// 使用数据库生成的类型，确保与管理后台、App 端字段一致
+type Novel = DbNovel
 
 interface NovelFilters {
   keyword: string
@@ -244,20 +232,16 @@ const Novels: React.FC = () => {
       width: 300,
       render: (_, record) => (
         <Space>
-          {record.cover_url ? (
-            <img
-              src={record.cover_url}
-              alt={record.title}
-              style={{ width: 50, height: 70, objectFit: 'cover', borderRadius: 4 }}
-            />
-          ) : (
-            <div style={{ width: 50, height: 70, background: '#f0f0f0', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BookOutlined style={{ fontSize: 20, color: '#999' }} />
-            </div>
-          )}
+          <NovelCover
+            coverUrl={record.cover_url}
+            title={record.title}
+            width={50}
+            height={70}
+            borderRadius={4}
+          />
           <div>
             <div style={{ fontWeight: 500 }}>{record.title}</div>
-            <Text type="secondary" style={{ fontSize: 12 }}>{record.author}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>{record.author || '-'}</Text>
           </div>
         </Space>
       ),
@@ -267,14 +251,15 @@ const Novels: React.FC = () => {
       dataIndex: 'category',
       key: 'category',
       width: 100,
-      render: (category: string) => <Tag>{NOVEL_CATEGORY_MAP[category] || category}</Tag>,
+      render: (category: string | null) => <Tag>{category ? (NOVEL_CATEGORY_MAP[category] || category) : '-'}</Tag>,
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 100,
-      render: (status: string) => {
+      render: (status: string | null) => {
+        if (!status) return <Badge status="default" text="-" />
         const info = NOVEL_STATUS_COLORS[status] || 'default'
         return <Badge status={info as any} text={NOVEL_STATUS_MAP[status] || status} />
       },
@@ -284,13 +269,14 @@ const Novels: React.FC = () => {
       dataIndex: 'chapter_count',
       key: 'chapter_count',
       width: 100,
+      render: (count: number | null) => count ?? '-',
     },
     {
       title: '总字数',
       dataIndex: 'word_count',
       key: 'word_count',
       width: 120,
-      render: (count: number) => {
+      render: (count: number | null) => {
         if (!count) return '-'
         if (count >= 10000) return `${(count / 10000).toFixed(1)}万`
         return `${count}`
