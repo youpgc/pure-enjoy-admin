@@ -45,6 +45,7 @@ import { generateUserId } from '../utils/userId'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { getActionColumn } from '../components/ActionColumn'
 import { supabase , SUPABASE_URL } from '../utils/supabase'
+import { userService } from '../services/userService'
 import { useAuth } from '../App'
 import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
@@ -113,7 +114,10 @@ const Users: React.FC = () => {
       // 构建带筛选条件的查询 - 使用limit(1)代替head:true，确保count正确返回
       let query = supabase
         .from('users' as any)
-        .select('*', { count: 'exact' })
+        .select(
+          'id,email,username,nickname,phone,role,member_level,status,avatar_url,bio,gender,birthday,height,location,occupation,company,website,last_login_at,consecutive_checkin_days,last_checkin_date,created_at,updated_at',
+          { count: 'exact' }
+        )
         .eq('is_deleted', false)
         .limit(1)
 
@@ -456,18 +460,9 @@ const Users: React.FC = () => {
   // 删除用户（软删除）
   const handleDelete = useCallback(async (ids: string[]) => {
     try {
-      const { data: deletedData, error } = await (supabase
-        .from('users') as any)
-        .update({ status: 'disabled', updated_at: new Date().toISOString() })
-        .in('id', ids)
-        .select()
-
-      if (error) {
-        message.error('禁用用户失败: ' + error.message)
-        return
-      }
-      if (!deletedData || deletedData.length === 0) {
-        message.error('禁用用户失败：未匹配到记录，可能无权限')
+      const result = await userService.batchSoftDelete(ids)
+      if (!result.success) {
+        message.error(result.errorMessage || '禁用用户失败')
         return
       }
       await fetchUsers()
@@ -479,25 +474,16 @@ const Users: React.FC = () => {
       message.error('禁用用户失败，请检查网络连接后重试')
     }
     setSelectedRowKeys([])
-  }, [supabase, fetchUsers, logOperation])
+  }, [fetchUsers, logOperation])
 
   // 切换用户状态
   const handleToggleStatus = useCallback(async (user: User) => {
     const newStatus: UserStatus = user.status === 'active' ? 'disabled' : 'active'
     
     try {
-      const { data: toggledData, error } = await (supabase
-        .from('users') as any)
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', user.id)
-        .select()
-
-      if (error) {
-        message.error('切换用户状态失败: ' + error.message)
-        return
-      }
-      if (!toggledData || toggledData.length === 0) {
-        message.error('切换用户状态失败：未匹配到记录，可能无权限')
+      const result = await userService.toggleStatus(user.id, newStatus)
+      if (!result.success) {
+        message.error(result.errorMessage || '切换用户状态失败')
         return
       }
       await fetchUsers()
@@ -506,7 +492,7 @@ const Users: React.FC = () => {
     } catch (err) {
       message.error('切换用户状态失败，请检查网络连接后重试')
     }
-  }, [supabase, fetchUsers, logOperation])
+  }, [fetchUsers, logOperation])
 
   // 批量禁用
   const handleBatchDisable = useCallback(async () => {

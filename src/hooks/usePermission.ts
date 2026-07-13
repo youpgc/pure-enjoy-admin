@@ -76,30 +76,26 @@ export const usePermission = () => {
     }
   }, [])
 
-  // 判断是否有某个权限
+  // 判断是否有某个权限（基于数据库配置，禁止硬编码特权）
   const hasPermission = useCallback((permissionName: string): boolean => {
-    if (role === ROLE_SUPER_ADMIN) return true
     return checkPermission(permissions, permissionName)
-  }, [permissions, role])
+  }, [permissions])
 
   // 判断是否有任意一个权限
   const hasAnyPermission = useCallback((permissionNames: string[]): boolean => {
-    if (role === ROLE_SUPER_ADMIN) return true
     return permissionNames.some(name => permissions.includes(name))
-  }, [permissions, role])
+  }, [permissions])
 
   // 判断是否有所有指定权限
   const hasAllPermissions = useCallback((permissionNames: string[]): boolean => {
-    if (role === ROLE_SUPER_ADMIN) return true
     return permissionNames.every(name => permissions.includes(name))
-  }, [permissions, role])
+  }, [permissions])
 
   // 菜单可见性判断（有菜单权限或菜单下任意操作权限）
   const hasMenuPermission = useCallback((menuPermissionName: string, actionPermissions: string[]): boolean => {
-    if (role === ROLE_SUPER_ADMIN) return true
     if (permissions.includes(menuPermissionName)) return true
     return actionPermissions.some(name => permissions.includes(name))
-  }, [permissions, role])
+  }, [permissions])
 
   // 快捷判断
   const isSuperAdmin = useCallback(() => role === ROLE_SUPER_ADMIN, [role])

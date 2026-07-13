@@ -2,21 +2,25 @@ import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
 import { SUPABASE_ERROR_CODE_MAP } from '../constants'
 
-declare const process: { env: Record<string, string | undefined> } | undefined;
-const isDev = typeof process !== 'undefined' && process!.env && process!.env.NODE_ENV === 'development'
+// 使用 Vite 环境变量判断开发环境
+const isDev = import.meta.env.DEV
 
 // 根据环境控制调试日志：开发环境开启，生产环境关闭
 const enableDebugLog = isDev
 
-// 默认值（硬编码 fallback，防止 CI 构建时 Secret 缺失导致白屏）
-const DEFAULT_SUPABASE_URL = 'https://mhdrbjpqmzswswoazwjg.supabase.co'
-const DEFAULT_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1oZHJianBxbXpzd3N3b2F6d2pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MjAyMTMsImV4cCI6MjA5NDE5NjIxM30.VCMNj6BaSwiMRhTCXF52Ftbs2-gRgDkVZd8fTTT0g_E'
-
-// 校验环境变量是否有效（防止 CI Secret 为空时生成 'https://.supabase.co' 等无效值）
+// 环境变量必须配置，禁止任何 fallback 硬编码
 const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
-export const SUPABASE_URL = (envUrl && envUrl.includes('.supabase.co') && !envUrl.match(/^https:\/\/\.supabase\.co/)) ? envUrl : DEFAULT_SUPABASE_URL
-const SUPABASE_ANON_KEY = (envKey && envKey.length > 50) ? envKey : DEFAULT_SUPABASE_ANON_KEY
+
+if (!envUrl || !envUrl.includes('.supabase.co')) {
+  throw new Error('VITE_SUPABASE_URL 环境变量未配置或格式无效')
+}
+if (!envKey || envKey.length < 50) {
+  throw new Error('VITE_SUPABASE_ANON_KEY 环境变量未配置或格式无效')
+}
+
+export const SUPABASE_URL = envUrl
+const SUPABASE_ANON_KEY = envKey
 
 // 敏感字段列表（日志中需要脱敏的字段）
 const SENSITIVE_FIELDS = ['password', 'password_hash', 'token', 'apikey', 'authorization', 'secret', 'phone', 'email']

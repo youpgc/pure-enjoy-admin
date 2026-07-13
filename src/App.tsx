@@ -171,7 +171,6 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // AuthContext 中保留 hasPermission 作为兼容接口，基于用户角色做基本判断
   const hasPermission = useCallback((_permission: string) => {
     if (!user) return false
-    if (user.role === ROLE_SUPER_ADMIN) return true
     // 具体细粒度权限查询应使用 usePermission Hook
     return false
   }, [user])
