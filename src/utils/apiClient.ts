@@ -133,8 +133,14 @@ export class BaseService<T extends Record<string, any>> {
   /// 更新
   async update(id: string | number, data: Partial<T>): Promise<ApiResponse<boolean>> {
     try {
-      const { error } = await ((supabase.from(this.tableName) as any).update(data).eq('id', id))
+      const { data: result, error } = await (supabase.from(this.tableName) as any)
+        .update(data)
+        .eq('id', id)
+        .select()
       if (error) throw error
+      if (!result || (Array.isArray(result) && result.length === 0)) {
+        return errorResponse('更新失败：未匹配到任何记录（可能无权限）')
+      }
       return successResponse(true)
     } catch (err) {
       return errorResponse(handleApiError(err, `${this.tableName}.update`))
@@ -166,8 +172,14 @@ export class BaseService<T extends Record<string, any>> {
   /// 批量更新
   async batchUpdate(ids: (string | number)[], data: Partial<T>): Promise<ApiResponse<boolean>> {
     try {
-      const { error } = await ((supabase.from(this.tableName) as any).update(data).in('id', ids))
+      const { data: result, error } = await (supabase.from(this.tableName) as any)
+        .update(data)
+        .in('id', ids)
+        .select()
       if (error) throw error
+      if (!result || (Array.isArray(result) && result.length === 0)) {
+        return errorResponse('批量更新失败：未匹配到任何记录（可能无权限）')
+      }
       return successResponse(true)
     } catch (err) {
       return errorResponse(handleApiError(err, `${this.tableName}.batchUpdate`))

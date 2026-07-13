@@ -163,6 +163,9 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
               <Text type="secondary">未设置</Text>
             )}
           </Descriptions.Item>
+          <Descriptions.Item label="身高">
+            {user.height != null ? `${user.height} cm` : <Text type="secondary">未设置</Text>}
+          </Descriptions.Item>
           <Descriptions.Item label="所在地">
             {user.location ? (
               <>
