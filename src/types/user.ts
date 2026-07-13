@@ -45,6 +45,7 @@ export interface User {
   bio: string | null
   gender: string | null // 男/女/保密
   birthday: string | null
+  height: number | null
   location: string | null
   occupation: string | null
   company: string | null
@@ -84,6 +85,7 @@ export interface UserFormData {
   bio?: string
   gender?: string
   birthday?: Dayjs | string | null // 表单使用 Dayjs，提交时转换为 string
+  height?: number | null
   location?: string
   occupation?: string
   company?: string
