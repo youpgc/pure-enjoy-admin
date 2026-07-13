@@ -337,7 +337,7 @@ const Users: React.FC = () => {
       // 如果管理员设置了初始积分，插入 point_records 流水（触发器自动同步 users.points）
       const initPoints = formData.points ?? 0
       if (initPoints > 0) {
-        const { error: recordError } = await supabase.from('point_records' as any).insert({
+        const { data: pointRecord, error: recordError } = await supabase.from('point_records' as any).insert({
           user_id: newUser.id,
           type: 'admin_adjust',
           amount: initPoints,
@@ -346,9 +346,11 @@ const Users: React.FC = () => {
           operator_id: adminUser?.id,
           status: 'active',
           created_at: new Date().toISOString(),
-        } as any)
+        } as any).select()
         if (recordError) {
           console.warn('初始积分记录失败:', recordError.message)
+        } else if (!pointRecord || pointRecord.length === 0) {
+          console.warn('初始积分记录未写入：可能 RLS 策略阻止')
         }
       }
 
@@ -428,13 +430,18 @@ const Users: React.FC = () => {
         updateData.password_hash = sha256(formData.password).toString()
       }
 
-      const { error } = await (supabase
+      const { data: updatedData, error } = await (supabase
         .from('users') as any)
         .update(updateData)
         .eq('id', currentUser.id)
+        .select()
 
       if (error) {
         message.error('更新用户失败: ' + error.message)
+        return
+      }
+      if (!updatedData || updatedData.length === 0) {
+        message.error('更新用户失败：未匹配到记录，可能无权限')
         return
       }
       await fetchUsers()
@@ -449,13 +456,18 @@ const Users: React.FC = () => {
   // 删除用户（软删除）
   const handleDelete = useCallback(async (ids: string[]) => {
     try {
-      const { error } = await (supabase
+      const { data: deletedData, error } = await (supabase
         .from('users') as any)
         .update({ status: 'disabled', updated_at: new Date().toISOString() })
         .in('id', ids)
+        .select()
 
       if (error) {
         message.error('禁用用户失败: ' + error.message)
+        return
+      }
+      if (!deletedData || deletedData.length === 0) {
+        message.error('禁用用户失败：未匹配到记录，可能无权限')
         return
       }
       await fetchUsers()
@@ -474,13 +486,18 @@ const Users: React.FC = () => {
     const newStatus: UserStatus = user.status === 'active' ? 'disabled' : 'active'
     
     try {
-      const { error } = await (supabase
+      const { data: toggledData, error } = await (supabase
         .from('users') as any)
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', user.id)
+        .select()
 
       if (error) {
         message.error('切换用户状态失败: ' + error.message)
+        return
+      }
+      if (!toggledData || toggledData.length === 0) {
+        message.error('切换用户状态失败：未匹配到记录，可能无权限')
         return
       }
       await fetchUsers()
