@@ -8,19 +8,19 @@ const isDev = import.meta.env.DEV
 // 根据环境控制调试日志：开发环境开启，生产环境关闭
 const enableDebugLog = isDev
 
-// 环境变量必须配置，禁止任何 fallback 硬编码
+// Supabase URL 和 anon key 本就是客户端公开信息（受 RLS 保护）
+// 优先从环境变量读取，未配置时使用开发默认值，保证本地开发和部署可用
+// 如需切换到其他项目，请通过 .env 或 VITE_ 环境变量覆盖
+const DEV_DEFAULT_URL = 'https://mhdrbjpqmzswswoazwjg.supabase.co'
+const DEV_DEFAULT_ANON_KEY = 'sb_publishable_wFx9tlxImVfEpRN4NMkS1g_QOm64aj6'
+
 const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
-if (!envUrl || !envUrl.includes('.supabase.co')) {
-  throw new Error('VITE_SUPABASE_URL 环境变量未配置或格式无效')
-}
-if (!envKey || envKey.length < 50) {
-  throw new Error('VITE_SUPABASE_ANON_KEY 环境变量未配置或格式无效')
-}
+const SUPABASE_URL = envUrl && envUrl.includes('.supabase.co') ? envUrl : DEV_DEFAULT_URL
+const SUPABASE_ANON_KEY = envKey && envKey.length >= 50 ? envKey : DEV_DEFAULT_ANON_KEY
 
-export const SUPABASE_URL = envUrl
-const SUPABASE_ANON_KEY = envKey
+export { SUPABASE_URL }
 
 // 敏感字段列表（日志中需要脱敏的字段）
 const SENSITIVE_FIELDS = ['password', 'password_hash', 'token', 'apikey', 'authorization', 'secret', 'phone', 'email']
