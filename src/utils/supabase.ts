@@ -198,8 +198,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
         if (restIndex !== -1 && pathParts[restIndex + 1] === 'v1') {
           tableName = pathParts[restIndex + 2] || 'unknown'
         }
-      } catch {
-        /* URL 解析失败，返回默认值 */
+      } catch (e) {
+        console.error('URL parse failed:', e)
       }
 
       if (enableDebugLog) {

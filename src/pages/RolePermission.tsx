@@ -9,9 +9,7 @@ import {
   Switch,
   Tag,
   Tree,
-  Space,
   message,
-  Popconfirm,
   Typography,
   Row,
   Col,
@@ -25,6 +23,7 @@ import {
 import { supabase } from '../utils/supabase'
 import { handleApiError } from '../utils/apiClient'
 import { usePermission } from '../hooks/usePermission'
+import { getActionColumn } from '../components/ActionColumn'
 import type { Role, Permission } from '../types/permission'
 import { ROLE_STATUS_LABELS, ROLE_STATUS_COLORS } from '../types/permission'
 
@@ -48,12 +47,12 @@ const RolePermissionPage: React.FC = () => {
     setLoading(true)
     try {
       const { data, error } = await supabase
-        .from('roles' as any)
+        .from('roles')
         .select('*')
-        .order('id') as any
+        .order('id')
 
       if (error) throw error
-      setRoles(data || [])
+      setRoles((data as Role[]) || [])
     } catch (error) {
       handleApiError(error, 'RolePermission-加载角色')
     } finally {
@@ -65,12 +64,12 @@ const RolePermissionPage: React.FC = () => {
   const loadPermissions = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('permissions' as any)
+        .from('permissions')
         .select('*')
-        .order('sort_order') as any
+        .order('sort_order')
 
       if (error) throw error
-      setPermissions(data || [])
+      setPermissions((data as Permission[]) || [])
     } catch (error) {
       handleApiError(error, 'RolePermission-加载权限')
     }
@@ -79,13 +78,13 @@ const RolePermissionPage: React.FC = () => {
   // 加载角色的权限
   const loadRolePermissions = useCallback(async (roleId: number) => {
     try {
-      const { data, error } = await (supabase
-        .from('role_permissions') as any)
+      const { data, error } = await supabase
+        .from('role_permissions')
         .select('permission_id')
         .eq('role_id', roleId)
 
       if (error) throw error
-      setSelectedPermissions(data?.map((rp: any) => rp.permission_id) || [])
+      setSelectedPermissions(data?.map((rp: { permission_id: number }) => rp.permission_id) || [])
     } catch (error) {
       handleApiError(error, 'RolePermission-加载角色权限')
     }
@@ -130,8 +129,8 @@ const RolePermissionPage: React.FC = () => {
 
       if (editingRole) {
         // 更新角色
-        const { error } = await (supabase
-          .from('roles') as any)
+        // TODO: Supabase type inference issue - roles Update resolves to never
+        const { error } = await (supabase.from('roles') as any)
           .update(roleData)
           .eq('id', editingRole.id)
 
@@ -139,41 +138,41 @@ const RolePermissionPage: React.FC = () => {
 
         // 更新权限关联
         await supabase
-          .from('role_permissions' as any)
+          .from('role_permissions')
           .delete()
-          .eq('role_id', editingRole.id) as any
+          .eq('role_id', editingRole.id)
 
         if (selectedPermissions.length > 0) {
           const rolePerms = selectedPermissions.map(pid => ({
             role_id: editingRole.id,
             permission_id: pid,
           }))
-          const { error: rpError } = await supabase
-            .from('role_permissions' as any)
-            .insert(rolePerms as any) as any
+          // TODO: Supabase type inference issue - role_permissions Insert resolves to never
+          const { error: rpError } = await (supabase.from('role_permissions') as any)
+            .insert(rolePerms)
           if (rpError) throw rpError
         }
 
         message.success('角色更新成功')
       } else {
         // 新增角色
-        const { data, error } = await supabase
-          .from('roles' as any)
-          .insert(roleData as any)
+        // TODO: Supabase type inference issue - roles Insert resolves to never
+        const { data, error } = await (supabase.from('roles') as any)
+          .insert(roleData)
           .select()
-          .single() as any
+          .single()
 
         if (error) throw error
 
         // 添加权限关联
         if (selectedPermissions.length > 0 && data) {
           const rolePerms = selectedPermissions.map(pid => ({
-            role_id: data.id,
+            role_id: (data as Role).id,
             permission_id: pid,
           }))
-          const { error: rpError } = await supabase
-            .from('role_permissions' as any)
-            .insert(rolePerms as any) as any
+          // TODO: Supabase type inference issue - role_permissions Insert resolves to never
+          const { error: rpError } = await (supabase.from('role_permissions') as any)
+            .insert(rolePerms)
           if (rpError) throw rpError
         }
 
@@ -198,9 +197,9 @@ const RolePermissionPage: React.FC = () => {
       }
 
       const { error } = await supabase
-        .from('roles' as any)
+        .from('roles')
         .delete()
-        .eq('id', role.id) as any
+        .eq('id', role.id)
 
       if (error) throw error
       message.success('角色删除成功')
@@ -210,48 +209,28 @@ const RolePermissionPage: React.FC = () => {
     }
   }
 
-  // 从 action 名称中提取资源名称（如"查看小说" -> "小说"）
-  const extractResourceName = (displayName: string): string => {
-    const prefixes = ['查看', '编辑', '删除', '导出']
-    for (const prefix of prefixes) {
-      if (displayName.startsWith(prefix)) {
-        return displayName.slice(prefix.length)
-      }
-    }
-    return displayName
-  }
+  // 权限树数据
+  const permissionTreeData = useCallback(() => {
+    const moduleMap: Record<string, { title: string; key: string; children: { title: string; key: string }[] }> = {}
 
-  // 构建权限树：目录 -> 菜单 -> 权限（三层）
-  const buildPermissionTree = useCallback(() => {
-    const menuPerms = permissions.filter(p => p.type === 'menu')
-    const actionPerms = permissions.filter(p => p.type === 'action')
-
-    return menuPerms.map(menu => {
-      const menuActions = actionPerms.filter(action => action.parent_id === menu.id)
-
-      // 按资源名称分组形成菜单层
-      const groups: Record<string, Permission[]> = {}
-      menuActions.forEach(action => {
-        const resourceName = extractResourceName(action.display_name)
-        if (!groups[resourceName]) {
-          groups[resourceName] = []
+    permissions.forEach(p => {
+      const modKey = p.module || '未分类'
+      let mod = moduleMap[modKey]
+      if (!mod) {
+        mod = {
+          title: modKey,
+          key: `module_${modKey}`,
+          children: [],
         }
-        groups[resourceName].push(action)
-      })
-
-      return {
-        title: menu.display_name,
-        key: `menu_${menu.id}`,
-        children: Object.entries(groups).map(([resourceName, actions]) => ({
-          title: `${resourceName}管理`,
-          key: `group_${menu.id}_${resourceName}`,
-          children: actions.map(action => ({
-            title: action.display_name,
-            key: action.id,
-          })),
-        })),
+        moduleMap[modKey] = mod
       }
+      mod.children.push({
+        title: `${p.name} (${p.display_name || '-'})`,
+        key: String(p.id),
+      })
     })
+
+    return Object.values(moduleMap)
   }, [permissions])
 
   // 表格列定义
@@ -270,17 +249,6 @@ const RolePermissionPage: React.FC = () => {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
-      ellipsis: true,
-    },
-    {
-      title: '类型',
-      dataIndex: 'is_system',
-      key: 'is_system',
-      render: (isSystem: boolean) => (
-        <Tag color={isSystem ? 'blue' : 'default'}>
-          {isSystem ? '系统内置' : '自定义'}
-        </Tag>
-      ),
     },
     {
       title: '状态',
@@ -292,76 +260,69 @@ const RolePermissionPage: React.FC = () => {
         </Tag>
       ),
     },
-    {
-      title: '操作',
-      key: 'action',
-      render: (_: any, record: Role) => (
-        <Space>
-          {hasPermission('roles:write') && (
-            <Button
-              type="link"
-              icon={<EditOutlined />}
-              onClick={() => handleOpenModal(record)}
-            >
-              编辑
-            </Button>
-          )}
-          {!record.is_system && hasPermission('roles:delete') && (
-            <Popconfirm
-              title="确认删除"
-              description={`确定要删除角色 "${record.name}" 吗？`}
-              onConfirm={() => handleDelete(record)}
-              okText="删除"
-              cancelText="取消"
-            >
-              <Button type="link" danger icon={<DeleteOutlined />}>
-                删除
-              </Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
+    getActionColumn<Role>((record) => [
+      {
+        key: 'edit',
+        label: '编辑',
+        icon: <EditOutlined />,
+        onClick: () => handleOpenModal(record),
+      },
+      {
+        key: 'delete',
+        label: '删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        onClick: () => handleDelete(record),
+      },
+    ]),
   ]
 
   return (
-    <div>
-      <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-        <Col>
-          <Title level={4} style={{ margin: 0 }}>
-            <SafetyOutlined /> 角色权限管理
-          </Title>
-        </Col>
-        <Col>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => handleOpenModal()}
+    <div style={{ padding: '0 0 24px' }}>
+      <Row gutter={[16, 16]}>
+        <Col span={24}>
+          <Card
+            title={
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <SafetyOutlined style={{ marginRight: 8 }} />
+                <Title level={5} style={{ margin: 0 }}>角色权限管理</Title>
+              </div>
+            }
+            extra={
+              hasPermission('role:create') && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => handleOpenModal()}
+                >
+                  新增角色
+                </Button>
+              )
+            }
           >
-            新增角色
-          </Button>
+            <Table
+              columns={columns}
+              dataSource={roles}
+              rowKey="id"
+              loading={loading}
+              pagination={false}
+            />
+          </Card>
         </Col>
       </Row>
 
-      <Card>
-        <Table
-          columns={columns}
-          dataSource={roles}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 10 }}
-        />
-      </Card>
-
-      {/* 新增/编辑角色弹窗 */}
       <Modal
         title={editingRole ? '编辑角色' : '新增角色'}
         open={modalVisible}
         onOk={handleSave}
+        onCancel={() => {
+          setModalVisible(false)
+          setEditingRole(null)
+          form.resetFields()
+          setSelectedPermissions([])
+        }}
         confirmLoading={saving}
-        onCancel={() => setModalVisible(false)}
         width={700}
-        destroyOnClose
       >
         <Form
           form={form}
@@ -373,23 +334,20 @@ const RolePermissionPage: React.FC = () => {
             label="角色名称"
             rules={[{ required: true, message: '请输入角色名称' }]}
           >
-            <Input placeholder="如：运营管理员" />
+            <Input placeholder="请输入角色名称" />
           </Form.Item>
           <Form.Item
             name="code"
             label="角色编码"
-            rules={[
-              { required: true, message: '请输入角色编码' },
-              { pattern: /^[a-z0-9_]+$/, message: '只能使用小写字母、数字和下划线' },
-            ]}
+            rules={[{ required: true, message: '请输入角色编码' }]}
           >
-            <Input placeholder="如：operation_admin" disabled={!!editingRole} />
+            <Input placeholder="请输入角色编码" />
           </Form.Item>
           <Form.Item
             name="description"
             label="描述"
           >
-            <Input.TextArea rows={2} placeholder="角色描述" />
+            <Input.TextArea rows={3} placeholder="请输入角色描述" />
           </Form.Item>
           <Form.Item
             name="status"
@@ -398,22 +356,19 @@ const RolePermissionPage: React.FC = () => {
           >
             <Switch checkedChildren="启用" unCheckedChildren="禁用" />
           </Form.Item>
-
           <Form.Item label="权限配置">
-            <Card size="small" title="选择权限" style={{ maxHeight: 400, overflow: 'auto' }}>
-              <Tree
-                checkable
-                treeData={buildPermissionTree()}
-                checkedKeys={selectedPermissions}
-                onCheck={(checkedKeys) => {
-                  // 只保留 action 节点的 key（纯数字），过滤掉 group/menu 层的字符串 key
-                  const keys = (checkedKeys as React.Key[]).filter(
-                    k => typeof k === 'number' || /^\d+$/.test(String(k))
-                  )
-                  setSelectedPermissions(keys.map(k => Number(k)))
-                }}
-              />
-            </Card>
+            <Tree
+              checkable
+              treeData={permissionTreeData()}
+              checkedKeys={selectedPermissions.map(String)}
+              onCheck={(checkedKeys) => {
+                setSelectedPermissions(
+                  (checkedKeys as string[])
+                    .filter(key => !key.startsWith('module_'))
+                    .map(Number)
+                )
+              }}
+            />
           </Form.Item>
         </Form>
       </Modal>

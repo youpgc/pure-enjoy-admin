@@ -25,21 +25,21 @@ class RolePermissionService {
   }
 
   /// 查询角色的权限列表
-  async findRolePermissions(roleId: string) {
+  async findRolePermissions(roleId: number) {
     try {
       const { data, error } = await supabase
         .from('role_permissions')
         .select('permission_id')
         .eq('role_id', roleId)
       if (error) throw error
-      return { success: true as const, data: (data || []).map((r: any) => r.permission_id as string) }
+      return { success: true as const, data: ((data || []) as Array<{ permission_id: number }>).map(r => String(r.permission_id)) }
     } catch (err) {
       return { success: false as const, data: [] as string[] }
     }
   }
 
   /// 更新角色的权限（先删除再插入）
-  async updateRolePermissions(roleId: string, permissionIds: string[]) {
+  async updateRolePermissions(roleId: number, permissionIds: string[]) {
     try {
       // 删除旧权限
       const { error: deleteError } = await supabase
@@ -52,10 +52,10 @@ class RolePermissionService {
       if (permissionIds.length > 0) {
         const records = permissionIds.map((pid) => ({
           role_id: roleId,
-          permission_id: pid,
+          permission_id: Number(pid),
         }))
-        const { error: insertError } = await supabase
-          .from('role_permissions')
+        // TODO: Supabase type inference issue - role_permissions Insert resolves to never
+        const { error: insertError } = await (supabase.from('role_permissions') as any)
           .insert(records)
         if (insertError) throw insertError
       }

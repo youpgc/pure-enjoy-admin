@@ -130,7 +130,6 @@ const AppConfigs: React.FC = () => {
     try {
       const result = await service.update(record.id, {
         is_active: !record.is_active,
-        updated_at: new Date().toISOString(),
       })
       if (!result.success) {
         handleApiError(result.errorMessage, 'AppConfigs-切换状态')
@@ -152,7 +151,6 @@ const AppConfigs: React.FC = () => {
       if (editingConfig) {
         const result = await service.update(editingConfig.id, {
           ...values,
-          updated_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'AppConfigs-更新')
@@ -162,8 +160,6 @@ const AppConfigs: React.FC = () => {
       } else {
         const result = await service.create({
           ...values,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'AppConfigs-创建')

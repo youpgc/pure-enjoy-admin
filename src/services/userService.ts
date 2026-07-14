@@ -4,7 +4,10 @@ import type { User } from '../types/user'
 /// 用户管理服务（封装 users 表的 CRUD，替代页面层直接调用 supabase）
 class UserService extends BaseService<User> {
   constructor() {
-    super('users', { defaultOrder: { column: 'created_at', ascending: false } })
+    super('users', {
+      defaultOrder: { column: 'created_at', ascending: false },
+      select: 'id,username,email,phone,nickname,avatar_url,bio,gender,birthday,height,location,occupation,company,website,role,member_level,points,effective_points,available_points,expiring_points,consecutive_checkin_days,last_checkin_date,tts_speech_rate,tts_timer_minutes,tts_playback_mode,tts_enabled,status,register_ip,last_login_ip,last_login_at,login_count,created_at,updated_at,is_deleted',
+    })
   }
 
   /// 分页查询用户列表（带搜索和过滤）
@@ -42,23 +45,17 @@ class UserService extends BaseService<User> {
 
   /// 软删除用户（禁用）
   async softDelete(id: string): Promise<ReturnType<BaseService<User>['update']>> {
-    return this.update(id, {
-      status: 'disabled',
-      updated_at: new Date().toISOString(),
-    } as Partial<User>)
+    return this.update(id, { status: 'disabled' })
   }
 
   /// 批量软删除
   async batchSoftDelete(ids: string[]): Promise<ReturnType<BaseService<User>['batchUpdate']>> {
-    return this.batchUpdate(
-      ids,
-      { status: 'disabled', updated_at: new Date().toISOString() } as Partial<User>
-    )
+    return this.batchUpdate(ids, { status: 'disabled' })
   }
 
   /// 切换用户状态
-  async toggleStatus(id: string, newStatus: string) {
-    return this.update(id, { status: newStatus, updated_at: new Date().toISOString() } as Partial<User>)
+  async toggleStatus(id: string, newStatus: import('../types/user').UserStatus) {
+    return this.update(id, { status: newStatus })
   }
 }
 

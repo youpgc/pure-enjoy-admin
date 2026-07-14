@@ -169,7 +169,6 @@ const Announcements: React.FC = () => {
       } else {
         const result = await service.create({
           ...values,
-          created_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'Announcements-创建')

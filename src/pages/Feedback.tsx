@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Table, Tag, Button, Modal, Input, Space, message, Tooltip, Timeline, Popconfirm, Badge, Empty
+  Table, Tag, Button, Modal, Input, Space, message, Tooltip, Timeline, Badge, Empty
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -14,6 +14,9 @@ import { formatDateTime } from '../utils/format'
 import NoPermission from '../components/NoPermission'
 import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 import { useMounted } from '../hooks/useMounted'
+import { usePagination } from '../hooks/usePagination'
+import { getActionColumn } from '../components/ActionColumn'
+import { feedbackService } from '../services/feedbackService'
 import { FEEDBACK_STATUS_MAP, FEEDBACK_CATEGORY_MAP, FEEDBACK_STATUS_ACTIONS } from '../constants'
 
 // ==================== 类型定义 ====================
@@ -249,7 +252,7 @@ const Feedback: React.FC = () => {
   // 列表数据
   const [data, setData] = useState<FeedbackRecord[]>([])
   const [loading, setLoading] = useState(false)
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const { pagination, setTotal, tablePagination, handlePageChange } = usePagination(20)
 
   // 字典查询
   const { options: statusOptions } = useDictOptions('feedback_status', [])
@@ -267,37 +270,25 @@ const Feedback: React.FC = () => {
   const [actionLoading, setActionLoading] = useState(false)
 
   // 加载数据
-  const fetchData = useCallback(async (page = 1, pageSize = 20) => {
+  const fetchData = useCallback(async (page = pagination.current, pageSize = pagination.pageSize) => {
     setLoading(true)
     try {
-      // 先获取总数（排除已软删除）
-      const { count, error: countError } = await supabase
-        .from('user_feedback')
-        .select('id', { count: 'exact', head: true })
-        .eq('is_deleted', false)
-      if (countError) throw countError
-
-      // 分页查询（排除已软删除）
-      const from = (page - 1) * pageSize
-      const to = from + pageSize - 1
-      const { data: items, error } = await supabase
-        .from('user_feedback')
-        .select('*')
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false })
-        .range(from, to)
-
-      if (error) throw error
+      const result = await feedbackService.paginateFeedback(page, pageSize)
+      if (!result.success) {
+        console.error('获取反馈列表失败:', result.errorMessage)
+        message.error('获取反馈列表失败')
+        return
+      }
       if (!mountedRef.current) return
-      setData(items || [])
-      setPagination({ current: page, pageSize, total: count || 0 })
+      setData(result.data?.data || [])
+      setTotal(result.data?.total || 0)
     } catch (error) {
       console.error('获取反馈列表失败:', error)
       message.error('获取反馈列表失败')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [pagination.current, pagination.pageSize, setTotal])
 
   useEffect(() => {
     if (hasPermission('feedback:read')) fetchData()
@@ -321,50 +312,44 @@ const Feedback: React.FC = () => {
       const operatorId = adminUser?.id || adminUser?.user_id || 'system'
       const operatorName = adminUser?.nickname || adminUser?.username || '管理员'
 
+      let result
       if (selectedAction === 'deleted') {
-        // 删除：先记录流转，再删除
-        await supabase.from('feedback_flow_records' as any).insert({
-          feedback_id: selectedRecord.id,
-          action: 'deleted',
-          remark: remark.trim() || '删除反馈记录',
-          operator_id: operatorId,
-          operator_name: operatorName,
-        } as any)
-        const { error } = await (supabase
-          .from('user_feedback') as any)
-          .update({ is_deleted: true, deleted_at: new Date().toISOString() })
-          .eq('id', selectedRecord.id)
-        if (error) throw error
-        message.success('删除成功')
+        result = await feedbackService.softDelete(
+          selectedRecord.id,
+          remark.trim() || '删除反馈记录',
+          operatorId,
+          operatorName
+        )
       } else {
-        // 状态流转：记录流转 + 更新状态
-        await supabase.from('feedback_flow_records' as any).insert({
-          feedback_id: selectedRecord.id,
-          action: selectedAction,
-          remark: remark.trim(),
-          operator_id: operatorId,
-          operator_name: operatorName,
-        } as any)
-        const { error } = await (supabase
-          .from('user_feedback') as any)
-          .update({ status: selectedAction, admin_reply: remark.trim() })
-          .eq('id', selectedRecord.id)
-        if (error) throw error
-        const actionLabel = (() => {
+        result = await feedbackService.updateStatus(
+          selectedRecord.id,
+          selectedAction,
+          remark.trim(),
+          operatorId,
+          operatorName
+        )
+      }
+
+      if (!result.success) {
+        message.error(result.errorMessage || '操作失败')
+        return
+      }
+
+      const actionLabel = (() => {
         const dictOpt = actionOptions.find(opt => opt.value === selectedAction)
         const fallback = ACTION_TAG_MAP[selectedAction]
         return dictOpt?.label || fallback?.label || selectedAction
       })()
       message.success(`${actionLabel}成功`)
-      }
 
       setActionModalOpen(false)
       setSelectedRecord(null)
       setSelectedAction(null)
       fetchData(pagination.current, pagination.pageSize)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('操作失败:', error)
-      message.error(`操作失败: ${error?.message || '未知错误'}`)
+      const errMsg = error instanceof Error ? error.message : '未知错误'
+      message.error(`操作失败: ${errMsg}`)
     } finally {
       setActionLoading(false)
     }
@@ -380,6 +365,48 @@ const Feedback: React.FC = () => {
     setSelectedAction(action)
     setActionModalOpen(true)
   }
+
+  // 构建操作列按钮
+  const buildActions = useCallback((record: FeedbackRecord) => {
+    const actions = FEEDBACK_STATUS_ACTIONS[record.status] || []
+    const buttons: import('../components/ActionColumn').ActionButton[] = actions.map((action) => {
+      const dictOpt = actionOptions.find(opt => opt.value === action)
+      const fallback = ACTION_TAG_MAP[action]
+      const config = {
+        color: getActionColor(action) || fallback?.color || 'default',
+        label: dictOpt?.label || fallback?.label || action,
+        icon: fallback?.icon || null,
+      }
+      return {
+        key: action,
+        label: config.label,
+        icon: config.icon,
+        onClick: () => openActionModal(record, action),
+      }
+    })
+
+    buttons.push({
+      key: 'history',
+      label: '流转记录',
+      icon: <HistoryOutlined />,
+      onClick: () => {
+        setSelectedRecord(record)
+        setFlowModalOpen(true)
+      },
+    })
+
+    if (hasPermission('feedback:delete')) {
+      buttons.push({
+        key: 'delete',
+        label: '删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        onClick: () => openActionModal(record, 'deleted'),
+      })
+    }
+
+    return buttons
+  }, [hasPermission, actionOptions, getActionColor])
 
   // 列配置
   const columns: ColumnsType<FeedbackRecord> = useMemo(() => [
@@ -452,68 +479,8 @@ const Feedback: React.FC = () => {
       width: 160,
       render: (date: string) => formatDateTime(date),
     },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 280,
-      fixed: 'right',
-      render: (_: any, record: FeedbackRecord) => {
-        const actions = FEEDBACK_STATUS_ACTIONS[record.status] || []
-        return (
-          <Space size={4} wrap>
-            {actions.map((action) => {
-              const dictOpt = actionOptions.find(opt => opt.value === action)
-              const fallback = ACTION_TAG_MAP[action]
-              if (!dictOpt && !fallback) return null
-              const config = {
-                color: getActionColor(action) || fallback?.color || 'default',
-                label: dictOpt?.label || fallback?.label || action,
-                icon: fallback?.icon || null,
-              }
-              return (
-                <Button
-                  key={action}
-                  type="link"
-                  size="small"
-                  icon={config.icon}
-                  onClick={() => openActionModal(record, action)}
-                  style={{ padding: '0 6px' }}
-                >
-                  {config.label}
-                </Button>
-              )
-            })}
-            <Tooltip title="流转记录">
-              <Button
-                type="link"
-                size="small"
-                icon={<HistoryOutlined />}
-                onClick={() => {
-                  setSelectedRecord(record)
-                  setFlowModalOpen(true)
-                }}
-                style={{ padding: '0 6px' }}
-              />
-            </Tooltip>
-            {hasPermission('feedback:delete') && (
-              <Popconfirm
-                title="确定删除此反馈？"
-                description="删除后将记录流转历史"
-                onConfirm={() => openActionModal(record, 'deleted')}
-                okText="删除"
-                cancelText="取消"
-                okButtonProps={{ danger: true }}
-              >
-                <Button type="link" size="small" danger icon={<DeleteOutlined />} style={{ padding: '0 6px' }}>
-                  删除
-                </Button>
-              </Popconfirm>
-            )}
-          </Space>
-        )
-      },
-    },
-  ], [hasPermission, pagination.current, pagination.pageSize])
+    getActionColumn<FeedbackRecord>(buildActions, { width: 280, maxVisible: 2 }),
+  ], [statusOptions, categoryOptions, getStatusColor, getCategoryColor, buildActions])
 
   // 权限检查
   if (!hasPermission('feedback:read')) {
@@ -552,12 +519,13 @@ const Feedback: React.FC = () => {
         loading={loading}
         scroll={{ x: 1200 }}
         pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
+          ...tablePagination,
           pageSizeOptions: ['10', '20', '50'],
           showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-          onChange: (page, pageSize) => fetchData(page, pageSize),
+          onChange: (page, pageSize) => {
+            handlePageChange(page, pageSize)
+            fetchData(page, pageSize)
+          },
         }}
         size="middle"
       />

@@ -1,4 +1,4 @@
-import { BaseService } from '../utils/apiClient'
+import { BaseService, apiExecute } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
 import type { Database } from '../types/database'
 
@@ -10,7 +10,7 @@ class FeedbackService extends BaseService<FeedbackRow> {
     super('user_feedback', { defaultOrder: { column: 'created_at', ascending: false } })
   }
 
-  /// 分页查询反馈列表
+  /// 分页查询反馈列表（排除已软删除）
   async paginateFeedback(
     page: number,
     pageSize: number,
@@ -21,7 +21,7 @@ class FeedbackService extends BaseService<FeedbackRow> {
     }
   ) {
     return this.paginate(page, pageSize, (q) => {
-      let builder = q
+      let builder = q.eq('is_deleted', false)
       if (options?.keyword) {
         const text = `%${options.keyword}%`
         builder = builder.or(`title.ilike.${text},user_nickname.ilike.${text}`)
@@ -32,27 +32,51 @@ class FeedbackService extends BaseService<FeedbackRow> {
     })
   }
 
-  /// 更新反馈状态
-  async updateStatus(id: string, status: string, operatorId?: string, operatorName?: string) {
-    const updateResult = await this.update(id, { status } as Partial<FeedbackRow>)
-    if (!updateResult.success) return updateResult
-
-    // 添加处理流水
-    if (operatorId && operatorName) {
-      const { error } = await supabase
-        .from('feedback_flow_records')
-        .insert({
+  /// 软删除反馈
+  async softDelete(id: string, remark: string, operatorId: string, operatorName: string) {
+    // 先记录流转
+    const flowResult = await apiExecute(
+      () => {
+        // TODO: Supabase type inference issue - feedback_flow_records Insert resolves to never
+        return (supabase.from('feedback_flow_records') as any).insert({
           feedback_id: id,
-          status,
+          action: 'deleted',
+          remark: remark.trim() || '删除反馈记录',
           operator_id: operatorId,
           operator_name: operatorName,
-          created_at: new Date().toISOString(),
-        } as any)
-      if (error) {
-        console.warn('处理流水记录失败:', error.message)
-      }
-    }
-    return updateResult
+        })
+      },
+      'FeedbackService-删除流水'
+    )
+    if (!flowResult.success) return flowResult
+
+    // 再软删除
+    return this.update(id, {
+      is_deleted: true,
+      deleted_at: new Date().toISOString(),
+    } as Partial<FeedbackRow>)
+  }
+
+  /// 更新反馈状态并记录流转
+  async updateStatus(id: string, status: string, remark: string, operatorId: string, operatorName: string) {
+    // 记录流转
+    const flowResult = await apiExecute(
+      () => {
+        // TODO: Supabase type inference issue - feedback_flow_records Insert resolves to never
+        return (supabase.from('feedback_flow_records') as any).insert({
+          feedback_id: id,
+          action: status,
+          remark: remark.trim(),
+          operator_id: operatorId,
+          operator_name: operatorName,
+        })
+      },
+      'FeedbackService-状态流转'
+    )
+    if (!flowResult.success) return flowResult
+
+    // 更新状态
+    return this.update(id, { status, admin_reply: remark.trim() } as Partial<FeedbackRow>)
   }
 }
 
