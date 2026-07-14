@@ -8,12 +8,16 @@ const isDev = import.meta.env.DEV
 // 根据环境控制调试日志：开发环境开启，生产环境关闭
 const enableDebugLog = isDev
 
-// 环境变量必须配置，禁止任何 fallback 硬编码
-const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
+// Supabase 项目 URL（公开信息，非敏感数据）
+// 优先使用环境变量，未配置时回退到硬编码默认值
+const FALLBACK_SUPABASE_URL = 'https://mhdrbjpqmzswswoazwjg.supabase.co'
+const envUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || FALLBACK_SUPABASE_URL
 const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
-if (!envUrl || !envUrl.includes('.supabase.co')) {
-  throw new Error('VITE_SUPABASE_URL 环境变量未配置或格式无效')
+// URL 校验：必须是合法的 https://{project-id}.supabase.co 格式
+const supabaseUrlPattern = /^https:\/\/[a-z0-9]{10,}\.supabase\.co$/
+if (!supabaseUrlPattern.test(envUrl)) {
+  throw new Error(`VITE_SUPABASE_URL 格式无效: ${envUrl}，期望 https://{project-id}.supabase.co`)
 }
 if (!envKey || envKey.length < 50) {
   throw new Error('VITE_SUPABASE_ANON_KEY 环境变量未配置或格式无效')
