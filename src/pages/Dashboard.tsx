@@ -1,475 +1,671 @@
-import React, { useEffect, useState, useCallback } from 'react'
-import { Row, Col, Card, Statistic, Spin, Tag, Table, Progress } from 'antd'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  UserOutlined,
-  UserAddOutlined,
-  TeamOutlined,
-  RiseOutlined,
-  FallOutlined,
-  DashboardOutlined,
-  BookOutlined,
-  ReadOutlined,
-  FireOutlined,
-} from '@ant-design/icons'
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from 'recharts'
+  Card, Row, Col, Spin, message,
+  Tag, Table, Avatar, Tooltip, Typography, Empty, Space
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
+import { useNavigate } from 'react-router-dom'
+import {
+  UserOutlined, RiseOutlined, BookOutlined, MessageOutlined,
+  ClockCircleOutlined, FireOutlined,
+  EyeOutlined, ArrowUpOutlined, ArrowDownOutlined
+} from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
-import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
-import { handleApiError, apiQuery } from '../utils/apiClient'
+import { usePermission } from '../hooks/usePermission'
+import { formatDateTime } from '../utils/format'
 import { useMounted } from '../hooks/useMounted'
-import { ACTION_LABEL_MAP, OP_MODULE_LABEL_MAP } from '../constants'
+import { usePagination } from '../hooks/usePagination'
+import { dashboardService } from '../services/dashboardService'
+
+const { Text } = Typography
 
 // ==================== 类型定义 ====================
-interface UserTrendItem {
-  date: string
-  newUsers: number
-  activeUsers: number
-}
 
-interface UserActivityItem {
+interface NovelListItem {
   id: string
-  userId: string
-  userName: string
-  action: string
-  module: string
-  time: string
+  title: string
+  author: string | null
+  read_count: number | null
+  rating: number | null
+  created_at: string
+  category: string | null
 }
 
-interface ModuleUsageItem {
-  module: string
-  count: number
-  percentage: number
+interface CommentItem {
+  id: string
+  novel_id: string
+  user_id: string
+  user_nickname: string | null
+  novel_title: string | null
+  content: string
+  rating: number | null
+  created_at: string
+  is_deleted: boolean | null
 }
 
-interface DashboardStats {
-  totalUsers: number
-  todayNewUsers: number
-  activeUsers7d: number
-  activeUsers30d: number
-  userTrendPercent: number
-  activeTrendPercent: number
+// ==================== 辅助函数 ====================
+
+function safeCount(count: unknown): number {
+  return typeof count === 'number' ? count : 0
 }
+
+function getWeekMonday(date = new Date()): Date {
+  const d = new Date(date)
+  const day = d.getDay()
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+  return new Date(d.setDate(diff))
+}
+
+function formatNumber(n: number) {
+  return n.toLocaleString('zh-CN')
+}
+
+// ==================== 主组件 ====================
 
 const Dashboard: React.FC = () => {
+  const { hasPermission } = usePermission()
+  const navigate = useNavigate()
   const mountedRef = useMounted()
 
-  const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [userTrend, setUserTrend] = useState<UserTrendItem[]>([])
-  const [recentActivities, setRecentActivities] = useState<UserActivityItem[]>([])
-  const [moduleUsage, setModuleUsage] = useState<ModuleUsageItem[]>([])
-  // 小说统计
-  const [novelDashboardStats, setNovelDashboardStats] = useState({
-    totalNovels: 0,
-    totalReadCount: 0,
-    activeReaders: 0,
+  const [loading, setLoading] = useState(false)
+  const [userStats, setUserStats] = useState({
+    total: 0,
+    newToday: 0,
+    newWeek: 0,
+    newMonth: 0,
+    activeToday: 0,
+    activeWeek: 0,
+    activeMonth: 0,
+    retention: 0,
+    retentionChange: 0,
+  })
+  const [novelStats, setNovelStats] = useState({
+    total: 0,
+    totalRead: 0,
+    readers: 0,
+    newReaders: 0,
   })
 
-  // 字典查询
-  const { options: actionOptions } = useDictOptions('operation_action', [])
-  const { options: moduleOptions } = useDictOptions('operation_module', [])
-  const { getColor: getActionColor } = useDictColors('operation_action')
+  // 小说列表分页
+  const [novels, setNovels] = useState<NovelListItem[]>([])
+  const [novelsLoading, setNovelsLoading] = useState(false)
+  const novelPagination = usePagination(20)
+
+  // 评论列表分页
+  const [comments, setComments] = useState<CommentItem[]>([])
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const commentPagination = usePagination(20)
+
+  // 最近活动
+  const [recentActivities, setRecentActivities] = useState<{
+    id: string
+    action: string
+    module: string | null
+    user_id: string | null
+    created_at: string
+    user_nickname: string | null
+  }[]>([])
+
+  // 用户增长趋势
+  const [userTrendData, setUserTrendData] = useState<{ date: string; count: number }[]>([])
+
+  // ==================== 加载数据 ====================
+  const loadStats = useCallback(async () => {
+    if (!hasPermission('dashboard:read')) return
+    setLoading(true)
+
+    try {
+      const todayStart = dayjs().startOf('day').toISOString()
+      const weekStart = dayjs(getWeekMonday()).startOf('day').toISOString()
+      const monthStart = dayjs().startOf('month').toISOString()
+      const lastWeekStart = dayjs().subtract(1, 'week').startOf('day').toISOString()
+
+      // 用户统计
+      const totalRes = await dashboardService.getTotalUsers()
+      const todayRes = await dashboardService.getTodayNewUsers(todayStart)
+      const weekRes = await dashboardService.getNewUsersSince(weekStart)
+      const monthRes = await dashboardService.getNewUsersSince(monthStart)
+      const lastWeekRes = await dashboardService.getNewUsersInRange(lastWeekStart, weekStart)
+
+      if (!mountedRef.current) return
+
+      const totalUsers = safeCount(totalRes.data)
+      const newToday = safeCount(todayRes.data)
+      const newWeek = safeCount(weekRes.data)
+      const newMonth = safeCount(monthRes.data)
+      const lastWeekNew = safeCount(lastWeekRes.data)
+
+      // 活跃用户数
+      const activeTodayRes = await dashboardService.getOperationLogs(todayStart)
+      const activeWeekRes = await dashboardService.getOperationLogs(weekStart)
+      const activeMonthRes = await dashboardService.getOperationLogs(monthStart)
+
+      const activeToday = activeTodayRes.success
+        ? new Set((activeTodayRes.data || []).map(l => l.user_id).filter(Boolean)).size
+        : 0
+      const activeWeek = activeWeekRes.success
+        ? new Set((activeWeekRes.data || []).map(l => l.user_id).filter(Boolean)).size
+        : 0
+      const activeMonth = activeMonthRes.success
+        ? new Set((activeMonthRes.data || []).map(l => l.user_id).filter(Boolean)).size
+        : 0
+
+      // 留存率（上月注册且本周活跃的用户）
+      const lastMonthStart = dayjs().subtract(1, 'month').startOf('month').toISOString()
+      const lastMonthEnd = dayjs().subtract(1, 'month').endOf('month').toISOString()
+      const [lastMonthUsersRes, thisWeekLogRes] = await Promise.all([
+        dashboardService.getNewUsersInRange(lastMonthStart, lastMonthEnd),
+        dashboardService.getOperationLogUserIds(weekStart, dayjs().toISOString()),
+      ])
+      const lastMonthUsersCount = safeCount(lastMonthUsersRes.data)
+      const thisWeekLogUserIds = thisWeekLogRes.success
+        ? (thisWeekLogRes.data || []).map(l => l.user_id).filter(Boolean)
+        : []
+      const retainedUsers = new Set(thisWeekLogUserIds).size
+      const retention = lastMonthUsersCount > 0
+        ? Math.round((retainedUsers / lastMonthUsersCount) * 100)
+        : 0
+      const retentionChange = lastWeekNew > 0
+        ? Math.round(((newWeek - lastWeekNew) / lastWeekNew) * 100)
+        : 0
+
+      if (!mountedRef.current) return
+
+      setUserStats({
+        total: totalUsers,
+        newToday,
+        newWeek,
+        newMonth,
+        activeToday,
+        activeWeek,
+        activeMonth,
+        retention,
+        retentionChange,
+      })
+
+      // 小说统计
+      const novelsRes = await dashboardService.getNovelsCount()
+      const novelsTotal = safeCount(novelsRes.data)
+      const readCountRes = await dashboardService.getNovelReadCounts()
+      const totalRead = readCountRes.success
+        ? (readCountRes.data || []).reduce((sum, n) => sum + (n.read_count || 0), 0)
+        : 0
+
+      // 活跃读者（本周阅读过小说）
+      const readersRes = await dashboardService.getActiveReaders(weekStart)
+      const readers = readersRes.success
+        ? new Set((readersRes.data || []).map(r => r.user_id).filter(Boolean)).size
+        : 0
+      const newReadersRes = await dashboardService.getActiveReaders(todayStart)
+      const newReaders = newReadersRes.success
+        ? new Set((newReadersRes.data || []).map(r => r.user_id).filter(Boolean)).size
+        : 0
+
+      if (!mountedRef.current) return
+
+      setNovelStats({
+        total: novelsTotal,
+        totalRead,
+        readers,
+        newReaders,
+      })
+
+      // 用户增长趋势（最近30天）
+      const trendRes = await dashboardService.getUserTrendData(
+        dayjs().subtract(30, 'day').startOf('day').toISOString()
+      )
+      if (trendRes.success) {
+        const counts: Record<string, number> = {}
+        for (let i = 29; i >= 0; i--) {
+          counts[dayjs().subtract(i, 'day').format('YYYY-MM-DD')] = 0
+        }
+        for (const u of (trendRes.data || [])) {
+          if (u.created_at) {
+            counts[dayjs(u.created_at).format('YYYY-MM-DD')] = (counts[dayjs(u.created_at).format('YYYY-MM-DD')] || 0) + 1
+          }
+        }
+        setUserTrendData(Object.entries(counts).map(([date, count]) => ({ date, count })))
+      }
+
+      // 最近活动
+      const logsRes = await dashboardService.getRecentLogs()
+      if (logsRes.success && logsRes.data && logsRes.data.length > 0) {
+        const userIds = [...new Set(logsRes.data.map(l => l.user_id).filter(Boolean))] as string[]
+        if (userIds.length > 0) {
+          const nickRes = await dashboardService.getUserNicknames(userIds)
+          const nickMap = new Map(
+            (nickRes.data || []).map(u => [u.id, u.nickname || u.id])
+          )
+          setRecentActivities(
+            logsRes.data.map(l => ({
+              ...l,
+              user_nickname: l.user_id ? (nickMap.get(l.user_id) || l.user_id) : '系统',
+            }))
+          )
+        } else {
+          setRecentActivities(logsRes.data.map(l => ({ ...l, user_nickname: '系统' })))
+        }
+      } else {
+        setRecentActivities([])
+      }
+    } catch (error) {
+      console.error('加载数据失败:', error)
+      if (mountedRef.current) message.error('加载数据失败，请检查网络连接后重试')
+    } finally {
+      if (mountedRef.current) setLoading(false)
+    }
+  }, [hasPermission])
+
+  // 小说列表
+  const loadNovels = useCallback(async (page = novelPagination.pagination.current, pageSize = novelPagination.pagination.pageSize) => {
+    setNovelsLoading(true)
+    try {
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      const { data, error, count } = await supabase
+        .from('novels')
+        .select('id, title, author, read_count, rating, created_at, category', { count: 'exact' })
+        .order('read_count', { ascending: false })
+        .range(from, to)
+
+      if (error) throw error
+      if (!mountedRef.current) return
+      setNovels((data as NovelListItem[]) || [])
+      novelPagination.setTotal(count || 0)
+    } catch (error) {
+      console.error('获取小说列表失败:', error)
+      if (mountedRef.current) message.error('获取小说列表失败')
+    } finally {
+      if (mountedRef.current) setNovelsLoading(false)
+    }
+  }, [novelPagination.pagination.current, novelPagination.pagination.pageSize])
+
+  // 评论列表
+  const loadComments = useCallback(async (page = commentPagination.pagination.current, pageSize = commentPagination.pagination.pageSize) => {
+    setCommentsLoading(true)
+    try {
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      const { data, error, count } = await supabase
+        .from('user_novel_comments')
+        .select(`
+          id,
+          novel_id,
+          user_id,
+          user_nickname,
+          content,
+          rating,
+          created_at,
+          is_deleted,
+          novels: novel_id (title)
+        `, { count: 'exact' })
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (error) throw error
+      if (!mountedRef.current) return
+      const processedComments = ((data || []) as unknown as Array<{
+        id: string
+        novel_id: string
+        user_id: string
+        user_nickname: string | null
+        content: string
+        rating: number | null
+        created_at: string
+        is_deleted: boolean | null
+        novels: { title: string | null } | { title: string | null }[] | null
+      }>).map(comment => {
+        const novelData = comment.novels
+        return {
+          ...comment,
+          novel_title: Array.isArray(novelData) ? novelData[0]?.title : novelData?.title,
+          novels: undefined,
+        }
+      })
+      setComments(processedComments as unknown as CommentItem[])
+      commentPagination.setTotal(count || 0)
+    } catch (error) {
+      console.error('获取评论列表失败:', error)
+      if (mountedRef.current) message.error('获取评论列表失败')
+    } finally {
+      if (mountedRef.current) setCommentsLoading(false)
+    }
+  }, [commentPagination.pagination.current, commentPagination.pagination.pageSize])
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    loadStats()
+    loadNovels()
+    loadComments()
+  }, [loadStats, loadNovels, loadComments])
 
-  const fetchDashboardData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const now = dayjs()
-      const todayStart = now.startOf('day').format('YYYY-MM-DDTHH:mm:ss')
-      const sevenDaysAgo = now.subtract(7, 'day').startOf('day').format('YYYY-MM-DDTHH:mm:ss')
-      const fourteenDaysAgo = now.subtract(14, 'day').startOf('day').format('YYYY-MM-DDTHH:mm:ss')
-      const thirtyDaysAgo = now.subtract(30, 'day').startOf('day').format('YYYY-MM-DDTHH:mm:ss')
+  // 统计卡片
+  const statsCards = useMemo(() => [
+    {
+      title: '总用户数',
+      value: userStats.total,
+      icon: <UserOutlined style={{ fontSize: 24, color: '#1890ff' }} />,
+      change: userStats.newWeek,
+      changeLabel: '本周新增',
+      link: '/users',
+    },
+    {
+      title: '今日新增用户',
+      value: userStats.newToday,
+      icon: <RiseOutlined style={{ fontSize: 24, color: '#52c41a' }} />,
+      change: userStats.activeToday,
+      changeLabel: '今日活跃',
+      link: '/users',
+    },
+    {
+      title: '本周活跃用户',
+      value: userStats.activeWeek,
+      icon: <FireOutlined style={{ fontSize: 24, color: '#fa8c16' }} />,
+      change: userStats.newWeek,
+      changeLabel: '本周新增',
+      link: '/users',
+    },
+    {
+      title: '小说总数',
+      value: novelStats.total,
+      icon: <BookOutlined style={{ fontSize: 24, color: '#722ed1' }} />,
+      change: novelStats.totalRead,
+      changeLabel: '总阅读',
+      link: '/novels',
+    },
+    {
+      title: '活跃读者',
+      value: novelStats.readers,
+      icon: <EyeOutlined style={{ fontSize: 24, color: '#13c2c2' }} />,
+      change: novelStats.newReaders,
+      changeLabel: '今日新增',
+      link: '/novels',
+    },
+    {
+      title: '留存率',
+      value: `${userStats.retention}%`,
+      icon: <ClockCircleOutlined style={{ fontSize: 24, color: '#eb2f96' }} />,
+      change: userStats.retentionChange,
+      changeLabel: '环比',
+      isPercentage: true,
+      link: '/users',
+    },
+  ], [userStats, novelStats])
 
-      // 并行查询
-      const [
-        usersCountRes,
-        todayNewUsersRes,
-        weekNewUsersRes,
-        lastWeekNewUsersRes,
-        operationLogs7dRes,
-        operationLogs14dRes,
-        usersTrendRes,
-        recentLogsRes,
-        novelsCountRes,
-        novelsReadCountRes,
-        userNovelsActiveRes,
-      ] = await Promise.all([
-        // 总用户数 - 使用 head:true 获取精确 count，不返回数据行
-        apiQuery(() => supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_deleted', false), 'Dashboard-总用户数'),
-        // 今日新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', todayStart), 'Dashboard-今日新增用户'),
-        // 本周新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', sevenDaysAgo), 'Dashboard-本周新增用户'),
-        // 上周新增用户
-        apiQuery(() => supabase.from('users').select('id', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo), 'Dashboard-上周新增用户'),
-        // 最近7天活跃用户（包含模块信息）
-        apiQuery(() => supabase.from('operation_logs').select('user_id, module, created_at').gte('created_at', sevenDaysAgo).limit(1000), 'Dashboard-7天活跃用户'),
-        // 上周活跃用户
-        apiQuery(() => supabase.from('operation_logs').select('user_id').gte('created_at', fourteenDaysAgo).lt('created_at', sevenDaysAgo).limit(1000), 'Dashboard-上周活跃用户'),
-        // 用户增长趋势（30天）
-        apiQuery(() => supabase.from('users').select('created_at').eq('is_deleted', false).gte('created_at', thirtyDaysAgo).limit(1000), 'Dashboard-用户增长趋势'),
-        // 最近操作日志
-        apiQuery(() => supabase.from('operation_logs').select('id, user_id, action, module, created_at').order('created_at', { ascending: false }).limit(20), 'Dashboard-最近操作日志'),
-        // 小说总数
-        apiQuery(() => supabase.from('novels').select('id', { count: 'exact', head: true }), 'Dashboard-小说总数'),
-        // 小说总阅读量
-        apiQuery(() => supabase.from('novels').select('read_count').limit(1000), 'Dashboard-小说阅读量'),
-        // 活跃读者数（user_novels 最近7天有阅读记录的用户）
-        apiQuery(() => supabase.from('user_novels').select('user_id, last_read_at').gte('last_read_at', sevenDaysAgo).limit(1000), 'Dashboard-活跃读者'),
-      ])
+  // 小说列表列
+  const novelColumns: ColumnsType<NovelListItem> = useMemo(() => [
+    {
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
+      render: (title: string) => <Text strong>{title}</Text>,
+    },
+    {
+      title: '作者',
+      dataIndex: 'author',
+      key: 'author',
+      render: (author: string | null) => author || '-',
+    },
+    {
+      title: '分类',
+      dataIndex: 'category',
+      key: 'category',
+      render: (category: string | null) => category || '-',
+    },
+    {
+      title: '阅读量',
+      dataIndex: 'read_count',
+      key: 'read_count',
+      render: (count: number | null) => formatNumber(count || 0),
+      sorter: (a, b) => (a.read_count || 0) - (b.read_count || 0),
+    },
+    {
+      title: '评分',
+      dataIndex: 'rating',
+      key: 'rating',
+      render: (rating: number | null) => rating ? `${rating.toFixed(1)} ⭐` : '-',
+      sorter: (a, b) => (a.rating || 0) - (b.rating || 0),
+    },
+    {
+      title: '发布时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date: string) => formatDateTime(date),
+      sorter: (a, b) => dayjs(a.created_at).unix() - dayjs(b.created_at).unix(),
+    },
+  ], [])
 
-      // ==================== 基础统计 ====================
-      const totalUsers = usersCountRes.count || 0
-      const todayNewUsers = todayNewUsersRes.count || 0
-      const weekNewUsers = weekNewUsersRes.count || 0
-      const lastWeekNewUsers = lastWeekNewUsersRes.count || 0
+  // 评论列表列
+  const commentColumns: ColumnsType<CommentItem> = useMemo(() => [
+    {
+      title: '用户',
+      key: 'user',
+      width: 120,
+      render: (_, record) => (
+        <Space>
+          <Avatar size="small" icon={<UserOutlined />} />
+          <Text>{record.user_nickname || '匿名用户'}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: '小说',
+      dataIndex: 'novel_title',
+      key: 'novel_title',
+      render: (title: string | null) => (
+        <Tooltip title={title || '未知小说'}>
+          <Text ellipsis style={{ maxWidth: 150 }}>
+            {title || '未知小说'}
+          </Text>
+        </Tooltip>
+      ),
+    },
+    {
+      title: '评论内容',
+      dataIndex: 'content',
+      key: 'content',
+      ellipsis: true,
+      render: (content: string) => (
+        <Tooltip title={content}>
+          <Text>{content}</Text>
+        </Tooltip>
+      ),
+    },
+    {
+      title: '评分',
+      dataIndex: 'rating',
+      key: 'rating',
+      width: 80,
+      render: (rating: number | null) => rating ? `${rating} ⭐` : '-',
+    },
+    {
+      title: '评论时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      width: 160,
+      render: (date: string) => formatDateTime(date),
+    },
+  ], [])
 
-      // 活跃用户（去重）
-      const activeUserIds7d = new Set((operationLogs7dRes.data)?.map((l: any) => l.user_id).filter(Boolean) || [])
-      const activeUserIds14d = new Set((operationLogs14dRes.data)?.map((l: any) => l.user_id).filter(Boolean) || [])
-      const activeUsers7d = activeUserIds7d.size
-      const lastWeekActive = activeUserIds14d.size - activeUserIds7d.size
-
-      // 趋势计算
-      const userTrendPercent = lastWeekNewUsers > 0
-        ? parseFloat((((weekNewUsers - lastWeekNewUsers) / lastWeekNewUsers) * 100).toFixed(1))
-        : weekNewUsers > 0 ? 100 : 0
-      const activeTrendPercent = lastWeekActive > 0
-        ? parseFloat((((activeUsers7d - lastWeekActive) / lastWeekActive) * 100).toFixed(1))
-        : activeUsers7d > 0 ? 100 : 0
-
-      if (!mountedRef.current) return
-
-      setStats({
-        totalUsers,
-        todayNewUsers,
-        activeUsers7d,
-        activeUsers30d: activeUserIds7d.size, // 简化用7天数据
-        userTrendPercent,
-        activeTrendPercent,
-      })
-
-      // ==================== 用户增长趋势（30天） ====================
-      const usersTrendData = (usersTrendRes.data) || []
-      const newUsersByDate: Record<string, number> = {}
-      usersTrendData.forEach((u: any) => {
-        const dateKey = dayjs(u.created_at).format('MM-DD')
-        newUsersByDate[dateKey] = (newUsersByDate[dateKey] || 0) + 1
-      })
-
-      // 活跃用户按日期分布（从 operation_logs 中统计）
-      const activeUsersByDate: Record<string, Set<string>> = {}
-      ;((operationLogs7dRes.data) || []).forEach((log: any) => {
-        if (log.user_id && log.created_at) {
-          const dateKey = dayjs(log.created_at).format('MM-DD')
-          if (!activeUsersByDate[dateKey]) activeUsersByDate[dateKey] = new Set()
-          activeUsersByDate[dateKey].add(log.user_id)
-        }
-      })
-
-      const trendItems: UserTrendItem[] = []
-      for (let i = 29; i >= 0; i--) {
-        const dateKey = now.subtract(i, 'day').format('MM-DD')
-        trendItems.push({
-          date: dateKey,
-          newUsers: newUsersByDate[dateKey] || 0,
-          activeUsers: activeUsersByDate[dateKey]?.size || 0,
-        })
-      }
-      setUserTrend(trendItems)
-
-      // ==================== 最近动态 ====================
-      // 获取用户昵称
-      const userIds = [...new Set((recentLogsRes.data)?.map((l: any) => l.user_id).filter(Boolean) || [])]
-      let userNames: Record<string, string> = {}
-      if (userIds.length > 0) {
-        const userNamesRes = await apiQuery(() =>
-          supabase.from('users').select('id, nickname').eq('is_deleted', false).in('id', userIds),
-          'Dashboard-用户昵称查询'
-        )
-        if (userNamesRes.success) {
-          (userNamesRes.data)?.forEach((u: any) => { userNames[u.id] = u.nickname || '未知用户' })
-        }
-      }
-
-      const activities: UserActivityItem[] = ((recentLogsRes.data) || []).map((log: any) => ({
-        id: log.id,
-        userId: log.user_id,
-        userName: userNames[log.user_id] || '未知用户',
-        action: log.action || '',
-        module: log.module || '',
-        time: dayjs(log.created_at).format('MM-DD HH:mm'),
-      }))
-
-      if (!mountedRef.current) return
-
-      setRecentActivities(activities)
-
-      // ==================== 模块使用统计 ====================
-      const moduleCounts: Record<string, number> = {}
-      ;((operationLogs7dRes.data) || []).forEach((log: any) => {
-        if (log.module) {
-          moduleCounts[log.module] = (moduleCounts[log.module] || 0) + 1
-        }
-      })
-      const totalOperations = Object.values(moduleCounts).reduce((a, b) => a + b, 0) || 1
-      const moduleItems: ModuleUsageItem[] = Object.entries(moduleCounts)
-        .map(([module, count]) => ({
-          module,
-          count,
-          percentage: parseFloat(((count / totalOperations) * 100).toFixed(1)),
-        }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 6)
-      setModuleUsage(moduleItems)
-
-      // ==================== 小说统计 ====================
-      const totalNovels = novelsCountRes.count || 0
-      const totalNovelReadCount = ((novelsReadCountRes.data) || []).reduce((sum: number, n: any) => sum + (n.read_count || 0), 0) || 0
-      const activeReaderIds = new Set((userNovelsActiveRes.data)?.map((n: any) => n.user_id).filter(Boolean) || [])
-      setNovelDashboardStats({
-        totalNovels,
-        totalReadCount: totalNovelReadCount,
-        activeReaders: activeReaderIds.size,
-      })
-    } catch (error) {
-      handleApiError(error, 'Dashboard-加载数据')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  // ==================== 渲染 ====================
-  if (loading) {
+  if (!hasPermission('dashboard:read')) {
     return (
-      <div style={{ textAlign: 'center', padding: '100px 0' }}>
-        <Spin size="large" />
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <Empty description="暂无仪表盘访问权限" />
       </div>
     )
   }
 
-  const COLORS = ['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2']
+  return (
+    <Spin spinning={loading} tip="加载中...">
+      <div style={{ padding: '0 0 24px' }}>
+        {/* 统计卡片 */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          {statsCards.map((card, index) => (
+            <Col xs={24} sm={12} lg={8} xl={8} key={index}>
+              <Card
+                hoverable
+                onClick={() => navigate(card.link)}
+                bodyStyle={{ padding: 16 }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                  {card.icon}
+                  <Text type="secondary" style={{ marginLeft: 8, fontSize: 14 }}>{card.title}</Text>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <Text style={{ fontSize: 28, fontWeight: 700, color: '#262626' }}>
+                    {typeof card.value === 'number' ? formatNumber(card.value) : card.value}
+                  </Text>
+                  {card.change !== undefined && (
+                    <Tag
+                      color={card.change >= 0 ? 'success' : 'error'}
+                      style={{ fontSize: 12 }}
+                    >
+                      {card.change >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
+                      {card.isPercentage ? `${Math.abs(card.change)}%` : Math.abs(card.change)}
+                      {card.changeLabel}
+                    </Tag>
+                  )}
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+
+        {/* 用户增长趋势 */}
+        <Card title="用户增长趋势" style={{ marginBottom: 24 }}>
+          <div style={{ height: 300 }}>
+            <TrendChart data={userTrendData} />
+          </div>
+        </Card>
+
+        {/* 最近活动 */}
+        <Card title="最近活动" style={{ marginBottom: 24 }}>
+          {recentActivities.length === 0 ? (
+            <Empty description="暂无活动记录" />
+          ) : (
+            <div>
+              {recentActivities.map((activity) => (
+                <div key={activity.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px 0',
+                  borderBottom: '1px solid #f0f0f0',
+                }}>
+                  <Avatar size="small" icon={<UserOutlined />} style={{ marginRight: 12 }} />
+                  <div style={{ flex: 1 }}>
+                    <Text strong>{activity.user_nickname || '系统'}</Text>
+                    <Text style={{ marginLeft: 8 }}>{activity.action}</Text>
+                    {activity.module && (
+                      <Tag color="blue" style={{ marginLeft: 8 }}>{activity.module}</Tag>
+                    )}
+                  </div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {formatDateTime(activity.created_at)}
+                  </Text>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* 小说排行榜 */}
+        <Card
+          title={
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <BookOutlined style={{ marginRight: 8, color: '#722ed1' }} />
+              <span>小说排行榜</span>
+            </div>
+          }
+          style={{ marginBottom: 24 }}
+        >
+          <Table
+            columns={novelColumns}
+            dataSource={novels}
+            rowKey="id"
+            loading={novelsLoading}
+            pagination={{
+              ...novelPagination.tablePagination,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+              onChange: (page, pageSize) => {
+                novelPagination.handlePageChange(page, pageSize)
+                loadNovels(page, pageSize)
+              },
+            }}
+            size="small"
+          />
+        </Card>
+
+        {/* 最新评论 */}
+        <Card
+          title={
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <MessageOutlined style={{ marginRight: 8, color: '#52c41a' }} />
+              <span>最新评论</span>
+            </div>
+          }
+        >
+          <Table
+            columns={commentColumns}
+            dataSource={comments}
+            rowKey="id"
+            loading={commentsLoading}
+            pagination={{
+              ...commentPagination.tablePagination,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
+              onChange: (page, pageSize) => {
+                commentPagination.handlePageChange(page, pageSize)
+                loadComments(page, pageSize)
+              },
+            }}
+            size="small"
+          />
+        </Card>
+      </div>
+    </Spin>
+  )
+}
+
+// ==================== 趋势图组件 ====================
+
+const TrendChart: React.FC<{ data: { date: string; count: number }[] }> = ({ data }) => {
+  if (data.length === 0) {
+    return <Empty description="暂无数据" />
+  }
+
+  const maxCount = Math.max(...data.map(d => d.count), 1)
+  const barWidth = Math.max(20, 800 / data.length)
 
   return (
-    <div style={{ padding: 24 }}>
-      {/* ==================== 核心指标卡片 ==================== */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="总用户数"
-              value={stats?.totalUsers || 0}
-              prefix={<TeamOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-            <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
-              累计注册用户
+    <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%', gap: 2, padding: '20px 0' }}>
+      {data.map((item, index) => {
+        const height = (item.count / maxCount) * 250
+        const isToday = dayjs(item.date).isSame(dayjs(), 'day')
+        return (
+          <Tooltip key={index} title={`${item.date}: ${item.count} 人`}>
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              cursor: 'pointer',
+            }}>
+              <div style={{
+                width: barWidth,
+                height: Math.max(height, 4),
+                backgroundColor: isToday ? '#1890ff' : '#91d5ff',
+                borderRadius: '2px 2px 0 0',
+                transition: 'height 0.3s',
+              }} />
+              <Text type="secondary" style={{ fontSize: 10, marginTop: 4, transform: 'rotate(-45deg)', transformOrigin: 'top left' }}>
+                {dayjs(item.date).format('MM-DD')}
+              </Text>
             </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="今日新增用户"
-              value={stats?.todayNewUsers || 0}
-              prefix={<UserAddOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-            <div style={{ marginTop: 8 }}>
-              {stats?.userTrendPercent !== undefined && (
-                <Tag color={stats.userTrendPercent >= 0 ? 'green' : 'red'}>
-                  {stats.userTrendPercent >= 0 ? <RiseOutlined /> : <FallOutlined />}
-                  {' '}{Math.abs(stats.userTrendPercent)}% 较上周
-                </Tag>
-              )}
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="活跃用户（7天）"
-              value={stats?.activeUsers7d || 0}
-              prefix={<UserOutlined style={{ color: '#722ed1' }} />}
-              valueStyle={{ color: '#722ed1' }}
-            />
-            <div style={{ marginTop: 8 }}>
-              {stats?.activeTrendPercent !== undefined && (
-                <Tag color={stats.activeTrendPercent >= 0 ? 'green' : 'red'}>
-                  {stats.activeTrendPercent >= 0 ? <RiseOutlined /> : <FallOutlined />}
-                  {' '}{Math.abs(stats.activeTrendPercent)}% 较上周
-                </Tag>
-              )}
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <Card>
-            <Statistic
-              title="用户活跃率"
-              value={stats?.totalUsers ? parseFloat(((stats.activeUsers7d / stats.totalUsers) * 100).toFixed(1)) : 0}
-              suffix="%"
-              prefix={<DashboardOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: '#faad14' }}
-            />
-            <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
-              7天内活跃用户占比
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* ==================== 小说统计卡片 ==================== */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="小说总数"
-              value={novelDashboardStats.totalNovels}
-              prefix={<BookOutlined style={{ color: '#1890ff' }} />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-            <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
-              平台收录小说总量
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="总阅读量"
-              value={novelDashboardStats.totalReadCount}
-              prefix={<ReadOutlined style={{ color: '#ff7a45' }} />}
-              valueStyle={{ color: '#ff7a45' }}
-            />
-            <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
-              所有小说累计阅读次数
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={8}>
-          <Card>
-            <Statistic
-              title="活跃读者数"
-              value={novelDashboardStats.activeReaders}
-              prefix={<FireOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-            <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
-              最近7天有阅读记录的用户
-            </div>
-          </Card>
-        </Col>
-      </Row>
-
-      {/* ==================== 用户增长趋势 ==================== */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={24} lg={16}>
-          <Card title="用户增长趋势（30天）" extra={<Tag color="blue">每日新增</Tag>}>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={userTrend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="newUsers"
-                  name="新增用户"
-                  stroke="#1890ff"
-                  fill="#1890ff"
-                  fillOpacity={0.3}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </Card>
-        </Col>
-        <Col xs={24} lg={8}>
-          <Card title="功能模块使用分布（7天）">
-            {moduleUsage.length > 0 ? (
-              moduleUsage.map((item, index) => (
-                <div key={item.module} style={{ marginBottom: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span>{item.module}</span>
-                    <span style={{ color: COLORS[index % COLORS.length] }}>{item.count} 次</span>
-                  </div>
-                  <Progress
-                    percent={item.percentage}
-                    strokeColor={COLORS[index % COLORS.length]}
-                    showInfo={false}
-                    size="small"
-                  />
-                </div>
-              ))
-            ) : (
-              <div style={{ textAlign: 'center', color: '#999', padding: 40 }}>暂无数据</div>
-            )}
-          </Card>
-        </Col>
-      </Row>
-
-      {/* ==================== 最近用户动态 ==================== */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={24}>
-          <Card title="最近用户动态">
-            <Table
-              dataSource={recentActivities}
-              rowKey="id"
-              size="small"
-              pagination={{ pageSize: 10 }}
-              columns={[
-                {
-                  title: '用户',
-                  dataIndex: 'userName',
-                  key: 'userName',
-                  render: (text: string) => <Tag color="blue">{text}</Tag>,
-                },
-                {
-                  title: '操作',
-                  dataIndex: 'action',
-                  key: 'action',
-                  render: (text: string) => {
-                    const dictOpt = actionOptions.find(opt => opt.value === text)
-                    const label = dictOpt?.label || ACTION_LABEL_MAP[text] || text
-                    return <Tag color={getActionColor(text) || 'default'}>{label}</Tag>
-                  },
-                },
-                {
-                  title: '模块',
-                  dataIndex: 'module',
-                  key: 'module',
-                  render: (text: string) => {
-                    const dictOpt = moduleOptions.find(opt => opt.value === text)
-                    const label = dictOpt?.label || OP_MODULE_LABEL_MAP[text] || text
-                    return (
-                      <span>{label}</span>
-                    )
-                  },
-                },
-                {
-                  title: '时间',
-                  dataIndex: 'time',
-                  key: 'time',
-                  render: (text: string) => <span style={{ color: '#999' }}>{text}</span>,
-                },
-              ]}
-            />
-          </Card>
-        </Col>
-      </Row>
+          </Tooltip>
+        )
+      })}
     </div>
   )
 }

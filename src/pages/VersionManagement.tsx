@@ -205,9 +205,9 @@ const VersionManagement: React.FC = () => {
     }
     try {
       const { error } = await supabase
-        .from('app_versions' as any)
+        .from('app_versions')
         .delete()
-        .in('id', selectedRowKeys as string[]) as any
+        .in('id', selectedRowKeys as string[])
       if (error) {
         handleApiError(error, 'VersionManagement-批量删除')
         return
@@ -230,12 +230,11 @@ const VersionManagement: React.FC = () => {
       onOk: async () => {
         try {
           // 1. 将所有 released 版本标记为 revoked
-          const { error: revokeError } = await (supabase
-            .from('app_versions') as any)
+          // TODO: Supabase type inference issue - app_versions Update resolves to never
+          const { error: revokeError } = await (supabase.from('app_versions') as any)
             .update({
               status: 'revoked',
               revoked_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
             })
             .eq('status', 'released')
 
@@ -245,13 +244,12 @@ const VersionManagement: React.FC = () => {
           }
 
           // 2. 将目标版本标记为 released
-          const { error: releaseError } = await (supabase
-            .from('app_versions') as any)
+          // TODO: Supabase type inference issue - app_versions Update resolves to never
+          const { error: releaseError } = await (supabase.from('app_versions') as any)
             .update({
               status: 'released',
               released_at: new Date().toISOString(),
               revoked_at: null,
-              updated_at: new Date().toISOString(),
             })
             .eq('id', record.id)
 
@@ -281,12 +279,11 @@ const VersionManagement: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          const { error } = await (supabase
-            .from('app_versions') as any)
+          // TODO: Supabase type inference issue - app_versions Update resolves to never
+          const { error } = await (supabase.from('app_versions') as any)
             .update({
               is_force_update: newForceUpdate,
               release_type: newForceUpdate ? 'force' : 'feature',
-              updated_at: new Date().toISOString(),
             })
             .eq('id', record.id)
 
@@ -318,18 +315,18 @@ const VersionManagement: React.FC = () => {
       // 如果将版本设为 released，确保没有其他已发布的版本
       if (values.status === 'released') {
         const { data: existingReleased, error: checkError } = await supabase
-          .from('app_versions' as any)
+          .from('app_versions')
           .select('id, version, build_number')
           .eq('status', 'released')
-          .limit(1) as any
+          .limit(1)
 
         if (checkError) {
           handleApiError(checkError, 'VersionManagement-检查已发布版本')
           return
         }
 
-        const firstReleased = existingReleased?.[0]
-        if (firstReleased && firstReleased.id !== editingVersion?.id) {
+        const firstReleased = (existingReleased as unknown as Array<{ id: number; version: string; build_number: number }>)?.[0]
+        if (firstReleased && String(firstReleased.id) !== editingVersion?.id) {
           message.warning(`已有已发布版本 v${firstReleased.version} (build ${firstReleased.build_number})，请先将其状态改为其他值，或使用回滚功能`)
           return
         }
@@ -338,7 +335,6 @@ const VersionManagement: React.FC = () => {
       if (editingVersion) {
         const result = await versionService.update(editingVersion.id, {
           ...values,
-          updated_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'VersionManagement-更新')
@@ -348,9 +344,7 @@ const VersionManagement: React.FC = () => {
       } else {
         const result = await versionService.create({
           ...values,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        } as any)
+        })
         if (!result.success) {
           handleApiError(result.errorMessage, 'VersionManagement-创建')
           return

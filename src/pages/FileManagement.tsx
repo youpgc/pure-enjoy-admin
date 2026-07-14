@@ -215,8 +215,7 @@ const FileManagement: React.FC = () => {
         size: file.size,
         mime_type: file.type,
         url: publicUrl,
-        created_at: new Date().toISOString(),
-      } as any)
+      })
 
       if (!saveResult.success) {
         handleApiError(saveResult.errorMessage, 'FileManagement-保存记录')

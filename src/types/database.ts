@@ -825,6 +825,13 @@ export interface Database {
           updated_at: string | null
           last_char_offset: number | null
           reading_status: string | null
+          device_id: string | null
+          sync_version: number | null
+          content_offset: number | null
+          page_index: number | null
+          font_style_hash: string | null
+          layout_cache: unknown | null
+          updated_device: string | null
         }
         Insert: Omit<Database['public']['Tables']['user_novels']['Row'], 'id' | 'created_at' | 'updated_at'> & {
           id?: string
@@ -857,6 +864,7 @@ export interface Database {
           email: string
           phone: string | null
           password_hash: string | null
+          auth_id: string | null
           nickname: string | null
           avatar_url: string | null
           role: string

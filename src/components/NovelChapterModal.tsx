@@ -4,6 +4,7 @@ import {
   Table,
   Button,
   Input,
+  InputNumber,
   Form,
   message,
   Typography,
@@ -146,6 +147,7 @@ const NovelChapterModal: React.FC<{
         nextNumber = (data.chapter_num || 0) + 1
       }
     } catch (err) {
+      console.error('查询最大章节号失败:', err)
       // 查询失败时使用当前页数据兜底
       nextNumber = chapters.length > 0
         ? Math.max(...chapters.map(c => c.chapter_num)) + 1
@@ -397,7 +399,7 @@ const NovelChapterModal: React.FC<{
             label="章节号"
             rules={[{ required: true, message: '请输入章节号' }]}
           >
-            <Input type="number" placeholder="请输入章节号" />
+            <InputNumber style={{ width: '100%' }} placeholder="请输入章节号" min={1} />
           </Form.Item>
           <Form.Item
             name="title"

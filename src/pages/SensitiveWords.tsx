@@ -225,7 +225,6 @@ const SensitiveWords: React.FC = () => {
       } else {
         const result = await wordService.create({
           ...values,
-          created_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'SensitiveWords-创建')

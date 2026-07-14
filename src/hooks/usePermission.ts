@@ -31,20 +31,21 @@ export const usePermission = () => {
       if (userRole === ROLE_SUPER_ADMIN) {
         const { data: allPerms } = await supabase
           .from('permissions')
-          .select('name') as any
-        setPermissions(allPerms?.map((p: any) => p.name) || [])
+          .select('name')
+        setPermissions(allPerms?.map((p: { name: string }) => p.name) || [])
         setLoading(false)
         return
       }
 
       // 其他角色从数据库查询权限列表
-      const { data: roleData } = await (supabase
-        .from('roles') as any)
+      const { data: roleData } = await supabase
+        .from('roles')
         .select('id')
         .eq('code', userRole)
         .single()
 
-      if (!roleData) {
+      const roleId = (roleData as unknown as { id: number } | null)?.id
+      if (!roleId) {
         setPermissions([])
         setLoading(false)
         return
@@ -53,7 +54,7 @@ export const usePermission = () => {
       const { data: rolePerms } = await supabase
         .from('role_permissions')
         .select('permission_id')
-        .eq('role_id', roleData.id) as any
+        .eq('role_id', roleId)
 
       if (!rolePerms || rolePerms.length === 0) {
         setPermissions([])
@@ -61,13 +62,13 @@ export const usePermission = () => {
         return
       }
 
-      const permissionIds = (rolePerms as any[])?.map((rp: any) => rp.permission_id) || []
+      const permissionIds = (rolePerms as unknown as Array<{ permission_id: number }>).map(rp => rp.permission_id)
       const { data: permData } = await supabase
         .from('permissions')
         .select('name')
-        .in('id', permissionIds) as any
+        .in('id', permissionIds)
 
-      setPermissions((permData as any[])?.map((p: any) => p.name) || [])
+      setPermissions((permData as unknown as Array<{ name: string }>)?.map(p => p.name) || [])
     } catch (error) {
       console.error('[usePermission] 加载权限失败:', error)
       setPermissions([])
@@ -76,30 +77,26 @@ export const usePermission = () => {
     }
   }, [])
 
-  // 判断是否有某个权限
+  // 判断是否有某个权限（基于数据库配置，禁止硬编码特权）
   const hasPermission = useCallback((permissionName: string): boolean => {
-    if (role === ROLE_SUPER_ADMIN) return true
     return checkPermission(permissions, permissionName)
-  }, [permissions, role])
+  }, [permissions])
 
   // 判断是否有任意一个权限
   const hasAnyPermission = useCallback((permissionNames: string[]): boolean => {
-    if (role === ROLE_SUPER_ADMIN) return true
     return permissionNames.some(name => permissions.includes(name))
-  }, [permissions, role])
+  }, [permissions])
 
   // 判断是否有所有指定权限
   const hasAllPermissions = useCallback((permissionNames: string[]): boolean => {
-    if (role === ROLE_SUPER_ADMIN) return true
     return permissionNames.every(name => permissions.includes(name))
-  }, [permissions, role])
+  }, [permissions])
 
   // 菜单可见性判断（有菜单权限或菜单下任意操作权限）
   const hasMenuPermission = useCallback((menuPermissionName: string, actionPermissions: string[]): boolean => {
-    if (role === ROLE_SUPER_ADMIN) return true
     if (permissions.includes(menuPermissionName)) return true
     return actionPermissions.some(name => permissions.includes(name))
-  }, [permissions, role])
+  }, [permissions])
 
   // 快捷判断
   const isSuperAdmin = useCallback(() => role === ROLE_SUPER_ADMIN, [role])

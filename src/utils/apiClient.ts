@@ -1,7 +1,11 @@
 import { supabase, reportError } from './supabase'
 import { message } from 'antd'
 import { SUPABASE_ERROR_CODE_MAP } from '../constants'
-/// Supabase 查询构建器类型（泛型基类，兼容注入 Database 类型的 client）
+/// Supabase 查询构建器类型
+// PostgrestQueryBuilder 类型依赖 @supabase/postgrest-js 内部导出，
+// 在不同 Supabase 版本间路径不稳定，这里使用 any 以保持兼容性。
+// 如需强类型可改用 PostgrestQueryBuilder<GenericTable, GenericSchema, T>，
+// 但需根据实际安装的 @supabase/supabase-js 版本确认导入路径。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SupabaseQuery = any
 
@@ -55,7 +59,7 @@ export function logApiError(error: unknown, context: string): string {
 export class BaseService<T extends Record<string, any>> {
   constructor(
     private tableName: string,
-    private options?: { defaultOrder?: { column: string; ascending?: boolean } }
+    private options?: { defaultOrder?: { column: string; ascending?: boolean }; select?: string }
   ) {}
 
   /// 查询列表
@@ -63,7 +67,7 @@ export class BaseService<T extends Record<string, any>> {
     query?: (q: SupabaseQuery) => SupabaseQuery
   ): Promise<ApiResponse<T[]>> {
     try {
-      let q = supabase.from(this.tableName).select('*')
+      let q = supabase.from(this.tableName).select(this.options?.select || '*')
       if (query) q = query(q)
       if (this.options?.defaultOrder) {
         q = q.order(this.options.defaultOrder.column, {
@@ -83,7 +87,7 @@ export class BaseService<T extends Record<string, any>> {
     try {
       const { data, error } = await supabase
         .from(this.tableName)
-        .select('*')
+        .select(this.options?.select || '*')
         .eq('id', id)
         .single()
       if (error) throw error
@@ -102,7 +106,7 @@ export class BaseService<T extends Record<string, any>> {
     try {
       const from = (page - 1) * pageSize
       const to = from + pageSize - 1
-      let q = supabase.from(this.tableName).select('*', { count: 'exact', head: false })
+      let q = supabase.from(this.tableName).select(this.options?.select || '*', { count: 'exact', head: false })
       if (query) q = query(q)
       q = q.order(this.options?.defaultOrder?.column || 'created_at', {
         ascending: this.options?.defaultOrder?.ascending ?? false,

@@ -245,7 +245,6 @@ const DictManagement: React.FC = () => {
       if (editingType) {
         const result = await typeService.update(editingType.id, {
           ...values,
-          updated_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'DictManagement-更新字典类型')
@@ -255,8 +254,6 @@ const DictManagement: React.FC = () => {
       } else {
         const result = await typeService.create({
           ...values,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'DictManagement-创建字典类型')
@@ -332,7 +329,6 @@ const DictManagement: React.FC = () => {
       if (editingItem) {
         const result = await itemService.update(editingItem.id, {
           ...values,
-          updated_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'DictManagement-更新字典项')
@@ -342,8 +338,6 @@ const DictManagement: React.FC = () => {
       } else {
         const result = await itemService.create({
           ...values,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'DictManagement-创建字典项')

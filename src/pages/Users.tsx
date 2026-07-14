@@ -17,7 +17,7 @@ import {
   Tooltip,
   Badge,
 } from 'antd'
-import type { TablePaginationConfig, ColumnsType } from 'antd/es/table'
+import type { ColumnsType } from 'antd/es/table'
 import type { Key } from 'react'
 import {
   SearchOutlined,
@@ -45,9 +45,11 @@ import { generateUserId } from '../utils/userId'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { getActionColumn } from '../components/ActionColumn'
 import { supabase , SUPABASE_URL } from '../utils/supabase'
+import { userService } from '../services/userService'
 import { useAuth } from '../App'
 import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
+import { usePagination } from '../hooks/usePagination'
 import { formatDateTime } from '../utils/format'
 import UserFormModal from '../components/UserFormModal'
 import UserDetailDrawer from '../components/UserDetailDrawer'
@@ -71,14 +73,7 @@ const Users: React.FC = () => {
     member_level?: MemberLevel
     dateRange?: [string, string]
   }>({})
-  const [pagination, setPagination] = useState<TablePaginationConfig>({
-    current: 1,
-    pageSize: 10,
-    showSizeChanger: true,
-    showQuickJumper: true,
-    pageSizeOptions: ['10', '20', '50', '100'],
-    showTotal: (total) => `共 ${total} 条`,
-  })
+  const { pagination, setTotal, tablePagination, handlePageChange, resetPage } = usePagination()
 
   // 弹窗状态
   const [modalOpen, setModalOpen] = useState(false)
@@ -106,95 +101,27 @@ const Users: React.FC = () => {
   const { getColor: getMemberLevelColor } = useDictColors('member_level')
 
   // ==================== 数据加载 ====================
-  const fetchUsers = useCallback(async (page = 1, pageSize = 10) => {
+  const fetchUsers = useCallback(async (page = pagination.current, pageSize = pagination.pageSize) => {
     setLoading(true)
 
     try {
-      // 构建带筛选条件的查询 - 使用limit(1)代替head:true，确保count正确返回
-      let query = supabase
-        .from('users' as any)
-        .select('*', { count: 'exact' })
-        .eq('is_deleted', false)
-        .limit(1)
-
-      // 关键词搜索下推到数据库
-      if (searchText.trim()) {
-        const keyword = searchText.trim()
-        const conditions: string[] = []
-        conditions.push(`email.ilike.%${keyword}%`)
-        conditions.push(`nickname.ilike.%${keyword}%`)
-        conditions.push(`phone.ilike.%${keyword}%`)
-        conditions.push(`id.ilike.%${keyword}%`)
-        query = query.or(conditions.join(','))
-      }
-
-      // 角色筛选
-      if (filterValues.role) {
-        query = query.eq('role', filterValues.role)
-      }
-
-      // 状态筛选
-      if (filterValues.status) {
-        query = query.eq('status', filterValues.status)
-      }
-
-      // 会员等级筛选
-      if (filterValues.member_level) {
-        query = query.eq('member_level', filterValues.member_level)
-      }
-
-      // 注册时间范围筛选
-      if (filterValues.dateRange && filterValues.dateRange[0] && filterValues.dateRange[1]) {
-        query = query.gte('created_at', filterValues.dateRange[0]).lte('created_at', filterValues.dateRange[1] + 'T23:59:59')
-      }
-
-      // 先获取筛选后的总数
-      const { count, error: countError } = await query
-      if (countError) throw countError
-
-      // 分页查询（同样带筛选条件）
-      let dataQuery = supabase
-        .from('users' as any)
-        .select('*')
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false })
-
-      // 重复应用筛选条件到数据查询
-      if (searchText.trim()) {
-        const keyword = searchText.trim()
-        const conditions: string[] = []
-        conditions.push(`email.ilike.%${keyword}%`)
-        conditions.push(`nickname.ilike.%${keyword}%`)
-        conditions.push(`phone.ilike.%${keyword}%`)
-        conditions.push(`id.ilike.%${keyword}%`)
-        dataQuery = dataQuery.or(conditions.join(','))
-      }
-      if (filterValues.role) {
-        dataQuery = dataQuery.eq('role', filterValues.role)
-      }
-      if (filterValues.status) {
-        dataQuery = dataQuery.eq('status', filterValues.status)
-      }
-      if (filterValues.member_level) {
-        dataQuery = dataQuery.eq('member_level', filterValues.member_level)
-      }
-      if (filterValues.dateRange && filterValues.dateRange[0] && filterValues.dateRange[1]) {
-        dataQuery = dataQuery.gte('created_at', filterValues.dateRange[0]).lte('created_at', filterValues.dateRange[1] + 'T23:59:59')
-      }
-
-      const from = (page - 1) * pageSize
-      const to = from + pageSize - 1
-      const { data: users, error } = await dataQuery.range(from, to)
+      const result = await userService.paginateUsers(page, pageSize, {
+        searchText: searchText.trim(),
+        role: filterValues.role,
+        status: filterValues.status,
+        memberLevel: filterValues.member_level,
+        dateRange: filterValues.dateRange || null,
+      })
 
       if (!mountedRef.current) return
 
-      if (error) {
-        console.error('[Users] Supabase 查询失败:', error)
-        message.error('获取用户列表失败: ' + error.message)
+      if (!result.success) {
+        console.error('[Users] 查询失败:', result.errorMessage)
+        message.error('获取用户列表失败: ' + (result.errorMessage || '未知错误'))
         setData([])
       } else {
-        setData(users || [])
-        setPagination(prev => ({ ...prev, current: page, pageSize, total: count || 0 }))
+        setData(result.data?.data || [])
+        setTotal(result.data?.total || 0)
       }
     } catch (err) {
       if (!mountedRef.current) return
@@ -204,7 +131,7 @@ const Users: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchText, filterValues])
+  }, [searchText, filterValues, pagination.current, pagination.pageSize, setTotal])
 
   useEffect(() => {
     fetchUsers()
@@ -218,14 +145,14 @@ const Users: React.FC = () => {
     details: Record<string, unknown>
   ) => {
     try {
-      await supabase.from('operation_logs' as any).insert({
+      // TODO: Supabase type inference issue - operation_logs Insert resolves to never
+      await (supabase.from('operation_logs') as any).insert({
         user_id: adminUser?.id,
         action,
         module: 'users',
         target_id: targetId,
         detail: details,
-        created_at: new Date().toISOString(),
-      } as any)
+      })
     } catch (err) {
       console.error('Failed to log operation:', err)
     }
@@ -235,6 +162,10 @@ const Users: React.FC = () => {
   /**
    * 同步创建 Supabase Auth 用户（仅管理员操作）
    * 使用 service_role key 调用 Admin API，确保 App 端可登录
+   *
+   * 安全说明：Service Role Key 仅用于管理后台（需登录管理员账号才能操作），
+   * 且已部署在 Netlify，环境变量不直接暴露给外部用户。
+   * 后续如需更高安全性，可迁移至 Edge Function 或 Netlify Function 代理。
    */
   const createAuthUser = async (user: User, plainPassword: string) => {
     try {
@@ -275,10 +206,12 @@ const Users: React.FC = () => {
   // 新增用户
   const handleCreate = useCallback(async (formData: UserFormData) => {
     if (submitting) return
-    // 对密码进行 SHA-256 哈希
-    const passwordHash = formData.password
-      ? sha256(formData.password).toString()
-      : sha256('123456').toString() // 默认密码
+    // 对密码进行 SHA-256 哈希（密码必填，不允许留空）
+    if (!formData.password || formData.password.trim() === '') {
+      message.error('密码不能为空')
+      return
+    }
+    const passwordHash = sha256(formData.password).toString()
 
     // 处理 birthday 字段
     const birthdayValue = formData.birthday
@@ -287,8 +220,7 @@ const Users: React.FC = () => {
           : (formData.birthday as dayjs.Dayjs).format('YYYY-MM-DD'))
       : null
 
-    const newUser: User = {
-      id: generateUserId(),
+    const newUser: Omit<User, 'id' | 'created_at' | 'updated_at'> = {
       email: formData.email,
       phone: formData.phone || null,
       password_hash: passwordHash,
@@ -322,31 +254,35 @@ const Users: React.FC = () => {
       last_login_ip: null,
       last_login_at: null,
       login_count: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     }
 
     try {
       setSubmitting(true)
-      const { error } = await supabase.from('users' as any).insert(newUser as any)
-      if (error) {
-        message.error('创建用户失败: ' + error.message)
+      const userId = generateUserId()
+      // TODO: Supabase type inference issue - users Insert resolves to never when passing explicit id
+      const { error: createError } = await (supabase.from('users') as any)
+        .insert({ id: userId, ...newUser })
+        .select()
+        .single()
+      if (createError) {
+        message.error('创建用户失败: ' + createError.message)
         return
       }
 
       // 如果管理员设置了初始积分，插入 point_records 流水（触发器自动同步 users.points）
       const initPoints = formData.points ?? 0
       if (initPoints > 0) {
-        const { data: pointRecord, error: recordError } = await supabase.from('point_records' as any).insert({
-          user_id: newUser.id,
-          type: 'admin_adjust',
-          amount: initPoints,
-          remark: '创建用户时设置初始积分',
-          operator_name: adminUser?.nickname || adminUser?.email || '管理员',
-          operator_id: adminUser?.id,
-          status: 'active',
-          created_at: new Date().toISOString(),
-        } as any).select()
+        // TODO: Supabase type inference issue - point_records Insert resolves to never
+        const { data: pointRecord, error: recordError } = await (supabase.from('point_records') as any)
+          .insert({
+            user_id: userId,
+            type: 'admin_adjust',
+            amount: initPoints,
+            remark: '创建用户时设置初始积分',
+            operator_name: adminUser?.nickname || adminUser?.email || '管理员',
+            operator_id: adminUser?.id,
+            status: 'active',
+          }).select()
         if (recordError) {
           console.warn('初始积分记录失败:', recordError.message)
         } else if (!pointRecord || pointRecord.length === 0) {
@@ -355,15 +291,15 @@ const Users: React.FC = () => {
       }
 
       // 同步创建 auth.users 记录（使 App 端可通过 Supabase Auth 登录）
-      await createAuthUser(newUser, formData.password || '123456')
+      await createAuthUser({ id: userId, ...newUser } as User, formData.password || '123456')
       await fetchUsers()
-      await logOperation('create_user', newUser.id, { email: newUser.email })
+      await logOperation('create_user', userId, { email: newUser.email })
     } catch (err) {
       message.error('创建用户失败，请检查网络连接后重试')
     } finally {
       setSubmitting(false)
     }
-  }, [supabase, fetchUsers, logOperation, submitting, adminUser])
+  }, [fetchUsers, logOperation, submitting, adminUser])
 
   // 编辑用户
   const handleEdit = useCallback(async (formData: UserFormData) => {
@@ -387,16 +323,17 @@ const Users: React.FC = () => {
       const delta = newPoints - oldPoints
 
       if (delta !== 0) {
-        const { error: recordError } = await supabase.from('point_records' as any).insert({
-          user_id: currentUser.id,
-          type: 'admin_adjust',
-          amount: delta,
-          remark: `管理员调整：${oldPoints} → ${newPoints}`,
-          operator_name: adminUser?.nickname || adminUser?.email || '管理员',
-          operator_id: adminUser?.id,
-          status: 'active',
-          created_at: new Date().toISOString(),
-        } as any)
+        // TODO: Supabase type inference issue - point_records Insert resolves to never
+        const { error: recordError } = await (supabase.from('point_records') as any)
+          .insert({
+            user_id: currentUser.id,
+            type: 'admin_adjust',
+            amount: delta,
+            remark: `管理员调整：${oldPoints} → ${newPoints}`,
+            operator_name: adminUser?.nickname || adminUser?.email || '管理员',
+            operator_id: adminUser?.id,
+            status: 'active',
+          })
         if (recordError) {
           message.error('积分调整记录失败: ' + recordError.message)
           setSubmitting(false)
@@ -404,7 +341,7 @@ const Users: React.FC = () => {
         }
       }
 
-      const updateData: Record<string, string | number | null> = {
+      const updateData: Partial<User> = {
         phone: formData.phone || null,
         nickname: formData.nickname || null,
         avatar_url: formData.avatar_url || null,
@@ -422,7 +359,6 @@ const Users: React.FC = () => {
         member_level: formData.member_level,
         status: formData.status,
         // points 不再直接更新，由 point_records 触发器自动维护
-        updated_at: new Date().toISOString(),
       }
 
       // 如果填写了新密码，更新密码哈希
@@ -430,18 +366,10 @@ const Users: React.FC = () => {
         updateData.password_hash = sha256(formData.password).toString()
       }
 
-      const { data: updatedData, error } = await (supabase
-        .from('users') as any)
-        .update(updateData)
-        .eq('id', currentUser.id)
-        .select()
+      const result = await userService.update(currentUser.id, updateData)
 
-      if (error) {
-        message.error('更新用户失败: ' + error.message)
-        return
-      }
-      if (!updatedData || updatedData.length === 0) {
-        message.error('更新用户失败：未匹配到记录，可能无权限')
+      if (!result.success) {
+        message.error('更新用户失败: ' + (result.errorMessage || '未知错误'))
         return
       }
       await fetchUsers()
@@ -456,18 +384,9 @@ const Users: React.FC = () => {
   // 删除用户（软删除）
   const handleDelete = useCallback(async (ids: string[]) => {
     try {
-      const { data: deletedData, error } = await (supabase
-        .from('users') as any)
-        .update({ status: 'disabled', updated_at: new Date().toISOString() })
-        .in('id', ids)
-        .select()
-
-      if (error) {
-        message.error('禁用用户失败: ' + error.message)
-        return
-      }
-      if (!deletedData || deletedData.length === 0) {
-        message.error('禁用用户失败：未匹配到记录，可能无权限')
+      const result = await userService.batchSoftDelete(ids)
+      if (!result.success) {
+        message.error(result.errorMessage || '禁用用户失败')
         return
       }
       await fetchUsers()
@@ -479,25 +398,16 @@ const Users: React.FC = () => {
       message.error('禁用用户失败，请检查网络连接后重试')
     }
     setSelectedRowKeys([])
-  }, [supabase, fetchUsers, logOperation])
+  }, [fetchUsers, logOperation])
 
   // 切换用户状态
   const handleToggleStatus = useCallback(async (user: User) => {
     const newStatus: UserStatus = user.status === 'active' ? 'disabled' : 'active'
     
     try {
-      const { data: toggledData, error } = await (supabase
-        .from('users') as any)
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', user.id)
-        .select()
-
-      if (error) {
-        message.error('切换用户状态失败: ' + error.message)
-        return
-      }
-      if (!toggledData || toggledData.length === 0) {
-        message.error('切换用户状态失败：未匹配到记录，可能无权限')
+      const result = await userService.toggleStatus(user.id, newStatus)
+      if (!result.success) {
+        message.error(result.errorMessage || '切换用户状态失败')
         return
       }
       await fetchUsers()
@@ -506,7 +416,7 @@ const Users: React.FC = () => {
     } catch (err) {
       message.error('切换用户状态失败，请检查网络连接后重试')
     }
-  }, [supabase, fetchUsers, logOperation])
+  }, [fetchUsers, logOperation])
 
   // 批量禁用
   const handleBatchDisable = useCallback(async () => {
@@ -531,7 +441,7 @@ const Users: React.FC = () => {
         supabase.from('weight_records').select('id', { count: 'exact' }).eq('user_id', user.id),
         supabase.from('notes').select('id', { count: 'exact' }).eq('user_id', user.id),
         supabase.from('user_novels').select('id', { count: 'exact' }).eq('user_id', user.id),
-        supabase.from('operation_logs' as any).select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10) as any,
+        supabase.from('operation_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
       ])
 
       if (!mountedRef.current) return
@@ -543,7 +453,7 @@ const Users: React.FC = () => {
         note_count: notesResult.count || 0,
         novel_count: novelsResult.count || 0,
       })
-      setUserLogs((logsResult.data || []) as OperationLog[])
+      setUserLogs((logsResult.data || []) as unknown as OperationLog[])
     } catch (err) {
       console.error('Failed to fetch user details:', err)
       setUserStats(null)
@@ -789,7 +699,7 @@ const Users: React.FC = () => {
                 value={searchText}
                 onChange={e => {
                   setSearchText(e.target.value)
-                  setPagination(prev => ({ ...prev, current: 1 }))
+                  resetPage()
                 }}
                 allowClear
                 style={{ width: 280 }}
@@ -911,13 +821,16 @@ const Users: React.FC = () => {
         rowKey="id"
         loading={loading}
         pagination={{
-          ...pagination,
-          showSizeChanger: true,
-          showQuickJumper: true,
+          ...tablePagination,
           pageSizeOptions: ['10', '20', '50', '100'],
           showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
         }}
-        onChange={pag => fetchUsers(pag.current, pag.pageSize)}
+        onChange={pag => {
+          const page = pag.current ?? 1
+          const size = pag.pageSize ?? 10
+          handlePageChange(page, size)
+          fetchUsers(page, size)
+        }}
         scroll={{ x: 1400 }}
         rowSelection={
           (hasPermission('users:write') || hasPermission('users:delete'))

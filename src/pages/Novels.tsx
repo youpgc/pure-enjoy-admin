@@ -188,7 +188,6 @@ const Novels: React.FC = () => {
         // 更新小说
         const result = await novelService.update(editingNovel.id, {
           ...values,
-          updated_at: new Date().toISOString(),
         })
         if (!result.success) {
           handleApiError(result.errorMessage, 'Novels-更新小说')
@@ -200,9 +199,7 @@ const Novels: React.FC = () => {
         const result = await novelService.create({
           ...values,
           chapter_count: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        } as any)
+        })
         if (!result.success) {
           handleApiError(result.errorMessage, 'Novels-创建小说')
           return
@@ -261,7 +258,7 @@ const Novels: React.FC = () => {
       render: (status: string | null) => {
         if (!status) return <Badge status="default" text="-" />
         const info = NOVEL_STATUS_COLORS[status] || 'default'
-        return <Badge status={info as any} text={NOVEL_STATUS_MAP[status] || status} />
+        return <Badge color={info} text={NOVEL_STATUS_MAP[status] || status} />
       },
     },
     {

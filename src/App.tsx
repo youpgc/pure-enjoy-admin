@@ -40,7 +40,6 @@ import type { AdminUser } from './types/auth'
 import AuthGuard from './components/AuthGuard'
 import ErrorBoundary from './components/ErrorBoundary'
 import { usePermission } from './hooks/usePermission'
-import { ROLE_SUPER_ADMIN } from './constants'
 import Dashboard from './pages/Dashboard'
 import Users from './pages/Users'
 import Expenses from './pages/Expenses'
@@ -171,7 +170,6 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // AuthContext 中保留 hasPermission 作为兼容接口，基于用户角色做基本判断
   const hasPermission = useCallback((_permission: string) => {
     if (!user) return false
-    if (user.role === ROLE_SUPER_ADMIN) return true
     // 具体细粒度权限查询应使用 usePermission Hook
     return false
   }, [user])
