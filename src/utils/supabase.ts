@@ -8,19 +8,23 @@ const isDev = import.meta.env.DEV
 // 根据环境控制调试日志：开发环境开启，生产环境关闭
 const enableDebugLog = isDev
 
-// Supabase URL 和 anon key 本就是客户端公开信息（受 RLS 保护）
-// 优先从环境变量读取，未配置时使用开发默认值，保证本地开发和部署可用
-// 如需切换到其他项目，请通过 .env 或 VITE_ 环境变量覆盖
-const DEV_DEFAULT_URL = 'https://mhdrbjpqmzswswoazwjg.supabase.co'
-const DEV_DEFAULT_ANON_KEY = 'sb_publishable_wFx9tlxImVfEpRN4NMkS1g_QOm64aj6'
-
-const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
+// Supabase 项目 URL（公开信息，非敏感数据）
+// 优先使用环境变量，未配置时回退到硬编码默认值
+const FALLBACK_SUPABASE_URL = 'https://mhdrbjpqmzswswoazwjg.supabase.co'
+const envUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || FALLBACK_SUPABASE_URL
 const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
-const SUPABASE_URL = envUrl && envUrl.includes('.supabase.co') ? envUrl : DEV_DEFAULT_URL
-const SUPABASE_ANON_KEY = envKey && envKey.length >= 50 ? envKey : DEV_DEFAULT_ANON_KEY
+// URL 校验：必须是合法的 https://{project-id}.supabase.co 格式
+const supabaseUrlPattern = /^https:\/\/[a-z0-9]{10,}\.supabase\.co$/
+if (!supabaseUrlPattern.test(envUrl)) {
+  throw new Error(`VITE_SUPABASE_URL 格式无效: ${envUrl}，期望 https://{project-id}.supabase.co`)
+}
+if (!envKey || envKey.length < 50) {
+  throw new Error('VITE_SUPABASE_ANON_KEY 环境变量未配置或格式无效')
+}
 
-export { SUPABASE_URL }
+export const SUPABASE_URL = envUrl
+const SUPABASE_ANON_KEY = envKey
 
 // 敏感字段列表（日志中需要脱敏的字段）
 const SENSITIVE_FIELDS = ['password', 'password_hash', 'token', 'apikey', 'authorization', 'secret', 'phone', 'email']

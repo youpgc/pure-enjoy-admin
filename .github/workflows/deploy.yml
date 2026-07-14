@@ -37,8 +37,12 @@ jobs:
 
       - name: Setup environment variables
         run: |
+          if [ -n "${{ secrets.SUPABASE_URL }}" ]; then
+            echo "VITE_SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
+          elif [ -n "${{ secrets.SUPABASE_PROJECT_ID }}" ]; then
+            echo "VITE_SUPABASE_URL=https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co" >> .env
+          fi
           echo "VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> .env
-          echo "VITE_SUPABASE_URL=https://${{ secrets.SUPABASE_PROJECT_ID }}.supabase.co" >> .env
 
       - name: Build
         run: npm run build
