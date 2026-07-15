@@ -129,39 +129,37 @@ const Dashboard: React.FC = () => {
 
       if (!mountedRef.current) return
 
-      const totalUsers = safeCount(totalRes.data)
-      const newToday = safeCount(todayRes.data)
-      const newWeek = safeCount(weekRes.data)
-      const newMonth = safeCount(monthRes.data)
-      const lastWeekNew = safeCount(lastWeekRes.data)
+      const totalUsers = safeCount(totalRes.count)
+      const newToday = safeCount(todayRes.count)
+      const newWeek = safeCount(weekRes.count)
+      const newMonth = safeCount(monthRes.count)
+      const lastWeekNew = safeCount(lastWeekRes.count)
 
-      // 活跃用户数
-      const activeTodayRes = await dashboardService.getOperationLogs(todayStart)
-      const activeWeekRes = await dashboardService.getOperationLogs(weekStart)
-      const activeMonthRes = await dashboardService.getOperationLogs(monthStart)
-
-      const activeToday = activeTodayRes.success
-        ? new Set((activeTodayRes.data || []).map(l => l.user_id).filter(Boolean)).size
-        : 0
-      const activeWeek = activeWeekRes.success
-        ? new Set((activeWeekRes.data || []).map(l => l.user_id).filter(Boolean)).size
-        : 0
-      const activeMonth = activeMonthRes.success
-        ? new Set((activeMonthRes.data || []).map(l => l.user_id).filter(Boolean)).size
-        : 0
+      // 活跃用户数（基于真实用户行为：阅读 + 评论/书签/批注/听书/推荐反馈，
+      // 不再依赖 operation_logs，因其仅记录后台操作，不含用户阅读行为）
+      // 一次性拉取「本月」窗口内的全部活跃事件，客户端按时间筛出日/周/月活跃。
+      const activeEventsRes = await dashboardService.getActiveUserEvents(monthStart)
+      const activeEvents = activeEventsRes.success ? (activeEventsRes.data || []) : []
+      const activeToday = new Set(
+        activeEvents.filter(e => e.created_at >= todayStart).map(e => e.user_id)
+      ).size
+      const activeWeek = new Set(
+        activeEvents.filter(e => e.created_at >= weekStart).map(e => e.user_id)
+      ).size
+      const activeMonth = new Set(activeEvents.map(e => e.user_id)).size
+      // 本周活跃用户集合，留存率计算时与「上月注册用户」取交集
+      const thisWeekActiveUserIds = new Set(
+        activeEvents.filter(e => e.created_at >= weekStart).map(e => e.user_id)
+      )
 
       // 留存率（上月注册且本周活跃的用户）
       const lastMonthStart = dayjs().subtract(1, 'month').startOf('month').toISOString()
       const lastMonthEnd = dayjs().subtract(1, 'month').endOf('month').toISOString()
-      const [lastMonthUsersRes, thisWeekLogRes] = await Promise.all([
-        dashboardService.getNewUsersInRange(lastMonthStart, lastMonthEnd),
-        dashboardService.getOperationLogUserIds(weekStart, dayjs().toISOString()),
-      ])
-      const lastMonthUsersCount = safeCount(lastMonthUsersRes.data)
-      const thisWeekLogUserIds = thisWeekLogRes.success
-        ? (thisWeekLogRes.data || []).map(l => l.user_id).filter(Boolean)
-        : []
-      const retainedUsers = new Set(thisWeekLogUserIds).size
+      const lastMonthUsersRes = await dashboardService.getNewUserIdsInRange(lastMonthStart, lastMonthEnd)
+      const lastMonthUserIds = new Set((lastMonthUsersRes.data || []).map(u => u.id))
+      const lastMonthUsersCount = lastMonthUserIds.size
+      // 取「上月注册」与「本周活跃」的交集，才是真正的留存用户
+      const retainedUsers = [...thisWeekActiveUserIds].filter(id => lastMonthUserIds.has(id)).length
       const retention = lastMonthUsersCount > 0
         ? Math.round((retainedUsers / lastMonthUsersCount) * 100)
         : 0
@@ -185,7 +183,7 @@ const Dashboard: React.FC = () => {
 
       // 小说统计
       const novelsRes = await dashboardService.getNovelsCount()
-      const novelsTotal = safeCount(novelsRes.data)
+      const novelsTotal = safeCount(novelsRes.count)
       const readCountRes = await dashboardService.getNovelReadCounts()
       const totalRead = readCountRes.success
         ? (readCountRes.data || []).reduce((sum, n) => sum + (n.read_count || 0), 0)
