@@ -41,7 +41,6 @@ interface CommentItem {
   content: string
   rating: number | null
   created_at: string
-  is_deleted: boolean | null
 }
 
 // ==================== 辅助函数 ====================
@@ -288,7 +287,7 @@ const Dashboard: React.FC = () => {
       const from = (page - 1) * pageSize
       const to = from + pageSize - 1
       const { data, error, count } = await supabase
-        .from('user_novel_comments')
+        .from('novel_comments')
         .select(`
           id,
           novel_id,
@@ -297,10 +296,8 @@ const Dashboard: React.FC = () => {
           content,
           rating,
           created_at,
-          is_deleted,
           novels: novel_id (title)
         `, { count: 'exact' })
-        .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .range(from, to)
 
@@ -314,7 +311,6 @@ const Dashboard: React.FC = () => {
         content: string
         rating: number | null
         created_at: string
-        is_deleted: boolean | null
         novels: { title: string | null } | { title: string | null }[] | null
       }>).map(comment => {
         const novelData = comment.novels
