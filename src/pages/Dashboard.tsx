@@ -135,37 +135,31 @@ const Dashboard: React.FC = () => {
       const newMonth = safeCount(monthRes.count)
       const lastWeekNew = safeCount(lastWeekRes.count)
 
-      // 活跃用户数
-      const activeTodayRes = await dashboardService.getOperationLogs(todayStart)
-      const activeWeekRes = await dashboardService.getOperationLogs(weekStart)
-      const activeMonthRes = await dashboardService.getOperationLogs(monthStart)
-
-      const activeToday = activeTodayRes.success
-        ? new Set((activeTodayRes.data || []).map(l => l.user_id).filter(Boolean)).size
-        : 0
-      const activeWeek = activeWeekRes.success
-        ? new Set((activeWeekRes.data || []).map(l => l.user_id).filter(Boolean)).size
-        : 0
-      const activeMonth = activeMonthRes.success
-        ? new Set((activeMonthRes.data || []).map(l => l.user_id).filter(Boolean)).size
-        : 0
+      // 活跃用户数（基于真实用户行为：阅读 + 评论/书签/批注/听书/推荐反馈，
+      // 不再依赖 operation_logs，因其仅记录后台操作，不含用户阅读行为）
+      // 一次性拉取「本月」窗口内的全部活跃事件，客户端按时间筛出日/周/月活跃。
+      const activeEventsRes = await dashboardService.getActiveUserEvents(monthStart)
+      const activeEvents = activeEventsRes.success ? (activeEventsRes.data || []) : []
+      const activeToday = new Set(
+        activeEvents.filter(e => e.created_at >= todayStart).map(e => e.user_id)
+      ).size
+      const activeWeek = new Set(
+        activeEvents.filter(e => e.created_at >= weekStart).map(e => e.user_id)
+      ).size
+      const activeMonth = new Set(activeEvents.map(e => e.user_id)).size
+      // 本周活跃用户集合，留存率计算时与「上月注册用户」取交集
+      const thisWeekActiveUserIds = new Set(
+        activeEvents.filter(e => e.created_at >= weekStart).map(e => e.user_id)
+      )
 
       // 留存率（上月注册且本周活跃的用户）
       const lastMonthStart = dayjs().subtract(1, 'month').startOf('month').toISOString()
       const lastMonthEnd = dayjs().subtract(1, 'month').endOf('month').toISOString()
-      const [lastMonthUsersRes, thisWeekLogRes] = await Promise.all([
-        dashboardService.getNewUserIdsInRange(lastMonthStart, lastMonthEnd),
-        dashboardService.getOperationLogUserIds(weekStart, dayjs().toISOString()),
-      ])
+      const lastMonthUsersRes = await dashboardService.getNewUserIdsInRange(lastMonthStart, lastMonthEnd)
       const lastMonthUserIds = new Set((lastMonthUsersRes.data || []).map(u => u.id))
       const lastMonthUsersCount = lastMonthUserIds.size
-      const thisWeekLogUserIds = new Set<string>(
-        thisWeekLogRes.success
-          ? (thisWeekLogRes.data || []).map(l => l.user_id).filter((id): id is string => !!id)
-          : []
-      )
       // 取「上月注册」与「本周活跃」的交集，才是真正的留存用户
-      const retainedUsers = [...thisWeekLogUserIds].filter(id => lastMonthUserIds.has(id)).length
+      const retainedUsers = [...thisWeekActiveUserIds].filter(id => lastMonthUserIds.has(id)).length
       const retention = lastMonthUsersCount > 0
         ? Math.round((retainedUsers / lastMonthUsersCount) * 100)
         : 0
