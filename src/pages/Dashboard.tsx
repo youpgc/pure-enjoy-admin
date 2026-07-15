@@ -129,11 +129,11 @@ const Dashboard: React.FC = () => {
 
       if (!mountedRef.current) return
 
-      const totalUsers = safeCount(totalRes.data)
-      const newToday = safeCount(todayRes.data)
-      const newWeek = safeCount(weekRes.data)
-      const newMonth = safeCount(monthRes.data)
-      const lastWeekNew = safeCount(lastWeekRes.data)
+      const totalUsers = safeCount(totalRes.count)
+      const newToday = safeCount(todayRes.count)
+      const newWeek = safeCount(weekRes.count)
+      const newMonth = safeCount(monthRes.count)
+      const lastWeekNew = safeCount(lastWeekRes.count)
 
       // 活跃用户数
       const activeTodayRes = await dashboardService.getOperationLogs(todayStart)
@@ -154,14 +154,18 @@ const Dashboard: React.FC = () => {
       const lastMonthStart = dayjs().subtract(1, 'month').startOf('month').toISOString()
       const lastMonthEnd = dayjs().subtract(1, 'month').endOf('month').toISOString()
       const [lastMonthUsersRes, thisWeekLogRes] = await Promise.all([
-        dashboardService.getNewUsersInRange(lastMonthStart, lastMonthEnd),
+        dashboardService.getNewUserIdsInRange(lastMonthStart, lastMonthEnd),
         dashboardService.getOperationLogUserIds(weekStart, dayjs().toISOString()),
       ])
-      const lastMonthUsersCount = safeCount(lastMonthUsersRes.data)
-      const thisWeekLogUserIds = thisWeekLogRes.success
-        ? (thisWeekLogRes.data || []).map(l => l.user_id).filter(Boolean)
-        : []
-      const retainedUsers = new Set(thisWeekLogUserIds).size
+      const lastMonthUserIds = new Set((lastMonthUsersRes.data || []).map(u => u.id))
+      const lastMonthUsersCount = lastMonthUserIds.size
+      const thisWeekLogUserIds = new Set<string>(
+        thisWeekLogRes.success
+          ? (thisWeekLogRes.data || []).map(l => l.user_id).filter((id): id is string => !!id)
+          : []
+      )
+      // 取「上月注册」与「本周活跃」的交集，才是真正的留存用户
+      const retainedUsers = [...thisWeekLogUserIds].filter(id => lastMonthUserIds.has(id)).length
       const retention = lastMonthUsersCount > 0
         ? Math.round((retainedUsers / lastMonthUsersCount) * 100)
         : 0
@@ -185,7 +189,7 @@ const Dashboard: React.FC = () => {
 
       // 小说统计
       const novelsRes = await dashboardService.getNovelsCount()
-      const novelsTotal = safeCount(novelsRes.data)
+      const novelsTotal = safeCount(novelsRes.count)
       const readCountRes = await dashboardService.getNovelReadCounts()
       const totalRead = readCountRes.success
         ? (readCountRes.data || []).reduce((sum, n) => sum + (n.read_count || 0), 0)

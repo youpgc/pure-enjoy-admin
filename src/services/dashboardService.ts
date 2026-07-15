@@ -37,6 +37,14 @@ class DashboardService {
     )
   }
 
+  /// 时间段内新增用户 ID 列表（用于留存率交集计算）
+  async getNewUserIdsInRange(from: string, to: string) {
+    return apiQuery<{ id: string }[]>(
+      () => supabase.from('users').select('id').eq('is_deleted', false).gte('created_at', from).lt('created_at', to),
+      'Dashboard-时间段新增用户ID'
+    )
+  }
+
   /// 活跃用户操作日志
   async getOperationLogs(since: string, limit = 1000) {
     return apiQuery<{ user_id: string | null; module: string | null; created_at: string }[]>(
