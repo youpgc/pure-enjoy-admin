@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
-  Card, Row, Col, Spin, message,
+  Card, Row, Col, Spin, Button, message,
   Tag, Table, Avatar, Tooltip, Typography, Empty, Space
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -8,7 +8,7 @@ import dayjs from 'dayjs'
 import { useNavigate } from 'react-router-dom'
 import {
   UserOutlined, RiseOutlined, BookOutlined, MessageOutlined,
-  ClockCircleOutlined, FireOutlined,
+  ClockCircleOutlined, FireOutlined, ReloadOutlined,
   EyeOutlined, ArrowUpOutlined, ArrowDownOutlined
 } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
@@ -67,6 +67,15 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate()
   const mountedRef = useMounted()
 
+  // 用 ref 持有最新 hasPermission，避免其引用随权限重载/切回浏览器
+  // （触发 Supabase onAuthStateChange → loadPermissions 生成新 permissions 数组）而频繁变化，
+  // 进而导致 loadStats 重新创建、useEffect 重跑而重复刷新数据
+  const hasPermissionRef = useRef(hasPermission)
+  hasPermissionRef.current = hasPermission
+
+  // 最后更新时间（手动刷新与初次加载均更新）
+  const [lastUpdated, setLastUpdated] = useState<string>('')
+
   const [loading, setLoading] = useState(false)
   const [userStats, setUserStats] = useState({
     total: 0,
@@ -111,7 +120,7 @@ const Dashboard: React.FC = () => {
 
   // ==================== 加载数据 ====================
   const loadStats = useCallback(async () => {
-    if (!hasPermission('dashboard:read')) return
+    if (!hasPermissionRef.current('dashboard:read')) return
     setLoading(true)
 
     try {
@@ -266,7 +275,7 @@ const Dashboard: React.FC = () => {
     } finally {
       if (mountedRef.current) setLoading(false)
     }
-  }, [hasPermission])
+  }, []) // 依赖清空：hasPermission 改为经 hasPermissionRef 读取最新值，避免引用变化触发重复刷新
 
   // 小说列表
   const loadNovels = useCallback(async (page = novelPagination.pagination.current, pageSize = novelPagination.pagination.pageSize) => {
@@ -342,11 +351,19 @@ const Dashboard: React.FC = () => {
     }
   }, [commentPagination.pagination.current, commentPagination.pagination.pageSize])
 
-  useEffect(() => {
+  // 统一刷新入口：初次加载与手动刷新按钮共用，避免逻辑重复
+  const refreshAll = useCallback(() => {
+    setLastUpdated(dayjs().format('YYYY-MM-DD HH:mm:ss'))
     loadStats()
     loadNovels()
     loadComments()
   }, [loadStats, loadNovels, loadComments])
+
+  // 仅挂载时自动加载一次；loadStats/loadNovels/loadComments 引用均已稳定，
+  // 切回浏览器等场景不会再触发重复刷新
+  useEffect(() => {
+    refreshAll()
+  }, [refreshAll])
 
   // 统计卡片
   const statsCards = useMemo(() => [
@@ -505,8 +522,23 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <Spin spinning={loading} tip="加载中...">
-      <div style={{ padding: '0 0 24px' }}>
+    <div style={{ padding: '0 0 24px' }}>
+      {/* 工具栏：最后更新时间 + 手动刷新按钮 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Text type="secondary">
+          {lastUpdated ? `最后更新：${lastUpdated}` : '数据加载中…'}
+        </Text>
+        <Button
+          type="primary"
+          icon={<ReloadOutlined />}
+          onClick={refreshAll}
+          loading={loading || novelsLoading || commentsLoading}
+        >
+          刷新数据
+        </Button>
+      </div>
+      <Spin spinning={loading} tip="加载中...">
+        <div>
         {/* 统计卡片 */}
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           {statsCards.map((card, index) => (
@@ -632,7 +664,8 @@ const Dashboard: React.FC = () => {
           />
         </Card>
       </div>
-    </Spin>
+      </Spin>
+    </div>
   )
 }
 
