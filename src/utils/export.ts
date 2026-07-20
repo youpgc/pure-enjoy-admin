@@ -3,7 +3,7 @@
  * 支持 CSV 和 Excel 导出
  */
 
-interface ExportColumn<T = unknown> {
+export interface ExportColumn<T = unknown> {
   title: string
   dataIndex: string
   render?: (value: unknown, record: T) => string
