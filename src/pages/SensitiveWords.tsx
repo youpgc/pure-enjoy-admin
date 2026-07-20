@@ -4,64 +4,30 @@ import {
   Button,
   Input,
   Space,
-  Tag,
   Card,
   message,
-  Modal,
   Form,
   Select,
   Popconfirm,
-  Typography,
-  Switch,
 } from 'antd'
 import {
   SearchOutlined,
   ReloadOutlined,
   PlusOutlined,
-  EditOutlined,
   DeleteOutlined,
 } from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
-import { getActionColumn } from '../components/ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { useMounted } from '../hooks/useMounted'
 import {
-  SENSITIVE_CATEGORY_MAP,
   SENSITIVE_CATEGORY_OPTIONS,
-  SENSITIVE_LEVEL_MAP,
   SENSITIVE_LEVEL_OPTIONS,
-  SENSITIVE_MATCH_MODE_MAP,
-  SENSITIVE_MATCH_MODE_OPTIONS,
 } from '../constants'
-
-const { Text } = Typography
-
-// ==================== 类型定义 ====================
-
-interface SensitiveWord {
-  id: string
-  word: string
-  category: string
-  level: 'low' | 'medium' | 'high'
-  replace_word?: string
-  description?: string
-  match_mode: 'exact' | 'fuzzy' | 'regex'
-  is_active: boolean
-  hit_count: number
-  created_by?: string
-  created_at: string
-  updated_at?: string
-}
-
-interface SensitiveWordFilters {
-  keyword: string
-  category: string | undefined
-  level: string | undefined
-}
+import type { SensitiveWord, SensitiveWordFilters } from './sensitive-words/types'
+import { buildSensitiveWordsColumns } from './sensitive-words/columns'
+import { SensitiveWordsFormModal } from './sensitive-words/SensitiveWordsFormModal'
 
 // ==================== 组件 ====================
 
@@ -244,105 +210,11 @@ const SensitiveWords: React.FC = () => {
   }
 
   // 表格列定义
-  const columns: ColumnsType<SensitiveWord> = [
-    {
-      title: '敏感词',
-      dataIndex: 'word',
-      key: 'word',
-      render: (word: string) => <Text strong style={{ color: '#ff4d4f' }}>{word}</Text>,
-    },
-    {
-      title: '分类',
-      dataIndex: 'category',
-      key: 'category',
-      width: 120,
-      render: (category: string) => {
-        const info = SENSITIVE_CATEGORY_MAP[category] || { color: 'default', label: category }
-        return <Tag color={info.color}>{info.label}</Tag>
-      },
-    },
-    {
-      title: '等级',
-      dataIndex: 'level',
-      key: 'level',
-      width: 100,
-      render: (level: string) => {
-        const info = SENSITIVE_LEVEL_MAP[level] || { color: 'default', label: level }
-        return <Tag color={info.color}>{info.label}</Tag>
-      },
-    },
-    {
-      title: '替换词',
-      dataIndex: 'replace_word',
-      key: 'replace_word',
-      width: 120,
-      render: (replaceWord: string) => replaceWord || '-',
-    },
-    {
-      title: '匹配模式',
-      dataIndex: 'match_mode',
-      key: 'match_mode',
-      width: 100,
-      render: (mode: string) => {
-        const info = SENSITIVE_MATCH_MODE_MAP[mode] || { color: 'default', label: mode }
-        return <Tag color={info.color}>{info.label}</Tag>
-      },
-    },
-    {
-      title: '命中次数',
-      dataIndex: 'hit_count',
-      key: 'hit_count',
-      width: 100,
-      render: (count: number) => <Text>{count ?? 0}</Text>,
-    },
-    {
-      title: '创建者',
-      dataIndex: 'created_by',
-      key: 'created_by',
-      width: 120,
-      render: (createdBy: string) => createdBy || '-',
-    },
-    {
-      title: '状态',
-      dataIndex: 'is_active',
-      key: 'is_active',
-      width: 100,
-      render: (isActive: boolean, record: SensitiveWord) => (
-        <Switch
-          checked={isActive}
-          onChange={() => handleToggleActive(record)}
-          checkedChildren="启用"
-          unCheckedChildren="停用"
-        />
-      ),
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      key: 'created_at',
-      width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
-    },
-    getActionColumn<SensitiveWord>(
-      (record) => [
-        {
-          key: 'edit',
-          label: '编辑',
-          icon: <EditOutlined />,
-          type: 'primary',
-          onClick: () => handleEdit(record),
-        },
-        {
-          key: 'delete',
-          label: '删除',
-          icon: <DeleteOutlined />,
-          danger: true,
-          onClick: () => handleDelete(record.id),
-        },
-      ],
-      { width: 200, maxVisible: 2 }
-    ),
-  ]
+  const columns = buildSensitiveWordsColumns({
+    onEdit: handleEdit,
+    onDelete: handleDelete,
+    onToggleActive: handleToggleActive,
+  })
 
   return (
     <div style={{ padding: 24 }}>
@@ -423,77 +295,18 @@ const SensitiveWords: React.FC = () => {
       />
 
       {/* 敏感词表单弹窗 */}
-      <Modal
-        title={editingWord ? '编辑敏感词' : '新增敏感词'}
+      <SensitiveWordsFormModal
         open={modalVisible}
+        editingWord={editingWord}
+        saving={saving}
+        form={form}
         onOk={handleSave}
-        confirmLoading={saving}
         onCancel={() => {
           setModalVisible(false)
           setEditingWord(null)
           form.resetFields()
         }}
-        width={500}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="word"
-            label="敏感词"
-            rules={[{ required: true, message: '请输入敏感词' }]}
-          >
-            <Input placeholder="请输入敏感词" />
-          </Form.Item>
-          <Form.Item
-            name="replace_word"
-            label="替换词"
-          >
-            <Input placeholder="替换为（可选）" />
-          </Form.Item>
-          <Form.Item
-            name="description"
-            label="描述"
-          >
-            <Input.TextArea rows={2} placeholder="请输入描述（可选）" />
-          </Form.Item>
-          <Form.Item
-            name="category"
-            label="分类"
-            rules={[{ required: true, message: '请选择分类' }]}
-          >
-            <Select
-              placeholder="请选择分类"
-              options={SENSITIVE_CATEGORY_OPTIONS}
-            />
-          </Form.Item>
-          <Form.Item
-            name="level"
-            label="等级"
-            rules={[{ required: true, message: '请选择等级' }]}
-          >
-            <Select
-              placeholder="请选择等级"
-              options={SENSITIVE_LEVEL_OPTIONS}
-            />
-          </Form.Item>
-          <Form.Item
-            name="match_mode"
-            label="匹配模式"
-            rules={[{ required: true, message: '请选择匹配模式' }]}
-          >
-            <Select
-              placeholder="请选择匹配模式"
-              options={SENSITIVE_MATCH_MODE_OPTIONS}
-            />
-          </Form.Item>
-          <Form.Item
-            name="is_active"
-            label="状态"
-            valuePropName="checked"
-          >
-            <Switch checkedChildren="启用" unCheckedChildren="停用" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      />
     </div>
   )
 }
