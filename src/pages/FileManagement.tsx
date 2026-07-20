@@ -41,7 +41,7 @@ const { Dragger } = Upload
 
 interface FileItem {
   id: string
-  name: string
+  file_name: string
   bucket: string
   path: string
   size: number
@@ -209,7 +209,7 @@ const FileManagement: React.FC = () => {
 
       // 保存文件记录
       const saveResult = await fileService.create({
-        name: file.name,
+        file_name: file.name,
         bucket,
         path: filePath,
         size: file.size,
@@ -261,7 +261,7 @@ const FileManagement: React.FC = () => {
         <Space>
           {getFileIcon(record.mime_type)}
           <div>
-            <div style={{ fontWeight: 500 }}>{record.name}</div>
+            <div style={{ fontWeight: 500 }}>{record.file_name}</div>
             <Text type="secondary" style={{ fontSize: 12 }}>{record.bucket}</Text>
           </div>
         </Space>
