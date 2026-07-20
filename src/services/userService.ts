@@ -1,5 +1,6 @@
 import { BaseService } from '../utils/apiClient'
-import type { User } from '../types/user'
+import { supabase } from '../utils/supabase'
+import type { User, OperationLog } from '../types/user'
 
 /// 用户管理服务（封装 users 表的 CRUD，替代页面层直接调用 supabase）
 class UserService extends BaseService<User> {
@@ -60,3 +61,57 @@ class UserService extends BaseService<User> {
 }
 
 export const userService = new UserService()
+
+// ==================== 以下为 #66 抽出的写操作/统计查询（替代页面层裸 supabase.from） ====================
+
+/// 创建用户记录（public.users），返回含 id 的记录
+export const createUser = (data: Record<string, unknown>) =>
+  (supabase.from('users') as any).insert(data).select().single()
+
+/// 新增积分流水（触发器自动同步 users.points），返回含 data 的结果
+export const addPointRecord = (record: {
+  user_id: string
+  type: string
+  amount: number
+  remark: string
+  operator_name?: string | null
+  operator_id?: string | null
+  status?: string
+}) =>
+  (supabase.from('point_records') as any)
+    .insert({ status: 'active', ...record })
+    .select()
+
+/// 记录操作日志（写 operation_logs）
+export const logUserOperation = (entry: {
+  user_id?: string | null
+  action: string
+  module: string
+  target_id: string
+  detail: Record<string, unknown>
+}) => (supabase.from('operation_logs') as any).insert(entry)
+
+/// 统计用户各模块数据量与最近操作日志（返回与页面 Promise.all 解构顺序一致的元组）
+export const fetchUserActivity = (userId: string) =>
+  Promise.all([
+    supabase.from('expenses').select('id', { count: 'exact' }).eq('user_id', userId),
+    supabase.from('mood_diaries').select('id', { count: 'exact' }).eq('user_id', userId),
+    supabase.from('weight_records').select('id', { count: 'exact' }).eq('user_id', userId),
+    supabase.from('notes').select('id', { count: 'exact' }).eq('user_id', userId),
+    supabase.from('user_novels').select('id', { count: 'exact' }).eq('user_id', userId),
+    supabase
+      .from('operation_logs')
+      .select('id, user_id, action, module, target_id, detail, ip, user_agent, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(10),
+  ]) as unknown as Promise<
+    [
+      { count: number | null },
+      { count: number | null },
+      { count: number | null },
+      { count: number | null },
+      { count: number | null },
+      { data: OperationLog[] | null },
+    ]
+  >

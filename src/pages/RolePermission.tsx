@@ -26,6 +26,7 @@ import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import type { Role, Permission } from '../types/permission'
 import { ROLE_STATUS_LABELS, ROLE_STATUS_COLORS, ROLE_STATUS } from '../types/permission'
+import { roleService } from '../services/roleService'
 
 const { Title } = Typography
 
@@ -48,7 +49,7 @@ const RolePermissionPage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('roles')
-        .select('*')
+        .select('id, name, code, description, is_system, status, created_at, updated_at')
         .order('id')
 
       if (error) throw error
@@ -65,7 +66,7 @@ const RolePermissionPage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('permissions')
-        .select('*')
+        .select('id, name, display_name, type, parent_id, sort_order, module, description, created_at')
         .order('sort_order')
 
       if (error) throw error
@@ -129,38 +130,26 @@ const RolePermissionPage: React.FC = () => {
 
       if (editingRole) {
         // 更新角色
-        // TODO: Supabase type inference issue - roles Update resolves to never
-        const { error } = await (supabase.from('roles') as any)
-          .update(roleData)
-          .eq('id', editingRole.id)
+        const { error } = await roleService.updateRole(editingRole.id, roleData)
 
         if (error) throw error
 
         // 更新权限关联
-        await supabase
-          .from('role_permissions')
-          .delete()
-          .eq('role_id', editingRole.id)
+        await roleService.deleteRolePermissions(editingRole.id)
 
         if (selectedPermissions.length > 0) {
           const rolePerms = selectedPermissions.map(pid => ({
             role_id: editingRole.id,
             permission_id: pid,
           }))
-          // TODO: Supabase type inference issue - role_permissions Insert resolves to never
-          const { error: rpError } = await (supabase.from('role_permissions') as any)
-            .insert(rolePerms)
+          const { error: rpError } = await roleService.createRolePermissions(rolePerms)
           if (rpError) throw rpError
         }
 
         message.success('角色更新成功')
       } else {
         // 新增角色
-        // TODO: Supabase type inference issue - roles Insert resolves to never
-        const { data, error } = await (supabase.from('roles') as any)
-          .insert(roleData)
-          .select()
-          .single()
+        const { data, error } = await roleService.createRole(roleData)
 
         if (error) throw error
 
@@ -170,9 +159,7 @@ const RolePermissionPage: React.FC = () => {
             role_id: (data as Role).id,
             permission_id: pid,
           }))
-          // TODO: Supabase type inference issue - role_permissions Insert resolves to never
-          const { error: rpError } = await (supabase.from('role_permissions') as any)
-            .insert(rolePerms)
+          const { error: rpError } = await roleService.createRolePermissions(rolePerms)
           if (rpError) throw rpError
         }
 

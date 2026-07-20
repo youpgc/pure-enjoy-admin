@@ -137,7 +137,7 @@ const Rankings: React.FC = () => {
       const result = await apiQuery<RankingItem[]>(
         () => supabase
           .from('mv_novel_rankings')
-          .select('*')
+          .select('novel_id, title, author, cover_url, category, status, total_reads, total_collects, avg_rating, rating_count, daily_reads, daily_collects, weekly_reads, weekly_collects, monthly_reads, monthly_collects, created_at, computed_at')
           .order(rankingType, { ascending: false })
           .limit(100),
         'Rankings-查询榜单'

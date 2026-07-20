@@ -34,6 +34,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
+import { appVersionService } from '../services/appVersionService'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn, type ActionButton } from '../components/ActionColumn'
 import { BaseService, handleApiError } from '../utils/apiClient'
@@ -230,13 +231,7 @@ const VersionManagement: React.FC = () => {
       onOk: async () => {
         try {
           // 1. 将所有 released 版本标记为 revoked
-          // TODO: Supabase type inference issue - app_versions Update resolves to never
-          const { error: revokeError } = await (supabase.from('app_versions') as any)
-            .update({
-              status: 'revoked',
-              revoked_at: new Date().toISOString(),
-            })
-            .eq('status', 'released')
+          const { error: revokeError } = await appVersionService.revokeAllReleased()
 
           if (revokeError) {
             handleApiError(revokeError, 'VersionManagement-回滚')
@@ -244,14 +239,7 @@ const VersionManagement: React.FC = () => {
           }
 
           // 2. 将目标版本标记为 released
-          // TODO: Supabase type inference issue - app_versions Update resolves to never
-          const { error: releaseError } = await (supabase.from('app_versions') as any)
-            .update({
-              status: 'released',
-              released_at: new Date().toISOString(),
-              revoked_at: null,
-            })
-            .eq('id', record.id)
+          const { error: releaseError } = await appVersionService.releaseVersion(record.id)
 
           if (releaseError) {
             handleApiError(releaseError, 'VersionManagement-回滚')
@@ -279,13 +267,7 @@ const VersionManagement: React.FC = () => {
       cancelText: '取消',
       onOk: async () => {
         try {
-          // TODO: Supabase type inference issue - app_versions Update resolves to never
-          const { error } = await (supabase.from('app_versions') as any)
-            .update({
-              is_force_update: newForceUpdate,
-              release_type: newForceUpdate ? 'force' : 'feature',
-            })
-            .eq('id', record.id)
+          const { error } = await appVersionService.setForceUpdate(record.id, newForceUpdate)
 
           if (error) {
             handleApiError(error, 'VersionManagement-强制更新')

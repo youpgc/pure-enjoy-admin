@@ -172,7 +172,7 @@ const FlowHistoryModal: React.FC<{
       setLoading(true)
       supabase
         .from('feedback_flow_records')
-        .select('*')
+        .select('id, feedback_id, action, remark, operator_id, operator_name, created_at')
         .eq('feedback_id', record.id)
         .order('created_at', { ascending: false })
         .then(({ data, error }) => {

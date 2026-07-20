@@ -42,6 +42,7 @@ import {
 } from '../types/user'
 import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 import { generateUserId } from '../utils/userId'
+import { createUser, addPointRecord, logUserOperation, fetchUserActivity } from '../services/userService'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { getActionColumn } from '../components/ActionColumn'
 import { supabase } from '../utils/supabase'
@@ -145,8 +146,7 @@ const Users: React.FC = () => {
     details: Record<string, unknown>
   ) => {
     try {
-      // TODO: Supabase type inference issue - operation_logs Insert resolves to never
-      await (supabase.from('operation_logs') as any).insert({
+      await logUserOperation({
         user_id: adminUser?.id,
         action,
         module: 'users',
@@ -248,11 +248,7 @@ const Users: React.FC = () => {
     try {
       setSubmitting(true)
       const userId = generateUserId()
-      // TODO: Supabase type inference issue - users Insert resolves to never when passing explicit id
-      const { error: createError } = await (supabase.from('users') as any)
-        .insert({ id: userId, ...newUser })
-        .select()
-        .single()
+      const { error: createError } = await createUser({ id: userId, ...newUser })
       if (createError) {
         message.error('创建用户失败: ' + createError.message)
         return
@@ -261,17 +257,14 @@ const Users: React.FC = () => {
       // 如果管理员设置了初始积分，插入 point_records 流水（触发器自动同步 users.points）
       const initPoints = formData.points ?? 0
       if (initPoints > 0) {
-        // TODO: Supabase type inference issue - point_records Insert resolves to never
-        const { data: pointRecord, error: recordError } = await (supabase.from('point_records') as any)
-          .insert({
-            user_id: userId,
-            type: 'admin_adjust',
-            amount: initPoints,
-            remark: '创建用户时设置初始积分',
-            operator_name: adminUser?.nickname || adminUser?.email || '管理员',
-            operator_id: adminUser?.id,
-            status: 'active',
-          }).select()
+        const { data: pointRecord, error: recordError } = await addPointRecord({
+          user_id: userId,
+          type: 'admin_adjust',
+          amount: initPoints,
+          remark: '创建用户时设置初始积分',
+          operator_name: adminUser?.nickname || adminUser?.email || '管理员',
+          operator_id: adminUser?.id,
+        })
         if (recordError) {
           console.warn('初始积分记录失败:', recordError.message)
         } else if (!pointRecord || pointRecord.length === 0) {
@@ -312,17 +305,14 @@ const Users: React.FC = () => {
       const delta = newPoints - oldPoints
 
       if (delta !== 0) {
-        // TODO: Supabase type inference issue - point_records Insert resolves to never
-        const { error: recordError } = await (supabase.from('point_records') as any)
-          .insert({
-            user_id: currentUser.id,
-            type: 'admin_adjust',
-            amount: delta,
-            remark: `管理员调整：${oldPoints} → ${newPoints}`,
-            operator_name: adminUser?.nickname || adminUser?.email || '管理员',
-            operator_id: adminUser?.id,
-            status: 'active',
-          })
+        const { error: recordError } = await addPointRecord({
+          user_id: currentUser.id,
+          type: 'admin_adjust',
+          amount: delta,
+          remark: `管理员调整：${oldPoints} → ${newPoints}`,
+          operator_name: adminUser?.nickname || adminUser?.email || '管理员',
+          operator_id: adminUser?.id,
+        })
         if (recordError) {
           message.error('积分调整记录失败: ' + recordError.message)
           setSubmitting(false)
@@ -424,14 +414,7 @@ const Users: React.FC = () => {
 
     try {
       // 获取用户统计数据
-      const [expensesResult, moodsResult, weightsResult, notesResult, novelsResult, logsResult] = await Promise.all([
-        supabase.from('expenses').select('id', { count: 'exact' }).eq('user_id', user.id),
-        supabase.from('mood_diaries').select('id', { count: 'exact' }).eq('user_id', user.id),
-        supabase.from('weight_records').select('id', { count: 'exact' }).eq('user_id', user.id),
-        supabase.from('notes').select('id', { count: 'exact' }).eq('user_id', user.id),
-        supabase.from('user_novels').select('id', { count: 'exact' }).eq('user_id', user.id),
-        supabase.from('operation_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(10),
-      ])
+      const [expensesResult, moodsResult, weightsResult, notesResult, novelsResult, logsResult] = await fetchUserActivity(user.id)
 
       if (!mountedRef.current) return
 
