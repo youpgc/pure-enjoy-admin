@@ -51,7 +51,9 @@ export async function getDictItems(typeCode: string, useCache = true): Promise<D
     // 第2步：查询 dict_items 获取字典项
     const { data, error } = await (supabase as any)
       .from('dict_items')
-      .select('code, label, value, sort_order, extra, item_code, item_name, item_value, extra_data')
+      // dict_items 真实列：code/label/value/extra/sort_order/is_default/status/...
+      // 不含 item_code/item_name/item_value/extra_data（旧字段已移除），select 越列会触发 42703
+      .select('code, label, value, sort_order, extra')
       .eq('type_id', typeId)
       .eq('is_active', true)
       .order('sort_order', { ascending: true })
@@ -62,11 +64,11 @@ export async function getDictItems(typeCode: string, useCache = true): Promise<D
     }
 
     const items: DictItem[] = ((data || []) as any[]).map((item: any) => ({
-      code: item.code ?? item.item_code ?? '',
-      label: item.label ?? item.item_name ?? '',
-      value: item.value ?? item.item_value ?? null,
+      code: item.code ?? '',
+      label: item.label ?? '',
+      value: item.value ?? null,
       sort_order: item.sort_order ?? 0,
-      extra: item.extra ?? item.extra_data ?? null,
+      extra: item.extra ?? null,
     }))
 
     // 更新缓存
