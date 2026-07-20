@@ -52,6 +52,7 @@ export const hasAllPermissions = (permissions: string[], permissionNames: string
 export {
   ROLE_STATUS_LABELS,
   ROLE_STATUS_COLORS,
+  ROLE_STATUS,
   PERMISSION_TYPE_LABELS,
   MODULE_DISPLAY_NAMES,
   MODULE_COLORS,

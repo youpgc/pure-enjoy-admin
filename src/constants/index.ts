@@ -108,6 +108,12 @@ export const ROLE_STATUS_COLORS: Record<string, string> = {
   disabled: 'red',
 }
 
+// 角色状态枚举单一源（避免页面硬编码 'active' / 'disabled'）
+export const ROLE_STATUS = {
+  ACTIVE: 'active',
+  DISABLED: 'disabled',
+} as const
+
 export const PERMISSION_TYPE_LABELS: Record<string, string> = {
   menu: '菜单',
   action: '操作',
@@ -255,6 +261,10 @@ export const FEEDBACK_STATUS_MAP: Record<string, { color: string; label: string 
   rejected: { color: 'error', label: '已拒绝' },
   delayed: { color: 'orange', label: '已滞后' },
 }
+
+// 反馈状态/动作枚举单一源（避免页面硬编码）
+export const FEEDBACK_STATUS_PENDING = 'pending'
+export const FEEDBACK_ACTION_DELETED = 'deleted'
 
 export const FEEDBACK_CATEGORY_MAP: Record<string, { color: string; label: string }> = {
   bug: { color: 'error', label: 'Bug' },

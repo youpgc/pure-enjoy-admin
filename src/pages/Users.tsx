@@ -44,7 +44,7 @@ import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 import { generateUserId } from '../utils/userId'
 import { exportToCSV, exportToExcel } from '../utils/export'
 import { getActionColumn } from '../components/ActionColumn'
-import { supabase , SUPABASE_URL } from '../utils/supabase'
+import { supabase } from '../utils/supabase'
 import { userService } from '../services/userService'
 import { useAuth } from '../App'
 import { usePermission } from '../hooks/usePermission'
@@ -160,43 +160,32 @@ const Users: React.FC = () => {
 
   
   /**
-   * 同步创建 Supabase Auth 用户（仅管理员操作）
-   * 使用 service_role key 调用 Admin API，确保 App 端可登录
+   * 同步创建 Supabase Auth 用户（仅管理员操作，确保 App 端可用邮箱+密码登录）
    *
-   * 安全说明：Service Role Key 仅用于管理后台（需登录管理员账号才能操作），
-   * 且已部署在 Netlify，环境变量不直接暴露给外部用户。
-   * 后续如需更高安全性，可迁移至 Edge Function 或 Netlify Function 代理。
+   * 安全说明（治理红线）：service_role 绝不下发到前端。原实现用
+   * import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY 直调 /auth/v1/admin/users，
+   * 该 key 会被 Vite 打进浏览器 bundle（泄露 + 绕过 RLS），已回滚多次。
+   * 现改为数据库 RPC（create_auth_user，SECURITY DEFINER）创建 auth.users：
+   *   - 密钥仅存在于数据库函数内，永不进前端 bundle；
+   *   - 函数内部用 JWT 角色声明校验，非管理员拒绝（errcode 42501）；
+   *   - 需先在 Supabase SQL Editor 执行 fix_create_auth_user_rpc.sql 迁移。
+   * 调用失败仅告警、不抛错，保证 public.users 主流程不受影响（逻辑闭环、可灰度）。
    */
   const createAuthUser = async (user: User, plainPassword: string) => {
     try {
-      const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string
-      if (!serviceKey) {
-        console.warn('未配置 service_role key，跳过 auth.users 同步')
-        return
-      }
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-        method: 'POST',
-        headers: {
-          'apikey': serviceKey,
-          'Authorization': `Bearer ${serviceKey}`,
-          'Content-Type': 'application/json',
+      const { error } = await supabase.rpc('create_auth_user', {
+        p_email: user.email,
+        p_password: plainPassword,
+        p_phone: user.phone || null,
+        p_user_metadata: {
+          app_user_id: user.id,
+          username: user.username || null,
+          nickname: user.nickname || null,
+          role: user.role,
         },
-        body: JSON.stringify({
-          email: user.email,
-          password: plainPassword,
-          email_confirm: true,
-          phone: user.phone || undefined,
-          user_metadata: {
-            app_user_id: user.id,
-            username: user.username || undefined,
-            nickname: user.nickname || undefined,
-            role: user.role,
-          },
-        }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        console.warn('auth.users 同步失败:', err.msg || res.status)
+      } as any)
+      if (error) {
+        console.warn('auth.users 同步失败（请确认已执行 create_auth_user RPC 迁移）:', error.message)
       }
     } catch (err) {
       console.warn('auth.users 同步异常:', err)

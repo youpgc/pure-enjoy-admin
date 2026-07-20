@@ -25,7 +25,7 @@ import { handleApiError } from '../utils/apiClient'
 import { usePermission } from '../hooks/usePermission'
 import { getActionColumn } from '../components/ActionColumn'
 import type { Role, Permission } from '../types/permission'
-import { ROLE_STATUS_LABELS, ROLE_STATUS_COLORS } from '../types/permission'
+import { ROLE_STATUS_LABELS, ROLE_STATUS_COLORS, ROLE_STATUS } from '../types/permission'
 
 const { Title } = Typography
 
@@ -103,7 +103,7 @@ const RolePermissionPage: React.FC = () => {
         name: role.name,
         code: role.code,
         description: role.description,
-        status: role.status === 'active',
+        status: role.status === ROLE_STATUS.ACTIVE,
       })
       loadRolePermissions(role.id)
     } else {
@@ -124,7 +124,7 @@ const RolePermissionPage: React.FC = () => {
         name: values.name,
         code: values.code,
         description: values.description,
-        status: values.status ? 'active' : 'disabled',
+        status: values.status ? ROLE_STATUS.ACTIVE : ROLE_STATUS.DISABLED,
       }
 
       if (editingRole) {

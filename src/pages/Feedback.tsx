@@ -17,7 +17,7 @@ import { useMounted } from '../hooks/useMounted'
 import { usePagination } from '../hooks/usePagination'
 import { getActionColumn } from '../components/ActionColumn'
 import { feedbackService } from '../services/feedbackService'
-import { FEEDBACK_STATUS_MAP, FEEDBACK_CATEGORY_MAP, FEEDBACK_STATUS_ACTIONS } from '../constants'
+import { FEEDBACK_STATUS_MAP, FEEDBACK_CATEGORY_MAP, FEEDBACK_STATUS_ACTIONS, FEEDBACK_STATUS_PENDING, FEEDBACK_ACTION_DELETED } from '../constants'
 
 // ==================== 类型定义 ====================
 
@@ -108,8 +108,8 @@ const ActionModal: React.FC<{
             {getStatusLabel(record.status)}
           </Tag>
           <span style={{ color: '#999' }}>→</span>
-          <Tag color={action === 'deleted' ? getStatusColorValue(record.status) : getStatusColorValue(action)}>
-            {action === 'deleted' ? '删除' : getStatusLabel(action)}
+          <Tag color={action === FEEDBACK_ACTION_DELETED ? getStatusColorValue(record.status) : getStatusColorValue(action)}>
+            {action === FEEDBACK_ACTION_DELETED ? '删除' : getStatusLabel(action)}
           </Tag>
         </Space>
       }
@@ -299,7 +299,7 @@ const Feedback: React.FC = () => {
     if (!selectedRecord || !selectedAction) return
 
     // 删除操作不需要 remark（但弹窗中已设为必填）
-    if (!remark.trim() && selectedAction !== 'deleted') {
+    if (!remark.trim() && selectedAction !== FEEDBACK_ACTION_DELETED) {
       message.warning('请输入备注说明')
       return
     }
@@ -313,7 +313,7 @@ const Feedback: React.FC = () => {
       const operatorName = adminUser?.nickname || adminUser?.username || '管理员'
 
       let result
-      if (selectedAction === 'deleted') {
+      if (selectedAction === FEEDBACK_ACTION_DELETED) {
         result = await feedbackService.softDelete(
           selectedRecord.id,
           remark.trim() || '删除反馈记录',
@@ -401,7 +401,7 @@ const Feedback: React.FC = () => {
         label: '删除',
         icon: <DeleteOutlined />,
         danger: true,
-        onClick: () => openActionModal(record, 'deleted'),
+        onClick: () => openActionModal(record, FEEDBACK_ACTION_DELETED),
       })
     }
 
@@ -498,7 +498,7 @@ const Feedback: React.FC = () => {
             </Badge>
           )) : (
             <>
-              <Badge count={data.filter(d => d.status === 'pending').length} offset={[0, 0]}>
+              <Badge count={data.filter(d => d.status === FEEDBACK_STATUS_PENDING).length} offset={[0, 0]}>
                 <Tag color="default">待确认</Tag>
               </Badge>
               <Badge count={data.filter(d => d.status === 'in_progress').length} offset={[0, 0]}>

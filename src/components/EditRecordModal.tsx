@@ -54,7 +54,7 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
     setLoading(true)
     try {
       const result = await apiQuery(
-        () => supabase.from(tableName).select('*').eq('id', recordId).single() as any,
+        () => supabase.from(tableName).select(columns.map(c => c.name).join(',')).eq('id', recordId).single() as any,
         'EditRecordModal-加载记录'
       )
       if (!result.success) {
