@@ -6,7 +6,9 @@ import { apiQuery, type ApiResponse } from '../utils/apiClient'
 /// 因此使用 apiQuery + 专用方法封装。
 
 /// 活跃用户事件（单条行为记录，未去重）
-type ActiveEvent = { user_id: string; created_at: string }
+/// source 标记行为来源（read/comment/bookmark/annotation/tts/feedback），
+/// 供 Dashboard 复用阅读事件计算「活跃读者」而无需额外请求。
+type ActiveEvent = { user_id: string; created_at: string; source: string }
 
 class DashboardService {
   /// 总用户数
@@ -84,10 +86,18 @@ class DashboardService {
     ])
 
     const events: ActiveEvent[] = []
-    for (const res of [rRead, rComment, rBookmark, rAnnotation, rTts, rFeedback]) {
+    const sources: Array<{ res: ApiResponse<ActiveEvent[]>; source: string }> = [
+      { res: rRead, source: 'read' },
+      { res: rComment, source: 'comment' },
+      { res: rBookmark, source: 'bookmark' },
+      { res: rAnnotation, source: 'annotation' },
+      { res: rTts, source: 'tts' },
+      { res: rFeedback, source: 'feedback' },
+    ]
+    for (const { res, source } of sources) {
       for (const row of (res.data || [])) {
         if (row.user_id && row.created_at) {
-          events.push({ user_id: row.user_id, created_at: row.created_at })
+          events.push({ user_id: row.user_id, created_at: row.created_at, source })
         }
       }
     }

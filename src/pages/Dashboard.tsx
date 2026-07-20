@@ -119,13 +119,37 @@ const Dashboard: React.FC = () => {
       const weekStart = dayjs(getWeekMonday()).startOf('day').toISOString()
       const monthStart = dayjs().startOf('month').toISOString()
       const lastWeekStart = dayjs().subtract(1, 'week').startOf('day').toISOString()
+      const lastMonthStart = dayjs().subtract(1, 'month').startOf('month').toISOString()
+      const lastMonthEnd = dayjs().subtract(1, 'month').endOf('month').toISOString()
+      const trendStart = dayjs().subtract(30, 'day').startOf('day').toISOString()
 
-      // 用户统计
-      const totalRes = await dashboardService.getTotalUsers()
-      const todayRes = await dashboardService.getTodayNewUsers(todayStart)
-      const weekRes = await dashboardService.getNewUsersSince(weekStart)
-      const monthRes = await dashboardService.getNewUsersSince(monthStart)
-      const lastWeekRes = await dashboardService.getNewUsersInRange(lastWeekStart, weekStart)
+      // 原实现为顺序 await 瀑布（约 13 个相互独立的接口逐个等待），
+      // 首屏耗时≈请求数×单程延迟。改为一次性并发发出，墙钟时间≈最慢单个请求。
+      const [
+        totalRes,
+        todayRes,
+        weekRes,
+        monthRes,
+        lastWeekRes,
+        activeEventsRes,
+        lastMonthUsersRes,
+        novelsRes,
+        readCountRes,
+        trendRes,
+        logsRes,
+      ] = await Promise.all([
+        dashboardService.getTotalUsers(),
+        dashboardService.getTodayNewUsers(todayStart),
+        dashboardService.getNewUsersSince(weekStart),
+        dashboardService.getNewUsersSince(monthStart),
+        dashboardService.getNewUsersInRange(lastWeekStart, weekStart),
+        dashboardService.getActiveUserEvents(monthStart),
+        dashboardService.getNewUserIdsInRange(lastMonthStart, lastMonthEnd),
+        dashboardService.getNovelsCount(),
+        dashboardService.getNovelReadCounts(),
+        dashboardService.getUserTrendData(trendStart),
+        dashboardService.getRecentLogs(),
+      ])
 
       if (!mountedRef.current) return
 
@@ -138,7 +162,6 @@ const Dashboard: React.FC = () => {
       // 活跃用户数（基于真实用户行为：阅读 + 评论/书签/批注/听书/推荐反馈，
       // 不再依赖 operation_logs，因其仅记录后台操作，不含用户阅读行为）
       // 一次性拉取「本月」窗口内的全部活跃事件，客户端按时间筛出日/周/月活跃。
-      const activeEventsRes = await dashboardService.getActiveUserEvents(monthStart)
       const activeEvents = activeEventsRes.success ? (activeEventsRes.data || []) : []
       const activeToday = new Set(
         activeEvents.filter(e => e.created_at >= todayStart).map(e => e.user_id)
@@ -153,9 +176,6 @@ const Dashboard: React.FC = () => {
       )
 
       // 留存率（上月注册且本周活跃的用户）
-      const lastMonthStart = dayjs().subtract(1, 'month').startOf('month').toISOString()
-      const lastMonthEnd = dayjs().subtract(1, 'month').endOf('month').toISOString()
-      const lastMonthUsersRes = await dashboardService.getNewUserIdsInRange(lastMonthStart, lastMonthEnd)
       const lastMonthUserIds = new Set((lastMonthUsersRes.data || []).map(u => u.id))
       const lastMonthUsersCount = lastMonthUserIds.size
       // 取「上月注册」与「本周活跃」的交集，才是真正的留存用户
@@ -182,22 +202,20 @@ const Dashboard: React.FC = () => {
       })
 
       // 小说统计
-      const novelsRes = await dashboardService.getNovelsCount()
       const novelsTotal = safeCount(novelsRes.count)
-      const readCountRes = await dashboardService.getNovelReadCounts()
       const totalRead = readCountRes.success
         ? (readCountRes.data || []).reduce((sum, n) => sum + (n.read_count || 0), 0)
         : 0
 
-      // 活跃读者（本周阅读过小说）
-      const readersRes = await dashboardService.getActiveReaders(weekStart)
-      const readers = readersRes.success
-        ? new Set((readersRes.data || []).map(r => r.user_id).filter(Boolean)).size
-        : 0
-      const newReadersRes = await dashboardService.getActiveReaders(todayStart)
-      const newReaders = newReadersRes.success
-        ? new Set((newReadersRes.data || []).map(r => r.user_id).filter(Boolean)).size
-        : 0
+      // 活跃读者（本周/今日阅读过小说）：复用上方已拉取的阅读类活跃事件
+      // （source==='read' 即 user_novels.last_read_at），无需再发两次 getActiveReaders 请求
+      const readEvents = activeEvents.filter(e => e.source === 'read')
+      const readers = new Set(
+        readEvents.filter(e => e.created_at >= weekStart).map(e => e.user_id)
+      ).size
+      const newReaders = new Set(
+        readEvents.filter(e => e.created_at >= todayStart).map(e => e.user_id)
+      ).size
 
       if (!mountedRef.current) return
 
@@ -209,9 +227,6 @@ const Dashboard: React.FC = () => {
       })
 
       // 用户增长趋势（最近30天）
-      const trendRes = await dashboardService.getUserTrendData(
-        dayjs().subtract(30, 'day').startOf('day').toISOString()
-      )
       if (trendRes.success) {
         const counts: Record<string, number> = {}
         for (let i = 29; i >= 0; i--) {
@@ -225,8 +240,7 @@ const Dashboard: React.FC = () => {
         setUserTrendData(Object.entries(counts).map(([date, count]) => ({ date, count })))
       }
 
-      // 最近活动
-      const logsRes = await dashboardService.getRecentLogs()
+      // 最近活动（昵称查询依赖最近活动结果，单独发出，不再阻塞前面的统计）
       if (logsRes.success && logsRes.data && logsRes.data.length > 0) {
         const userIds = [...new Set(logsRes.data.map(l => l.user_id).filter(Boolean))] as string[]
         if (userIds.length > 0) {
