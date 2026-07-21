@@ -86,11 +86,13 @@ export const addPointRecord = (record: {
 /// 后台主动重算回写 users 积分展示列（替代不存在的触发器）。
 /// 调用 recalc_user_points RPC（SECURITY DEFINER + JWT 管理员校验，与 create_auth_user 同策略）。
 /// 失败仅告警不抛错，保证主流程（用户创建/积分调整）不受影响。
-export const recalcUserPoints = async (userId: string) => {
+export const recalcUserPoints = async (userId: string): Promise<boolean> => {
   const { error } = await (supabase.rpc as any)('recalc_user_points', { p_user_id: userId })
   if (error) {
     console.warn('recalc_user_points 失败（请确认已在 Supabase SQL Editor 部署该 RPC）:', error.message)
+    return false
   }
+  return true
 }
 
 /// 记录操作日志（写 operation_logs）

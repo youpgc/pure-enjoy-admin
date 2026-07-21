@@ -249,7 +249,10 @@ export function useUsers() {
         }
       }
       // 主动重算并回写 users 全部展示列（替代不存在的触发器）
-      await recalcUserPoints(userId)
+      const recalcOk = await recalcUserPoints(userId)
+      if (!recalcOk) {
+        message.warning('积分展示列重算失败，用户积分/连续签到展示可能短暂不同步')
+      }
 
       // 同步创建 auth.users 记录（使 App 端可通过 Supabase Auth 登录）
       await createAuthUser({ id: userId, ...newUser } as User, formData.password || '123456')
@@ -299,7 +302,10 @@ export function useUsers() {
         }
       }
       // 主动重算并回写 users 全部展示列（替代不存在的触发器）
-      await recalcUserPoints(currentUser.id)
+      const recalcOk = await recalcUserPoints(currentUser.id)
+      if (!recalcOk) {
+        message.warning('积分展示列重算失败，用户积分/连续签到展示可能短暂不同步')
+      }
 
       const updateData: Partial<User> = {
         phone: formData.phone || null,
