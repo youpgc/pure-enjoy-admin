@@ -68,7 +68,8 @@ export const userService = new UserService()
 export const createUser = (data: Record<string, unknown>) =>
   (supabase.from('users') as any).insert(data).select().single()
 
-/// 新增积分流水（触发器自动同步 users.points），返回含 data 的结果
+/// 新增积分流水（仅插入 point_records；云端无 point_records→users 同步触发器，
+/// 写入后须由调用方主动调用 recalcUserPoints 重算回写 users 展示列，详见 points skill §5.3）
 export const addPointRecord = (record: {
   user_id: string
   type: string
@@ -81,6 +82,16 @@ export const addPointRecord = (record: {
   (supabase.from('point_records') as any)
     .insert({ status: 'active', ...record })
     .select()
+
+/// 后台主动重算回写 users 积分展示列（替代不存在的触发器）。
+/// 调用 recalc_user_points RPC（SECURITY DEFINER + JWT 管理员校验，与 create_auth_user 同策略）。
+/// 失败仅告警不抛错，保证主流程（用户创建/积分调整）不受影响。
+export const recalcUserPoints = async (userId: string) => {
+  const { error } = await (supabase.rpc as any)('recalc_user_points', { p_user_id: userId })
+  if (error) {
+    console.warn('recalc_user_points 失败（请确认已在 Supabase SQL Editor 部署该 RPC）:', error.message)
+  }
+}
 
 /// 记录操作日志（写 operation_logs）
 export const logUserOperation = (entry: {

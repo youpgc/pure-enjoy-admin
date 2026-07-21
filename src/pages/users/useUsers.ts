@@ -22,6 +22,7 @@ import { generateUserId } from '../../utils/userId'
 import {
   createUser,
   addPointRecord,
+  recalcUserPoints,
   logUserOperation,
   fetchUserActivity,
 } from '../../services/userService'
@@ -202,7 +203,7 @@ export function useUsers() {
       height: formData.height ?? null,
       role: formData.role,
       member_level: formData.member_level,
-      // points 由 point_records 触发器自动维护，新用户默认 0
+      // 新建用户展示列默认 0；若设置初始积分，下方 addPointRecord + recalcUserPoints 会重算回写（无触发器）
       points: 0,
       effective_points: 0,
       available_points: 0,
@@ -229,7 +230,8 @@ export function useUsers() {
         return
       }
 
-      // 如果管理员设置了初始积分，插入 point_records 流水（触发器自动同步 users.points）
+      // 如果管理员设置了初始积分，插入 point_records 流水，随后主动重算回写 users 展示列
+      // （云端无 point_records→users 同步触发器，须后台主动回写，详见 points skill §5.3）
       const initPoints = formData.points ?? 0
       if (initPoints > 0) {
         const { data: pointRecord, error: recordError } = await addPointRecord({
@@ -246,6 +248,8 @@ export function useUsers() {
           console.warn('初始积分记录未写入：可能 RLS 策略阻止')
         }
       }
+      // 主动重算并回写 users 全部展示列（替代不存在的触发器）
+      await recalcUserPoints(userId)
 
       // 同步创建 auth.users 记录（使 App 端可通过 Supabase Auth 登录）
       await createAuthUser({ id: userId, ...newUser } as User, formData.password || '123456')
@@ -273,8 +277,8 @@ export function useUsers() {
     try {
       setSubmitting(true)
 
-      // 积分调整：如果 points 变动，插入 point_records 流水记录
-      // 数据库触发器会自动同步 users.effective_points / points
+      // 积分调整：如果 points 变动，插入 point_records 流水记录，随后主动重算回写 users 展示列
+      // （云端无同步触发器，须后台主动回写，详见 points skill §5.3）
       const oldPoints = currentUser.points ?? 0
       const newPoints = formData.points ?? 0
       const delta = newPoints - oldPoints
@@ -294,6 +298,8 @@ export function useUsers() {
           return
         }
       }
+      // 主动重算并回写 users 全部展示列（替代不存在的触发器）
+      await recalcUserPoints(currentUser.id)
 
       const updateData: Partial<User> = {
         phone: formData.phone || null,
@@ -312,7 +318,7 @@ export function useUsers() {
         role: formData.role,
         member_level: formData.member_level,
         status: formData.status,
-        // points 不再直接更新，由 point_records 触发器自动维护
+        // points 不再直接更新；展示列由 recalc_user_points RPC 后台主动重算回写（无触发器）
       }
 
       // 如果填写了新密码，更新密码哈希
