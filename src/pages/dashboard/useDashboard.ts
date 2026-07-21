@@ -316,11 +316,17 @@ export function useDashboard() {
     loadComments()
   }, [loadStats, loadNovels, loadComments])
 
-  // 仅挂载时自动加载一次；loadStats/loadNovels/loadComments 引用均已稳定，
-  // 切回浏览器等场景不会再触发重复刷新
+  // 仅挂载时自动加载一次。权限（usePermission）为异步加载，首帧 hasPermission 为 false，
+  // 若直接刷新会导致 loadStats 的权限门禁提前拦截、且后续权限就绪后 useEffect 不再二次触发，
+  // 从而卡片/趋势/最近活动这批「刷新按钮对应的接口」在初始化时不会被请求。
+  // 故用 didInitialLoadRef 保证：权限就绪后只自动加载一次，切回浏览器等场景不重复刷新。
+  const didInitialLoadRef = useRef(false)
   useEffect(() => {
+    if (didInitialLoadRef.current) return
+    if (!hasPermission('dashboard:read')) return
+    didInitialLoadRef.current = true
     refreshAll()
-  }, [refreshAll])
+  }, [hasPermission, refreshAll])
 
   return {
     lastUpdated,
