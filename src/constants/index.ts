@@ -96,6 +96,22 @@ export const SUPABASE_ERROR_CODE_MAP: Record<string, string> = {
   '42501': '没有权限执行此操作',
 }
 
+// ==================== 应用配置类型 ====================
+
+export const CONFIG_TYPE_MAP: Record<string, string> = {
+  string: '字符串',
+  number: '数字',
+  boolean: '布尔',
+  json: 'JSON',
+}
+
+export const CONFIG_TYPE_OPTIONS = [
+  { label: '字符串', value: 'string' as const },
+  { label: '数字', value: 'number' as const },
+  { label: '布尔', value: 'boolean' as const },
+  { label: 'JSON', value: 'json' as const },
+]
+
 // ==================== 权限系统 ====================
 
 export const ROLE_STATUS_LABELS: Record<string, string> = {
@@ -280,6 +296,15 @@ export const FEEDBACK_STATUS_ACTIONS: Record<string, string[]> = {
   resolved: [],
   rejected: [],
   delayed: ['in_progress', 'resolved', 'rejected'],
+}
+
+// 小说推荐反馈类型（与 FEEDBACK_CATEGORY_MAP 无关，属另一枚举：用户对推荐结果的反馈）
+export const RECOMMENDATION_FEEDBACK_TYPE_MAP: Record<string, { color: string; label: string }> = {
+  click: { color: 'blue', label: '点击' },
+  dismiss: { color: 'default', label: '忽略' },
+  collect: { color: 'magenta', label: '收藏' },
+  read: { color: 'green', label: '阅读' },
+  not_interested: { color: 'red', label: '不感兴趣' },
 }
 
 // ==================== 公告 ====================

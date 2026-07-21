@@ -27,6 +27,7 @@ import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { useMounted } from '../hooks/useMounted'
+import { CONFIG_TYPE_MAP } from '../constants'
 
 const { Text, Paragraph } = Typography
 
@@ -209,7 +210,7 @@ const AppConfigs: React.FC = () => {
       dataIndex: 'config_type',
       key: 'config_type',
       width: 100,
-      render: (type: string) => <Tag>{type}</Tag>,
+      render: (type: string) => <Tag>{CONFIG_TYPE_MAP[type] || type}</Tag>,
     },
     {
       title: '排序',

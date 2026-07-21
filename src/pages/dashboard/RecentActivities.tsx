@@ -2,6 +2,7 @@
 import { Avatar, Card, Empty, Tag, Typography } from 'antd'
 import { UserOutlined } from '@ant-design/icons'
 import { formatDateTime } from '../../utils/format'
+import { ACTION_LABEL_MAP, OP_MODULE_LABEL_MAP } from '../../constants'
 import type { RecentActivity } from './types'
 
 interface RecentActivitiesProps {
@@ -26,11 +27,11 @@ export function RecentActivities({ activities }: RecentActivitiesProps) {
             }}>
               <Avatar size="small" icon={<UserOutlined />} style={{ marginRight: 12 }} />
               <div style={{ flex: 1 }}>
-                <Text strong>{activity.user_nickname || '系统'}</Text>
-                <Text style={{ marginLeft: 8 }}>{activity.action}</Text>
-                {activity.module && (
-                  <Tag color="blue" style={{ marginLeft: 8 }}>{activity.module}</Tag>
-                )}
+              <Text strong>{activity.user_nickname || '系统'}</Text>
+              <Text style={{ marginLeft: 8 }}>{ACTION_LABEL_MAP[activity.action] || activity.action}</Text>
+              {activity.module && (
+                <Tag color="blue" style={{ marginLeft: 8 }}>{OP_MODULE_LABEL_MAP[activity.module] || activity.module}</Tag>
+              )}
               </div>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 {formatDateTime(activity.created_at)}

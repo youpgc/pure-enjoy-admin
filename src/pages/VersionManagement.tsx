@@ -23,7 +23,7 @@ import {
 } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import dayjs from 'dayjs'
-import { VERSION_STATUS_OPTIONS, VERSION_PLATFORM_OPTIONS } from '../constants'
+import { VERSION_STATUS_OPTIONS, VERSION_PLATFORM_OPTIONS, VERSION_PLATFORM_MAP } from '../constants'
 import { useVersions } from './versions/useVersions'
 import { buildVersionColumns } from './versions/columns'
 import { VersionFormModal } from './versions/VersionFormModal'
@@ -109,7 +109,7 @@ const VersionManagement: React.FC = () => {
                   {currentVersion.build_number}
                 </Descriptions.Item>
                 <Descriptions.Item label="平台">
-                  <Tag>{currentVersion.platform}</Tag>
+                  <Tag>{VERSION_PLATFORM_MAP[currentVersion.platform]?.label || currentVersion.platform}</Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="强制更新">
                   <Tag color={currentVersion.is_force_update ? 'red' : 'default'}>

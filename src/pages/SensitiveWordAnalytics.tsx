@@ -31,6 +31,7 @@ import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { useMounted } from '../hooks/useMounted'
+import { SENSITIVE_CATEGORY_MAP, SENSITIVE_LEVEL_MAP } from '../constants'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -197,15 +198,15 @@ const SensitiveWordAnalytics: React.FC = () => {
       title: '分类',
       dataIndex: 'category',
       key: 'category',
-      render: (category: string) => <Tag>{category}</Tag>,
+      render: (category: string) => <Tag>{SENSITIVE_CATEGORY_MAP[category]?.label || category}</Tag>,
     },
     {
       title: '等级',
       dataIndex: 'level',
       key: 'level',
       render: (level: string) => {
-        const color = level === 'high' ? 'purple' : level === 'medium' ? 'red' : 'orange'
-        return <Tag color={color}>{level}</Tag>
+        const info = SENSITIVE_LEVEL_MAP[level] || { color: 'default', label: level }
+        return <Tag color={info.color}>{info.label}</Tag>
       },
     },
     {

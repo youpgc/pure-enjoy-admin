@@ -12,6 +12,7 @@ import dayjs from 'dayjs'
 import { usePagination } from '../hooks/usePagination'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { useMounted } from '../hooks/useMounted'
+import { RECOMMENDATION_FEEDBACK_TYPE_MAP } from '../constants'
 
 // ==================== 类型定义 ====================
 
@@ -33,24 +34,6 @@ interface RecConfig {
   weight_category: number
   weight_read: number
   weight_collect: number
-}
-
-// ==================== 常量 ====================
-
-const FEEDBACK_TYPE_LABELS: Record<string, string> = {
-  click: '点击',
-  dismiss: '忽略',
-  collect: '收藏',
-  read: '阅读',
-  not_interested: '不感兴趣',
-}
-
-const FEEDBACK_TYPE_COLORS: Record<string, string> = {
-  click: 'blue',
-  dismiss: 'default',
-  collect: 'magenta',
-  read: 'green',
-  not_interested: 'red',
 }
 
 // ==================== 组件 ====================
@@ -122,7 +105,10 @@ const Recommendations: React.FC = () => {
     { title: '小说ID', dataIndex: 'novel_id', key: 'novel_id', width: 140, render: (v: string) => v.slice(0, 12) + '...' },
     {
       title: '反馈类型', dataIndex: 'feedback_type', key: 'type', width: 120,
-      render: (v: string) => <Tag color={FEEDBACK_TYPE_COLORS[v] || 'default'}>{FEEDBACK_TYPE_LABELS[v] || v}</Tag>,
+      render: (v: string) => {
+        const info = RECOMMENDATION_FEEDBACK_TYPE_MAP[v] || { color: 'default', label: v }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
     },
     {
       title: '时间', dataIndex: 'created_at', key: 'created_at', width: 150,
@@ -230,7 +216,7 @@ const Recommendations: React.FC = () => {
           <Card title='反馈数据汇总'>
             <Table
               columns={[
-                { title: '类型', key: 'type', render: (_: unknown, r: { type: string; count: number }) => <Tag color={FEEDBACK_TYPE_COLORS[r.type] || 'default'}>{FEEDBACK_TYPE_LABELS[r.type] || r.type}</Tag> },
+                { title: '类型', key: 'type', render: (_: unknown, r: { type: string; count: number }) => { const info = RECOMMENDATION_FEEDBACK_TYPE_MAP[r.type] || { color: 'default', label: r.type }; return <Tag color={info.color}>{info.label}</Tag> } },
                 { title: '次数', key: 'count', render: (_: unknown, r: { count: number }) => <b>{r.count}</b> },
               ]}
               dataSource={[
