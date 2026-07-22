@@ -7,21 +7,33 @@ import { ADMIN_ROLE_CODES } from '../constants'
 const { Title, Text } = Typography
 
 // 记录一次后台登录事件（best-effort，不阻塞登录流程）
-// 前端解析 GeoIP 地点，真实客户端 IP 由服务端 RPC 从 request.headers 提取
-async function recordAdminLogin(username: string, success: boolean) {
-  let location: string | undefined
-  try {
-    const res = await fetch('https://ipapi.co/json/')
-    if (res.ok) {
-      const j = (await res.json()) as Record<string, unknown>
-      location = [j['country_name'], j['region'], j['city']]
-        .filter((v) => v != null && `${v}`.trim() !== '')
-        .join(' ')
-      if (location === '') location = undefined
+// 前端解析 GeoIP 地点（主用 ipapi.co，失败回退 api.ip.sb），真实客户端 IP 由服务端 RPC 从 request.headers 提取
+const GEO_PROVIDERS: { url: string; fields: string[] }[] = [
+  { url: 'https://ipapi.co/json/', fields: ['country_name', 'region', 'city'] },
+  { url: 'https://api.ip.sb/geoip/', fields: ['country', 'region', 'city'] },
+]
+
+async function resolveLocation(): Promise<string | undefined> {
+  for (const p of GEO_PROVIDERS) {
+    try {
+      const res = await fetch(p.url)
+      if (res.ok) {
+        const j = (await res.json()) as Record<string, unknown>
+        const loc = p.fields
+          .map((f) => j[f])
+          .filter((v) => v != null && `${v}`.trim() !== '')
+          .join(' ')
+        if (loc.trim() !== '') return loc
+      }
+    } catch {
+      // 尝试下一个兜底接口
     }
-  } catch {
-    location = undefined
   }
+  return undefined
+}
+
+async function recordAdminLogin(username: string, success: boolean) {
+  const location = await resolveLocation()
   try {
     await supabase.rpc('record_login', {
       p_source: 'admin',
