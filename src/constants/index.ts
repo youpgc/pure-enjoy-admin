@@ -83,7 +83,7 @@ export const DEFAULT_USER_FORM_VALUES = {
   role: ROLE_USER as UserRole,
   member_level: 'normal' as MemberLevel,
   status: USER_STATUS_ACTIVE as UserStatus,
-  points: 0,
+  available_points: 0,
 }
 
 // ==================== Supabase 错误码 ====================

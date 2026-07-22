@@ -93,9 +93,8 @@ export interface UserFormData {
   role: UserRole
   member_level: MemberLevel
   status: UserStatus
-  points: number
   effective_points?: number
-  available_points?: number
+  available_points: number
   expiring_points?: number
   consecutive_checkin_days?: number
   last_checkin_date?: Dayjs | string | null

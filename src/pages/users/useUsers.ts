@@ -232,7 +232,7 @@ export function useUsers() {
 
       // 如果管理员设置了初始积分，插入 point_records 流水，随后主动重算回写 users 展示列
       // （云端无 point_records→users 同步触发器，须后台主动回写，详见 points skill §5.3）
-      const initPoints = formData.points ?? 0
+      const initPoints = formData.available_points ?? 0
       if (initPoints > 0) {
         const { data: pointRecord, error: recordError } = await addPointRecord({
           user_id: userId,
@@ -280,18 +280,20 @@ export function useUsers() {
     try {
       setSubmitting(true)
 
-      // 积分调整：如果 points 变动，插入 point_records 流水记录，随后主动重算回写 users 展示列
+      // 可用积分调整：如果 available_points 变动，插入 point_records 流水记录，随后主动重算回写 users 展示列
       // （云端无同步触发器，须后台主动回写，详见 points skill §5.3）
-      const oldPoints = currentUser.points ?? 0
-      const newPoints = formData.points ?? 0
-      const delta = newPoints - oldPoints
+      // G2 修复：表单「积分」字段现绑定 available_points（当前可用余额），delta 以可用余额为基准，
+      // 增/减都生效（recalc 后 available 落为新值）；累计获得 points 只读展示，不在此变动。
+      const oldAvailable = currentUser.available_points ?? 0
+      const newAvailable = formData.available_points ?? 0
+      const delta = newAvailable - oldAvailable
 
       if (delta !== 0) {
         const { error: recordError } = await addPointRecord({
           user_id: currentUser.id,
           type: 'admin_adjust',
           amount: delta,
-          remark: `管理员调整：${oldPoints} → ${newPoints}`,
+          remark: `管理员调整可用积分：${oldAvailable} → ${newAvailable}`,
           operator_name: adminUser?.nickname || adminUser?.email || '管理员',
           operator_id: adminUser?.id,
         })

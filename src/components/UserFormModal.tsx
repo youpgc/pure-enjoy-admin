@@ -71,7 +71,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           role: user.role,
           member_level: user.member_level,
           status: user.status,
-          points: user.points,
+          available_points: user.available_points ?? 0,
         })
         setAvatarUrl(user.avatar_url || '')
       } else {
@@ -364,14 +364,15 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
         </Form.Item>
 
         <Form.Item
-          name="points"
-          label="积分"
-          rules={[{ required: true, message: '请输入积分' }]}
+          name="available_points"
+          label="可用积分（当前余额）"
+          tooltip="调整用户的当前可用积分余额；增/减都会生成一条 admin_adjust 流水并由后台重算回写。累计获得为只读展示，不在此处变动。"
+          rules={[{ required: true, message: '请输入可用积分' }]}
         >
           <InputNumber
             min={0}
             style={{ width: '100%' }}
-            placeholder="请输入积分"
+            placeholder="请输入可用积分（当前余额）"
           />
         </Form.Item>
       </Form>
