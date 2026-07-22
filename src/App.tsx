@@ -74,6 +74,7 @@ import Bookmarks from './pages/Bookmarks'
 import Annotations from './pages/Annotations'
 import Recommendations from './pages/Recommendations'
 import TtsManagement from './pages/TtsManagement'
+import LoginLogs from './pages/LoginLogs'
 import { supabase } from './utils/supabase'
 
 const { Header, Sider, Content } = Layout
@@ -186,7 +187,7 @@ type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' 
   'novels' | 'novel_bookshelves' | 'novel_comments' | 'rankings' | 'bookmarks' | 'annotations' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
-  | 'anniversaries' | 'points' | 'error_logs' | 'recommendations' | 'tts_management'
+  | 'anniversaries' | 'points' | 'error_logs' | 'recommendations' | 'tts_management' | 'login_logs'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -206,7 +207,7 @@ const MainLayout: React.FC = () => {
   const [openKeys, setOpenKeys] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
   const { user, logout } = useAuth()
-  const { hasMenuPermission } = usePermission()
+  const { hasMenuPermission, isAdmin } = usePermission()
   const {
     token: { colorBgContainer },
   } = theme.useToken()
@@ -368,6 +369,14 @@ const MainLayout: React.FC = () => {
         ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
       },
     ] : []),
+    // 登录日志（管理员/超级管理员可见，独立于系统设置组以确保任何管理员角色均可见）
+    ...(isAdmin() ? [
+      {
+        key: 'login_logs',
+        icon: <AlertOutlined />,
+        label: '登录日志',
+      },
+    ] : []),
   ].filter(Boolean)
 
   const renderPage = () => {
@@ -438,6 +447,8 @@ const MainLayout: React.FC = () => {
         return <PointsManagement />
       case 'error_logs':
         return <ErrorLogs />
+      case 'login_logs':
+        return <LoginLogs />
       default:
         return <Dashboard />
     }
@@ -478,6 +489,7 @@ const MainLayout: React.FC = () => {
       anniversaries: '纪念日',
       points: '积分管理',
       error_logs: '错误日志',
+      login_logs: '登录日志',
     }
     return titles[currentPage] || '数据概览'
   }

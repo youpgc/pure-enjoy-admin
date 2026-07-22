@@ -6,6 +6,35 @@ import { ADMIN_ROLE_CODES } from '../constants'
 
 const { Title, Text } = Typography
 
+// 记录一次后台登录事件（best-effort，不阻塞登录流程）
+// 前端解析 GeoIP 地点，真实客户端 IP 由服务端 RPC 从 request.headers 提取
+async function recordAdminLogin(username: string, success: boolean) {
+  let location: string | undefined
+  try {
+    const res = await fetch('https://ipapi.co/json/')
+    if (res.ok) {
+      const j = (await res.json()) as Record<string, unknown>
+      location = [j['country_name'], j['region'], j['city']]
+        .filter((v) => v != null && `${v}`.trim() !== '')
+        .join(' ')
+      if (location === '') location = undefined
+    }
+  } catch {
+    location = undefined
+  }
+  try {
+    await supabase.rpc('record_login', {
+      p_source: 'admin',
+      p_status: success ? 'success' : 'failed',
+      p_user_agent: navigator.userAgent,
+      p_location: location,
+      p_username: username,
+    } as any)
+  } catch {
+    // 记录失败不影响登录主流程
+  }
+}
+
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false)
 
@@ -44,11 +73,15 @@ const Login: React.FC = () => {
       }
 
       message.success('登录成功')
+      // 记录登录成功日志（等待写入后再跳转，确保审计完整）
+      await recordAdminLogin(values.username, true)
       // 刷新页面让 AuthGuard 读取新的会话状态
       window.location.href = '/pure-enjoy-admin/'
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '登录失败'
       message.error(errorMessage)
+      // 记录登录失败日志（best-effort）
+      recordAdminLogin(values.username, false).catch(() => {})
       if (import.meta.env.DEV) {
         console.error('[Login] 登录失败:', err)
       }
