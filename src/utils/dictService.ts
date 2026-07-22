@@ -18,6 +18,13 @@ const dictCache: Record<string, DictItem[]> = {}
 let cacheTimestamp: Record<string, number> = {}
 const CACHE_TTL = 5 * 60 * 1000 // 5分钟缓存
 
+// 并发去重：同一 typeCode 的多个并发请求只发一次真实查询。
+// TTL 缓存只能拦住「上一次已落定」的请求，拦不住同帧并发——
+// 例如 UserDetailDrawer 挂载时，同一 typeCode 的 useDictOptions 与 useDictColors
+// 会并发触发两次 getDictItems，须用 in-flight Promise 去重，否则每种类型都被打 2 次
+// dict_types + dict_items 查询。
+const dictInflight: Record<string, Promise<DictItem[]>> = {}
+
 /**
  * 获取字典项列表
  * @param typeCode 字典类型编码
@@ -32,54 +39,66 @@ export async function getDictItems(typeCode: string, useCache = true): Promise<D
     }
   }
 
-  try {
-    // 第1步：查询 dict_types 获取 type_id
-    const { data: typeData, error: typeError } = await (supabase as any)
-      .from('dict_types')
-      .select('id')
-      .eq('code', typeCode)
-      .eq('is_active', true)
-      .single()
-
-    if (typeError || !typeData) {
-      console.warn(`字典类型未找到(${typeCode}):`, typeError?.message)
-      return []
-    }
-
-    const typeId = typeData.id as string
-
-    // 第2步：查询 dict_items 获取字典项
-    const { data, error } = await (supabase as any)
-      .from('dict_items')
-      // dict_items 真实列：code/label/value/extra/sort_order/is_default/status/...
-      // 不含 item_code/item_name/item_value/extra_data（旧字段已移除），select 越列会触发 42703
-      .select('code, label, value, sort_order, extra')
-      .eq('type_id', typeId)
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true })
-
-    if (error) {
-      console.warn(`字典项查询失败(${typeCode}):`, error.message)
-      return []
-    }
-
-    const items: DictItem[] = ((data || []) as any[]).map((item: any) => ({
-      code: item.code ?? '',
-      label: item.label ?? '',
-      value: item.value ?? null,
-      sort_order: item.sort_order ?? 0,
-      extra: item.extra ?? null,
-    }))
-
-    // 更新缓存
-    dictCache[typeCode] = items
-    cacheTimestamp[typeCode] = Date.now()
-
-    return items
-  } catch (err) {
-    console.error(`获取字典数据异常(${typeCode}):`, err)
-    return []
+  // 并发去重：已有同 typeCode 的在途请求则直接复用其结果
+  if (dictInflight[typeCode]) {
+    return dictInflight[typeCode]
   }
+
+  const inflight = (async (): Promise<DictItem[]> => {
+    try {
+      // 第1步：查询 dict_types 获取 type_id
+      const { data: typeData, error: typeError } = await (supabase as any)
+        .from('dict_types')
+        .select('id')
+        .eq('code', typeCode)
+        .eq('is_active', true)
+        .single()
+
+      if (typeError || !typeData) {
+        console.warn(`字典类型未找到(${typeCode}):`, typeError?.message)
+        return []
+      }
+
+      const typeId = typeData.id as string
+
+      // 第2步：查询 dict_items 获取字典项
+      const { data, error } = await (supabase as any)
+        .from('dict_items')
+        // dict_items 真实列：code/label/value/extra/sort_order/is_default/status/...
+        // 不含 item_code/item_name/item_value/extra_data（旧字段已移除），select 越列会触发 42703
+        .select('code, label, value, sort_order, extra')
+        .eq('type_id', typeId)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+
+      if (error) {
+        console.warn(`字典项查询失败(${typeCode}):`, error.message)
+        return []
+      }
+
+      const items: DictItem[] = ((data || []) as any[]).map((item: any) => ({
+        code: item.code ?? '',
+        label: item.label ?? '',
+        value: item.value ?? null,
+        sort_order: item.sort_order ?? 0,
+        extra: item.extra ?? null,
+      }))
+
+      // 更新缓存
+      dictCache[typeCode] = items
+      cacheTimestamp[typeCode] = Date.now()
+
+      return items
+    } catch (err) {
+      console.error(`获取字典数据异常(${typeCode}):`, err)
+      return []
+    } finally {
+      delete dictInflight[typeCode]
+    }
+  })()
+
+  dictInflight[typeCode] = inflight
+  return inflight
 }
 
 /**
@@ -118,10 +137,14 @@ export function clearDictCache(typeCode?: string) {
   if (typeCode) {
     delete dictCache[typeCode]
     delete cacheTimestamp[typeCode]
+    delete dictInflight[typeCode]
   } else {
     Object.keys(dictCache).forEach(key => {
       delete dictCache[key]
       delete cacheTimestamp[key]
+    })
+    Object.keys(dictInflight).forEach(key => {
+      delete dictInflight[key]
     })
   }
 }
