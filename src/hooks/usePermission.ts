@@ -4,71 +4,101 @@ import { hasPermission as checkPermission } from '../types/permission'
 import { ROLE_SUPER_ADMIN, ROLE_ADMIN } from '../constants'
 
 // ==================== 权限 Hook ====================
+// 模块级共享：避免多个组件并发 usePermission 时重复发起 `permissions?select=name`
+// 首屏 Dashboard 等页面会同时挂载多个使用本 hook 的组件，各自 useEffect 触发 loadPermissions。
+// 这里用单次 in-flight Promise 去重 + 会话内结果缓存，保证同一用户会话只发一次真实请求。
+// 权限变更/登出由 reload() 与 auth 事件清理缓存后重新拉取。
+type PermissionLoadResult = {
+  role: string
+  permissions: string[]
+}
+
+let permissionInflight: Promise<PermissionLoadResult> | null = null
+let permissionCache: PermissionLoadResult | null = null
+
+function clearPermissionCache() {
+  permissionInflight = null
+  permissionCache = null
+}
+
+async function fetchPermissionData(): Promise<PermissionLoadResult> {
+  if (permissionInflight) return permissionInflight
+  if (permissionCache) return permissionCache
+
+  permissionInflight = (async (): Promise<PermissionLoadResult> => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) {
+      return { role: '', permissions: [] }
+    }
+
+    const userMetadata = session.user.user_metadata || {}
+    const appMetadata = session.user.app_metadata || {}
+    const userRole = (userMetadata.role || appMetadata.role || '') as string
+
+    // 超级管理员直接拥有所有权限
+    if (userRole === ROLE_SUPER_ADMIN) {
+      const { data: allPerms } = await supabase
+        .from('permissions')
+        .select('name')
+      return {
+        role: userRole,
+        permissions: (allPerms as Array<{ name: string }> | null)?.map((p) => p.name) || [],
+      }
+    }
+
+    // 其他角色从数据库查询权限列表
+    const { data: roleData } = await supabase
+      .from('roles')
+      .select('id')
+      .eq('code', userRole)
+      .single()
+
+    const roleId = (roleData as unknown as { id: number } | null)?.id
+    if (!roleId) {
+      return { role: userRole, permissions: [] }
+    }
+
+    const { data: rolePerms } = await supabase
+      .from('role_permissions')
+      .select('permission_id')
+      .eq('role_id', roleId)
+
+    if (!rolePerms || rolePerms.length === 0) {
+      return { role: userRole, permissions: [] }
+    }
+
+    const permissionIds = (rolePerms as unknown as Array<{ permission_id: number }>).map((rp) => rp.permission_id)
+    const { data: permData } = await supabase
+      .from('permissions')
+      .select('name')
+      .in('id', permissionIds)
+
+    return {
+      role: userRole,
+      permissions: ((permData as unknown as Array<{ name: string }> | null)?.map((p) => p.name)) || [],
+    }
+  })()
+
+  try {
+    permissionCache = await permissionInflight
+    return permissionCache
+  } finally {
+    permissionInflight = null
+  }
+}
 
 export const usePermission = () => {
   const [permissions, setPermissions] = useState<string[]>([])
   const [role, setRole] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
-  // 加载当前用户的权限列表
+  // 加载当前用户的权限列表（结果经模块级去重/缓存，同一会话最多一次真实请求）
   const loadPermissions = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user) {
-        setPermissions([])
-        setRole('')
-        setLoading(false)
-        return
-      }
-
-      // 从 user_metadata 或 app_metadata 获取角色
-      const userMetadata = session.user.user_metadata || {}
-      const appMetadata = session.user.app_metadata || {}
-      const userRole = (userMetadata.role || appMetadata.role || '') as string
-      setRole(userRole)
-
-      // 超级管理员直接拥有所有权限
-      if (userRole === ROLE_SUPER_ADMIN) {
-        const { data: allPerms } = await supabase
-          .from('permissions')
-          .select('name')
-        setPermissions(allPerms?.map((p: { name: string }) => p.name) || [])
-        setLoading(false)
-        return
-      }
-
-      // 其他角色从数据库查询权限列表
-      const { data: roleData } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('code', userRole)
-        .single()
-
-      const roleId = (roleData as unknown as { id: number } | null)?.id
-      if (!roleId) {
-        setPermissions([])
-        setLoading(false)
-        return
-      }
-
-      const { data: rolePerms } = await supabase
-        .from('role_permissions')
-        .select('permission_id')
-        .eq('role_id', roleId)
-
-      if (!rolePerms || rolePerms.length === 0) {
-        setPermissions([])
-        setLoading(false)
-        return
-      }
-
-      const permissionIds = (rolePerms as unknown as Array<{ permission_id: number }>).map(rp => rp.permission_id)
-      const { data: permData } = await supabase
-        .from('permissions')
-        .select('name')
-        .in('id', permissionIds)
-
-      setPermissions((permData as unknown as Array<{ name: string }>)?.map(p => p.name) || [])
+      setLoading(true)
+      const result = await fetchPermissionData()
+      setRole(result.role)
+      setPermissions(result.permissions)
     } catch (error) {
       console.error('[usePermission] 加载权限失败:', error)
       setPermissions([])
@@ -76,6 +106,12 @@ export const usePermission = () => {
       setLoading(false)
     }
   }, [])
+
+  // 强制刷新：清理缓存后重新拉取
+  const reload = useCallback(async () => {
+    clearPermissionCache()
+    await loadPermissions()
+  }, [loadPermissions])
 
   // 判断是否有某个权限（基于数据库配置，禁止硬编码特权）
   const hasPermission = useCallback((permissionName: string): boolean => {
@@ -111,6 +147,7 @@ export const usePermission = () => {
         if (session?.user) {
           loadPermissions()
         } else {
+          clearPermissionCache()
           setPermissions([])
           setRole('')
         }
@@ -132,6 +169,6 @@ export const usePermission = () => {
     hasMenuPermission,
     isSuperAdmin,
     isAdmin,
-    reload: loadPermissions,
+    reload,
   }
 }
