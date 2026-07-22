@@ -12,6 +12,7 @@ import dayjs from 'dayjs'
 import { usePagination } from '../hooks/usePagination'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { useMounted } from '../hooks/useMounted'
+import { supabase } from '../utils/supabase'
 import { RECOMMENDATION_FEEDBACK_TYPE_MAP } from '../constants'
 
 // ==================== 类型定义 ====================
@@ -56,14 +57,31 @@ const Recommendations: React.FC = () => {
   const feedbackService = React.useMemo(() => new BaseService<UserRecommendationFeedback>('user_recommendation_feedback', { defaultOrder: { column: 'created_at', ascending: false } }), [])
   const { pagination, setTotal, tablePagination } = usePagination(20)
 
-  // 加载配置
+  // 加载配置（从 recommend_config 表读取全局单行，淘汰 localStorage 持久化）
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('rec_config')
-      if (saved) setConfig(JSON.parse(saved))
-    } catch (err) {
-      console.warn('[Recommendations] localStorage 读取失败:', err)
-    }
+    (async () => {
+      try {
+        const { data, error } = await (supabase.from('recommend_config') as any)
+          .select('*')
+          .eq('id', 'global')
+          .maybeSingle()
+        if (data && !error) {
+          setConfig((prev) => ({
+            cold_start: data.cold_start ?? prev.cold_start,
+            cold_min_reads: data.cold_min_reads ?? prev.cold_min_reads,
+            rec_limit: data.rec_limit ?? prev.rec_limit,
+            exclude_ongoing: data.exclude_ongoing ?? prev.exclude_ongoing,
+            exclude_draft: data.exclude_draft ?? prev.exclude_draft,
+            exclude_ids: data.exclude_ids ?? prev.exclude_ids,
+            weight_category: data.weight_category ?? prev.weight_category,
+            weight_read: data.weight_read ?? prev.weight_read,
+            weight_collect: data.weight_collect ?? prev.weight_collect,
+          }))
+        }
+      } catch (err) {
+        console.warn('[Recommendations] 配置加载失败，使用默认:', err)
+      }
+    })()
   }, [])
 
   const fetchFeedback = useCallback(async () => {
@@ -84,9 +102,18 @@ const Recommendations: React.FC = () => {
 
   useEffect(() => { fetchFeedback() }, [fetchFeedback])
 
-  const saveConfig = () => {
-    localStorage.setItem('rec_config', JSON.stringify(config))
-    message.success('推荐配置已保存')
+  const saveConfig = async () => {
+    try {
+      const { error } = await (supabase.from('recommend_config') as any)
+        .upsert({ id: 'global', ...config })
+      if (error) {
+        handleApiError(error, 'Recommendations-保存配置')
+        return
+      }
+      message.success('推荐配置已保存')
+    } catch (err) {
+      handleApiError(err, 'Recommendations-保存配置')
+    }
   }
 
   // 统计
