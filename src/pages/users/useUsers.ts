@@ -128,7 +128,7 @@ export function useUsers() {
         action,
         module: 'users',
         target_id: targetId,
-        detail: details,
+        details: details,
       })
     } catch (err) {
       console.error('Failed to log operation:', err)

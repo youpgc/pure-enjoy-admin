@@ -486,7 +486,7 @@ export interface Database {
           action: string
           module: string | null
           target_id: string | null
-          detail: Json | null
+          details: Json | null
           ip: string | null
           user_agent: string | null
           created_at: string

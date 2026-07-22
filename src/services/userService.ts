@@ -101,7 +101,7 @@ export const logUserOperation = (entry: {
   action: string
   module: string
   target_id: string
-  detail: Record<string, unknown>
+  details: Record<string, unknown>
 }) => (supabase.from('operation_logs') as any).insert(entry)
 
 /// 统计用户各模块数据量与最近操作日志（返回与页面 Promise.all 解构顺序一致的元组）
@@ -114,7 +114,7 @@ export const fetchUserActivity = (userId: string) =>
     supabase.from('user_novels').select('id', { count: 'exact' }).eq('user_id', userId),
     supabase
       .from('operation_logs')
-      .select('id, user_id, action, module, target_id, detail, ip, user_agent, created_at')
+      .select('id, user_id, action, module, target_id, details, ip, user_agent, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(10),

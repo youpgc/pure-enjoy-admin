@@ -41,7 +41,7 @@ interface OperationLog {
   action: string
   module: string
   target_id?: string
-  detail?: Record<string, unknown>
+  details?: Record<string, unknown>
   ip?: string
   user_agent?: string
   created_at: string
@@ -219,8 +219,8 @@ const OperationLogs: React.FC = () => {
     },
     {
       title: '详情',
-      dataIndex: 'detail',
-      key: 'detail',
+      dataIndex: 'details',
+      key: 'details',
       ellipsis: true,
       render: (v: Record<string, unknown>) => {
         if (!v) return '-'

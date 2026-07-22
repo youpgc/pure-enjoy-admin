@@ -120,7 +120,7 @@ export interface OperationLog {
   action: string
   module: string | null
   target_id: string | null
-  detail: Record<string, unknown> | null
+  details: Record<string, unknown> | null
   ip: string | null
   user_agent: string | null
   created_at: string
