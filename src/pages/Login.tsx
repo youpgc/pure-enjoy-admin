@@ -16,7 +16,14 @@ const GEO_PROVIDERS: { url: string; fields: string[] }[] = [
 async function resolveLocation(): Promise<string | undefined> {
   for (const p of GEO_PROVIDERS) {
     try {
-      const res = await fetch(p.url)
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 3000)
+      let res: Response
+      try {
+        res = await fetch(p.url, { signal: controller.signal })
+      } finally {
+        clearTimeout(timer)
+      }
       if (res.ok) {
         const j = (await res.json()) as Record<string, unknown>
         const loc = p.fields
@@ -85,8 +92,8 @@ const Login: React.FC = () => {
       }
 
       message.success('登录成功')
-      // 记录登录成功日志（等待写入后再跳转，确保审计完整）
-      await recordAdminLogin(values.username, true)
+      // 异步记录登录成功日志（best-effort，不阻塞跳转；GeoIP 已加超时，避免慢网拖住）
+      recordAdminLogin(values.username, true).catch(() => {})
       // 刷新页面让 AuthGuard 读取新的会话状态
       window.location.href = '/pure-enjoy-admin/'
     } catch (err: unknown) {
