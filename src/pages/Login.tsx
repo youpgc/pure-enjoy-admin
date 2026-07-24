@@ -39,7 +39,11 @@ async function resolveLocation(): Promise<string | undefined> {
 }
 
 async function recordAdminLogin(username: string, success: boolean) {
-  const location = await resolveLocation()
+  // 快速解析地点（最多 1.2s，避免拖慢登录跳转）；后端已取真实 IP，地点仅为补充展示
+  const location = await Promise.race<Promise<string | undefined>>([
+    resolveLocation(),
+    new Promise<string | undefined>((resolve) => setTimeout(() => resolve(undefined), 1200)),
+  ])
   try {
     await supabase.rpc('record_login', {
       p_source: 'admin',
@@ -86,8 +90,9 @@ const Login: React.FC = () => {
       }
 
       message.success('登录成功')
-      // 异步记录登录成功日志（best-effort，不阻塞跳转；GeoIP 已加超时，避免慢网拖住）
-      recordAdminLogin(values.username, true).catch(() => {})
+      // 必须先 await 日志记录完成，再整页跳转；否则 window.location.href 会中断在途的
+      // record_login RPC 请求，导致登录日志整行丢失（这正是之前「SQL 已执行却无日志」的根因之一）
+      await recordAdminLogin(values.username, true)
       // 刷新页面让 AuthGuard 读取新的会话状态
       window.location.href = '/pure-enjoy-admin/'
     } catch (err: unknown) {
