@@ -12,6 +12,8 @@ import dayjs from 'dayjs'
 import { usePagination } from '../hooks/usePagination'
 import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
 import EllipsisText from '../components/EllipsisText'
+import { useUsernames } from '../hooks/useUsernames'
+import { UserName } from '../components/UserName'
 
 // ==================== 类型定义 ====================
 
@@ -47,6 +49,9 @@ const Bookmarks: React.FC = () => {
   const [activeTab, setActiveTab] = useState('progress')
   const [loading, setLoading] = useState(false)
   const [progressData, setProgressData] = useState<UserNovelProgress[]>([])
+
+  // 批量解析列表中涉及的用户名（用于「用户名」列）
+  const userMap = useUsernames(progressData.map((d) => d.user_id))
   const [completionData, setCompletionData] = useState<CompletionRate[]>([])
   const [novelMap, setNovelMap] = useState<Map<string, string>>(new Map())
   const [searchUser, setSearchUser] = useState('')
@@ -135,6 +140,7 @@ const Bookmarks: React.FC = () => {
 
   const progressColumns: ColumnsType<UserNovelProgress> = [
     { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 140, render: (v: string) => v.slice(0, 12) + '...' },
+    { title: '用户名', dataIndex: 'user_id', key: 'username', width: 120, render: (v: string) => <UserName userId={v} userMap={userMap} /> },
     { title: '小说', dataIndex: 'novel_id', key: 'novel', render: (v: string) => <EllipsisText text={novelMap.get(v) || v.slice(0, 8)} maxWidth={200} /> },
     {
       title: '进度', dataIndex: 'progress', key: 'progress', width: 180,

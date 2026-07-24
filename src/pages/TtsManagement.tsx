@@ -13,6 +13,8 @@ import dayjs from 'dayjs'
 import { usePagination } from '../hooks/usePagination'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
+import { useUsernames } from '../hooks/useUsernames'
+import { UserName } from '../components/UserName'
 
 // ==================== 类型定义 ====================
 
@@ -65,6 +67,9 @@ const TtsManagement: React.FC = () => {
   const [searchUser, setSearchUser] = useState('')
   const [minDuration, setMinDuration] = useState<number | null>(null)
   const [playStats, setPlayStats] = useState<UserPlayStats[]>([])
+
+  // 批量解析列表中涉及的用户名（用于「用户名」列）
+  const userMap = useUsernames([...logs, ...playStats].map((l) => l.user_id))
   const [novelStats, setNovelStats] = useState<NovelPlayStats[]>([])
   const [errorStats, setErrorStats] = useState({ failCount: 0, interruptCount: 0, totalCount: 0 })
   const logService = React.useMemo(() => new BaseService<TtsPlaybackLog>('tts_playback_logs', { defaultOrder: { column: 'created_at', ascending: false } }), [])
@@ -151,6 +156,7 @@ const TtsManagement: React.FC = () => {
 
   const columns: ColumnsType<TtsPlaybackLog> = [
     { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 140, render: (v: string) => v.slice(0, 12) + '...' },
+    { title: '用户名', dataIndex: 'user_id', key: 'username', width: 120, render: (v: string) => <UserName userId={v} userMap={userMap} /> },
     { title: '小说ID', dataIndex: 'novel_id', key: 'novel_id', width: 140, render: (v: string) => v.slice(0, 12) + '...' },
     { title: '语速', dataIndex: 'speech_rate', key: 'speech_rate', width: 70, render: (v: number) => `${v.toFixed(1)}x` },
     {
@@ -170,6 +176,7 @@ const TtsManagement: React.FC = () => {
   const statsColumns: ColumnsType<UserPlayStats> = [
     { title: '#', key: 'rank', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
     { title: '用户ID', dataIndex: 'user_id', key: 'user_id', render: (v: string) => v.slice(0, 12) + '...' },
+    { title: '用户名', dataIndex: 'user_id', key: 'username', width: 120, render: (v: string) => <UserName userId={v} userMap={userMap} /> },
     { title: '播放次数', dataIndex: 'play_count', key: 'play_count', width: 120, align: 'right' },
     { title: '总时长', dataIndex: 'total_duration', key: 'total_duration', width: 120, align: 'right', render: (v: number) => formatDuration(v) },
   ]

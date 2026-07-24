@@ -14,6 +14,8 @@ import { BaseService, handleApiError } from '../utils/apiClient'
 import { useMounted } from '../hooks/useMounted'
 import { supabase } from '../utils/supabase'
 import { RECOMMENDATION_FEEDBACK_TYPE_MAP } from '../constants'
+import { useUsernames } from '../hooks/useUsernames'
+import { UserName } from '../components/UserName'
 
 // ==================== 类型定义 ====================
 
@@ -43,6 +45,9 @@ const Recommendations: React.FC = () => {
   const mountedRef = useMounted()
   const [loading, setLoading] = useState(false)
   const [feedbackData, setFeedbackData] = useState<UserRecommendationFeedback[]>([])
+
+  // 批量解析列表中涉及的用户名（用于「用户名」列）
+  const userMap = useUsernames(feedbackData.map((d) => d.user_id))
   const [config, setConfig] = useState<RecConfig>({
     cold_start: 'hot',
     cold_min_reads: 100,
@@ -129,6 +134,7 @@ const Recommendations: React.FC = () => {
 
   const columns: ColumnsType<UserRecommendationFeedback> = [
     { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 140, render: (v: string) => v.slice(0, 12) + '...' },
+    { title: '用户名', dataIndex: 'user_id', key: 'username', width: 120, render: (v: string) => <UserName userId={v} userMap={userMap} /> },
     { title: '小说ID', dataIndex: 'novel_id', key: 'novel_id', width: 140, render: (v: string) => v.slice(0, 12) + '...' },
     {
       title: '反馈类型', dataIndex: 'feedback_type', key: 'type', width: 120,

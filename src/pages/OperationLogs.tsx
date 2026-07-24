@@ -28,6 +28,8 @@ import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
 import { ACTION_MAP, OP_MODULE_MAP, ACTION_OPTIONS, MODULE_OPTIONS } from '../constants'
+import { useUsernames } from '../hooks/useUsernames'
+import { UserName } from '../components/UserName'
 
 const { RangePicker } = DatePicker
 
@@ -68,6 +70,9 @@ const OperationLogs: React.FC = () => {
   const mountedRef = useMounted()
 
   const [logs, setLogs] = useState<OperationLog[]>([])
+
+  // 批量解析列表中涉及的用户名（用于「用户名」列）
+  const userMap = useUsernames(logs.map((l) => l.user_id))
   const [loading, setLoading] = useState(false)
   const [filters, setFilters] = useState<LogFilters>({
     keyword: '',
@@ -187,6 +192,13 @@ const OperationLogs: React.FC = () => {
       width: 200,
       ellipsis: true,
       render: (v: string) => v || '-',
+    },
+    {
+      title: '用户名',
+      dataIndex: 'user_id',
+      key: 'username',
+      width: 120,
+      render: (v: string) => <UserName userId={v} userMap={userMap} />,
     },
     {
       title: '操作',

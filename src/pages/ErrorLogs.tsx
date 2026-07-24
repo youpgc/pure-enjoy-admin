@@ -23,6 +23,8 @@ import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
 import { ERROR_LOG_LEVEL_MAP, ERROR_LOG_LEVEL_OPTIONS } from '../constants'
 import EllipsisText from '../components/EllipsisText'
+import { useUsernames } from '../hooks/useUsernames'
+import { UserName } from '../components/UserName'
 
 // ==================== 类型定义 ====================
 
@@ -59,6 +61,9 @@ const ErrorLogs: React.FC = () => {
   const errorLogService = React.useMemo(() => new BaseService<ErrorLog>('error_logs', {
     defaultOrder: { column: 'created_at', ascending: false },
   }), [])
+
+  // 批量解析列表中涉及的用户名（用于「用户名」列）
+  const userMap = useUsernames(errorLogs.map((l) => l.user_id))
 
   // 加载错误日志列表
   const loadErrorLogs = useCallback(async () => {
@@ -185,6 +190,13 @@ const ErrorLogs: React.FC = () => {
       width: 200,
       ellipsis: true,
       render: (v: string) => v || '-',
+    },
+    {
+      title: '用户名',
+      dataIndex: 'user_id',
+      key: 'username',
+      width: 120,
+      render: (v: string) => <UserName userId={v} userMap={userMap} />,
     },
     {
       title: '创建时间',

@@ -17,6 +17,8 @@ import { usePermission } from '../hooks/usePermission'
 import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
 import { useMounted } from '../hooks/useMounted'
 import EllipsisText from '../components/EllipsisText'
+import { useUsernames } from '../hooks/useUsernames'
+import { UserName } from '../components/UserName'
 
 // ==================== 类型定义 ====================
 
@@ -66,6 +68,9 @@ const Annotations: React.FC = () => {
   const [activeTab, setActiveTab] = useState('list')
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<NovelAnnotation[]>([])
+
+  // 批量解析列表中涉及的用户名（用于「用户名」列）
+  const userMap = useUsernames(data.map((d) => d.user_id))
   const [filtered, setFiltered] = useState<NovelAnnotation[]>([])
   const [searchUser, setSearchUser] = useState('')
   const [searchNovel, setSearchNovel] = useState('')
@@ -217,6 +222,10 @@ const Annotations: React.FC = () => {
       render: (v: string) => v.slice(0, 12) + '...',
     },
     {
+      title: '用户名', dataIndex: 'user_id', key: 'username', width: 120,
+      render: (v: string) => <UserName userId={v} userMap={userMap} />,
+    },
+    {
       title: '小说ID', dataIndex: 'novel_id', key: 'novel_id', width: 140,
       render: (v: string) => v.slice(0, 12) + '...',
     },
@@ -239,6 +248,7 @@ const Annotations: React.FC = () => {
 
   const reviewColumns: ColumnsType<NovelAnnotation> = [
     { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 140, render: (v: string) => v.slice(0, 12) + '...' },
+    { title: '用户名', dataIndex: 'user_id', key: 'username', width: 120, render: (v: string) => <UserName userId={v} userMap={userMap} /> },
     { title: '高亮文本', dataIndex: 'highlighted_text', key: 'text', render: (v: string) => <EllipsisText text={v} maxWidth={200} /> },
     { title: '备注', dataIndex: 'note', key: 'note', render: (v: string | null) => <EllipsisText text={v} maxWidth={200} /> },
     {

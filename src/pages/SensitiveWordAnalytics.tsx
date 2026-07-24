@@ -38,6 +38,9 @@ const { RangePicker } = DatePicker
 
 const COLORS = ['#ff4d4f', '#faad14', '#52c41a', '#1890ff', '#722ed1']
 
+import { useUsernames } from '../hooks/useUsernames'
+import { UserName } from '../components/UserName'
+
 // ==================== 类型定义 ====================
 
 interface SensitiveWordHit {
@@ -75,6 +78,9 @@ const SensitiveWordAnalytics: React.FC = () => {
     dayjs(),
   ])
   const [hits, setHits] = useState<SensitiveWordHit[]>([])
+
+  // 批量解析列表中涉及的用户名（用于「用户名」列）
+  const userMap = useUsernames(hits.map((h) => h.user_id))
   const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([])
   const [dailyStats, setDailyStats] = useState<DailyStat[]>([])
   const [topWords, setTopWords] = useState<{ word: string; count: number }[]>([])
@@ -188,6 +194,13 @@ const SensitiveWordAnalytics: React.FC = () => {
 
   // 表格列定义
   const columns = [
+    {
+      title: '用户名',
+      dataIndex: 'user_id',
+      key: 'username',
+      width: 120,
+      render: (v: string) => <UserName userId={v} userMap={userMap} />,
+    },
     {
       title: '敏感词',
       dataIndex: 'word',
