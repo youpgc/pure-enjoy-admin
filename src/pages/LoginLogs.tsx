@@ -9,10 +9,9 @@ import {
   message,
   Select,
   DatePicker,
-  Tooltip,
-  Typography,
   Popconfirm,
 } from 'antd'
+import EllipsisText from '../components/EllipsisText'
 import {
   SearchOutlined,
   ReloadOutlined,
@@ -26,7 +25,6 @@ import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
 
-const { Text } = Typography
 const { RangePicker } = DatePicker
 
 // ==================== 类型定义 ====================
@@ -248,15 +246,7 @@ const LoginLogs: React.FC = () => {
       dataIndex: 'user_agent',
       key: 'user_agent',
       width: 200,
-      ellipsis: true,
-      render: (v: string | null) => {
-        if (!v) return '-'
-        return (
-          <Tooltip title={v}>
-            <Text ellipsis style={{ maxWidth: 180 }}>{v}</Text>
-          </Tooltip>
-        )
-      },
+      render: (v: string | null) => <EllipsisText text={v} maxWidth={200} />,
     },
     {
         title: '操作',

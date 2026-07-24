@@ -1,5 +1,6 @@
 // Feedback 表格列定义（从 Feedback.tsx 抽取，行为保持）
-import { Tag, Tooltip } from 'antd'
+import { Tag } from 'antd'
+import EllipsisText from '../../components/EllipsisText'
 import type { ColumnsType } from 'antd/es/table'
 import { formatDateTime } from '../../utils/format'
 import { getActionColumn } from '../../components/ActionColumn'
@@ -48,13 +49,8 @@ export function buildFeedbackColumns({
       title: '标题',
       dataIndex: 'title',
       key: 'title',
-      ellipsis: true,
       width: 180,
-      render: (title: string, record) => (
-        <Tooltip title={`用户: ${record.user_nickname || record.user_id?.substring(0, 6)}`}>
-          {title || '-'}
-        </Tooltip>
-      ),
+      render: (title: string) => <EllipsisText text={title} maxWidth={180} />,
     },
     {
       title: '用户',
@@ -84,9 +80,8 @@ export function buildFeedbackColumns({
       title: '描述',
       dataIndex: 'description',
       key: 'description',
-      ellipsis: true,
       width: 220,
-      render: (desc: string) => desc || '-',
+      render: (desc: string) => <EllipsisText text={desc} maxWidth={220} />,
     },
     {
       title: '创建时间',

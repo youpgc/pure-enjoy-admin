@@ -11,6 +11,7 @@ import {
 import dayjs from 'dayjs'
 import { usePagination } from '../hooks/usePagination'
 import { BaseService, apiQuery, handleApiError } from '../utils/apiClient'
+import EllipsisText from '../components/EllipsisText'
 
 // ==================== 类型定义 ====================
 
@@ -134,7 +135,7 @@ const Bookmarks: React.FC = () => {
 
   const progressColumns: ColumnsType<UserNovelProgress> = [
     { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 140, render: (v: string) => v.slice(0, 12) + '...' },
-    { title: '小说', dataIndex: 'novel_id', key: 'novel', render: (v: string) => novelMap.get(v) || v.slice(0, 8) },
+    { title: '小说', dataIndex: 'novel_id', key: 'novel', render: (v: string) => <EllipsisText text={novelMap.get(v) || v.slice(0, 8)} maxWidth={200} /> },
     {
       title: '进度', dataIndex: 'progress', key: 'progress', width: 180,
       render: (v: number) => <Progress percent={Math.round(v * 100)} size='small' status={v >= 1 ? 'success' : 'active'} />,
@@ -146,7 +147,7 @@ const Bookmarks: React.FC = () => {
 
   const completionColumns: ColumnsType<CompletionRate> = [
     { title: '#', key: 'rank', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
-    { title: '小说名称', dataIndex: 'title', key: 'title' },
+    { title: '小说名称', dataIndex: 'title', key: 'title', render: (v: string) => <EllipsisText text={v} maxWidth={200} /> },
     { title: '总读者', dataIndex: 'total_readers', key: 'total', width: 100, align: 'right' },
     { title: '完读人数', dataIndex: 'finished_count', key: 'finished', width: 100, align: 'right' },
     {
@@ -225,7 +226,7 @@ const Bookmarks: React.FC = () => {
               <Table
                 columns={[
                   { title: '#', key: 'rank', width: 50, render: (_: unknown, __: unknown, i: number) => i + 1 },
-                  { title: '小说', dataIndex: 'title', key: 'title' },
+                  { title: '小说', dataIndex: 'title', key: 'title', render: (v: string) => <EllipsisText text={v} maxWidth={200} /> },
                   { title: '读者数', dataIndex: 'total_readers', key: 'total', width: 100 },
                   { title: '完读率', dataIndex: 'completion_rate', key: 'rate', width: 120, render: (v: number) => <Tag color='error'>{v}%</Tag> },
                   { title: '建议', key: 'suggestion', render: () => <Tag color='warning'>优化开篇</Tag> },

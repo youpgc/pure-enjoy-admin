@@ -35,6 +35,7 @@ import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { apiQuery, handleApiError } from '../utils/apiClient'
 import { useMounted } from '../hooks/useMounted'
+import EllipsisText from '../components/EllipsisText'
 
 const { RangePicker } = DatePicker
 
@@ -232,6 +233,7 @@ const Analytics: React.FC = () => {
       title: '书名',
       dataIndex: 'title',
       key: 'title',
+      render: (title: string) => <EllipsisText text={title} maxWidth={180} />,
     },
     {
       title: '作者',

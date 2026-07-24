@@ -1,5 +1,6 @@
 // Dashboard 表格列定义（从 Dashboard.tsx 抽取，行为保持）
-import { Space, Avatar, Tooltip, Typography } from 'antd'
+import { Space, Avatar, Typography } from 'antd'
+import EllipsisText from '../../components/EllipsisText'
 import type { ColumnsType } from 'antd/es/table'
 import { UserOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -16,7 +17,7 @@ export function buildNovelColumns(): ColumnsType<NovelListItem> {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
-      render: (title: string) => <Text strong>{title}</Text>,
+      render: (title: string) => <EllipsisText text={title} maxWidth={180} />,
     },
     {
       title: '作者',
@@ -73,23 +74,14 @@ export function buildCommentColumns(): ColumnsType<CommentItem> {
       dataIndex: 'novel_title',
       key: 'novel_title',
       render: (title: string | null) => (
-        <Tooltip title={title || '未知小说'}>
-          <Text ellipsis style={{ maxWidth: 150 }}>
-            {title || '未知小说'}
-          </Text>
-        </Tooltip>
+        <EllipsisText text={title || '未知小说'} maxWidth={150} />
       ),
     },
     {
       title: '评论内容',
       dataIndex: 'content',
       key: 'content',
-      ellipsis: true,
-      render: (content: string) => (
-        <Tooltip title={content}>
-          <Text>{content}</Text>
-        </Tooltip>
-      ),
+      render: (content: string) => <EllipsisText text={content} maxWidth={240} />,
     },
     {
       title: '评分',

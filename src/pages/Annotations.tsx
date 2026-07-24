@@ -16,6 +16,7 @@ import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
 import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
 import { useMounted } from '../hooks/useMounted'
+import EllipsisText from '../components/EllipsisText'
 
 // ==================== 类型定义 ====================
 
@@ -222,9 +223,9 @@ const Annotations: React.FC = () => {
     { title: '章节', dataIndex: 'chapter_order', key: 'chapter', width: 80, render: (v: number) => `第${v}章` },
     {
       title: '高亮文本', dataIndex: 'highlighted_text', key: 'text',
-      render: (v: string) => <span style={{ maxWidth: 200, display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v}</span>,
+      render: (v: string) => <EllipsisText text={v} maxWidth={200} />,
     },
-    { title: '备注', dataIndex: 'note', key: 'note', render: (v: string | null) => v || '-' },
+    { title: '备注', dataIndex: 'note', key: 'note', render: (v: string | null) => <EllipsisText text={v} maxWidth={200} /> },
     {
       title: '颜色', dataIndex: 'color', key: 'color', width: 60, align: 'center',
       render: (v: string) => <ColorDot color={v} />,
@@ -238,8 +239,8 @@ const Annotations: React.FC = () => {
 
   const reviewColumns: ColumnsType<NovelAnnotation> = [
     { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 140, render: (v: string) => v.slice(0, 12) + '...' },
-    { title: '高亮文本', dataIndex: 'highlighted_text', key: 'text' },
-    { title: '备注', dataIndex: 'note', key: 'note', render: (v: string | null) => v || '-' },
+    { title: '高亮文本', dataIndex: 'highlighted_text', key: 'text', render: (v: string) => <EllipsisText text={v} maxWidth={200} /> },
+    { title: '备注', dataIndex: 'note', key: 'note', render: (v: string | null) => <EllipsisText text={v} maxWidth={200} /> },
     {
       title: '命中敏感词', key: 'sensitive',
       render: (_: unknown, r: NovelAnnotation) => {

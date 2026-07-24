@@ -8,8 +8,6 @@ import {
   Card,
   message,
   Select,
-  Tooltip,
-  Typography,
 } from 'antd'
 import {
   SearchOutlined,
@@ -24,8 +22,7 @@ import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
 import { ERROR_LOG_LEVEL_MAP, ERROR_LOG_LEVEL_OPTIONS } from '../constants'
-
-const { Text } = Typography
+import EllipsisText from '../components/EllipsisText'
 
 // ==================== 类型定义 ====================
 
@@ -171,26 +168,15 @@ const ErrorLogs: React.FC = () => {
       title: '消息',
       dataIndex: 'message',
       key: 'message',
-      ellipsis: true,
-      render: (v: string) => (
-        <Tooltip title={v}>
-          <Text ellipsis>{v}</Text>
-        </Tooltip>
-      ),
+      render: (v: string) => <EllipsisText text={v} maxWidth={240} />,
     },
     {
       title: '详情',
       dataIndex: 'detail',
       key: 'detail',
-      ellipsis: true,
-      render: (v: Record<string, unknown>) => {
-        if (!v) return '-'
-        try {
-          return <Tooltip title={JSON.stringify(v)}><Text ellipsis>{JSON.stringify(v)}</Text></Tooltip>
-        } catch {
-          return String(v)
-        }
-      },
+      render: (v: Record<string, unknown>) => (
+        <EllipsisText text={v ? JSON.stringify(v) : null} maxWidth={240} stripHtml={false} />
+      ),
     },
     {
       title: '用户ID',

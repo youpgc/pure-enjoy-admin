@@ -7,8 +7,8 @@ import {
   InputNumber,
   Form,
   message,
-  Typography,
 } from 'antd'
+import EllipsisText from './EllipsisText'
 import {
   PlusOutlined,
   EditOutlined,
@@ -23,8 +23,6 @@ import { supabase } from '../utils/supabase'
 import { getActionColumn } from './ActionColumn'
 import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
-
-const { Text } = Typography
 
 // ==================== 类型定义 ====================
 
@@ -297,7 +295,7 @@ const NovelChapterModal: React.FC<{
       title: '标题',
       dataIndex: 'title',
       key: 'title',
-      render: (title: string) => <Text strong>{title}</Text>,
+      render: (title: string) => <EllipsisText text={title} maxWidth={180} />,
     },
     {
       title: '字数',

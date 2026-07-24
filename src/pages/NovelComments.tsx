@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
-import { Table, Card, Button, Input, Space, Tag, Popconfirm, message, Tooltip } from 'antd'
+import { Table, Card, Button, Input, Space, Tag, Popconfirm, message } from 'antd'
+import EllipsisText from '../components/EllipsisText'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { BaseService, handleApiError } from '../utils/apiClient'
@@ -122,12 +123,7 @@ const NovelComments: React.FC = () => {
       title: '评论内容',
       dataIndex: 'content',
       key: 'content',
-      ellipsis: true,
-      render: (text: string) => (
-        <Tooltip title={text}>
-          <span>{text.length > 50 ? text.substring(0, 50) + '...' : text}</span>
-        </Tooltip>
-      ),
+      render: (text: string) => <EllipsisText text={text} maxWidth={240} />,
     },
     {
       title: '评分',

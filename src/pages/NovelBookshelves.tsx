@@ -1,5 +1,6 @@
 import React from 'react'
 import type { ColumnsType } from 'antd/es/table'
+import EllipsisText from '../components/EllipsisText'
 import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
@@ -12,12 +13,11 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'novel_id',
     key: 'novel_name',
     width: 120,
-    ellipsis: true,
     render: (_: string, record: RecordItem) => {
       const name = record.novel_name || record.title || record.name
-      if (name) return name
+      if (name) return <EllipsisText text={String(name)} maxWidth={200} />
       const id = String(record.novel_id || '')
-      return id ? id.slice(0, 8) : '-'
+      return id ? <EllipsisText text={id} maxWidth={200} /> : '-'
     },
   },
   {

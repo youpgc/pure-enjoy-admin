@@ -16,6 +16,7 @@ import { usePagination } from '../hooks/usePagination'
 import { apiQuery, apiExecute, handleApiError } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
 import { useMounted } from '../hooks/useMounted'
+import EllipsisText from '../components/EllipsisText'
 
 // ==================== 类型定义 ====================
 
@@ -257,7 +258,7 @@ const Rankings: React.FC = () => {
       render: (title: string, record) => (
         <Space>
           {intervention.pin_ids.includes(record.novel_id) && <PushpinOutlined style={{ color: '#faad14' }} />}
-          <span style={{ fontWeight: 500 }}>{title}</span>
+          <EllipsisText text={title} maxWidth={200} />
         </Space>
       ),
     },

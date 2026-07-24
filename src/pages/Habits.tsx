@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
 import type { ColumnsType } from 'antd/es/table'
+import EllipsisText from '../components/EllipsisText'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { useMounted } from '../hooks/useMounted'
 
@@ -258,8 +259,8 @@ const Habits: React.FC = () => {
 
   // 详情弹窗列定义（含"查看打卡记录"操作列）
   const detailColumns: ColumnsType<RecordItem> = useMemo(() => [
-    { title: '名称', dataIndex: 'name', key: 'name', ellipsis: true },
-    { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true, render: (v: string) => v || '-' },
+    { title: '名称', dataIndex: 'name', key: 'name', render: (v: string) => <EllipsisText text={v} maxWidth={180} /> },
+    { title: '描述', dataIndex: 'description', key: 'description', render: (v: string) => <EllipsisText text={v} maxWidth={220} /> },
     {
       title: '目标天数',
       dataIndex: 'target_days',

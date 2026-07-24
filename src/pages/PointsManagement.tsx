@@ -1,6 +1,7 @@
 import React from 'react'
 import { Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import EllipsisText from '../components/EllipsisText'
 import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
@@ -30,7 +31,7 @@ const detailColumns: ColumnsType<RecordItem> = [
       </span>
     ),
   },
-  { title: '备注', dataIndex: 'remark', key: 'remark', ellipsis: true },
+  { title: '备注', dataIndex: 'remark', key: 'remark', render: (v: string) => <EllipsisText text={v} maxWidth={220} /> },
   {
     title: '操作人',
     dataIndex: 'operator_name',

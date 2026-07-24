@@ -3,6 +3,7 @@ import { Tag, Typography, Button, Space, Popconfirm } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { DictType, DictItem } from './types'
+import EllipsisText from '../../components/EllipsisText'
 
 const { Text } = Typography
 
@@ -28,7 +29,7 @@ export function buildTypeColumns({ onEdit, onDelete }: BuildTypeColumnsParams): 
       title: '描述',
       dataIndex: 'description',
       key: 'description',
-      ellipsis: true,
+      render: (value: string) => <EllipsisText text={value} maxWidth={220} />,
     },
     {
       title: '排序',
@@ -93,6 +94,7 @@ export function buildItemColumns({ onEdit, onDelete }: BuildItemColumnsParams): 
       title: '值',
       dataIndex: 'value',
       key: 'value',
+      render: (value: string) => <EllipsisText text={value} maxWidth={200} stripHtml={false} />,
     },
     {
       title: '排序',

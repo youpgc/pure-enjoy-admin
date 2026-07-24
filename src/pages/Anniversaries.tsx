@@ -1,5 +1,6 @@
 import React from 'react'
 import type { ColumnsType } from 'antd/es/table'
+import EllipsisText from '../components/EllipsisText'
 import dayjs from 'dayjs'
 import { lunar } from 'lunar-ts'
 import UserDimensionList from '../components/UserDimensionList'
@@ -78,7 +79,7 @@ function getLunarDisplay(record: RecordItem): string {
 // ==================== 详情弹窗列定义 ====================
 
 const detailColumns: ColumnsType<RecordItem> = [
-  { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
+  { title: '标题', dataIndex: 'title', key: 'title', render: (v: string) => <EllipsisText text={v} maxWidth={180} /> },
   {
     title: '日期',
     dataIndex: 'date',
@@ -99,7 +100,7 @@ const detailColumns: ColumnsType<RecordItem> = [
     width: 80,
     render: (v: string) => ANNIVERSARY_TYPE_MAP[v] || v || '-',
   },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true, render: (v: string) => v || '-' },
+  { title: '描述', dataIndex: 'description', key: 'description', render: (v: string) => <EllipsisText text={v} maxWidth={220} /> },
   {
     title: '每年重复',
     dataIndex: 'repeat_yearly',

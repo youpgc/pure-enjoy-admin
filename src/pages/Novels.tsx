@@ -33,6 +33,7 @@ import NovelCover from '../components/NovelCover'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { NOVEL_CATEGORY_MAP, NOVEL_CATEGORY_OPTIONS, NOVEL_STATUS_MAP, NOVEL_STATUS_OPTIONS, NOVEL_STATUS_COLORS } from '../constants'
+import EllipsisText from '../components/EllipsisText'
 
 const { Text } = Typography
 
@@ -237,7 +238,7 @@ const Novels: React.FC = () => {
             borderRadius={4}
           />
           <div>
-            <div style={{ fontWeight: 500 }}>{record.title}</div>
+            <div style={{ fontWeight: 500 }}><EllipsisText text={record.title} maxWidth={200} /></div>
             <Text type="secondary" style={{ fontSize: 12 }}>{record.author || '-'}</Text>
           </div>
         </Space>

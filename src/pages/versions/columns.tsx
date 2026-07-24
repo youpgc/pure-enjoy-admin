@@ -1,5 +1,6 @@
 // 应用版本表格列定义（从 VersionManagement.tsx 抽取，行为保持）
 import { Tag, Typography } from 'antd'
+import EllipsisText from '../../components/EllipsisText'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import {
@@ -112,12 +113,7 @@ export function buildVersionColumns(params: BuildVersionColumnsParams): ColumnsT
       dataIndex: 'release_notes',
       key: 'release_notes',
       width: 200,
-      ellipsis: true,
-      render: (notes: string) => (
-        <Text type="secondary" style={{ fontSize: 13 }}>
-          {notes || '-'}
-        </Text>
-      ),
+      render: (notes: string) => <EllipsisText text={notes} maxWidth={200} />,
     },
     {
       title: '创建时间',

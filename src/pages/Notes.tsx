@@ -1,5 +1,6 @@
 import React from 'react'
 import type { ColumnsType } from 'antd/es/table'
+import EllipsisText from '../components/EllipsisText'
 import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
@@ -8,8 +9,8 @@ import { NOTE_CATEGORY_MAP } from '../constants'
 // ==================== 详情弹窗列定义 ====================
 
 const detailColumns: ColumnsType<RecordItem> = [
-  { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
-  { title: '内容', dataIndex: 'content', key: 'content', ellipsis: true },
+  { title: '标题', dataIndex: 'title', key: 'title', render: (v: string) => <EllipsisText text={v} maxWidth={180} /> },
+  { title: '内容', dataIndex: 'content', key: 'content', render: (v: string) => <EllipsisText text={v} maxWidth={240} /> },
   {
     title: '分类',
     dataIndex: 'category',

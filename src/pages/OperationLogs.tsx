@@ -9,9 +9,8 @@ import {
   message,
   Select,
   DatePicker,
-  Tooltip,
-  Typography,
 } from 'antd'
+import EllipsisText from '../components/EllipsisText'
 import {
   SearchOutlined,
   ReloadOutlined,
@@ -30,7 +29,6 @@ import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
 import { ACTION_MAP, OP_MODULE_MAP, ACTION_OPTIONS, MODULE_OPTIONS } from '../constants'
 
-const { Text } = Typography
 const { RangePicker } = DatePicker
 
 // ==================== 类型定义 ====================
@@ -221,15 +219,9 @@ const OperationLogs: React.FC = () => {
       title: '详情',
       dataIndex: 'details',
       key: 'details',
-      ellipsis: true,
-      render: (v: Record<string, unknown>) => {
-        if (!v) return '-'
-        try {
-          return <Tooltip title={JSON.stringify(v)}><Text ellipsis>{JSON.stringify(v)}</Text></Tooltip>
-        } catch {
-          return String(v)
-        }
-      },
+      render: (v: Record<string, unknown>) => (
+        <EllipsisText text={v ? JSON.stringify(v) : null} maxWidth={240} stripHtml={false} />
+      ),
     },
     {
       title: 'IP',

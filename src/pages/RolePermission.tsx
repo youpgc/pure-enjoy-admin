@@ -27,6 +27,7 @@ import { getActionColumn } from '../components/ActionColumn'
 import type { Role, Permission } from '../types/permission'
 import { ROLE_STATUS_LABELS, ROLE_STATUS_COLORS, ROLE_STATUS } from '../types/permission'
 import { roleService } from '../services/roleService'
+import EllipsisText from '../components/EllipsisText'
 
 const { Title } = Typography
 
@@ -236,6 +237,7 @@ const RolePermissionPage: React.FC = () => {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
+      render: (value: string) => <EllipsisText text={value} maxWidth={220} />,
     },
     {
       title: '状态',

@@ -12,8 +12,8 @@ import {
   Select,
   Popconfirm,
   Badge,
-  Typography,
 } from 'antd'
+import EllipsisText from '../components/EllipsisText'
 import {
   SearchOutlined,
   ReloadOutlined,
@@ -30,8 +30,6 @@ import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
 import type { ActionButton } from '../components/ActionColumn'
 import { NOTIFICATION_TYPE_MAP, NOTIFICATION_TYPE_TAG_MAP, NOTIFICATION_TYPE_OPTIONS } from '../constants'
-
-const { Text } = Typography
 
 // ==================== 类型定义 ====================
 
@@ -223,9 +221,7 @@ const Notifications: React.FC = () => {
       render: (_, record) => (
         <div>
           <div style={{ fontWeight: 500 }}>{record.title}</div>
-          <Text type="secondary" style={{ fontSize: 12 }} ellipsis>
-            {record.body}
-          </Text>
+          <EllipsisText text={record.body} maxWidth={240} />
           <div>
             <Tag color={NOTIFICATION_TYPE_MAP[record.type]?.color || 'default'}>
               {NOTIFICATION_TYPE_TAG_MAP[record.type] || record.type}

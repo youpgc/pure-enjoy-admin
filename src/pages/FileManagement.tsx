@@ -33,6 +33,7 @@ import { getActionColumn } from '../components/ActionColumn'
 import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { useMounted } from '../hooks/useMounted'
+import EllipsisText from '../components/EllipsisText'
 
 const { Text } = Typography
 const { Dragger } = Upload
@@ -261,7 +262,7 @@ const FileManagement: React.FC = () => {
         <Space>
           {getFileIcon(record.mime_type)}
           <div>
-            <div style={{ fontWeight: 500 }}>{record.file_name}</div>
+            <div style={{ fontWeight: 500 }}><EllipsisText text={record.file_name} maxWidth={200} /></div>
             <Text type="secondary" style={{ fontSize: 12 }}>{record.bucket}</Text>
           </div>
         </Space>

@@ -13,8 +13,8 @@ import {
   Switch,
   Select,
   DatePicker,
-  Typography,
 } from 'antd'
+import EllipsisText from '../components/EllipsisText'
 import {
   SearchOutlined,
   ReloadOutlined,
@@ -28,8 +28,6 @@ import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { useMounted } from '../hooks/useMounted'
 import { ANNOUNCEMENT_TYPE_MAP, ANNOUNCEMENT_TYPE_OPTIONS, PRIORITY_MAP, PRIORITY_OPTIONS } from '../constants'
-
-const { Text, Paragraph } = Typography
 
 // ==================== 类型定义 ====================
 
@@ -193,18 +191,13 @@ const Announcements: React.FC = () => {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
-      render: (title: string) => <Text strong>{title}</Text>,
+      render: (title: string) => <EllipsisText text={title} maxWidth={180} />,
     },
     {
       title: '内容',
       dataIndex: 'content',
       key: 'content',
-      ellipsis: true,
-      render: (content: string) => (
-        <Paragraph ellipsis={{ rows: 1 }} style={{ marginBottom: 0 }}>
-          {content}
-        </Paragraph>
-      ),
+      render: (content: string) => <EllipsisText text={content} maxWidth={240} />,
     },
     {
       title: '类型',

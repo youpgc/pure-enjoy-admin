@@ -28,8 +28,9 @@ import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { useMounted } from '../hooks/useMounted'
 import { CONFIG_TYPE_MAP } from '../constants'
+import EllipsisText from '../components/EllipsisText'
 
-const { Text, Paragraph } = Typography
+const { Text } = Typography
 
 // ==================== 类型定义 ====================
 
@@ -197,13 +198,8 @@ const AppConfigs: React.FC = () => {
       title: '配置值',
       dataIndex: 'content',
       key: 'content',
-      ellipsis: true,
-      render: (content: string, record: AppConfig) => {
-        if (record.config_type === 'json') {
-          return <Paragraph ellipsis style={{ marginBottom: 0 }}>{content}</Paragraph>
-        }
-        return content
-      },
+      width: 320,
+      render: (content: string) => <EllipsisText text={content} maxWidth={300} stripHtml />,
     },
     {
       title: '类型',

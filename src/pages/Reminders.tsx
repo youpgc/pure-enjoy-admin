@@ -1,6 +1,7 @@
 import React from 'react'
 import { Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import EllipsisText from '../components/EllipsisText'
 import dayjs from 'dayjs'
 import UserDimensionList from '../components/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../components/UserDimensionList'
@@ -9,8 +10,8 @@ import { REPEAT_TYPE_MAP } from '../constants'
 // ==================== 详情弹窗列定义 ====================
 
 const detailColumns: ColumnsType<RecordItem> = [
-  { title: '标题', dataIndex: 'title', key: 'title', ellipsis: true },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true, render: (v: string) => v || '-' },
+  { title: '标题', dataIndex: 'title', key: 'title', render: (v: string) => <EllipsisText text={v} maxWidth={180} /> },
+  { title: '描述', dataIndex: 'description', key: 'description', render: (v: string) => <EllipsisText text={v} maxWidth={220} /> },
   {
     title: '提醒时间',
     dataIndex: 'remind_at',
