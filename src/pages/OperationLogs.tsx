@@ -287,7 +287,7 @@ const OperationLogs: React.FC = () => {
           />
           <RangePicker
             value={filters.dateRange}
-            onChange={(dates) => setFilters(prev => ({ ...prev, dateRange: dates as any }))}
+            onChange={(dates) => setFilters(prev => ({ ...prev, dateRange: dates }))}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索

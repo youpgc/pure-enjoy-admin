@@ -40,17 +40,22 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
           return
         }
 
-        // 检查用户角色是否为管理员
-        // 优先读取 user_metadata.role（自定义管理员角色），其次 app_metadata.role（Supabase 默认角色）
-        const userMetadata = session.user.user_metadata || {}
-        const appMetadata = session.user.app_metadata || {}
-        const role = (userMetadata.role || appMetadata.role || '') as string
-        if (!(ADMIN_ROLE_CODES as readonly string[]).includes(role)) {
-          // 非管理员角色，登出并跳转
-          await supabase.auth.signOut()
-          setIsAuthenticated(false)
-          navigate('/login')
-          return
+        // 角色判定以数据库 public.users.role 为准（public.is_admin() 防篡改），
+        // 不再把 JWT 的 user_metadata / app_metadata.role 作为首要判定源。
+        // （普通用户可经 auth.updateUser 自改 user_metadata.role 提权，见审查报告 P1b）
+        const { data: isAdmin, error: rpcError } = await supabase.rpc('is_admin')
+        if (rpcError || !isAdmin) {
+          // RPC 失败或明确非管理员：回退到 token 角色做 UX 判断，避免网络抖动误踢管理员
+          const userMetadata = session.user.user_metadata || {}
+          const appMetadata = session.user.app_metadata || {}
+          const role = (userMetadata.role || appMetadata.role || '') as string
+          if (!(ADMIN_ROLE_CODES as readonly string[]).includes(role)) {
+            // 非管理员角色，登出并跳转
+            await supabase.auth.signOut()
+            setIsAuthenticated(false)
+            navigate('/login')
+            return
+          }
         }
 
         // 会话有效且角色正确

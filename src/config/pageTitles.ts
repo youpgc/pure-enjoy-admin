@@ -1,0 +1,41 @@
+import type { PageKey } from '../App'
+
+/**
+ * 各页面标题映射，从 App.tsx 的 getPageTitle 抽离（God File 优化，审查报告 P2a）。
+ */
+export const PAGE_TITLES: Record<PageKey, string> = {
+  dashboard: '数据概览',
+  users: '用户管理',
+  roles: '角色权限',
+  expenses: '消费记录',
+  mood: '心情日记',
+  weight: '体重记录',
+  notes: '笔记本',
+  novels: '小说管理',
+  novel_comments: '评论管理',
+  novel_bookshelves: '书架管理',
+  rankings: '排行榜管理',
+  bookmarks: '阅读进度管理',
+  annotations: '批注管理',
+  recommendations: '推荐管理',
+  tts_management: '听书管理',
+  versions: '版本管理',
+  analytics: '数据分析',
+  operation_logs: '操作日志',
+  system_monitor: '系统监控',
+  favorites: '收藏夹',
+  reminders: '提醒事项',
+  habits: '习惯打卡',
+  app_configs: '配置管理',
+  dict_management: '字典管理',
+  sensitive_words: '敏感词管理',
+  sensitive_word_analytics: '敏感词数据统计',
+  file_management: '文件管理',
+  announcements: '公告管理',
+  notifications: '通知管理',
+  feedback: '问题反馈',
+  anniversaries: '纪念日',
+  points: '积分管理',
+  error_logs: '错误日志',
+  login_logs: '登录日志',
+}

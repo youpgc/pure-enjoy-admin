@@ -62,7 +62,7 @@ const Recommendations: React.FC = () => {
     (async () => {
       try {
         const { data, error } = await (supabase.from('recommend_config') as any)
-          .select('*')
+          .select('cold_start, cold_min_reads, rec_limit, exclude_ongoing, exclude_draft, exclude_ids, weight_category, weight_read, weight_collect')
           .eq('id', 'global')
           .maybeSingle()
         if (data && !error) {

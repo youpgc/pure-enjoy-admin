@@ -1,40 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Layout, Menu, theme } from 'antd'
-import type { MenuProps } from 'antd'
 import {
-  DashboardOutlined,
-  UserOutlined,
-  TeamOutlined,
-  WalletOutlined,
-  SmileOutlined,
-  LineChartOutlined,
-  BookOutlined,
-  CalendarOutlined,
-  ReadOutlined,
-  MobileOutlined,
   LogoutOutlined,
-  SafetyOutlined,
-  BarChartOutlined,
-  FileTextOutlined,
-  FileSearchOutlined,
-  MonitorOutlined,
-  AppstoreOutlined,
-  StarOutlined,
-  StarFilled,
-  BellOutlined,
-  NotificationOutlined,
-  CheckCircleOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
-  SoundOutlined,
-  MessageOutlined,
-  TrophyOutlined,
-  ControlOutlined,
-  SettingOutlined,
-  ToolOutlined,
-  FolderOutlined,
-  AlertOutlined,
 } from '@ant-design/icons'
 import type { AdminUser } from './types/auth'
 import AuthGuard from './components/AuthGuard'
@@ -76,6 +46,8 @@ import Recommendations from './pages/Recommendations'
 import TtsManagement from './pages/TtsManagement'
 import LoginLogs from './pages/LoginLogs'
 import { supabase } from './utils/supabase'
+import { buildMenuItems } from './config/menuConfig'
+import { PAGE_TITLES } from './config/pageTitles'
 
 const { Header, Sider, Content } = Layout
 
@@ -217,167 +189,8 @@ const MainLayout: React.FC = () => {
   }
 
   // 定义菜单项（按业务模块分组），根据权限动态显示
-  const menuItems: MenuProps['items'] = [
-    // 数据概览
-    ...(hasMenuPermission('menu:dashboard', ['dashboard:read']) ? [
-      {
-        key: 'dashboard',
-        icon: <DashboardOutlined />,
-        label: '数据概览',
-      },
-    ] : []),
-    // 用户中心
-    ...(hasMenuPermission('menu:users', ['users:read', 'users:write', 'users:delete', 'points:read', 'points:write']) ? [
-      {
-        key: 'user-center',
-        icon: <TeamOutlined />,
-        label: '用户中心',
-        children: [
-          ...(hasMenuPermission('menu:users', ['users:read', 'users:write', 'users:delete']) ? [
-            { key: 'users', icon: <UserOutlined />, label: '用户管理' },
-          ] : []),
-          ...(hasMenuPermission('menu:users', ['points:read', 'points:write']) ? [
-            { key: 'points', icon: <StarFilled />, label: '积分管理' },
-          ] : []),
-        ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
-      },
-    ] : []),
-    // 内容管理
-    ...(hasMenuPermission('menu:content', ['novels:read', 'novels:write', 'novels:delete', 'sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
-      {
-        key: 'content',
-        icon: <ReadOutlined />,
-        label: '内容管理',
-        children: [
-          ...(hasMenuPermission('menu:content', ['novels:read', 'novels:write', 'novels:delete']) ? [
-            { key: 'novels', icon: <ReadOutlined />, label: '小说管理' },
-          ] : []),
-          ...(hasMenuPermission('menu:content', ['novels:read']) ? [
-            { key: 'novel_comments', icon: <MessageOutlined />, label: '评论管理' },
-          ] : []),
-          ...(hasMenuPermission('menu:content', ['novels:read']) ? [
-            { key: 'rankings', icon: <TrophyOutlined />, label: '排行榜' },
-          ] : []),
-          ...(hasMenuPermission('menu:content', ['novels:read']) ? [
-            { key: 'bookmarks', icon: <BookOutlined />, label: '阅读进度' },
-          ] : []),
-          ...(hasMenuPermission('menu:content', ['novels:read']) ? [
-            { key: 'annotations', icon: <MessageOutlined />, label: '批注管理' },
-          ] : []),
-          ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
-            { key: 'sensitive_words', icon: <SafetyOutlined />, label: '敏感词管理' },
-          ] : []),
-          ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
-            { key: 'sensitive_word_analytics', icon: <LineChartOutlined />, label: '敏感词统计' },
-          ] : []),
-        ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
-      },
-    ] : []),
-    // 生活服务
-    ...(hasMenuPermission('menu:life', ['expenses:read', 'mood:read', 'weight:read', 'notes:read', 'favorites:read', 'reminders:read', 'habits:read', 'anniversaries:read']) ? [
-      {
-        key: 'life',
-        icon: <AppstoreOutlined />,
-        label: '生活服务',
-        children: [
-          ...(hasMenuPermission('menu:life', ['expenses:read', 'expenses:write', 'expenses:delete']) ? [
-            { key: 'expenses', icon: <WalletOutlined />, label: '消费记录' },
-          ] : []),
-          ...(hasMenuPermission('menu:life', ['mood:read', 'mood:write', 'mood:delete']) ? [
-            { key: 'mood', icon: <SmileOutlined />, label: '心情日记' },
-          ] : []),
-          ...(hasMenuPermission('menu:life', ['weight:read', 'weight:write', 'weight:delete']) ? [
-            { key: 'weight', icon: <LineChartOutlined />, label: '体重记录' },
-          ] : []),
-          ...(hasMenuPermission('menu:life', ['notes:read', 'notes:write', 'notes:delete']) ? [
-            { key: 'notes', icon: <FileTextOutlined />, label: '笔记本' },
-          ] : []),
-          ...(hasMenuPermission('menu:life', ['favorites:read', 'favorites:write', 'favorites:delete']) ? [
-            { key: 'favorites', icon: <StarOutlined />, label: '收藏夹' },
-          ] : []),
-          ...(hasMenuPermission('menu:life', ['reminders:read', 'reminders:write', 'reminders:delete']) ? [
-            { key: 'reminders', icon: <BellOutlined />, label: '提醒事项' },
-          ] : []),
-          ...(hasMenuPermission('menu:life', ['habits:read', 'habits:write', 'habits:delete']) ? [
-            { key: 'habits', icon: <CheckCircleOutlined />, label: '习惯打卡' },
-          ] : []),
-          ...(hasMenuPermission('menu:life', ['anniversaries:read', 'anniversaries:write', 'anniversaries:delete']) ? [
-            { key: 'anniversaries', icon: <CalendarOutlined />, label: '纪念日' },
-          ] : []),
-        ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
-      },
-    ] : []),
-    // 运营管理
-    ...(hasMenuPermission('menu:operations', ['versions:read', 'notifications:read', 'announcements:read', 'feedback:read', 'analytics:read']) ? [
-      {
-        key: 'operation',
-        icon: <ControlOutlined />,
-        label: '运营管理',
-        children: [
-          ...(hasMenuPermission('menu:operations', ['versions:read', 'versions:write', 'versions:delete']) ? [
-            { key: 'versions', icon: <MobileOutlined />, label: '版本管理' },
-          ] : []),
-          ...(hasMenuPermission('menu:operations', ['notifications:read', 'notifications:write', 'notifications:delete']) ? [
-            { key: 'notifications', icon: <NotificationOutlined />, label: '通知管理' },
-          ] : []),
-          ...(hasMenuPermission('menu:operations', ['announcements:read', 'announcements:write', 'announcements:delete']) ? [
-            { key: 'announcements', icon: <SoundOutlined />, label: '公告管理' },
-          ] : []),
-          ...(hasMenuPermission('menu:operations', ['feedback:read', 'feedback:write', 'feedback:delete']) ? [
-            { key: 'feedback', icon: <MessageOutlined />, label: '问题反馈' },
-          ] : []),
-          ...(hasMenuPermission('menu:operations', ['analytics:read']) ? [
-            { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析' },
-          ] : []),
-          ...(hasMenuPermission('menu:operations', ['analytics:read']) ? [
-            { key: 'recommendations', icon: <StarOutlined />, label: '推荐管理' },
-          ] : []),
-        ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
-      },
-    ] : []),
-    // 系统设置
-    ...(hasMenuPermission('menu:system', ['roles:read', 'operation_logs:read', 'system_monitor:read', 'app_configs:read', 'dict_management:read', 'file_management:read', 'error_logs:read']) ? [
-      {
-        key: 'system',
-        icon: <SettingOutlined />,
-        label: '系统设置',
-        children: [
-          ...(hasMenuPermission('menu:system', ['roles:read', 'roles:write', 'roles:delete']) ? [
-            { key: 'roles', icon: <SafetyOutlined />, label: '角色权限' },
-          ] : []),
-          ...(hasMenuPermission('menu:system', ['operation_logs:read']) ? [
-            { key: 'operation_logs', icon: <FileSearchOutlined />, label: '操作日志' },
-          ] : []),
-          ...(hasMenuPermission('menu:system', ['system_monitor:read']) ? [
-            { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控' },
-          ] : []),
-          ...(hasMenuPermission('menu:system', ['app_configs:read', 'app_configs:write']) ? [
-            { key: 'app_configs', icon: <ToolOutlined />, label: '配置管理' },
-          ] : []),
-          ...(hasMenuPermission('menu:system', ['dict_management:read', 'dict_management:write', 'dict_management:delete']) ? [
-            { key: 'dict_management', icon: <BookOutlined />, label: '字典管理' },
-          ] : []),
-          ...(hasMenuPermission('menu:system', ['file_management:read', 'file_management:write', 'file_management:delete']) ? [
-            { key: 'file_management', icon: <FolderOutlined />, label: '文件管理' },
-          ] : []),
-          ...(hasMenuPermission('menu:system', ['error_logs:read']) ? [
-            { key: 'error_logs', icon: <AlertOutlined />, label: '错误日志' },
-          ] : []),
-          ...(hasMenuPermission('menu:system', ['app_configs:read']) ? [
-            { key: 'tts_management', icon: <SoundOutlined />, label: '听书管理' },
-          ] : []),
-        ].filter((item): item is { key: string; icon: React.ReactElement; label: string } => !!item),
-      },
-    ] : []),
-    // 登录日志（管理员/超级管理员可见，独立于系统设置组以确保任何管理员角色均可见）
-    ...(isAdmin() ? [
-      {
-        key: 'login_logs',
-        icon: <AlertOutlined />,
-        label: '登录日志',
-      },
-    ] : []),
-  ].filter(Boolean)
+  // 菜单配置已抽离到 src/config/menuConfig.tsx（God File 优化，审查报告 P2a）
+  const menuItems = buildMenuItems(hasMenuPermission, isAdmin)
 
   const renderPage = () => {
     switch (currentPage) {
@@ -455,43 +268,8 @@ const MainLayout: React.FC = () => {
   }
 
   const getPageTitle = () => {
-    const titles: Record<PageKey, string> = {
-      dashboard: '数据概览',
-      users: '用户管理',
-      roles: '角色权限',
-      expenses: '消费记录',
-      mood: '心情日记',
-      weight: '体重记录',
-      notes: '笔记本',
-      novels: '小说管理',
-      novel_comments: '评论管理',
-      novel_bookshelves: '书架管理',
-      rankings: '排行榜管理',
-      bookmarks: '阅读进度管理',
-      annotations: '批注管理',
-      recommendations: '推荐管理',
-      tts_management: '听书管理',
-      versions: '版本管理',
-      analytics: '数据分析',
-      operation_logs: '操作日志',
-      system_monitor: '系统监控',
-      favorites: '收藏夹',
-      reminders: '提醒事项',
-      habits: '习惯打卡',
-      app_configs: '配置管理',
-      dict_management: '字典管理',
-      sensitive_words: '敏感词管理',
-      sensitive_word_analytics: '敏感词数据统计',
-      file_management: '文件管理',
-      announcements: '公告管理',
-      notifications: '通知管理',
-      feedback: '问题反馈',
-      anniversaries: '纪念日',
-      points: '积分管理',
-      error_logs: '错误日志',
-      login_logs: '登录日志',
-    }
-    return titles[currentPage] || '数据概览'
+    // 标题映射已抽离到 src/config/pageTitles.ts（God File 优化，审查报告 P2a）
+    return PAGE_TITLES[currentPage] || '数据概览'
   }
 
   return (
@@ -531,16 +309,16 @@ const MainLayout: React.FC = () => {
           />
         </div>
       </Sider>
-      
+
       {/* 主内容区域 */}
       <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
         {/* 固定顶部信息栏 */}
-        <Header 
-          style={{ 
-            padding: '0 24px', 
-            background: colorBgContainer, 
-            display: 'flex', 
-            alignItems: 'center', 
+        <Header
+          style={{
+            padding: '0 24px',
+            background: colorBgContainer,
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'space-between',
             position: 'fixed',
             top: 0,
@@ -568,10 +346,10 @@ const MainLayout: React.FC = () => {
             </a>
           </div>
         </Header>
-        
+
         {/* 内容区域 - 带顶部偏移 */}
-        <Content 
-          style={{ 
+        <Content
+          style={{
             marginTop: 64,
             padding: '16px 24px',
             minHeight: 'calc(100vh - 64px)',
