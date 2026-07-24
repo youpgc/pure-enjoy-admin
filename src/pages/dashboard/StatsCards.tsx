@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons'
 import { formatNumber } from './format'
 import type { NovelStats, UserStats } from './types'
+import type { PageKey } from '../../App'
 
 interface StatCard {
   title: string
@@ -16,13 +17,13 @@ interface StatCard {
   change?: number
   changeLabel: string
   isPercentage?: boolean
-  link: string
+  link: PageKey
 }
 
 interface StatsCardsProps {
   userStats: UserStats
   novelStats: NovelStats
-  onNavigate: (path: string) => void
+  onNavigate: (page: PageKey) => void
 }
 
 export function StatsCards({ userStats, novelStats, onNavigate }: StatsCardsProps) {
@@ -35,7 +36,7 @@ export function StatsCards({ userStats, novelStats, onNavigate }: StatsCardsProp
       icon: <UserOutlined style={{ fontSize: 24, color: '#1890ff' }} />,
       change: userStats.newWeek,
       changeLabel: '本周新增',
-      link: '/users',
+      link: 'users',
     },
     {
       title: '今日新增用户',
@@ -43,7 +44,7 @@ export function StatsCards({ userStats, novelStats, onNavigate }: StatsCardsProp
       icon: <RiseOutlined style={{ fontSize: 24, color: '#52c41a' }} />,
       change: userStats.activeToday,
       changeLabel: '今日活跃',
-      link: '/users',
+      link: 'users',
     },
     {
       title: '本周活跃用户',
@@ -51,7 +52,7 @@ export function StatsCards({ userStats, novelStats, onNavigate }: StatsCardsProp
       icon: <FireOutlined style={{ fontSize: 24, color: '#fa8c16' }} />,
       change: userStats.newWeek,
       changeLabel: '本周新增',
-      link: '/users',
+      link: 'users',
     },
     {
       title: '小说总数',
@@ -59,7 +60,7 @@ export function StatsCards({ userStats, novelStats, onNavigate }: StatsCardsProp
       icon: <BookOutlined style={{ fontSize: 24, color: '#722ed1' }} />,
       change: novelStats.totalRead,
       changeLabel: '总阅读',
-      link: '/novels',
+      link: 'novels',
     },
     {
       title: '活跃读者',
@@ -67,7 +68,7 @@ export function StatsCards({ userStats, novelStats, onNavigate }: StatsCardsProp
       icon: <EyeOutlined style={{ fontSize: 24, color: '#13c2c2' }} />,
       change: novelStats.newReaders,
       changeLabel: '今日新增',
-      link: '/novels',
+      link: 'novels',
     },
     {
       title: '留存率',
@@ -76,7 +77,7 @@ export function StatsCards({ userStats, novelStats, onNavigate }: StatsCardsProp
       change: userStats.retentionChange,
       changeLabel: '环比',
       isPercentage: true,
-      link: '/users',
+      link: 'users',
     },
   ], [userStats, novelStats])
 

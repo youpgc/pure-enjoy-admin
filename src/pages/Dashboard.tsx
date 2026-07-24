@@ -4,8 +4,8 @@ import { Card, Spin, Button, Empty, Table, Typography } from 'antd'
 import {
   BookOutlined, MessageOutlined, ReloadOutlined,
 } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
 import { usePermission } from '../hooks/usePermission'
+import { useNavigation } from '../App'
 import { useDashboard } from './dashboard/useDashboard'
 import { buildNovelColumns, buildCommentColumns } from './dashboard/columns'
 import { StatsCards } from './dashboard/StatsCards'
@@ -16,7 +16,7 @@ const { Text } = Typography
 
 const Dashboard: React.FC = () => {
   const { hasPermission } = usePermission()
-  const navigate = useNavigate()
+  const { setCurrentPage } = useNavigation()
   const {
     lastUpdated,
     loading,
@@ -68,7 +68,7 @@ const Dashboard: React.FC = () => {
           <StatsCards
             userStats={userStats}
             novelStats={novelStats}
-            onNavigate={navigate}
+            onNavigate={setCurrentPage}
           />
 
           {/* 用户增长趋势 */}

@@ -183,7 +183,7 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 }
 
 // ========== Navigation Context ==========
-type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
+export type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
   'novels' | 'novel_bookshelves' | 'novel_comments' | 'rankings' | 'bookmarks' | 'annotations' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
