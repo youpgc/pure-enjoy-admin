@@ -1,4 +1,4 @@
-import { supabase, reportError } from './supabase'
+import { supabase, reportError, logOperation } from './supabase'
 import { message } from 'antd'
 import { SUPABASE_ERROR_CODE_MAP } from '../constants'
 /// Supabase 查询构建器类型
@@ -61,6 +61,25 @@ export class BaseService<T extends Record<string, any>> {
     private tableName: string,
     private options?: { defaultOrder?: { column: string; ascending?: boolean }; select?: string }
   ) {}
+
+  // 不参与自动审计的表：日志类自身（避免递归）+ users（已有精细化日志）
+  private static readonly AUDIT_EXCLUDED = new Set<string>([
+    'operation_logs',
+    'error_logs',
+    'login_logs',
+    'users',
+  ])
+
+  /// 操作审计（best-effort，不阻塞主流程）：写入 operation_logs
+  private audit(action: string, targetId: string | number | Array<string | number>, detail?: object) {
+    if (BaseService.AUDIT_EXCLUDED.has(this.tableName)) return
+    logOperation({
+      action,
+      module: this.tableName,
+      target_id: Array.isArray(targetId) ? targetId.join(',') : String(targetId),
+      detail,
+    }).catch(() => {})
+  }
 
   /// 查询列表
   async findAll(
@@ -128,6 +147,7 @@ export class BaseService<T extends Record<string, any>> {
         .select()
         .single()
       if (error) throw error
+      this.audit('create', (result as { id?: string | number } | null)?.id ?? '', data as object)
       return successResponse(result)
     } catch (err) {
       return errorResponse(handleApiError(err, `${this.tableName}.create`))
@@ -145,6 +165,7 @@ export class BaseService<T extends Record<string, any>> {
       if (!result || (Array.isArray(result) && result.length === 0)) {
         return errorResponse('更新失败：未匹配到任何记录（可能无权限）')
       }
+      this.audit('update', id, { changes: data })
       return successResponse(true)
     } catch (err) {
       return errorResponse(handleApiError(err, `${this.tableName}.update`))
@@ -156,6 +177,7 @@ export class BaseService<T extends Record<string, any>> {
     try {
       const { error } = await supabase.from(this.tableName).delete().eq('id', id)
       if (error) throw error
+      this.audit('delete', id)
       return successResponse(true)
     } catch (err) {
       return errorResponse(handleApiError(err, `${this.tableName}.delete`))
@@ -167,6 +189,7 @@ export class BaseService<T extends Record<string, any>> {
     try {
       const { error } = await supabase.from(this.tableName).delete().in('id', ids)
       if (error) throw error
+      this.audit('batch_delete', ids, { count: ids.length })
       return successResponse(true)
     } catch (err) {
       return errorResponse(handleApiError(err, `${this.tableName}.batchDelete`))
@@ -184,6 +207,7 @@ export class BaseService<T extends Record<string, any>> {
       if (!result || (Array.isArray(result) && result.length === 0)) {
         return errorResponse('批量更新失败：未匹配到任何记录（可能无权限）')
       }
+      this.audit('batch_update', ids, { count: ids.length, changes: data })
       return successResponse(true)
     } catch (err) {
       return errorResponse(handleApiError(err, `${this.tableName}.batchUpdate`))

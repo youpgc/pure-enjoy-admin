@@ -95,6 +95,7 @@ export async function reportError(
         stack_trace: sanitizedStack,
       },
       user_id: user?.id || null,
+      source: 'admin',
     }
 
     // 控制台输出（仅开发环境输出详细信息，生产环境只输出级别和模块）

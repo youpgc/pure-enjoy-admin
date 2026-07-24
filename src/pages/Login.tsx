@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { Card, Form, Input, Button, message, Typography } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
-import { ADMIN_ROLE_CODES } from '../constants'
 
 const { Title, Text } = Typography
 
@@ -78,14 +77,9 @@ const Login: React.FC = () => {
         throw new Error('登录失败，未获取到用户信息')
       }
 
-      // 从 user_metadata 或 app_metadata 中获取角色信息
-      // 优先读取 user_metadata.role（自定义管理员角色），其次 app_metadata.role（Supabase 默认角色）
-      const userMetadata = authData.user.user_metadata || {}
-      const appMetadata = authData.user.app_metadata || {}
-      const role = (userMetadata.role || appMetadata.role || '') as string
-
-      // 检查角色权限
-      if (!(ADMIN_ROLE_CODES as readonly string[]).includes(role)) {
+      // 从服务端函数校验管理员角色（读 public.users.role 真实表，不信任 JWT metadata）
+      const { data: isAdmin, error: roleErr } = await supabase.rpc('is_admin')
+      if (roleErr || !isAdmin) {
         // 角色不匹配，登出并提示
         await supabase.auth.signOut()
         throw new Error('该用户无权登录管理后台')
