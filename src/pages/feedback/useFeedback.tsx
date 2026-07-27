@@ -4,6 +4,7 @@ import { message } from 'antd'
 import { HistoryOutlined, DeleteOutlined } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
+import { supabase } from '../../utils/supabase'
 import { usePagination } from '../../hooks/usePagination'
 import { useDictOptions, useDictColors } from '../../hooks/useDictOptions'
 import { feedbackService } from '../../services/feedbackService'
@@ -76,11 +77,16 @@ export function useFeedback() {
 
     setActionLoading(true)
     try {
-      // 获取操作人信息
-      const adminUserStr = localStorage.getItem('admin_user')
-      const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null
-      const operatorId = adminUser?.id || adminUser?.user_id || 'system'
-      const operatorName = adminUser?.nickname || adminUser?.username || '管理员'
+      // 获取操作人信息：从 Supabase Auth 服务端校验的当前会话获取，
+      // 禁止读 localStorage（可被篡改，且切换账号后可能残留旧管理员信息）
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      const meta = authUser?.user_metadata || {}
+      const operatorId = (meta.app_user_id as string) || authUser?.id || 'system'
+      const operatorName =
+        (meta.nickname as string) ||
+        (meta.username as string) ||
+        authUser?.email?.split('@')[0] ||
+        '管理员'
 
       let result
       if (selectedAction === FEEDBACK_ACTION_DELETED) {

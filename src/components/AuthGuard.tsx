@@ -79,6 +79,10 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         if (event === 'SIGNED_OUT' || !session) {
           setIsAuthenticated(false)
           navigate('/login')
+        } else if (event === 'SIGNED_IN') {
+          // 登录/切换账号（含无整页刷新场景）：重跑 is_admin() 服务端校验，
+          // 防止旧管理员会话下切入普通账号后继续停留在后台页面
+          checkAuth()
         }
       }
     )

@@ -15,25 +15,46 @@ type PermissionLoadResult = {
 
 let permissionInflight: Promise<PermissionLoadResult> | null = null
 let permissionCache: PermissionLoadResult | null = null
+// 缓存归属的 auth 用户 ID：切换账号（无整页刷新场景）时校验不匹配则丢弃，
+// 防止新账号读到旧账号的角色/权限缓存
+let permissionCacheUserId: string | null = null
 
 function clearPermissionCache() {
   permissionInflight = null
   permissionCache = null
+  permissionCacheUserId = null
 }
 
 async function fetchPermissionData(): Promise<PermissionLoadResult> {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.user) {
+    clearPermissionCache()
+    return { role: '', permissions: [] }
+  }
+  const currentUserId = session.user.id
+
+  // 缓存/在途请求属于其他用户 → 丢弃后重新拉取
+  if (permissionCacheUserId !== null && permissionCacheUserId !== currentUserId) {
+    clearPermissionCache()
+  }
   if (permissionInflight) return permissionInflight
   if (permissionCache) return permissionCache
+  permissionCacheUserId = currentUserId
 
   permissionInflight = (async (): Promise<PermissionLoadResult> => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session?.user) {
-      return { role: '', permissions: [] }
+    // 角色判定以数据库 public.users.role 为准（get_my_role() RPC，防篡改），
+    // 与 AuthGuard 的 is_admin() 口径对齐；RPC 失败时回退 JWT metadata
+    // 角色（仅作 UX 容错，避免网络抖动导致权限全丢）。
+    // （普通用户可经 auth.updateUser 自改 user_metadata.role 提权，见审查报告 P1b）
+    let userRole = ''
+    const { data: dbRole, error: roleErr } = await supabase.rpc('get_my_role')
+    if (!roleErr && typeof dbRole === 'string' && dbRole) {
+      userRole = dbRole
+    } else {
+      const userMetadata = session.user.user_metadata || {}
+      const appMetadata = session.user.app_metadata || {}
+      userRole = (userMetadata.role || appMetadata.role || '') as string
     }
-
-    const userMetadata = session.user.user_metadata || {}
-    const appMetadata = session.user.app_metadata || {}
-    const userRole = (userMetadata.role || appMetadata.role || '') as string
 
     // 超级管理员直接拥有所有权限
     if (userRole === ROLE_SUPER_ADMIN) {
@@ -79,11 +100,18 @@ async function fetchPermissionData(): Promise<PermissionLoadResult> {
     }
   })()
 
+  const inflight = permissionInflight
   try {
-    permissionCache = await permissionInflight
-    return permissionCache
+    const result = await inflight
+    // 等待期间可能已切换账号并清理/重建缓存归属，只有归属未变时才落缓存
+    if (permissionCacheUserId === currentUserId) {
+      permissionCache = result
+    }
+    return result
   } finally {
-    permissionInflight = null
+    if (permissionInflight === inflight) {
+      permissionInflight = null
+    }
   }
 }
 
@@ -143,8 +171,12 @@ export const usePermission = () => {
 
     // 监听 Auth 状态变化
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         if (session?.user) {
+          // 登录事件（含切换账号）主动清缓存，确保拉取的是新账号的角色/权限
+          if (event === 'SIGNED_IN') {
+            clearPermissionCache()
+          }
           loadPermissions()
         } else {
           clearPermissionCache()

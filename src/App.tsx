@@ -76,6 +76,9 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // 从 Supabase Auth 会话构建 AdminUser
   // 注意：Supabase Auth 的 role 字段在 app_metadata 中，user_metadata 中的是自定义角色
+  // ⚠️ 此处 role 取自 JWT metadata，仅供展示（如顶栏），严禁用于权限/角色判定！
+  //    权限判定必须走 usePermission（get_my_role RPC）或 AuthGuard（is_admin RPC），
+  //    以数据库 public.users.role 为准（JWT metadata 可被用户自改，见审查报告 P1b）。
   const buildAdminUser = useCallback((authUser: any): AdminUser | null => {
     if (!authUser) return null
     const metadata = authUser.user_metadata || {}
