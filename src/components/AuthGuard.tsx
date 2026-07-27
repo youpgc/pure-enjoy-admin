@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import { supabase } from '../utils/supabase'
-import { ADMIN_ROLE_CODES } from '../constants'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -42,20 +41,17 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
 
         // 角色判定以数据库 public.users.role 为准（public.is_admin() 防篡改），
         // 不再把 JWT 的 user_metadata / app_metadata.role 作为首要判定源。
-        // （普通用户可经 auth.updateUser 自改 user_metadata.role 提权，见审查报告 P1b）
+        // fail-closed：RPC 失败一律按"非管理员"拒绝进入，不回退 JWT metadata
+        // （普通用户可经 auth.updateUser 自改 user_metadata.role 提权，见审查报告 P1-C）。
         const { data: isAdmin, error: rpcError } = await supabase.rpc('is_admin')
         if (rpcError || !isAdmin) {
-          // RPC 失败或明确非管理员：回退到 token 角色做 UX 判断，避免网络抖动误踢管理员
-          const userMetadata = session.user.user_metadata || {}
-          const appMetadata = session.user.app_metadata || {}
-          const role = (userMetadata.role || appMetadata.role || '') as string
-          if (!(ADMIN_ROLE_CODES as readonly string[]).includes(role)) {
-            // 非管理员角色，登出并跳转
+          // 明确非管理员才登出；RPC 异常仅拒绝进入（保留会话，便于网络恢复后重试）
+          if (!rpcError && !isAdmin) {
             await supabase.auth.signOut()
-            setIsAuthenticated(false)
-            navigate('/login')
-            return
           }
+          setIsAuthenticated(false)
+          navigate('/login')
+          return
         }
 
         // 会话有效且角色正确

@@ -43,17 +43,16 @@ async function fetchPermissionData(): Promise<PermissionLoadResult> {
 
   permissionInflight = (async (): Promise<PermissionLoadResult> => {
     // 角色判定以数据库 public.users.role 为准（get_my_role() RPC，防篡改），
-    // 与 AuthGuard 的 is_admin() 口径对齐；RPC 失败时回退 JWT metadata
-    // 角色（仅作 UX 容错，避免网络抖动导致权限全丢）。
-    // （普通用户可经 auth.updateUser 自改 user_metadata.role 提权，见审查报告 P1b）
+    // 与 AuthGuard 的 is_admin() 口径对齐。
+    // fail-closed：RPC 失败（网络/函数异常）一律不信任 JWT metadata
+    // （普通用户可经 auth.updateUser 自改 user_metadata.role 提权，见审查报告 P1-C），
+    // 回退为空角色（视为非管理员），由后续角色判定按最小权限处理。
     let userRole = ''
     const { data: dbRole, error: roleErr } = await supabase.rpc('get_my_role')
     if (!roleErr && typeof dbRole === 'string' && dbRole) {
       userRole = dbRole
     } else {
-      const userMetadata = session.user.user_metadata || {}
-      const appMetadata = session.user.app_metadata || {}
-      userRole = (userMetadata.role || appMetadata.role || '') as string
+      userRole = ''
     }
 
     // 超级管理员直接拥有所有权限
@@ -124,7 +123,15 @@ export const usePermission = () => {
   const loadPermissions = useCallback(async () => {
     try {
       setLoading(true)
+      const { data: { session: startSession } } = await supabase.auth.getSession()
+      const targetUserId = startSession?.user?.id ?? null
       const result = await fetchPermissionData()
+      // 快速切换账号时，若在途期间会话已变为其他用户，丢弃本次过期的角色/权限结果，
+      // 防止旧账号的权限状态覆盖新账号（见审查报告 P1-B）
+      const { data: { session: endSession } } = await supabase.auth.getSession()
+      if (targetUserId !== null && endSession?.user?.id !== targetUserId) {
+        return
+      }
       setRole(result.role)
       setPermissions(result.permissions)
     } catch (error) {
