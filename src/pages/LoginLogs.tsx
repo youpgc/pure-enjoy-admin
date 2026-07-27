@@ -24,6 +24,7 @@ import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
+import { ROLE_USER, ROLE_SUPER_ADMIN } from '../constants'
 
 const { RangePicker } = DatePicker
 
@@ -169,11 +170,11 @@ const LoginLogs: React.FC = () => {
     if (callerId && record.user_id === callerId) return false
     if (isSuperAdmin()) {
       // 超级管理员可退 admin + user，不可退其他超级管理员
-      return record.role !== 'super_admin'
+      return record.role !== ROLE_SUPER_ADMIN
     }
     if (isAdmin()) {
       // 管理员仅可退普通用户
-      return record.role === 'user'
+      return record.role === ROLE_USER
     }
     return false
   }

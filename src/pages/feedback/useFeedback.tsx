@@ -78,15 +78,20 @@ export function useFeedback() {
     setActionLoading(true)
     try {
       // 获取操作人信息：从 Supabase Auth 服务端校验的当前会话获取，
-      // 禁止读 localStorage（可被篡改，且切换账号后可能残留旧管理员信息）
+      // 禁止读 localStorage（可被篡改，且切换账号后可能残留旧管理员信息）。
+      // 无有效会话时显式标记为「未登录操作」，不得伪装成管理员/系统。
       const { data: { user: authUser } } = await supabase.auth.getUser()
       const meta = authUser?.user_metadata || {}
-      const operatorId = (meta.app_user_id as string) || authUser?.id || 'system'
-      const operatorName =
-        (meta.nickname as string) ||
-        (meta.username as string) ||
-        authUser?.email?.split('@')[0] ||
-        '管理员'
+      const operatorId = authUser
+        ? ((meta.app_user_id as string) || authUser.id)
+        : '__no_session__'
+      const operatorName = authUser
+        ? ((meta.nickname as string) ||
+            (meta.username as string) ||
+            authUser.email?.split('@')[0] ||
+            (meta.app_user_id as string) ||
+            '未命名用户')
+        : '未登录操作'
 
       let result
       if (selectedAction === FEEDBACK_ACTION_DELETED) {
