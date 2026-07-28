@@ -52,3 +52,21 @@ export const NOVEL_STATUS_OPTIONS = [
   { label: '连载中', value: 'ongoing' },
   { label: '已完结', value: 'completed' },
 ]
+
+// 聚合来源（source 字段取值）
+export const NOVEL_SOURCE_MAP: Record<string, string> = {
+  original: '原创',
+  zongheng: '纵横',
+  '17k': '17K',
+  douban: '豆瓣',
+}
+
+// 聚合书（非原创）来源集合，用于标签着色
+export const NOVEL_AGGREGATED_SOURCES = new Set(['zongheng', '17k', 'douban'])
+
+export const NOVEL_SOURCE_OPTIONS = [
+  { label: '原创', value: 'original' },
+  { label: '纵横', value: 'zongheng' },
+  { label: '17K', value: '17k' },
+  { label: '豆瓣', value: 'douban' },
+]

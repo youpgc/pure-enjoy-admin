@@ -21,6 +21,7 @@ import {
   EditOutlined,
   DeleteOutlined,
   FileTextOutlined,
+  LinkOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -32,7 +33,7 @@ import NovelChapterModal from '../components/NovelChapterModal'
 import NovelCover from '../components/NovelCover'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
-import { NOVEL_CATEGORY_MAP, NOVEL_CATEGORY_OPTIONS, NOVEL_STATUS_MAP, NOVEL_STATUS_OPTIONS, NOVEL_STATUS_COLORS } from '../constants'
+import { NOVEL_CATEGORY_MAP, NOVEL_CATEGORY_OPTIONS, NOVEL_STATUS_MAP, NOVEL_STATUS_OPTIONS, NOVEL_STATUS_COLORS, NOVEL_SOURCE_MAP, NOVEL_SOURCE_OPTIONS, NOVEL_AGGREGATED_SOURCES } from '../constants'
 import EllipsisText from '../components/EllipsisText'
 
 const { Text } = Typography
@@ -47,6 +48,7 @@ interface NovelFilters {
   keyword: string
   category: string | undefined
   status: string | undefined
+  source: string | undefined
 }
 
 // ==================== 组件 ====================
@@ -61,6 +63,7 @@ const Novels: React.FC = () => {
     keyword: '',
     category: undefined,
     status: undefined,
+    source: undefined,
   })
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([])
   const [modalVisible, setModalVisible] = useState(false)
@@ -86,6 +89,9 @@ const Novels: React.FC = () => {
         }
         if (filters.status) {
           query = query.eq('status', filters.status)
+        }
+        if (filters.source) {
+          query = query.eq('source', filters.source)
         }
         return query
       })
@@ -122,6 +128,7 @@ const Novels: React.FC = () => {
       keyword: '',
       category: undefined,
       status: undefined,
+      source: undefined,
     })
     resetPage()
   }
@@ -263,6 +270,26 @@ const Novels: React.FC = () => {
       },
     },
     {
+      title: '聚合来源',
+      dataIndex: 'source',
+      key: 'source',
+      width: 130,
+      render: (source: string | null, record) => {
+        if (!source) return <Tag>-</Tag>
+        const label = NOVEL_SOURCE_MAP[source] || source
+        const isAggregated = NOVEL_AGGREGATED_SOURCES.has(source)
+        if (isAggregated && record.source_url) {
+          return (
+            <a href={record.source_url} target="_blank" rel="noreferrer">
+              <LinkOutlined style={{ marginRight: 4 }} />
+              {label}
+            </a>
+          )
+        }
+        return <Tag color={isAggregated ? 'blue' : 'default'}>{label}</Tag>
+      },
+    },
+    {
       title: '章节数',
       dataIndex: 'chapter_count',
       key: 'chapter_count',
@@ -343,6 +370,14 @@ const Novels: React.FC = () => {
             style={{ width: 120 }}
             allowClear
             options={NOVEL_STATUS_OPTIONS}
+          />
+          <Select
+            placeholder="聚合来源"
+            value={filters.source}
+            onChange={(value) => setFilters(prev => ({ ...prev, source: value }))}
+            style={{ width: 120 }}
+            allowClear
+            options={NOVEL_SOURCE_OPTIONS}
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
             搜索
