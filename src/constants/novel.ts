@@ -57,16 +57,18 @@ export const NOVEL_STATUS_OPTIONS = [
 export const NOVEL_SOURCE_MAP: Record<string, string> = {
   original: '原创',
   zongheng: '纵横',
+  faloo: '飞卢',
   '17k': '17K',
   douban: '豆瓣',
 }
 
 // 聚合书（非原创）来源集合，用于标签着色
-export const NOVEL_AGGREGATED_SOURCES = new Set(['zongheng', '17k', 'douban'])
+export const NOVEL_AGGREGATED_SOURCES = new Set(['zongheng', 'faloo', '17k', 'douban'])
 
 export const NOVEL_SOURCE_OPTIONS = [
   { label: '原创', value: 'original' },
   { label: '纵横', value: 'zongheng' },
+  { label: '飞卢', value: 'faloo' },
   { label: '17K', value: '17k' },
   { label: '豆瓣', value: 'douban' },
 ]
