@@ -129,13 +129,14 @@ const Bookmarks: React.FC = () => {
   }, [fetchData])
 
   const statusTag = (status: string) => {
-    const map: Record<string, React.ReactNode> = {
-      unread: <Tag color='default'>未读</Tag>,
-      reading: <Tag color='processing'>阅读中</Tag>,
-      finished: <Tag color='success'>已读完</Tag>,
-      dropped: <Tag color='error'>已弃书</Tag>,
+    const map: Record<string, { color: string; label: string }> = {
+      unread: { color: 'default', label: '未读' },
+      reading: { color: 'processing', label: '阅读中' },
+      finished: { color: 'success', label: '已读完' },
+      dropped: { color: 'error', label: '已弃书' },
     }
-    return map[status] || <Tag>{status}</Tag>
+    const info = map[status] || { color: 'default', label: '未知' }
+    return <Tag color={info.color}>{info.label}</Tag>
   }
 
   const progressColumns: ColumnsType<UserNovelProgress> = [

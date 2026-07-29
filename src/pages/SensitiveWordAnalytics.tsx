@@ -31,7 +31,7 @@ import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { useMounted } from '../hooks/useMounted'
-import { SENSITIVE_CATEGORY_MAP, SENSITIVE_LEVEL_MAP } from '../constants'
+import { SENSITIVE_CATEGORY_MAP, SENSITIVE_LEVEL_MAP, SENSITIVE_SOURCE_MAP, SENSITIVE_ACTION_MAP } from '../constants'
 
 const { Text, Title } = Typography
 const { RangePicker } = DatePicker
@@ -226,6 +226,10 @@ const SensitiveWordAnalytics: React.FC = () => {
       title: '来源',
       dataIndex: 'source',
       key: 'source',
+      render: (source: string) => {
+        const info = SENSITIVE_SOURCE_MAP[source] || { color: 'default', label: '未知来源' }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
     },
     {
       title: '来源ID',
@@ -237,7 +241,11 @@ const SensitiveWordAnalytics: React.FC = () => {
       title: '处理方式',
       dataIndex: 'action_taken',
       key: 'action_taken',
-      width: 100,
+      width: 120,
+      render: (action: string) => {
+        const info = SENSITIVE_ACTION_MAP[action] || { color: 'default', label: '未知处理' }
+        return <Tag color={info.color}>{info.label}</Tag>
+      },
     },
     {
       title: 'IP地址',

@@ -39,3 +39,38 @@ export const SENSITIVE_MATCH_MODE_OPTIONS = [
   { label: '模糊', value: 'fuzzy' },
   { label: '正则', value: 'regex' },
 ]
+
+// 敏感词命中来源（sensitive_word_logs.source，自由字符串，由各业务端写入）
+export const SENSITIVE_SOURCE_MAP: Record<string, { color: string; label: string }> = {
+  comment: { color: 'blue', label: '评论' },
+  content: { color: 'cyan', label: '正文' },
+  mood: { color: 'purple', label: '心情' },
+  note: { color: 'green', label: '笔记' },
+  annotation: { color: 'geekblue', label: '批注' },
+  bookmark: { color: 'orange', label: '书签' },
+  feedback: { color: 'volcano', label: '反馈' },
+  bio: { color: 'default', label: '简介' },
+  nickname: { color: 'default', label: '昵称' },
+  title: { color: 'default', label: '标题' },
+  chat: { color: 'magenta', label: '聊天' },
+  post: { color: 'gold', label: '帖子' },
+}
+
+export const SENSITIVE_SOURCE_OPTIONS = Object.entries(SENSITIVE_SOURCE_MAP).map(
+  ([value, { label }]) => ({ label, value }),
+)
+
+// 敏感词处理方式（sensitive_word_logs.action_taken）
+export const SENSITIVE_ACTION_MAP: Record<string, { color: string; label: string }> = {
+  none: { color: 'default', label: '未处理' },
+  blocked: { color: 'red', label: '已屏蔽' },
+  replaced: { color: 'orange', label: '已替换' },
+  warned: { color: 'gold', label: '已警告' },
+  ignored: { color: 'default', label: '已忽略' },
+  masked: { color: 'blue', label: '已打码' },
+  deleted: { color: 'volcano', label: '已删除' },
+}
+
+export const SENSITIVE_ACTION_OPTIONS = Object.entries(SENSITIVE_ACTION_MAP).map(
+  ([value, { label }]) => ({ label, value }),
+)
