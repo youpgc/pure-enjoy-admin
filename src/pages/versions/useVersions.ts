@@ -109,6 +109,7 @@ export function useVersions() {
       build_number: record.build_number,
       release_notes: record.release_notes,
       apk_url: record.apk_url,
+      github_url: record.github_url,
       file_name: record.file_name,
       apk_size: record.apk_size,
       checksum: record.checksum,

@@ -65,7 +65,13 @@ export function VersionFormModal({
           name="apk_url"
           label="APK下载地址"
         >
-          <Input placeholder="请输入APK下载地址" />
+          <Input placeholder="请输入APK下载地址（主源，如 Gitee）" />
+        </Form.Item>
+        <Form.Item
+          name="github_url"
+          label="GitHub下载地址"
+        >
+          <Input placeholder="请输入备用下载地址（GitHub Releases 直链，主源失败时回退）" />
         </Form.Item>
         <Form.Item
           name="file_name"

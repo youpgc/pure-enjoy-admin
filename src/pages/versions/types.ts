@@ -9,6 +9,7 @@ export interface AppVersion {
   release_notes?: string
   release_type?: string
   apk_url?: string
+  github_url?: string
   apk_size?: number
   status?: string
   released_at?: string

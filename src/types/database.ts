@@ -91,6 +91,7 @@ export interface Database {
           release_type: string
           release_notes: string
           apk_url: string | null
+          github_url: string | null
           apk_size: number | null
           status: string
           released_at: string | null
