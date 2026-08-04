@@ -8,6 +8,7 @@ import {
   MessageOutlined, DeleteOutlined, ReloadOutlined,
   SearchOutlined, WarningOutlined, ExportOutlined,
   RiseOutlined, LineChartOutlined,
+  CheckOutlined, StopOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { Dayjs } from 'dayjs'
@@ -15,6 +16,7 @@ import { getActionColumn } from '../components/ActionColumn'
 import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
 import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
+import { useAuth } from '../App'
 import { useMounted } from '../hooks/useMounted'
 import EllipsisText from '../components/EllipsisText'
 import { useUsernames } from '../hooks/useUsernames'
@@ -35,6 +37,10 @@ interface NovelAnnotation {
   color: string
   is_deleted: boolean
   deleted_at: string | null
+  // 审核状态（新增，feature_admin_annotations_review.sql 注册）：pending 待审核 / approved 通过 / rejected 封禁
+  review_status?: 'pending' | 'approved' | 'rejected' | null
+  reviewed_at?: string | null
+  reviewed_by?: string | null
   created_at: string
   updated_at: string
 }
@@ -80,6 +86,7 @@ const Annotations: React.FC = () => {
   const annotationService = React.useMemo(() => new BaseService<NovelAnnotation>('novel_annotations', { defaultOrder: { column: 'created_at', ascending: false } }), [])
   const { pagination, resetPage, setTotal, tablePagination } = usePagination(20)
   const { hasPermission } = usePermission()
+  const { user: adminUser } = useAuth()
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -197,14 +204,69 @@ const Annotations: React.FC = () => {
     message.success('导出成功')
   }
 
+  // 审核写回：通过 / 封禁（feature_admin_annotations_review.sql 注册 review_status 列）
+  // 通过 -> review_status='approved'；封禁 -> review_status='rejected' 并软删（is_deleted=true）
+  const handleReview = async (id: string, status: 'approved' | 'rejected') => {
+    const patch: Partial<NovelAnnotation> = {
+      review_status: status,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: adminUser?.id ?? null,
+    }
+    if (status === 'rejected') {
+      patch.is_deleted = true
+      patch.deleted_at = new Date().toISOString()
+    }
+    try {
+      const result = await annotationService.update(id, patch)
+      if (result.success) {
+        message.success(status === 'approved' ? '已通过审核' : '已封禁并删除')
+        fetchData()
+      } else {
+        handleApiError(result.errorMessage, 'Annotations-审核')
+      }
+    } catch (error) {
+      handleApiError(error, 'Annotations-审核')
+    }
+  }
+
+  // 待审核 = 含敏感词 且 审核状态为 pending/null（已审核通过的不再出现）
   const reviewData = data.filter(a => {
     const text = (a.highlighted_text || '') + (a.note || '')
-    return containsSensitive(text).length > 0
+    const isPending = !a.review_status || a.review_status === 'pending'
+    return isPending && containsSensitive(text).length > 0
   })
 
   const renderActions = (record: NovelAnnotation) => {
     const actions = []
     if (hasPermission('novels:delete')) {
+      actions.push({
+        key: 'delete',
+        label: '删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        onClick: () => handleDelete(record.id),
+      })
+    }
+    return actions
+  }
+
+  // 审核页操作：通过 / 封禁 / 删除（写回 review_status）
+  const renderReviewActions = (record: NovelAnnotation) => {
+    const actions = []
+    if (hasPermission('novels:delete')) {
+      actions.push({
+        key: 'approve',
+        label: '通过',
+        icon: <CheckOutlined />,
+        onClick: () => handleReview(record.id, 'approved'),
+      })
+      actions.push({
+        key: 'ban',
+        label: '封禁',
+        icon: <StopOutlined />,
+        danger: true,
+        onClick: () => handleReview(record.id, 'rejected'),
+      })
       actions.push({
         key: 'delete',
         label: '删除',
@@ -258,7 +320,7 @@ const Annotations: React.FC = () => {
         return <Space>{words.map(w => <Tag color='error' key={w}>{w}</Tag>)}</Space>
       },
     },
-    getActionColumn<NovelAnnotation>(renderActions, { width: 100 }),
+    getActionColumn<NovelAnnotation>(renderReviewActions, { width: 160 }),
   ]
 
   const totalUsers = new Set(data.map(d => d.user_id)).size

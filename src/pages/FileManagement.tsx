@@ -124,25 +124,28 @@ const FileManagement: React.FC = () => {
   }
 
   // 删除文件
+  // 顺序：先删数据库记录，再清存储。
+  // 理由：DB 删除失败则应中止（不碰存储，不产生孤儿）；DB 删除成功但存储清理失败，
+  // 仅残留孤儿存储文件（可后续清理），不会出现「DB 有记录但文件已删」的坏链。
   const handleDelete = async (record: FileItem) => {
     try {
-      // 先删除存储
-      const storageResult = await apiExecute(
-        () => supabase.storage.from(record.bucket).remove([record.path]),
-        'FileManagement-删除存储'
-      )
-      if (!storageResult.success) {
-        handleApiError(storageResult.errorMessage, 'FileManagement-删除存储')
-        return
-      }
-
-      // 再删除数据库记录
+      // 1) 先删除数据库记录
       const result = await fileService.delete(record.id)
       if (!result.success) {
         handleApiError(result.errorMessage, 'FileManagement-删除记录')
         return
       }
-      message.success('删除成功')
+
+      // 2) 再清存储（失败仅告警，DB 已干净）
+      const storageResult = await apiExecute(
+        () => supabase.storage.from(record.bucket).remove([record.path]),
+        'FileManagement-删除存储'
+      )
+      if (!storageResult.success) {
+        message.warning('数据库记录已删除，但存储文件清理失败，可稍后手动清理')
+      } else {
+        message.success('删除成功')
+      }
       loadFiles()
     } catch (error) {
       handleApiError(error, 'FileManagement-删除')
@@ -150,14 +153,22 @@ const FileManagement: React.FC = () => {
   }
 
   // 批量删除
+  // 顺序：先批量删数据库记录，再按 bucket 分组清存储（与单条删除一致）。
   const handleBatchDelete = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('请先选择要删除的文件')
       return
     }
     try {
+      // 1) 先批量删数据库记录
+      const result = await new BaseService('files').batchDelete(selectedRowKeys as string[])
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'FileManagement-批量删除记录')
+        return
+      }
+
+      // 2) 再按 bucket 分组清存储（部分失败仅告警，DB 已干净）
       const selectedFiles = files.filter(f => selectedRowKeys.includes(f.id))
-      // 按 bucket 分组删除存储
       const bucketGroups = selectedFiles.reduce((acc, file) => {
         const b = file.bucket
         if (!acc[b]) acc[b] = []
@@ -165,19 +176,20 @@ const FileManagement: React.FC = () => {
         return acc
       }, {} as Record<string, string[]>)
 
+      let storageFailed = false
       for (const [bucket, paths] of Object.entries(bucketGroups)) {
-        await apiExecute(
+        const sr = await apiExecute(
           () => supabase.storage.from(bucket).remove(paths as string[]),
           'FileManagement-批量删除存储'
         )
+        if (!sr.success) storageFailed = true
       }
 
-      const result = await new BaseService('files').batchDelete(selectedRowKeys as string[])
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'FileManagement-批量删除记录')
-        return
+      if (storageFailed) {
+        message.warning(`已删除 ${selectedRowKeys.length} 条数据库记录，部分存储文件清理失败，可稍后手动清理`)
+      } else {
+        message.success(`成功删除 ${selectedRowKeys.length} 个文件`)
       }
-      message.success(`成功删除 ${selectedRowKeys.length} 个文件`)
       setSelectedRowKeys([])
       loadFiles()
     } catch (error) {
