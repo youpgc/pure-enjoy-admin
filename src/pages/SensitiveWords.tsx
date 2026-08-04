@@ -16,7 +16,6 @@ import {
   PlusOutlined,
   DeleteOutlined,
 } from '@ant-design/icons'
-import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
@@ -142,12 +141,9 @@ const SensitiveWords: React.FC = () => {
       return
     }
     try {
-      const { error } = await supabase
-        .from('sensitive_words')
-        .delete()
-        .in('id', selectedRowKeys as string[])
-      if (error) {
-        handleApiError(error, 'SensitiveWords-批量删除')
+      const result = await new BaseService('sensitive_words').batchDelete(selectedRowKeys as string[])
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'SensitiveWords-批量删除')
         return
       }
       message.success(`成功删除 ${selectedRowKeys.length} 个敏感词`)

@@ -25,7 +25,6 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { supabase } from '../utils/supabase'
 import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
@@ -172,12 +171,9 @@ const Novels: React.FC = () => {
       return
     }
     try {
-      const { error } = await supabase
-        .from('novels')
-        .delete()
-        .in('id', selectedRowKeys as string[])
-      if (error) {
-        handleApiError(error, 'Novels-批量删除')
+      const result = await new BaseService('novels').batchDelete(selectedRowKeys as string[])
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'Novels-批量删除')
         return
       }
       message.success(`成功删除 ${selectedRowKeys.length} 本小说`)

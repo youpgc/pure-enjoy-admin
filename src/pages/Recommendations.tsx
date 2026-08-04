@@ -10,7 +10,7 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { usePagination } from '../hooks/usePagination'
-import { BaseService, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError, logApiError } from '../utils/apiClient'
 import { useMounted } from '../hooks/useMounted'
 import { supabase } from '../utils/supabase'
 import { RECOMMENDATION_FEEDBACK_TYPE_MAP } from '../constants'
@@ -84,7 +84,7 @@ const Recommendations: React.FC = () => {
           }))
         }
       } catch (err) {
-        console.warn('[Recommendations] 配置加载失败，使用默认:', err)
+        logApiError(err, 'Recommendations-加载配置')
       }
     })()
   }, [])

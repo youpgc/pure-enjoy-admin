@@ -172,12 +172,9 @@ const FileManagement: React.FC = () => {
         )
       }
 
-      const { error } = await supabase
-        .from('files')
-        .delete()
-        .in('id', selectedRowKeys as string[])
-      if (error) {
-        handleApiError(error, 'FileManagement-批量删除记录')
+      const result = await new BaseService('files').batchDelete(selectedRowKeys as string[])
+      if (!result.success) {
+        handleApiError(result.errorMessage, 'FileManagement-批量删除记录')
         return
       }
       message.success(`成功删除 ${selectedRowKeys.length} 个文件`)

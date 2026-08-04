@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { TablePaginationConfig } from 'antd/es/table'
 import { supabase } from '../../utils/supabase'
-import { BaseService, handleApiError, apiQuery } from '../../utils/apiClient'
+import { BaseService, handleApiError, apiQuery, logApiError } from '../../utils/apiClient'
 import type { RecordItem, UserSummary } from './types'
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from './constants'
 
@@ -73,7 +73,7 @@ export function useUserDimension({
       }
       setUserMap(map)
     } catch (error) {
-      console.error('加载用户信息失败:', error)
+      logApiError(error, 'UserDimension-加载用户信息')
     }
   }, [])
 

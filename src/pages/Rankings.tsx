@@ -15,6 +15,7 @@ import { getActionColumn } from '../components/ActionColumn'
 import { usePagination } from '../hooks/usePagination'
 import { apiQuery, apiExecute, handleApiError } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
+import { rankingService } from '../services/rankingService'
 import { useMounted } from '../hooks/useMounted'
 import EllipsisText from '../components/EllipsisText'
 
@@ -103,33 +104,17 @@ const Rankings: React.FC = () => {
   const [rules, setRules] = useState<RankingRules>(DEFAULT_RULES)
   const { setTotal, tablePagination } = usePagination(20)
 
-  // 从 localStorage 加载运营干预配置
+  // 从服务端加载运营干预与规则配置（替代原 localStorage 持久化）
   useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('ranking_intervention') || '{}')
-      setIntervention({
-        pin_ids: saved.pin_ids || [],
-        block_ids: saved.block_ids || [],
-      })
-    } catch {
-      setIntervention({ pin_ids: [], block_ids: [] })
-    }
-  }, [])
-
-  // 从 localStorage 加载榜单规则配置
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('ranking_rules') || '{}')
-      setRules({
-        rating_min_count: saved.rating_min_count ?? DEFAULT_RULES.rating_min_count,
-        new_book_days_threshold: saved.new_book_days_threshold ?? DEFAULT_RULES.new_book_days_threshold,
-        read_weight: saved.read_weight ?? DEFAULT_RULES.read_weight,
-        collect_weight: saved.collect_weight ?? DEFAULT_RULES.collect_weight,
-        rating_weight: saved.rating_weight ?? DEFAULT_RULES.rating_weight,
-      })
-    } catch {
-      setRules(DEFAULT_RULES)
-    }
+    (async () => {
+      const [iv, rl] = await Promise.all([
+        rankingService.getInterventions(),
+        rankingService.getRules(),
+      ])
+      if (!mountedRef.current) return
+      setIntervention(iv)
+      if (rl) setRules(rl)
+    })()
   }, [])
 
   const fetchRankings = useCallback(async () => {
@@ -139,8 +124,7 @@ const Rankings: React.FC = () => {
         () => supabase
           .from('mv_novel_rankings')
           .select('novel_id, title, author, cover_url, category, status, total_reads, total_collects, avg_rating, rating_count, daily_reads, daily_collects, weekly_reads, weekly_collects, monthly_reads, monthly_collects, created_at, computed_at')
-          .order(rankingType, { ascending: false })
-          .limit(100),
+          .order(rankingType, { ascending: false }),
         'Rankings-查询榜单'
       )
       if (result.success && result.data) {
@@ -203,19 +187,19 @@ const Rankings: React.FC = () => {
     URL.revokeObjectURL(a.href)
   }
 
-  const saveIntervention = (type: 'pin' | 'block', ids: string[]) => {
+  const saveIntervention = async (type: 'pin' | 'block', ids: string[]) => {
     const key = type === 'pin' ? 'pin_ids' : 'block_ids'
     const newIntervention = { ...intervention, [key]: ids }
     setIntervention(newIntervention)
-    localStorage.setItem('ranking_intervention', JSON.stringify(newIntervention))
-    message.success(type === 'pin' ? '置顶已更新' : '屏蔽已更新')
+    const ok = await rankingService.saveInterventions(newIntervention.pin_ids, newIntervention.block_ids)
+    if (ok) message.success(type === 'pin' ? '置顶已更新' : '屏蔽已更新')
     fetchRankings()
   }
 
-  const saveRules = (newRules: RankingRules) => {
+  const saveRules = async (newRules: RankingRules) => {
     setRules(newRules)
-    localStorage.setItem('ranking_rules', JSON.stringify(newRules))
-    message.success('榜单规则已保存')
+    const ok = await rankingService.saveRules(newRules)
+    if (ok) message.success('榜单规则已保存')
     fetchRankings()
   }
 
