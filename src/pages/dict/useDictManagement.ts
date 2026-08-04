@@ -4,10 +4,15 @@ import { message, Form } from 'antd'
 import { BaseService, handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
+import { usePermission } from '../../hooks/usePermission'
 import type { DictType, DictItem } from './types'
 
 export function useDictManagement() {
   const mountedRef = useMounted()
+  // 写操作按钮级权限门控（与 feature_admin_permissions.sql 注册的权限码对应）
+  const { hasPermission } = usePermission()
+  const canWrite = hasPermission('dict:write')
+  const canDelete = hasPermission('dict:delete')
   // 字典类型状态
   const [dictTypes, setDictTypes] = useState<DictType[]>([])
   const [typeLoading, setTypeLoading] = useState(false)
@@ -344,5 +349,8 @@ export function useDictManagement() {
     handleSaveItem,
     // 派生
     selectedTypeName,
+    // 权限
+    canWrite,
+    canDelete,
   }
 }

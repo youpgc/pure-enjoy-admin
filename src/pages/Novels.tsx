@@ -27,7 +27,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
-import { getActionColumn } from '../components/ActionColumn'
+import { getActionColumn, type ActionButton } from '../components/ActionColumn'
 import NovelChapterModal from '../components/NovelChapterModal'
 import NovelCover from '../components/NovelCover'
 import { BaseService, handleApiError } from '../utils/apiClient'
@@ -70,7 +70,9 @@ const Novels: React.FC = () => {
   const [chapterModalOpen, setChapterModalOpen] = useState(false)
   const [selectedNovelId, setSelectedNovelId] = useState<string>('')
   const [form] = Form.useForm()
-  const { isAdmin: _isAdmin } = usePermission()
+  const { hasPermission } = usePermission()
+  const canWrite = hasPermission('novels:write')
+  const canDelete = hasPermission('novels:delete')
 
   const novelService = React.useMemo(() => new BaseService<Novel>('novels', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
@@ -310,31 +312,37 @@ const Novels: React.FC = () => {
       width: 170,
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
-    getActionColumn<Novel>(
-      (record) => [
-        {
+  getActionColumn<Novel>(
+    (record) => {
+      const actions: ActionButton[] = []
+      if (canWrite) {
+        actions.push({
           key: 'chapters',
           label: '章节管理',
           icon: <FileTextOutlined />,
           type: 'primary',
           onClick: () => handleManageChapters(record.id),
-        },
-        {
+        })
+        actions.push({
           key: 'edit',
           label: '编辑',
           icon: <EditOutlined />,
           onClick: () => handleEdit(record),
-        },
-        {
+        })
+      }
+      if (canDelete) {
+        actions.push({
           key: 'delete',
           label: '删除',
           icon: <DeleteOutlined />,
           danger: true,
           onClick: () => handleDelete(record.id),
-        },
-      ],
-      { width: 240, maxVisible: 3 }
-    ),
+        })
+      }
+      return actions
+    },
+    { width: 240, maxVisible: 3 }
+  ),
   ]
 
   return (
@@ -387,7 +395,7 @@ const Novels: React.FC = () => {
       {/* 操作栏 */}
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
         <Space>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={handleAdd}>
             新增小说
           </Button>
           {selectedRowKeys.length > 0 && (
@@ -398,9 +406,9 @@ const Novels: React.FC = () => {
               okText="确认"
               cancelText="取消"
             >
-              <Button danger icon={<DeleteOutlined />}>
-                批量删除 ({selectedRowKeys.length})
-              </Button>
+            <Button danger icon={<DeleteOutlined />} disabled={!canDelete}>
+              批量删除 ({selectedRowKeys.length})
+            </Button>
             </Popconfirm>
           )}
         </Space>

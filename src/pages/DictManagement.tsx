@@ -26,10 +26,14 @@ const DictManagement: React.FC = () => {
   const typeColumns = buildTypeColumns({
     onEdit: d.handleEditType,
     onDelete: d.handleDeleteType,
+    canWrite: d.canWrite,
+    canDelete: d.canDelete,
   })
   const itemColumns = buildItemColumns({
     onEdit: d.handleEditItem,
     onDelete: d.handleDeleteItem,
+    canWrite: d.canWrite,
+    canDelete: d.canDelete,
   })
 
   return (
@@ -62,7 +66,7 @@ const DictManagement: React.FC = () => {
             <Button icon={<ReloadOutlined />} onClick={d.loadDictTypes} loading={d.typeLoading}>
               刷新
             </Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={d.handleAddType}>
+            <Button type="primary" icon={<PlusOutlined />} disabled={!d.canWrite} onClick={d.handleAddType}>
               新增类型
             </Button>
           </Space>
@@ -129,7 +133,7 @@ const DictManagement: React.FC = () => {
               type="primary"
               icon={<PlusOutlined />}
               onClick={d.handleAddItem}
-              disabled={!d.selectedTypeId}
+              disabled={!d.selectedTypeId || !d.canWrite}
             >
               新增字典项
             </Button>

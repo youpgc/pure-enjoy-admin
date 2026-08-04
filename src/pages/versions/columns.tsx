@@ -27,6 +27,8 @@ interface BuildVersionColumnsParams {
   onCopyUrl: (record: AppVersion) => void
   onDownload: (record: AppVersion) => void
   onShowQr: (record: AppVersion) => void
+  canWrite: boolean
+  canDelete: boolean
 }
 
 export function buildVersionColumns(params: BuildVersionColumnsParams): ColumnsType<AppVersion> {
@@ -38,6 +40,8 @@ export function buildVersionColumns(params: BuildVersionColumnsParams): ColumnsT
     onCopyUrl,
     onDownload,
     onShowQr,
+    canWrite,
+    canDelete,
   } = params
 
   return [
@@ -136,27 +140,31 @@ export function buildVersionColumns(params: BuildVersionColumnsParams): ColumnsT
 
         // 已失效(superseded)版本只展示删除按钮
         if (record.status === 'superseded') {
-          actions.push({
-            key: 'delete',
-            label: '删除',
-            icon: <DeleteOutlined />,
-            danger: true,
-            onClick: () => onDelete(record.id),
-          })
+          if (canDelete) {
+            actions.push({
+              key: 'delete',
+              label: '删除',
+              icon: <DeleteOutlined />,
+              danger: true,
+              onClick: () => onDelete(record.id),
+            })
+          }
           return actions
         }
 
         // 编辑按钮：status 非 superseded 时展示（已失效版本不展示）
-        actions.push({
-          key: 'edit',
-          label: '编辑',
-          icon: <EditOutlined />,
-          type: 'primary',
-          onClick: () => onEdit(record),
-        })
+        if (canWrite) {
+          actions.push({
+            key: 'edit',
+            label: '编辑',
+            icon: <EditOutlined />,
+            type: 'primary',
+            onClick: () => onEdit(record),
+          })
+        }
 
         // 回滚按钮：只在 status 为 revoked 时展示
-        if (record.status === 'revoked') {
+        if (record.status === 'revoked' && canWrite) {
           actions.push({
             key: 'rollback',
             label: '回滚',
@@ -166,7 +174,7 @@ export function buildVersionColumns(params: BuildVersionColumnsParams): ColumnsT
         }
 
         // 强制更新/取消强制：仅对 released 版本显示
-        if (record.status === 'released') {
+        if (record.status === 'released' && canWrite) {
           actions.push({
             key: 'forceUpdate',
             label: record.is_force_update ? '取消强制' : '强制更新',
@@ -200,13 +208,15 @@ export function buildVersionColumns(params: BuildVersionColumnsParams): ColumnsT
           onClick: () => onDownload(record),
         })
 
-        actions.push({
-          key: 'delete',
-          label: '删除',
-          icon: <DeleteOutlined />,
-          danger: true,
-          onClick: () => onDelete(record.id),
-        })
+        if (canDelete) {
+          actions.push({
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => onDelete(record.id),
+          })
+        }
 
         return actions
       },

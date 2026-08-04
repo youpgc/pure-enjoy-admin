@@ -27,7 +27,9 @@ export function useVersions() {
   const [currentVersion, setCurrentVersion] = useState<AppVersion | null>(null)
   const [qrCodeVersion, setQrCodeVersion] = useState<AppVersion | null>(null)
   const [saving, setSaving] = useState(false)
-  const { isAdmin: _isAdmin } = usePermission()
+  const { hasPermission } = usePermission()
+  const canWrite = hasPermission('versions:write')
+  const canDelete = hasPermission('versions:delete')
 
   const versionService = useMemo(() => new BaseService<AppVersion>('app_versions', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
@@ -318,5 +320,8 @@ export function useVersions() {
     handleForceUpdate,
     handleSave,
     getDownloadUrl,
+    // 权限
+    canWrite,
+    canDelete,
   }
 }

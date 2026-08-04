@@ -45,7 +45,9 @@ const SensitiveWords: React.FC = () => {
   const [editingWord, setEditingWord] = useState<SensitiveWord | null>(null)
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
-  const { isAdmin: _isAdmin } = usePermission()
+  const { hasPermission } = usePermission()
+  const canWrite = hasPermission('sensitive_words:write')
+  const canDelete = hasPermission('sensitive_words:delete')
 
   const wordService = React.useMemo(() => new BaseService<SensitiveWord>('sensitive_words', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
@@ -210,6 +212,8 @@ const SensitiveWords: React.FC = () => {
     onEdit: handleEdit,
     onDelete: handleDelete,
     onToggleActive: handleToggleActive,
+    canWrite,
+    canDelete,
   })
 
   return (
@@ -254,7 +258,7 @@ const SensitiveWords: React.FC = () => {
       {/* 操作栏 */}
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
         <Space>
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+          <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={handleAdd}>
             新增敏感词
           </Button>
           {selectedRowKeys.length > 0 && (
@@ -265,9 +269,9 @@ const SensitiveWords: React.FC = () => {
               okText="确认"
               cancelText="取消"
             >
-              <Button danger icon={<DeleteOutlined />}>
-                批量删除 ({selectedRowKeys.length})
-              </Button>
+            <Button danger icon={<DeleteOutlined />} disabled={!canDelete}>
+              批量删除 ({selectedRowKeys.length})
+            </Button>
             </Popconfirm>
           )}
         </Space>

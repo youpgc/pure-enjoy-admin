@@ -11,12 +11,13 @@ import {
   SettingOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { getActionColumn } from '../components/ActionColumn'
+import { getActionColumn, type ActionButton } from '../components/ActionColumn'
 import { usePagination } from '../hooks/usePagination'
 import { apiQuery, apiExecute, handleApiError } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
 import { rankingService } from '../services/rankingService'
 import { useMounted } from '../hooks/useMounted'
+import { usePermission } from '../hooks/usePermission'
 import EllipsisText from '../components/EllipsisText'
 
 // ==================== 类型定义 ====================
@@ -103,6 +104,10 @@ const Rankings: React.FC = () => {
   const [rulesModalOpen, setRulesModalOpen] = useState(false)
   const [rules, setRules] = useState<RankingRules>(DEFAULT_RULES)
   const { setTotal, tablePagination } = usePagination(20)
+
+  // 写操作按钮级权限门控（与 feature_admin_permissions.sql 注册的权限码对应）
+  const { hasPermission } = usePermission()
+  const canWrite = hasPermission('rankings:write')
 
   // 从服务端加载运营干预与规则配置（替代原 localStorage 持久化）
   useEffect(() => {
@@ -205,8 +210,9 @@ const Rankings: React.FC = () => {
 
   const renderActions = (record: RankingItem) => {
     const isPinned = intervention.pin_ids.includes(record.novel_id)
-    return [
-      {
+    const actions: ActionButton[] = []
+    if (canWrite) {
+      actions.push({
         key: 'pin',
         label: isPinned ? '取消置顶' : '置顶',
         icon: <PushpinOutlined />,
@@ -217,8 +223,8 @@ const Rankings: React.FC = () => {
             : [...intervention.pin_ids, record.novel_id]
           saveIntervention('pin', ids)
         },
-      },
-      {
+      })
+      actions.push({
         key: 'block',
         label: '屏蔽',
         icon: <EyeInvisibleOutlined />,
@@ -228,8 +234,9 @@ const Rankings: React.FC = () => {
             saveIntervention('block', [...intervention.block_ids, record.novel_id])
           }
         },
-      },
-    ]
+      })
+    }
+    return actions
   }
 
   const columns: ColumnsType<RankingItem> = [
@@ -313,13 +320,13 @@ const Rankings: React.FC = () => {
           </Space>
           <Space>
             <Button icon={<ExportOutlined />} onClick={handleExport}>导出CSV</Button>
-            <Button icon={<SettingOutlined />} onClick={() => setRulesModalOpen(true)}>
+            <Button icon={<SettingOutlined />} disabled={!canWrite} onClick={() => setRulesModalOpen(true)}>
               规则配置
             </Button>
-            <Button onClick={() => { setModalType('pin'); setModalOpen(true) }}>
+            <Button disabled={!canWrite} onClick={() => { setModalType('pin'); setModalOpen(true) }}>
               <PushpinOutlined /> 置顶管理
             </Button>
-            <Button danger onClick={() => { setModalType('block'); setModalOpen(true) }}>
+            <Button danger disabled={!canWrite} onClick={() => { setModalType('block'); setModalOpen(true) }}>
               <EyeInvisibleOutlined /> 屏蔽管理
             </Button>
           </Space>

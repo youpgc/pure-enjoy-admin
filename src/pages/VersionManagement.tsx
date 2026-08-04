@@ -64,6 +64,8 @@ const VersionManagement: React.FC = () => {
     onCopyUrl: handleCopyUrl,
     onDownload: handleDownload,
     onShowQr: (record) => v.setQrCodeVersion(record),
+    canWrite: v.canWrite,
+    canDelete: v.canDelete,
   })
 
   return (
@@ -181,7 +183,7 @@ const VersionManagement: React.FC = () => {
       {/* 操作栏 */}
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
         <Space>
-          <Button type="primary" icon={<PlusOutlined />} onClick={v.handleAdd}>
+          <Button type="primary" icon={<PlusOutlined />} disabled={!v.canWrite} onClick={v.handleAdd}>
             新增版本
           </Button>
           {v.selectedRowKeys.length > 0 && (
@@ -192,9 +194,9 @@ const VersionManagement: React.FC = () => {
               okText="确认"
               cancelText="取消"
             >
-              <Button danger icon={<DeleteOutlined />}>
-                批量删除 ({v.selectedRowKeys.length})
-              </Button>
+            <Button danger icon={<DeleteOutlined />} disabled={!v.canDelete}>
+              批量删除 ({v.selectedRowKeys.length})
+            </Button>
             </Popconfirm>
           )}
         </Space>

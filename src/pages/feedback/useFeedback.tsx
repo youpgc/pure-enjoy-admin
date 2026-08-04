@@ -5,6 +5,7 @@ import { HistoryOutlined, DeleteOutlined } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
 import { supabase } from '../../utils/supabase'
+import { handleApiError, logApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useDictOptions, useDictColors } from '../../hooks/useDictOptions'
 import { feedbackService } from '../../services/feedbackService'
@@ -46,7 +47,7 @@ export function useFeedback() {
     try {
       const result = await feedbackService.paginateFeedback(page, pageSize)
       if (!result.success) {
-        console.error('获取反馈列表失败:', result.errorMessage)
+        logApiError(result.errorMessage, 'Feedback-获取反馈列表')
         message.error('获取反馈列表失败')
         return
       }
@@ -54,7 +55,7 @@ export function useFeedback() {
       setData(result.data?.data || [])
       setTotal(result.data?.total || 0)
     } catch (error) {
-      console.error('获取反馈列表失败:', error)
+      logApiError(error, 'Feedback-获取反馈列表')
       message.error('获取反馈列表失败')
     } finally {
       setLoading(false)
@@ -128,9 +129,7 @@ export function useFeedback() {
       setSelectedAction(null)
       fetchData(pagination.current, pagination.pageSize)
     } catch (error: unknown) {
-      console.error('操作失败:', error)
-      const errMsg = error instanceof Error ? error.message : '未知错误'
-      message.error(`操作失败: ${errMsg}`)
+      handleApiError(error, 'Feedback-操作反馈')
     } finally {
       setActionLoading(false)
     }

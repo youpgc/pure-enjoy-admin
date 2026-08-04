@@ -1,13 +1,12 @@
 // Dashboard 数据加载 Hook（从 Dashboard.tsx 抽取，行为保持）
 import { useState, useCallback, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
-import { message } from 'antd'
 import { supabase } from '../../utils/supabase'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
 import { usePagination } from '../../hooks/usePagination'
 import { dashboardService } from '../../services/dashboardService'
-import { logApiError } from '../../utils/apiClient'
+import { handleApiError } from '../../utils/apiClient'
 import type {
   CommentItem,
   NovelListItem,
@@ -228,8 +227,7 @@ export function useDashboard() {
         setRecentActivities([])
       }
     } catch (error) {
-      logApiError(error, 'Dashboard-加载数据')
-      if (mountedRef.current) message.error('加载数据失败，请检查网络连接后重试')
+      handleApiError(error, 'Dashboard-加载数据')
     } finally {
       if (mountedRef.current) setLoading(false)
     }
@@ -252,8 +250,7 @@ export function useDashboard() {
       setNovels((data as NovelListItem[]) || [])
       novelPagination.setTotal(count || 0)
     } catch (error) {
-      logApiError(error, 'Dashboard-获取小说列表')
-      if (mountedRef.current) message.error('获取小说列表失败')
+      handleApiError(error, 'Dashboard-获取小说列表')
     } finally {
       if (mountedRef.current) setNovelsLoading(false)
     }
@@ -302,8 +299,7 @@ export function useDashboard() {
       setComments(processedComments as unknown as CommentItem[])
       commentPagination.setTotal(count || 0)
     } catch (error) {
-      logApiError(error, 'Dashboard-获取评论列表')
-      if (mountedRef.current) message.error('获取评论列表失败')
+      handleApiError(error, 'Dashboard-获取评论列表')
     } finally {
       if (mountedRef.current) setCommentsLoading(false)
     }

@@ -27,6 +27,7 @@ import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePagination } from '../hooks/usePagination'
 import { useMounted } from '../hooks/useMounted'
+import { usePermission } from '../hooks/usePermission'
 import { CONFIG_TYPE_MAP } from '../constants'
 import EllipsisText from '../components/EllipsisText'
 
@@ -58,6 +59,11 @@ const AppConfigs: React.FC = () => {
   const [editingConfig, setEditingConfig] = useState<AppConfig | null>(null)
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
+
+  // 写操作按钮级权限门控（与 feature_admin_permissions.sql 注册的权限码对应）
+  const { hasPermission } = usePermission()
+  const canWrite = hasPermission('app_configs:write')
+  const canDelete = hasPermission('app_configs:delete')
 
   const service = React.useMemo(() => new BaseService<AppConfig>('app_configs', { defaultOrder: { column: 'sort_order', ascending: true } }), [])
 
@@ -223,6 +229,7 @@ const AppConfigs: React.FC = () => {
       render: (isActive: boolean, record: AppConfig) => (
         <Switch
           checked={isActive}
+          disabled={!canWrite}
           onChange={() => handleToggleActive(record)}
           checkedChildren="启用"
           unCheckedChildren="停用"
@@ -241,7 +248,7 @@ const AppConfigs: React.FC = () => {
       width: 150,
       render: (_, record) => (
         <Space>
-          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
+          <Button type="primary" size="small" icon={<EditOutlined />} disabled={!canWrite} onClick={() => handleEdit(record)}>
             编辑
           </Button>
           <Popconfirm
@@ -250,7 +257,7 @@ const AppConfigs: React.FC = () => {
             okText="确认"
             cancelText="取消"
           >
-            <Button danger size="small" icon={<DeleteOutlined />}>
+            <Button danger size="small" icon={<DeleteOutlined />} disabled={!canDelete}>
               删除
             </Button>
           </Popconfirm>
@@ -281,9 +288,9 @@ const AppConfigs: React.FC = () => {
 
       {/* 操作栏 */}
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
-          新增配置
-        </Button>
+          <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={handleAdd}>
+            新增配置
+          </Button>
         <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
           刷新
         </Button>

@@ -3,7 +3,7 @@ import { Typography, Tag } from 'antd'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { getActionColumn } from '../../components/ActionColumn'
+import { getActionColumn, type ActionButton } from '../../components/ActionColumn'
 import { Switch } from 'antd'
 import {
   SENSITIVE_CATEGORY_MAP,
@@ -18,9 +18,11 @@ interface ColumnCallbacks {
   onEdit: (record: SensitiveWord) => void
   onDelete: (id: string) => void
   onToggleActive: (record: SensitiveWord) => void
+  canWrite: boolean
+  canDelete: boolean
 }
 
-export function buildSensitiveWordsColumns({ onEdit, onDelete, onToggleActive }: ColumnCallbacks): ColumnsType<SensitiveWord> {
+export function buildSensitiveWordsColumns({ onEdit, onDelete, onToggleActive, canWrite, canDelete }: ColumnCallbacks): ColumnsType<SensitiveWord> {
   return [
     {
       title: '敏感词',
@@ -87,6 +89,7 @@ export function buildSensitiveWordsColumns({ onEdit, onDelete, onToggleActive }:
       render: (isActive: boolean, record: SensitiveWord) => (
         <Switch
           checked={isActive}
+          disabled={!canWrite}
           onChange={() => onToggleActive(record)}
           checkedChildren="启用"
           unCheckedChildren="停用"
@@ -101,22 +104,28 @@ export function buildSensitiveWordsColumns({ onEdit, onDelete, onToggleActive }:
       render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
     },
     getActionColumn<SensitiveWord>(
-      (record) => [
-        {
-          key: 'edit',
-          label: '编辑',
-          icon: <EditOutlined />,
-          type: 'primary',
-          onClick: () => onEdit(record),
-        },
-        {
-          key: 'delete',
-          label: '删除',
-          icon: <DeleteOutlined />,
-          danger: true,
-          onClick: () => onDelete(record.id),
-        },
-      ],
+      (record) => {
+        const actions: ActionButton[] = []
+        if (canWrite) {
+          actions.push({
+            key: 'edit',
+            label: '编辑',
+            icon: <EditOutlined />,
+            type: 'primary',
+            onClick: () => onEdit(record),
+          })
+        }
+        if (canDelete) {
+          actions.push({
+            key: 'delete',
+            label: '删除',
+            icon: <DeleteOutlined />,
+            danger: true,
+            onClick: () => onDelete(record.id),
+          })
+        }
+        return actions
+      },
       { width: 200, maxVisible: 2 }
     ),
   ]

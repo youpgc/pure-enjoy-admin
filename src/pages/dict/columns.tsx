@@ -10,9 +10,11 @@ const { Text } = Typography
 interface BuildTypeColumnsParams {
   onEdit: (record: DictType) => void
   onDelete: (id: string) => void
+  canWrite: boolean
+  canDelete: boolean
 }
 
-export function buildTypeColumns({ onEdit, onDelete }: BuildTypeColumnsParams): ColumnsType<DictType> {
+export function buildTypeColumns({ onEdit, onDelete, canWrite, canDelete }: BuildTypeColumnsParams): ColumnsType<DictType> {
   return [
     {
       title: '类型编码',
@@ -52,20 +54,24 @@ export function buildTypeColumns({ onEdit, onDelete }: BuildTypeColumnsParams): 
       width: 150,
       render: (_, record) => (
         <Space>
-          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => onEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除"
-            description="删除类型后，该类型下的所有字典项也将无法使用"
-            onConfirm={() => onDelete(record.id)}
-            okText="确认"
-            cancelText="取消"
-          >
-            <Button danger size="small" icon={<DeleteOutlined />}>
-              删除
+          {canWrite && (
+            <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => onEdit(record)}>
+              编辑
             </Button>
-          </Popconfirm>
+          )}
+          {canDelete && (
+            <Popconfirm
+              title="确认删除"
+              description="删除类型后，该类型下的所有字典项也将无法使用"
+              onConfirm={() => onDelete(record.id)}
+              okText="确认"
+              cancelText="取消"
+            >
+              <Button danger size="small" icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -75,9 +81,11 @@ export function buildTypeColumns({ onEdit, onDelete }: BuildTypeColumnsParams): 
 interface BuildItemColumnsParams {
   onEdit: (record: DictItem) => void
   onDelete: (id: string) => void
+  canWrite: boolean
+  canDelete: boolean
 }
 
-export function buildItemColumns({ onEdit, onDelete }: BuildItemColumnsParams): ColumnsType<DictItem> {
+export function buildItemColumns({ onEdit, onDelete, canWrite, canDelete }: BuildItemColumnsParams): ColumnsType<DictItem> {
   return [
     {
       title: '编码',
@@ -126,19 +134,23 @@ export function buildItemColumns({ onEdit, onDelete }: BuildItemColumnsParams): 
       width: 150,
       render: (_, record) => (
         <Space>
-          <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => onEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除"
-            onConfirm={() => onDelete(record.id)}
-            okText="确认"
-            cancelText="取消"
-          >
-            <Button danger size="small" icon={<DeleteOutlined />}>
-              删除
+          {canWrite && (
+            <Button type="primary" size="small" icon={<EditOutlined />} onClick={() => onEdit(record)}>
+              编辑
             </Button>
-          </Popconfirm>
+          )}
+          {canDelete && (
+            <Popconfirm
+              title="确认删除"
+              onConfirm={() => onDelete(record.id)}
+              okText="确认"
+              cancelText="取消"
+            >
+              <Button danger size="small" icon={<DeleteOutlined />}>
+                删除
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },

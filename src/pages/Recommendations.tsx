@@ -11,6 +11,7 @@ import {
 import dayjs from 'dayjs'
 import { usePagination } from '../hooks/usePagination'
 import { BaseService, handleApiError, logApiError } from '../utils/apiClient'
+import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
 import { supabase } from '../utils/supabase'
 import { RECOMMENDATION_FEEDBACK_TYPE_MAP } from '../constants'
@@ -61,6 +62,10 @@ const Recommendations: React.FC = () => {
   })
   const feedbackService = React.useMemo(() => new BaseService<UserRecommendationFeedback>('user_recommendation_feedback', { defaultOrder: { column: 'created_at', ascending: false } }), [])
   const { pagination, setTotal, tablePagination } = usePagination(20)
+
+  // 写操作按钮级权限门控（与 feature_admin_permissions.sql 注册的权限码对应）
+  const { hasPermission } = usePermission()
+  const canWrite = hasPermission('recommendations:write')
 
   // 加载配置（从 recommend_config 表读取全局单行，淘汰 localStorage 持久化）
   useEffect(() => {
@@ -167,7 +172,7 @@ const Recommendations: React.FC = () => {
       {/* 配置面板 */}
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} lg={12}>
-          <Card title='冷启动策略' extra={<Button type='primary' icon={<SaveOutlined />} onClick={saveConfig}>保存</Button>}>
+          <Card title='冷启动策略' extra={<Button type='primary' icon={<SaveOutlined />} onClick={saveConfig} disabled={!canWrite}>保存</Button>}>
             <Space direction='vertical' style={{ width: '100%' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>新用户默认推荐</label>
@@ -205,7 +210,7 @@ const Recommendations: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} lg={12}>
-          <Card title='内容池管理' extra={<Button type='primary' icon={<SaveOutlined />} onClick={saveConfig}>保存</Button>}>
+          <Card title='内容池管理' extra={<Button type='primary' icon={<SaveOutlined />} onClick={saveConfig} disabled={!canWrite}>保存</Button>}>
             <Space direction='vertical' style={{ width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>排除未完结小说</span>
@@ -228,7 +233,7 @@ const Recommendations: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} lg={12}>
-          <Card title='权重调整' extra={<Button type='primary' icon={<SaveOutlined />} onClick={saveConfig}>保存</Button>}>
+          <Card title='权重调整' extra={<Button type='primary' icon={<SaveOutlined />} onClick={saveConfig} disabled={!canWrite}>保存</Button>}>
             <Space direction='vertical' style={{ width: '100%' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>分类偏好权重: {config.weight_category}</label>

@@ -32,6 +32,7 @@ import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
 import { usePagination } from '../../hooks/usePagination'
 import { supabase } from '../../utils/supabase'
+import { logApiError } from '../../utils/apiClient'
 import { message } from 'antd'
 
 export interface UserFilterValues {
@@ -94,7 +95,7 @@ export function useUsers() {
       if (!mountedRef.current) return
 
       if (!result.success) {
-        console.error('[Users] 查询失败:', result.errorMessage)
+        logApiError(result.errorMessage, 'Users-获取用户列表')
         message.error('获取用户列表失败: ' + (result.errorMessage || '未知错误'))
         setData([])
       } else {
@@ -103,7 +104,7 @@ export function useUsers() {
       }
     } catch (err) {
       if (!mountedRef.current) return
-      console.error('[Users] 获取用户列表失败:', err)
+      logApiError(err, 'Users-获取用户列表')
       message.error('获取用户列表失败，请检查网络连接后重试')
       setData([])
     } finally {
@@ -131,7 +132,7 @@ export function useUsers() {
         details: details,
       })
     } catch (err) {
-      console.error('Failed to log operation:', err)
+      logApiError(err, 'Users-记录操作日志')
     }
   }, [adminUser])
 
@@ -416,7 +417,7 @@ export function useUsers() {
       })
       setUserLogs((logsResult.data || []) as unknown as OperationLog[])
     } catch (err) {
-      console.error('Failed to fetch user details:', err)
+      logApiError(err, 'Users-获取用户详情')
       setUserStats(null)
       setUserLogs([])
     } finally {
