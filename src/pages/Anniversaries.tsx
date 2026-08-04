@@ -124,6 +124,7 @@ const moduleConfig: ModuleConfig = {
   title: '纪念日',
   tableName: 'user_anniversaries',
   detailColumns,
+  enableDelete: true,
 }
 
 // ==================== 组件 ====================

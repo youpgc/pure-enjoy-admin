@@ -29,4 +29,6 @@ export interface ModuleConfig {
   onUserSelect?: (userId: string) => void
   /** 详情弹窗中表格下方的自定义内容（如打卡记录查看按钮） */
   detailExtraContent?: (record: RecordItem) => ReactNode
+  /** 是否允许后台删除该模块记录（UGC 审核/moderation 用）。仅对明确的 UGC 表开启 */
+  enableDelete?: boolean
 }

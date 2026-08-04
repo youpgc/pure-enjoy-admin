@@ -58,6 +58,7 @@ const moduleConfig: ModuleConfig = {
   title: '收藏',
   tableName: 'user_favorites',
   detailColumns,
+  enableDelete: true,
 }
 
 // ==================== 组件 ====================

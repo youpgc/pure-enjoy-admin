@@ -56,6 +56,7 @@ const moduleConfig: ModuleConfig = {
   title: '提醒',
   tableName: 'reminders',
   detailColumns,
+  enableDelete: true,
 }
 
 // ==================== 组件 ====================

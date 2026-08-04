@@ -50,6 +50,7 @@ const moduleConfig: ModuleConfig = {
   title: '心情日记',
   tableName: 'mood_diaries',
   detailColumns,
+  enableDelete: true,
 }
 
 // ==================== 组件 ====================

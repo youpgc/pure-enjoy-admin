@@ -1,6 +1,7 @@
 // UserDimensionList 数据/操作逻辑 Hook（从 components/UserDimensionList.tsx 抽取，行为保持）
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { TablePaginationConfig } from 'antd/es/table'
+import { message } from 'antd'
 import { supabase } from '../../utils/supabase'
 import { BaseService, handleApiError, apiQuery, logApiError } from '../../utils/apiClient'
 import type { RecordItem, UserSummary } from './types'
@@ -12,6 +13,8 @@ interface UseUserDimensionParams {
   defaultPageSize?: number
   pageSizeOptions?: string[]
   onUserSelect?: (userId: string) => void
+  /** 是否允许后台删除（P1-6 UGC moderation）；由调用方按模块 + 角色判定后传入 */
+  canDelete?: boolean
 }
 
 export function useUserDimension({
@@ -20,14 +23,18 @@ export function useUserDimension({
   defaultPageSize = DEFAULT_PAGE_SIZE,
   pageSizeOptions = PAGE_SIZE_OPTIONS,
   onUserSelect,
+  canDelete = false,
 }: UseUserDimensionParams) {
   // 状态
   const [loading, setLoading] = useState(true)
   const [dataLimitWarning, setDataLimitWarning] = useState<string | null>(null)
   const [data, setData] = useState<UserSummary[]>([])
+  const [total, setTotal] = useState(0)
+  const [totalRecords, setTotalRecords] = useState(0)
   const [pagination, setPagination] = useState<TablePaginationConfig>({
     current: 1,
     pageSize: defaultPageSize,
+    total: 0,
     showSizeChanger: true,
     showQuickJumper: true,
     pageSizeOptions,
@@ -79,22 +86,33 @@ export function useUserDimension({
 
   // ==================== 数据加载（优先使用 RPC 后端聚合，降级为全量拉取） ====================
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (page?: number, pageSize?: number) => {
+    const curPage = page ?? pagination.current ?? 1
+    const curSize = pageSize ?? pagination.pageSize ?? defaultPageSize
     setLoading(true)
     setDataLimitWarning(null)
     try {
-      // 优先尝试 RPC 后端聚合
-      const rpcResult = await apiQuery<{ user_id: string; count: number; latest_record_at: string }[]>(
+      // 优先尝试 RPC 后端聚合（服务端分页：返回 {rows, total_users, total_records}）
+      const rpcResult = await apiQuery<
+        Array<{ rows: Array<{ user_id: string; count: number; latest_record_at: string }>; total_users: number; total_records: number }>
+      >(
         () => (supabase.rpc('get_user_dimension_stats', {
           p_table_name: tableName,
           p_user_ids: null,
+          p_limit: curSize,
+          p_offset: (curPage - 1) * curSize,
         } as any) as any),
         `UserDimensionList-${title}-RPC聚合`
       )
 
       if (rpcResult.success && rpcResult.data) {
+        // 兼容旧版 RPC（直接返回数组）与新版（单行 {rows, total_users, total_records}）
+        type AggRow = { user_id: string; count: number; latest_record_at: string }
+        const raw = Array.isArray(rpcResult.data) ? rpcResult.data : [rpcResult.data]
+        const payload = (raw[0] ?? {}) as { rows?: AggRow[]; total_users?: number; total_records?: number }
+        const rows: AggRow[] = Array.isArray(payload.rows) ? payload.rows : (raw as unknown as AggRow[])
         // RPC 调用成功，直接使用后端聚合结果
-        const result: UserSummary[] = rpcResult.data.map((row) => ({
+        const result: UserSummary[] = rows.map((row) => ({
           user_id: row.user_id,
           user_nickname: undefined,
           total_count: row.count,
@@ -105,7 +123,15 @@ export function useUserDimension({
         result.sort((a, b) => b.total_count - a.total_count)
 
         setData(result)
-        fetchUserInfo(result.map(u => u.user_id))
+        const totalUsers = typeof payload.total_users === 'number' ? payload.total_users : result.length
+        const totalRecords =
+          typeof payload.total_records === 'number'
+            ? payload.total_records
+            : result.reduce((s, i) => s + i.total_count, 0)
+        setTotal(totalUsers)
+        setTotalRecords(totalRecords)
+        setPagination((prev) => ({ ...prev, current: curPage, pageSize: curSize, total: totalUsers }))
+        fetchUserInfo(result.map((u) => u.user_id))
         return
       }
 
@@ -188,6 +214,9 @@ export function useUserDimension({
       fallbackResult.sort((a, b) => b.total_count - a.total_count)
 
       setData(fallbackResult)
+      setTotal(fallbackResult.length)
+      setTotalRecords(fallbackResult.reduce((s, i) => s + i.total_count, 0))
+      setPagination((prev) => ({ ...prev, current: curPage, pageSize: curSize, total: fallbackResult.length }))
       // 加载用户信息
       fetchUserInfo(fallbackResult.map(u => u.user_id))
     } catch (error) {
@@ -195,6 +224,7 @@ export function useUserDimension({
     } finally {
       setLoading(false)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableName, title, fetchUserInfo])
 
   useEffect(() => {
@@ -259,10 +289,38 @@ export function useUserDimension({
     }
   }, [selectedUser, fetchDetailData])
 
+  // ==================== 后台删除（P1-6 UGC moderation） ====================
+
+  // 主表服务端分页：切换页码/页大小后重新请求
+  const handlePageChange = useCallback((page: number, pageSize: number) => {
+    setPagination((prev) => ({ ...prev, current: page, pageSize }))
+    fetchData(page, pageSize)
+  }, [fetchData])
+
+  // 删除详情中的单条记录（仅 canDelete 模块开放）
+  const handleDeleteRecord = useCallback(async (recordId: string) => {
+    if (!canDelete) {
+      message.warning('当前模块不支持后台删除')
+      return
+    }
+    if (!selectedUser) return
+    const result = await detailService.delete(recordId)
+    if (result.success) {
+      message.success('已删除该记录')
+      // 重新加载详情（保留当前页）并刷新主表统计
+      fetchDetailData(selectedUser.user_id, detailPage, detailPageSize)
+      fetchData(pagination.current, pagination.pageSize)
+    } else {
+      handleApiError(result.errorMessage, 'UserDimensionList-删除记录')
+    }
+  }, [canDelete, selectedUser, detailService, detailPage, detailPageSize, fetchDetailData, fetchData, pagination.current, pagination.pageSize])
+
   return {
     loading,
     dataLimitWarning,
     data,
+    total,
+    totalRecords,
     pagination,
     setPagination,
     detailModalOpen,
@@ -274,6 +332,9 @@ export function useUserDimension({
     selectedUser,
     userMap,
     fetchData,
+    handlePageChange,
+    handleDeleteRecord,
+    canDelete,
     handleViewDetail,
     handleDetailModalClose,
     handleDetailPageChange,

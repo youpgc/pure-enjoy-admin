@@ -319,6 +319,7 @@ const Habits: React.FC = () => {
     title: '习惯',
     tableName: 'habits',
     detailColumns,
+    enableDelete: true,
   }), [detailColumns])
 
   return (

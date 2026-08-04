@@ -1,6 +1,8 @@
 // UserDimensionList 详情弹窗（从 components/UserDimensionList.tsx 抽取，行为保持）
-import { Modal, Descriptions, Divider, Table, Tag } from 'antd'
+import { useMemo } from 'react'
+import { Modal, Descriptions, Divider, Table, Tag, Popconfirm, Button } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import { DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { RecordItem, UserSummary } from './types'
 
@@ -19,6 +21,10 @@ interface UserDimensionDetailModalProps {
   detailTotal: number
   onPageChange: (page: number, pageSize: number) => void
   onClose: () => void
+  /** 是否允许后台删除（P1-6 UGC moderation） */
+  canDelete?: boolean
+  /** 删除单条记录回调 */
+  onDeleteRecord?: (recordId: string) => void
 }
 
 export function UserDimensionDetailModal({
@@ -36,7 +42,37 @@ export function UserDimensionDetailModal({
   detailTotal,
   onPageChange,
   onClose,
+  canDelete,
+  onDeleteRecord,
 }: UserDimensionDetailModalProps) {
+  // 详情表格列：开启后台删除时追加「删除」操作列（带二次确认）
+  const detailTableColumns = useMemo<ColumnsType<RecordItem>>(() => {
+    if (!canDelete) return detailColumns
+    return [
+      ...detailColumns,
+      {
+        title: '操作',
+        key: 'action',
+        width: 100,
+        fixed: 'right',
+        render: (_: unknown, record: RecordItem) => (
+          <Popconfirm
+            title="确认删除该记录？"
+            description="删除后不可恢复，且会同步主表统计。"
+            okText="删除"
+            okButtonProps={{ danger: true }}
+            cancelText="取消"
+            onConfirm={() => onDeleteRecord?.(record.id)}
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        ),
+      },
+    ]
+  }, [canDelete, detailColumns, onDeleteRecord])
+
   return (
     <Modal
       title={
@@ -81,7 +117,7 @@ export function UserDimensionDetailModal({
 
           {/* 详情列表 */}
           <Table<RecordItem>
-            columns={detailColumns}
+            columns={detailTableColumns}
             dataSource={detailData}
             rowKey="id"
             loading={detailLoading}

@@ -27,14 +27,18 @@ const UserDimensionList: React.FC<{
     tableName,
     detailColumns,
     detailTitle,
+    enableDelete,
   } = moduleConfig
+
+  const canDelete = !!enableDelete
 
   const {
     loading,
     dataLimitWarning,
     data,
+    total,
+    totalRecords,
     pagination,
-    setPagination,
     detailModalOpen,
     detailLoading,
     detailData,
@@ -44,6 +48,8 @@ const UserDimensionList: React.FC<{
     selectedUser,
     userMap,
     fetchData,
+    handlePageChange,
+    handleDeleteRecord,
     handleViewDetail,
     handleDetailModalClose,
     handleDetailPageChange,
@@ -53,6 +59,7 @@ const UserDimensionList: React.FC<{
     defaultPageSize,
     pageSizeOptions,
     onUserSelect: moduleConfig.onUserSelect,
+    canDelete,
   })
 
   const columns = buildUserDimensionColumns({ userMap, onViewDetail: handleViewDetail })
@@ -67,7 +74,7 @@ const UserDimensionList: React.FC<{
         <Space>
           <Button
             icon={<ReloadOutlined />}
-            onClick={fetchData}
+            onClick={() => fetchData()}
             loading={loading}
           >
             刷新
@@ -79,10 +86,10 @@ const UserDimensionList: React.FC<{
       <Card style={{ marginBottom: 16 }}>
         <Space size="large">
           <Text type="secondary">用户总数：</Text>
-          <Text strong>{data.length}</Text>
+          <Text strong>{total}</Text>
           <Divider type="vertical" />
           <Text type="secondary">记录总数：</Text>
-          <Text strong>{data.reduce((sum, item) => sum + item.total_count, 0)}</Text>
+          <Text strong>{totalRecords}</Text>
         </Space>
         {dataLimitWarning && (
           <div style={{ marginTop: 8 }}>
@@ -101,11 +108,8 @@ const UserDimensionList: React.FC<{
             dataSource={data}
             rowKey="user_id"
             loading={loading}
-            pagination={{
-              ...pagination,
-              total: data.length,
-            }}
-            onChange={(pag) => setPagination(pag)}
+            pagination={pagination}
+            onChange={(pag) => handlePageChange(pag.current || 1, pag.pageSize || defaultPageSize)}
             scroll={{ x: 900 }}
             size="middle"
             bordered
@@ -129,6 +133,8 @@ const UserDimensionList: React.FC<{
         detailTotal={detailTotal}
         onPageChange={handleDetailPageChange}
         onClose={handleDetailModalClose}
+        canDelete={canDelete}
+        onDeleteRecord={handleDeleteRecord}
       />
     </div>
   )

@@ -41,6 +41,7 @@ const moduleConfig: ModuleConfig = {
   title: '便签',
   tableName: 'notes',
   detailColumns,
+  enableDelete: true,
 }
 
 // ==================== 组件 ====================
