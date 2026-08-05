@@ -78,9 +78,6 @@ export async function reportError(
   error?: Error
 ) {
   try {
-    // 从 Supabase Auth 获取当前用户
-    const { data: { user } } = await supabase.auth.getUser()
-
     // 脱敏处理
     const sanitizedMessage = sanitizeLogContent(message)
     const sanitizedDetail = sanitizeLogContent(detail || message)
@@ -94,7 +91,7 @@ export async function reportError(
         description: sanitizedDetail,
         stack_trace: sanitizedStack,
       },
-      user_id: user?.id || null,
+      user_id: await getCurrentBusinessUserId(),
       source: 'admin',
     }
 
@@ -125,6 +122,22 @@ export async function reportError(
   }
 }
 
+// 解析当前登录用户的【业务 ID】(public.users.id)。
+// operation_logs / error_logs 的 user_id 外键指向 public.users.id（业务 ID，形如 U000...），
+// 而 supabase.auth.getUser() 返回的是 auth UUID，二者不同；直接写 UUID 会触发
+// 23503（operation_logs_user_id_fkey）。故须经 auth_id = auth.uid() 反查业务 ID，
+// 与 report_client_error RPC 口径一致。查不到（理论上不应发生）则回退 null（列允许 null）。
+export async function getCurrentBusinessUserId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data } = await supabase
+    .from('users')
+    .select('id')
+    .eq('auth_id', user.id)
+    .maybeSingle()
+  return (data as { id?: string } | null)?.id ?? null
+}
+
 // 操作日志记录函数（直接写入，不使用队列）
 export async function logOperation(params: {
   action: string
@@ -135,9 +148,6 @@ export async function logOperation(params: {
   immediate?: boolean // 保留参数但忽略，始终立即写入
 }) {
   try {
-    // 从 Supabase Auth 获取当前用户
-    const { data: { user } } = await supabase.auth.getUser()
-
     // 将 detail 转换为对象格式（数据库期望 JSON）
     let details: object | null = null
     if (params.detail) {
@@ -149,7 +159,7 @@ export async function logOperation(params: {
     }
 
     const logData = {
-      user_id: user?.id || null,
+      user_id: await getCurrentBusinessUserId(),
       action: params.action,
       module: params.module,
       target_id: params.target_id || null,

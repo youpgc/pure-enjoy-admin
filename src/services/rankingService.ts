@@ -1,4 +1,4 @@
-import { supabase } from '../utils/supabase'
+import { supabase, getCurrentBusinessUserId } from '../utils/supabase'
 import { apiQuery, apiExecute, logApiError } from '../utils/apiClient'
 
 // ==================== 类型定义 ====================
@@ -95,9 +95,8 @@ export const rankingService = {
 // 轻量操作审计（best-effort，与 BaseService.audit 口径一致）
 async function logOperation(action: string, module: string, detail: object) {
   try {
-    const { data: { user } } = await supabase.auth.getUser()
     await (supabase.from('operation_logs') as any).insert({
-      user_id: user?.id || null,
+      user_id: await getCurrentBusinessUserId(),
       action,
       module,
       target_id: GLOBAL_ID,
