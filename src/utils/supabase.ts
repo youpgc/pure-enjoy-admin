@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
-import { SUPABASE_ERROR_CODE_MAP } from '../constants'
+import { formatSupabaseErrorMessage } from './errorCode'
 
 // 使用 Vite 环境变量判断开发环境
 const isDev = import.meta.env.DEV
@@ -145,6 +145,7 @@ export async function logOperation(params: {
   detail?: string | object
   target_id?: string
   ip?: string
+  user_agent?: string
   immediate?: boolean // 保留参数但忽略，始终立即写入
 }) {
   try {
@@ -158,12 +159,16 @@ export async function logOperation(params: {
       }
     }
 
+    // 前端无法获得真实客户端 IP，ip 列保留为占位值（'127.0.0.1'）；
+    // user_agent 取浏览器 UA，补上审计字段闭环（审查报告 P2-2）。
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null
     const logData = {
       user_id: await getCurrentBusinessUserId(),
       action: params.action,
       module: params.module,
       target_id: params.target_id || null,
       ip: params.ip || '127.0.0.1',
+      user_agent: params.user_agent || userAgent,
       details: details,
     }
 
@@ -277,16 +282,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   },
 })
 
-// 错误处理辅助函数（逻辑与 apiClient.ts 中的 mapSupabaseError 一致，独立实现以避免循环依赖）
+// 错误处理辅助函数（委托 errorCode.formatSupabaseErrorMessage，消除与 apiClient.mapSupabaseError 的重复，审查报告 P2-4）
 export const handleSupabaseError = (error: any, context?: string): string => {
   if (isDev) {
     console.error(`[Supabase] ${context} 错误:`, error)
   }
-
-  const codeMap = SUPABASE_ERROR_CODE_MAP
-  const code = error?.code as string | undefined
-  if (code && codeMap[code]) return codeMap[code]
-  if (error?.message?.includes('JWT')) return '认证已过期，请重新登录'
-  if (error?.message?.includes('network')) return '网络连接失败，请检查网络'
-  return error?.message || '操作失败，请稍后重试'
+  return formatSupabaseErrorMessage(error)
 }

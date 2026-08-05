@@ -1,6 +1,6 @@
 import { supabase, reportError, logOperation } from './supabase'
 import { message } from 'antd'
-import { SUPABASE_ERROR_CODE_MAP } from '../constants'
+import { formatSupabaseErrorMessage } from './errorCode'
 /// Supabase 查询构建器类型
 // PostgrestQueryBuilder 类型依赖 @supabase/postgrest-js 内部导出，
 // 在不同 Supabase 版本间路径不稳定，这里使用 any 以保持兼容性。
@@ -25,14 +25,9 @@ function errorResponse<T>(msg: string, statusCode?: number): ApiResponse<T> {
   return { success: false, data: null, errorMessage: msg, statusCode: statusCode ?? 500 }
 }
 
-/// 统一 Supabase 错误码映射
+/// 统一 Supabase 错误码映射（委托 errorCode.formatSupabaseErrorMessage，单一源，消除 P2-4 重复）
 export function mapSupabaseError(error: any): string {
-  const codeMap = SUPABASE_ERROR_CODE_MAP
-  const code = error?.code as string | undefined
-  if (code && codeMap[code]) return codeMap[code]
-  if (error?.message?.includes('JWT')) return '认证已过期，请重新登录'
-  if (error?.message?.includes('network')) return '网络连接失败，请检查网络'
-  return error?.message || '操作失败，请稍后重试'
+  return formatSupabaseErrorMessage(error)
 }
 
 /// 统一异常处理：打印 + 提示 + 记录错误日志
@@ -70,6 +65,17 @@ export class BaseService<T extends Record<string, any>> {
     'users',
   ])
 
+  /// 解析实际 select 列：未配置时回退 '*'，开发环境告警提示显式配置（审查报告 P2-8）
+  private resolvedSelect(): string {
+    if (!this.options?.select && import.meta.env.DEV) {
+      console.warn(
+        `[BaseService] 表 "${this.tableName}" 未配置 select，将拉取全列（增大传输与脱敏面）。` +
+        `建议构造 BaseService 时传 options.select 显式指定列。`
+      )
+    }
+    return this.options?.select || '*'
+  }
+
   /// 操作审计（best-effort，不阻塞主流程）：写入 operation_logs
   private audit(action: string, targetId: string | number | Array<string | number>, detail?: object) {
     if (BaseService.AUDIT_EXCLUDED.has(this.tableName)) return
@@ -86,7 +92,7 @@ export class BaseService<T extends Record<string, any>> {
     query?: (q: SupabaseQuery) => SupabaseQuery
   ): Promise<ApiResponse<T[]>> {
     try {
-      let q = supabase.from(this.tableName).select(this.options?.select || '*')
+      let q = supabase.from(this.tableName).select(this.resolvedSelect())
       if (query) q = query(q)
       if (this.options?.defaultOrder) {
         q = q.order(this.options.defaultOrder.column, {
@@ -106,7 +112,7 @@ export class BaseService<T extends Record<string, any>> {
     try {
       const { data, error } = await supabase
         .from(this.tableName)
-        .select(this.options?.select || '*')
+        .select(this.resolvedSelect())
         .eq('id', id)
         .single()
       if (error) throw error
@@ -125,7 +131,7 @@ export class BaseService<T extends Record<string, any>> {
     try {
       const from = (page - 1) * pageSize
       const to = from + pageSize - 1
-      let q = supabase.from(this.tableName).select(this.options?.select || '*', { count: 'exact', head: false })
+      let q = supabase.from(this.tableName).select(this.resolvedSelect(), { count: 'exact', head: false })
       if (query) q = query(q)
       q = q.order(this.options?.defaultOrder?.column || 'created_at', {
         ascending: this.options?.defaultOrder?.ascending ?? false,
@@ -187,8 +193,13 @@ export class BaseService<T extends Record<string, any>> {
         snapshot = null
       }
 
-      const { error } = await supabase.from(this.tableName).delete().eq('id', id)
+      // PostgREST 删除 0 行命中时 data=[]、error=null，若不校验会静默返回 success=true。
+      // 必须校验 affected rows，与 update/batchUpdate 对齐（审查报告 P1-1）
+      const { data, error } = await supabase.from(this.tableName).delete().eq('id', id).select('id')
       if (error) throw error
+      if (!data || data.length === 0) {
+        return errorResponse('删除失败：未匹配到任何记录（可能无权限）')
+      }
       this.audit('delete', id, snapshot ? { deleted: snapshot } : undefined)
       return successResponse(true)
     } catch (err) {
@@ -210,9 +221,13 @@ export class BaseService<T extends Record<string, any>> {
         snapshots = []
       }
 
-      const { error } = await supabase.from(this.tableName).delete().in('id', ids)
+      // 同 delete：校验 affected rows，避免 0 行命中静默成功（审查报告 P1-1）
+      const { data, error } = await supabase.from(this.tableName).delete().in('id', ids).select('id')
       if (error) throw error
-      this.audit('batch_delete', ids, { count: ids.length, deleted: snapshots })
+      if (!data || data.length === 0) {
+        return errorResponse('批量删除失败：未匹配到任何记录（可能无权限）')
+      }
+      this.audit('batch_delete', ids, { count: data.length, deleted: snapshots })
       return successResponse(true)
     } catch (err) {
       return errorResponse(handleApiError(err, `${this.tableName}.batchDelete`))
