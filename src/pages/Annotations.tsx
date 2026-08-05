@@ -1,333 +1,50 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React from 'react'
 import {
-  Card, Table, Tabs, Tag, Button, Space, Input,
-  Spin, Empty, Statistic, Row, Col, DatePicker, message,
+  Card, Table, Tabs, Button, Space, Input,
+  Spin, Empty, Statistic, Row, Col, DatePicker,
 } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
 import {
   MessageOutlined, DeleteOutlined, ReloadOutlined,
   SearchOutlined, WarningOutlined, ExportOutlined,
   RiseOutlined, LineChartOutlined,
-  CheckOutlined, StopOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import type { Dayjs } from 'dayjs'
-import { getActionColumn } from '../components/ActionColumn'
-import { usePagination } from '../hooks/usePagination'
-import { usePermission } from '../hooks/usePermission'
-import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
-import { useAuth } from '../App'
-import { useMounted } from '../hooks/useMounted'
-import EllipsisText from '../components/EllipsisText'
-import { useUsernames } from '../hooks/useUsernames'
-import { UserName } from '../components/UserName'
-
-// ==================== 类型定义 ====================
-
-interface NovelAnnotation {
-  id: string
-  user_id: string
-  novel_id: string
-  chapter_id: string
-  chapter_order: number
-  start_offset: number
-  end_offset: number
-  highlighted_text: string
-  note: string | null
-  color: string
-  is_deleted: boolean
-  deleted_at: string | null
-  // 审核状态（新增，feature_admin_annotations_review.sql 注册）：pending 待审核 / approved 通过 / rejected 封禁
-  review_status?: 'pending' | 'approved' | 'rejected' | null
-  reviewed_at?: string | null
-  reviewed_by?: string | null
-  created_at: string
-  updated_at: string
-}
-
-interface TrendItem {
-  date: string
-  count: number
-}
-
-// ==================== 常量 ====================
-
-const COLOR_MAP: Record<string, string> = {
-  yellow: '#faad14',
-  green: '#52c41a',
-  blue: '#1890ff',
-  red: '#f5222d',
-}
-
-const SENSITIVE_WORDS = ['色情', '暴力', '赌博', '毒品', '反动', '政治', '傻逼', '他妈的']
-
-const ColorDot = ({ color }: { color: string }) => (
-  <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: 4, background: COLOR_MAP[color] || color, border: '1px solid #ddd' }} />
-)
-
-const containsSensitive = (text: string) => SENSITIVE_WORDS.filter(w => text.includes(w))
-
-// ==================== 组件 ====================
+import { useAnnotations } from './annotations/useAnnotations'
+import { buildAnnotationColumns, buildReviewColumns } from './annotations/columns'
+import { ColorDot } from './annotations/constants'
 
 const Annotations: React.FC = () => {
-  const mountedRef = useMounted()
-  const [activeTab, setActiveTab] = useState('list')
-  const [loading, setLoading] = useState(false)
-  const [data, setData] = useState<NovelAnnotation[]>([])
+  const {
+    activeTab,
+    setActiveTab,
+    loading,
+    data,
+    userMap,
+    filtered,
+    searchUser,
+    setSearchUser,
+    searchNovel,
+    setSearchNovel,
+    dateRange,
+    setDateRange,
+    selectedIds,
+    setSelectedIds,
+    trendData,
+    tablePagination,
+    resetPage,
+    fetchData,
+    handleBatchDelete,
+    handleExport,
+    reviewData,
+    totalUsers,
+    thisWeek,
+    maxTrendCount,
+    renderActions,
+    renderReviewActions,
+  } = useAnnotations()
 
-  // 批量解析列表中涉及的用户名（用于「用户名」列）
-  const userMap = useUsernames(data.map((d) => d.user_id))
-  const [filtered, setFiltered] = useState<NovelAnnotation[]>([])
-  const [searchUser, setSearchUser] = useState('')
-  const [searchNovel, setSearchNovel] = useState('')
-  const [dateRange, setDateRange] = useState<[Dayjs | null, Dayjs | null]>([null, null])
-  const [selectedIds, setSelectedIds] = useState<React.Key[]>([])
-  const [trendData, setTrendData] = useState<TrendItem[]>([])
-  const annotationService = React.useMemo(() => new BaseService<NovelAnnotation>('novel_annotations', { defaultOrder: { column: 'created_at', ascending: false } }), [])
-  const { pagination, resetPage, setTotal, tablePagination } = usePagination(20)
-  const { hasPermission } = usePermission()
-  const { user: adminUser } = useAuth()
-
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
-      const result = await annotationService.paginate(pagination.current, pagination.pageSize, (q) => {
-        let query = q.eq('is_deleted', false)
-        if (searchUser) query = query.eq('user_id', searchUser)
-        if (searchNovel) query = query.eq('novel_id', searchNovel)
-        if (dateRange[0] && dateRange[1]) {
-          query = query
-            .gte('created_at', dateRange[0].format('YYYY-MM-DD'))
-            .lte('created_at', dateRange[1].format('YYYY-MM-DD') + 'T23:59:59')
-        }
-        return query
-      })
-      if (result.success && result.data) {
-        if (!mountedRef.current) return
-        setData(result.data.data)
-        setFiltered(result.data.data)
-        setTotal(result.data.total)
-      }
-    } catch (error) {
-      handleApiError(error, 'Annotations-加载数据')
-    } finally {
-      setLoading(false)
-    }
-  }, [searchUser, searchNovel, dateRange, annotationService, pagination.current, pagination.pageSize, setTotal])
-
-  useEffect(() => { fetchData() }, [fetchData])
-
-  const fetchTrend = useCallback(async () => {
-    setLoading(true)
-    try {
-      const result = await annotationService.findAll((q) => q.eq('is_deleted', false))
-      if (result.success && result.data) {
-        const allData = result.data
-        // 按日期分组统计
-        const dateMap = new Map<string, number>()
-        const today = dayjs()
-        for (let i = 29; i >= 0; i--) {
-          dateMap.set(today.subtract(i, 'day').format('YYYY-MM-DD'), 0)
-        }
-        allData.forEach((a) => {
-          const d = dayjs(a.created_at).format('YYYY-MM-DD')
-          if (dateMap.has(d)) {
-            dateMap.set(d, (dateMap.get(d) || 0) + 1)
-          }
-        })
-        const trend = Array.from(dateMap.entries())
-          .map(([date, count]) => ({ date, count }))
-          .sort((a, b) => a.date.localeCompare(b.date))
-        if (!mountedRef.current) return
-        setTrendData(trend)
-      }
-    } catch (error) {
-      handleApiError(error, 'Annotations-加载趋势')
-    } finally {
-      setLoading(false)
-    }
-  }, [annotationService])
-
-  useEffect(() => {
-    if (activeTab === 'stats') {
-      fetchTrend()
-    }
-  }, [activeTab, fetchTrend])
-
-  const handleDelete = async (id: string) => {
-    try {
-      const result = await apiExecute(
-        () => annotationService.update(id, { is_deleted: true, deleted_at: new Date().toISOString() }),
-        'Annotations-删除批注'
-      )
-      if (result.success) {
-        message.success('批注已删除')
-        fetchData()
-      }
-    } catch (error) {
-      handleApiError(error, 'Annotations-删除批注')
-    }
-  }
-
-  const handleBatchDelete = async () => {
-    if (selectedIds.length === 0) return message.warning('请先选择批注')
-    try {
-      const result = await annotationService.batchUpdate(selectedIds as string[], {
-        is_deleted: true,
-        deleted_at: new Date().toISOString(),
-      })
-      if (result.success) {
-        message.success(`已删除 ${selectedIds.length} 条批注`)
-        setSelectedIds([])
-        fetchData()
-      }
-    } catch (error) {
-      handleApiError(error, 'Annotations-批量删除')
-    }
-  }
-
-  const handleExport = () => {
-    const headers = ['ID', '用户ID', '小说ID', '章节', '高亮文本', '笔记', '颜色', '创建时间']
-    const rows = data.map(a => [
-      a.id, a.user_id, a.novel_id, a.chapter_order,
-      a.highlighted_text, a.note || '', a.color, a.created_at,
-    ])
-    const csv = [headers, ...rows].map(row =>
-      row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')
-    ).join('\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `批注导出_${dayjs().format('YYYYMMDD')}.csv`
-    a.click()
-    URL.revokeObjectURL(a.href)
-    message.success('导出成功')
-  }
-
-  // 审核写回：通过 / 封禁（feature_admin_annotations_review.sql 注册 review_status 列）
-  // 通过 -> review_status='approved'；封禁 -> review_status='rejected' 并软删（is_deleted=true）
-  const handleReview = async (id: string, status: 'approved' | 'rejected') => {
-    const patch: Partial<NovelAnnotation> = {
-      review_status: status,
-      reviewed_at: new Date().toISOString(),
-      reviewed_by: adminUser?.id ?? null,
-    }
-    if (status === 'rejected') {
-      patch.is_deleted = true
-      patch.deleted_at = new Date().toISOString()
-    }
-    try {
-      const result = await annotationService.update(id, patch)
-      if (result.success) {
-        message.success(status === 'approved' ? '已通过审核' : '已封禁并删除')
-        fetchData()
-      } else {
-        handleApiError(result.errorMessage, 'Annotations-审核')
-      }
-    } catch (error) {
-      handleApiError(error, 'Annotations-审核')
-    }
-  }
-
-  // 待审核 = 含敏感词 且 审核状态为 pending/null（已审核通过的不再出现）
-  const reviewData = data.filter(a => {
-    const text = (a.highlighted_text || '') + (a.note || '')
-    const isPending = !a.review_status || a.review_status === 'pending'
-    return isPending && containsSensitive(text).length > 0
-  })
-
-  const renderActions = (record: NovelAnnotation) => {
-    const actions = []
-    if (hasPermission('novels:delete')) {
-      actions.push({
-        key: 'delete',
-        label: '删除',
-        icon: <DeleteOutlined />,
-        danger: true,
-        onClick: () => handleDelete(record.id),
-      })
-    }
-    return actions
-  }
-
-  // 审核页操作：通过 / 封禁 / 删除（写回 review_status）
-  const renderReviewActions = (record: NovelAnnotation) => {
-    const actions = []
-    if (hasPermission('novels:delete')) {
-      actions.push({
-        key: 'approve',
-        label: '通过',
-        icon: <CheckOutlined />,
-        onClick: () => handleReview(record.id, 'approved'),
-      })
-      actions.push({
-        key: 'ban',
-        label: '封禁',
-        icon: <StopOutlined />,
-        danger: true,
-        onClick: () => handleReview(record.id, 'rejected'),
-      })
-      actions.push({
-        key: 'delete',
-        label: '删除',
-        icon: <DeleteOutlined />,
-        danger: true,
-        onClick: () => handleDelete(record.id),
-      })
-    }
-    return actions
-  }
-
-  const columns: ColumnsType<NovelAnnotation> = [
-    {
-      title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 140,
-      render: (v: string) => v.slice(0, 12) + '...',
-    },
-    {
-      title: '用户名', dataIndex: 'user_id', key: 'username', width: 120,
-      render: (v: string) => <UserName userId={v} userMap={userMap} />,
-    },
-    {
-      title: '小说ID', dataIndex: 'novel_id', key: 'novel_id', width: 140,
-      render: (v: string) => v.slice(0, 12) + '...',
-    },
-    { title: '章节', dataIndex: 'chapter_order', key: 'chapter', width: 80, render: (v: number) => `第${v}章` },
-    {
-      title: '高亮文本', dataIndex: 'highlighted_text', key: 'text',
-      render: (v: string) => <EllipsisText text={v} maxWidth={200} />,
-    },
-    { title: '备注', dataIndex: 'note', key: 'note', render: (v: string | null) => <EllipsisText text={v} maxWidth={200} /> },
-    {
-      title: '颜色', dataIndex: 'color', key: 'color', width: 60, align: 'center',
-      render: (v: string) => <ColorDot color={v} />,
-    },
-    {
-      title: '时间', dataIndex: 'created_at', key: 'created_at', width: 150,
-      render: (v: string) => dayjs(v).format('MM-DD HH:mm'),
-    },
-    getActionColumn<NovelAnnotation>(renderActions, { width: 100 }),
-  ]
-
-  const reviewColumns: ColumnsType<NovelAnnotation> = [
-    { title: '用户ID', dataIndex: 'user_id', key: 'user_id', width: 140, render: (v: string) => v.slice(0, 12) + '...' },
-    { title: '用户名', dataIndex: 'user_id', key: 'username', width: 120, render: (v: string) => <UserName userId={v} userMap={userMap} /> },
-    { title: '高亮文本', dataIndex: 'highlighted_text', key: 'text', render: (v: string) => <EllipsisText text={v} maxWidth={200} /> },
-    { title: '备注', dataIndex: 'note', key: 'note', render: (v: string | null) => <EllipsisText text={v} maxWidth={200} /> },
-    {
-      title: '命中敏感词', key: 'sensitive',
-      render: (_: unknown, r: NovelAnnotation) => {
-        const words = containsSensitive((r.highlighted_text || '') + (r.note || ''))
-        return <Space>{words.map(w => <Tag color='error' key={w}>{w}</Tag>)}</Space>
-      },
-    },
-    getActionColumn<NovelAnnotation>(renderReviewActions, { width: 160 }),
-  ]
-
-  const totalUsers = new Set(data.map(d => d.user_id)).size
-  const thisWeek = data.filter(d => dayjs(d.created_at).isAfter(dayjs().subtract(7, 'day')))
-
-  // 趋势数据：计算最大值用于图表高度
-  const maxTrendCount = trendData.length > 0 ? Math.max(...trendData.map(t => t.count)) : 1
+  const columns = buildAnnotationColumns({ userMap, renderActions })
+  const reviewColumns = buildReviewColumns({ userMap, renderReviewActions })
 
   return (
     <div>
@@ -341,9 +58,20 @@ const Annotations: React.FC = () => {
         <>
           <Card style={{ marginBottom: 16 }}>
             <Space wrap>
-              <Input placeholder='用户ID' value={searchUser} onChange={e => setSearchUser(e.target.value)} style={{ width: 160 }} prefix={<SearchOutlined />} />
-              <Input placeholder='小说ID' value={searchNovel} onChange={e => setSearchNovel(e.target.value)} style={{ width: 160 }} />
-              <DatePicker.RangePicker value={dateRange} onChange={dates => setDateRange(dates || [null, null])} />
+              <Input
+                placeholder='用户ID'
+                value={searchUser}
+                onChange={(e) => setSearchUser(e.target.value)}
+                style={{ width: 160 }}
+                prefix={<SearchOutlined />}
+              />
+              <Input
+                placeholder='小说ID'
+                value={searchNovel}
+                onChange={(e) => setSearchNovel(e.target.value)}
+                style={{ width: 160 }}
+              />
+              <DatePicker.RangePicker value={dateRange} onChange={(dates) => setDateRange(dates || [null, null])} />
               <Button type='primary' icon={<SearchOutlined />} onClick={() => { resetPage(); fetchData() }}>查询</Button>
               <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
               <Button icon={<ExportOutlined />} onClick={handleExport}>导出CSV</Button>
@@ -353,7 +81,9 @@ const Annotations: React.FC = () => {
             </Space>
           </Card>
           <Card>
-            {loading ? <div style={{ textAlign: 'center', padding: 80 }}><Spin size='large' /></div> :
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: 80 }}><Spin size='large' /></div>
+            ) : (
               <Table
                 columns={columns}
                 dataSource={filtered}
@@ -364,16 +94,18 @@ const Annotations: React.FC = () => {
                 size='small'
                 bordered
               />
-            }
+            )}
           </Card>
         </>
       )}
 
       {activeTab === 'review' && (
         <Card>
-          {reviewData.length === 0 ? <Empty description='暂无待审核批注' /> :
+          {reviewData.length === 0 ? (
+            <Empty description='暂无待审核批注' />
+          ) : (
             <Table columns={reviewColumns} dataSource={reviewData} rowKey='id' pagination={{ pageSize: 20 }} size='small' bordered />
-          }
+          )}
         </Card>
       )}
 
@@ -430,12 +162,14 @@ const Annotations: React.FC = () => {
             <Col span={24}>
               <Card title='颜色分布'>
                 <Space size='large'>
-                  {['yellow', 'green', 'blue', 'red'].map(c => {
-                    const count = data.filter(d => d.color === c).length
+                  {['yellow', 'green', 'blue', 'red'].map((c) => {
+                    const count = data.filter((d) => d.color === c).length
                     return (
                       <Space key={c}>
                         <ColorDot color={c} />
-                        <span>{c === 'yellow' ? '黄色' : c === 'green' ? '绿色' : c === 'blue' ? '蓝色' : '红色'}: <b>{count}</b></span>
+                        <span>
+                          {c === 'yellow' ? '黄色' : c === 'green' ? '绿色' : c === 'blue' ? '蓝色' : '红色'}: <b>{count}</b>
+                        </span>
                       </Space>
                     )
                   })}
