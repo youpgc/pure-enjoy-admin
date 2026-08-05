@@ -53,6 +53,7 @@ const moduleConfig: ModuleConfig = {
   title: '体重记录',
   tableName: 'weight_records',
   detailColumns,
+  enableDelete: true,
 }
 
 // ==================== 组件 ====================

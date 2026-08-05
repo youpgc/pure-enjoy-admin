@@ -49,6 +49,7 @@ const moduleConfig: ModuleConfig = {
   title: '消费记录',
   tableName: 'expenses',
   detailColumns,
+  enableDelete: true,
 }
 
 // ==================== 组件 ====================

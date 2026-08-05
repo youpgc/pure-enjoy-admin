@@ -304,16 +304,37 @@ export function useUserDimension({
       return
     }
     if (!selectedUser) return
-    const result = await detailService.delete(recordId)
-    if (result.success) {
-      message.success('已删除该记录')
-      // 重新加载详情（保留当前页）并刷新主表统计
-      fetchDetailData(selectedUser.user_id, detailPage, detailPageSize)
-      fetchData(pagination.current, pagination.pageSize)
-    } else {
-      handleApiError(result.errorMessage, 'UserDimensionList-删除记录')
+    try {
+      // habits 删除前先清理子表 habit_checkins，避免 FK 约束阻断（P1-6 续·级联删除）
+      if (tableName === 'habits') {
+        const checkinService = new BaseService<{ id: string }>('habit_checkins')
+        const checkinsRes = await checkinService.findAll((q) => q.eq('habit_id', recordId))
+        if (!checkinsRes.success) {
+          handleApiError(checkinsRes.errorMessage, 'UserDimensionList-加载习惯打卡记录')
+          return
+        }
+        const checkinIds = (checkinsRes.data || []).map((c) => c.id)
+        if (checkinIds.length > 0) {
+          const delRes = await checkinService.batchDelete(checkinIds)
+          if (!delRes.success) {
+            handleApiError(delRes.errorMessage, 'UserDimensionList-删除习惯打卡记录')
+            return
+          }
+        }
+      }
+      const result = await detailService.delete(recordId)
+      if (result.success) {
+        message.success('已删除该记录')
+        // 重新加载详情（保留当前页）并刷新主表统计
+        fetchDetailData(selectedUser.user_id, detailPage, detailPageSize)
+        fetchData(pagination.current, pagination.pageSize)
+      } else {
+        handleApiError(result.errorMessage, 'UserDimensionList-删除记录')
+      }
+    } catch (error) {
+      handleApiError(error, 'UserDimensionList-删除记录')
     }
-  }, [canDelete, selectedUser, detailService, detailPage, detailPageSize, fetchDetailData, fetchData, pagination.current, pagination.pageSize])
+  }, [canDelete, selectedUser, tableName, detailService, detailPage, detailPageSize, fetchDetailData, fetchData, pagination.current, pagination.pageSize])
 
   return {
     loading,

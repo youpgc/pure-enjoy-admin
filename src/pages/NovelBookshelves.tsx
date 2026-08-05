@@ -50,6 +50,7 @@ const moduleConfig: ModuleConfig = {
   title: '小说书架',
   tableName: 'user_novels',
   detailColumns,
+  enableDelete: true,
 }
 
 // ==================== 组件 ====================
