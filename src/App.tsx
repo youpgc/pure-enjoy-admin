@@ -7,44 +7,49 @@ import {
   MenuFoldOutlined,
 } from '@ant-design/icons'
 import type { AdminUser } from './types/auth'
+import { lazy, Suspense } from 'react'
+import { Button, Spin } from 'antd'
 import AuthGuard from './components/AuthGuard'
 import ErrorBoundary from './components/ErrorBoundary'
 import { usePermission } from './hooks/usePermission'
-import Dashboard from './pages/Dashboard'
-import Users from './pages/Users'
-import Expenses from './pages/Expenses'
-import MoodDiaries from './pages/MoodDiaries'
-import WeightRecords from './pages/WeightRecords'
-import Notes from './pages/Notes'
-import Novels from './pages/Novels'
-import VersionManagement from './pages/VersionManagement'
-import RolePermission from './pages/RolePermission'
 import Login from './pages/Login'
-import Analytics from './pages/Analytics'
-import OperationLogs from './pages/OperationLogs'
-import SystemMonitor from './pages/SystemMonitor'
-import Favorites from './pages/Favorites'
-import Reminders from './pages/Reminders'
-import Habits from './pages/Habits'
-import Anniversaries from './pages/Anniversaries'
-import AppConfigs from './pages/AppConfigs'
-import NovelBookshelves from './pages/NovelBookshelves'
-import DictManagement from './pages/DictManagement'
-import SensitiveWords from './pages/SensitiveWords'
-import SensitiveWordAnalytics from './pages/SensitiveWordAnalytics'
-import FileManagement from './pages/FileManagement'
-import Notifications from './pages/Notifications'
-import Announcements from './pages/Announcements'
-import Feedback from './pages/Feedback'
-import PointsManagement from './pages/PointsManagement'
-import ErrorLogs from './pages/ErrorLogs'
-import NovelComments from './pages/NovelComments'
-import Rankings from './pages/Rankings'
-import Bookmarks from './pages/Bookmarks'
-import Annotations from './pages/Annotations'
-import Recommendations from './pages/Recommendations'
-import TtsManagement from './pages/TtsManagement'
-import LoginLogs from './pages/LoginLogs'
+
+// 页面级组件按需懒加载（审查 P1-4a）：首屏仅打包 Login，进入对应菜单时才加载对应 chunk，
+// 避免全部 30+ 页面同步打进主 bundle（用户"按需加载"纪律 + 规范 §10）。
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Users = lazy(() => import('./pages/Users'))
+const Expenses = lazy(() => import('./pages/Expenses'))
+const MoodDiaries = lazy(() => import('./pages/MoodDiaries'))
+const WeightRecords = lazy(() => import('./pages/WeightRecords'))
+const Notes = lazy(() => import('./pages/Notes'))
+const Novels = lazy(() => import('./pages/Novels'))
+const VersionManagement = lazy(() => import('./pages/VersionManagement'))
+const RolePermission = lazy(() => import('./pages/RolePermission'))
+const Analytics = lazy(() => import('./pages/Analytics'))
+const OperationLogs = lazy(() => import('./pages/OperationLogs'))
+const SystemMonitor = lazy(() => import('./pages/SystemMonitor'))
+const Favorites = lazy(() => import('./pages/Favorites'))
+const Reminders = lazy(() => import('./pages/Reminders'))
+const Habits = lazy(() => import('./pages/Habits'))
+const Anniversaries = lazy(() => import('./pages/Anniversaries'))
+const AppConfigs = lazy(() => import('./pages/AppConfigs'))
+const NovelBookshelves = lazy(() => import('./pages/NovelBookshelves'))
+const DictManagement = lazy(() => import('./pages/DictManagement'))
+const SensitiveWords = lazy(() => import('./pages/SensitiveWords'))
+const SensitiveWordAnalytics = lazy(() => import('./pages/SensitiveWordAnalytics'))
+const FileManagement = lazy(() => import('./pages/FileManagement'))
+const Notifications = lazy(() => import('./pages/Notifications'))
+const Announcements = lazy(() => import('./pages/Announcements'))
+const Feedback = lazy(() => import('./pages/Feedback'))
+const PointsManagement = lazy(() => import('./pages/PointsManagement'))
+const ErrorLogs = lazy(() => import('./pages/ErrorLogs'))
+const NovelComments = lazy(() => import('./pages/NovelComments'))
+const Rankings = lazy(() => import('./pages/Rankings'))
+const Bookmarks = lazy(() => import('./pages/Bookmarks'))
+const Annotations = lazy(() => import('./pages/Annotations'))
+const Recommendations = lazy(() => import('./pages/Recommendations'))
+const TtsManagement = lazy(() => import('./pages/TtsManagement'))
+const LoginLogs = lazy(() => import('./pages/LoginLogs'))
 import { supabase } from './utils/supabase'
 import { buildMenuItems } from './config/menuConfig'
 import { PAGE_TITLES } from './config/pageTitles'
@@ -57,7 +62,6 @@ interface AuthContextType {
   isLoading: boolean
   login: (username: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  hasPermission: (permission: string) => boolean
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -65,7 +69,6 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   login: async () => {},
   logout: async () => {},
-  hasPermission: () => false,
 })
 
 export const useAuth = () => useContext(AuthContext)
@@ -142,16 +145,8 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUser(null)
   }, [])
 
-  // 权限判断已迁移到 usePermission Hook 中
-  // AuthContext 中保留 hasPermission 作为兼容接口，基于用户角色做基本判断
-  const hasPermission = useCallback((_permission: string) => {
-    if (!user) return false
-    // 具体细粒度权限查询应使用 usePermission Hook
-    return false
-  }, [user])
-
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, hasPermission }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   )
@@ -195,79 +190,48 @@ const MainLayout: React.FC = () => {
   // 菜单配置已抽离到 src/config/menuConfig.tsx（God File 优化，审查报告 P2a）
   const menuItems = buildMenuItems(hasMenuPermission, isAdmin)
 
+  // 页面组件映射表（审查 P3-1）：PageKey 与 lazy 组件一一对应，新增页面只需在此登记，
+  // 避免 switch 人工同步遗漏；未登记 key 回退 Dashboard。
+  const PAGE_COMPONENTS: Record<PageKey, React.LazyExoticComponent<any>> = {
+    dashboard: Dashboard,
+    users: Users,
+    roles: RolePermission,
+    expenses: Expenses,
+    mood: MoodDiaries,
+    weight: WeightRecords,
+    notes: Notes,
+    novels: Novels,
+    novel_comments: NovelComments,
+    novel_bookshelves: NovelBookshelves,
+    rankings: Rankings,
+    bookmarks: Bookmarks,
+    annotations: Annotations,
+    recommendations: Recommendations,
+    tts_management: TtsManagement,
+    versions: VersionManagement,
+    notifications: Notifications,
+    analytics: Analytics,
+    operation_logs: OperationLogs,
+    system_monitor: SystemMonitor,
+    favorites: Favorites,
+    reminders: Reminders,
+    habits: Habits,
+    anniversaries: Anniversaries,
+    app_configs: AppConfigs,
+    dict_management: DictManagement,
+    sensitive_words: SensitiveWords,
+    sensitive_word_analytics: SensitiveWordAnalytics,
+    file_management: FileManagement,
+    announcements: Announcements,
+    feedback: Feedback,
+    points: PointsManagement,
+    error_logs: ErrorLogs,
+    login_logs: LoginLogs,
+  }
+
   const renderPage = () => {
-    switch (currentPage) {
-      case 'dashboard':
-        return <Dashboard />
-      case 'users':
-        return <Users />
-      case 'roles':
-        return <RolePermission />
-      case 'expenses':
-        return <Expenses />
-      case 'mood':
-        return <MoodDiaries />
-      case 'weight':
-        return <WeightRecords />
-      case 'notes':
-        return <Notes />
-      case 'novels':
-        return <Novels />
-      case 'novel_comments':
-        return <NovelComments />
-      case 'novel_bookshelves':
-        return <NovelBookshelves />
-      case 'rankings':
-        return <Rankings />
-      case 'bookmarks':
-        return <Bookmarks />
-      case 'annotations':
-        return <Annotations />
-      case 'recommendations':
-        return <Recommendations />
-      case 'tts_management':
-        return <TtsManagement />
-      case 'versions':
-        return <VersionManagement />
-      case 'notifications':
-        return <Notifications />
-      case 'analytics':
-        return <Analytics />
-      case 'operation_logs':
-        return <OperationLogs />
-      case 'system_monitor':
-        return <SystemMonitor />
-      case 'favorites':
-        return <Favorites />
-      case 'reminders':
-        return <Reminders />
-      case 'habits':
-        return <Habits />
-      case 'anniversaries':
-        return <Anniversaries />
-      case 'app_configs':
-        return <AppConfigs />
-      case 'dict_management':
-        return <DictManagement />
-      case 'sensitive_words':
-        return <SensitiveWords />
-      case 'sensitive_word_analytics':
-        return <SensitiveWordAnalytics />
-      case 'file_management':
-        return <FileManagement />
-      case 'announcements':
-        return <Announcements />
-      case 'feedback':
-        return <Feedback />
-      case 'points':
-        return <PointsManagement />
-      case 'error_logs':
-        return <ErrorLogs />
-      case 'login_logs':
-        return <LoginLogs />
-      default:
-        return <Dashboard />
-    }
+    const Comp = PAGE_COMPONENTS[currentPage] || Dashboard
+    return <Comp />
   }
 
   const getPageTitle = () => {
@@ -344,9 +308,9 @@ const MainLayout: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ color: '#999' }}>{user?.email}</span>
             <span style={{ color: '#bbb' }}>|</span>
-            <a onClick={handleLogout} style={{ color: '#999', cursor: 'pointer' }}>
+            <Button type="link" onClick={handleLogout} style={{ color: '#999', padding: 0, height: 'auto' }}>
               <LogoutOutlined /> 退出
-            </a>
+            </Button>
           </div>
         </Header>
 
@@ -364,9 +328,11 @@ const MainLayout: React.FC = () => {
               currentPage,
               setCurrentPage,
             }}>
-              <ErrorBoundary>
+            <ErrorBoundary>
+              <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}><Spin size="large" tip="页面加载中..." /></div>}>
                 {renderPage()}
-              </ErrorBoundary>
+              </Suspense>
+            </ErrorBoundary>
             </NavigationContext.Provider>
           </div>
         </Content>
