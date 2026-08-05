@@ -10,10 +10,10 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { usePagination } from '../hooks/usePagination'
-import { BaseService, handleApiError, logApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
 import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
-import { supabase } from '../utils/supabase'
+import { fetchRecommendConfig, saveRecommendConfig } from '../services/recommendConfigService'
 import { RECOMMENDATION_FEEDBACK_TYPE_MAP } from '../constants'
 import { useUsernames } from '../hooks/useUsernames'
 import { UserName } from '../components/UserName'
@@ -70,26 +70,19 @@ const Recommendations: React.FC = () => {
   // 加载配置（从 recommend_config 表读取全局单行，淘汰 localStorage 持久化）
   useEffect(() => {
     (async () => {
-      try {
-        const { data, error } = await (supabase.from('recommend_config') as any)
-          .select('cold_start, cold_min_reads, rec_limit, exclude_ongoing, exclude_draft, exclude_ids, weight_category, weight_read, weight_collect')
-          .eq('id', 'global')
-          .maybeSingle()
-        if (data && !error) {
-          setConfig((prev) => ({
-            cold_start: data.cold_start ?? prev.cold_start,
-            cold_min_reads: data.cold_min_reads ?? prev.cold_min_reads,
-            rec_limit: data.rec_limit ?? prev.rec_limit,
-            exclude_ongoing: data.exclude_ongoing ?? prev.exclude_ongoing,
-            exclude_draft: data.exclude_draft ?? prev.exclude_draft,
-            exclude_ids: data.exclude_ids ?? prev.exclude_ids,
-            weight_category: data.weight_category ?? prev.weight_category,
-            weight_read: data.weight_read ?? prev.weight_read,
-            weight_collect: data.weight_collect ?? prev.weight_collect,
-          }))
-        }
-      } catch (err) {
-        logApiError(err, 'Recommendations-加载配置')
+      const data = await fetchRecommendConfig()
+      if (data) {
+        setConfig((prev) => ({
+          cold_start: data.cold_start ?? prev.cold_start,
+          cold_min_reads: data.cold_min_reads ?? prev.cold_min_reads,
+          rec_limit: data.rec_limit ?? prev.rec_limit,
+          exclude_ongoing: data.exclude_ongoing ?? prev.exclude_ongoing,
+          exclude_draft: data.exclude_draft ?? prev.exclude_draft,
+          exclude_ids: data.exclude_ids ?? prev.exclude_ids,
+          weight_category: data.weight_category ?? prev.weight_category,
+          weight_read: data.weight_read ?? prev.weight_read,
+          weight_collect: data.weight_collect ?? prev.weight_collect,
+        }))
       }
     })()
   }, [])
@@ -113,17 +106,9 @@ const Recommendations: React.FC = () => {
   useEffect(() => { fetchFeedback() }, [fetchFeedback])
 
   const saveConfig = async () => {
-    try {
-      const { error } = await (supabase.from('recommend_config') as any)
-        .upsert({ id: 'global', ...config })
-      if (error) {
-        handleApiError(error, 'Recommendations-保存配置')
-        return
-      }
-      message.success('推荐配置已保存')
-    } catch (err) {
-      handleApiError(err, 'Recommendations-保存配置')
-    }
+    const ok = await saveRecommendConfig({ ...config })
+    if (!ok) return
+    message.success('推荐配置已保存')
   }
 
   // 统计

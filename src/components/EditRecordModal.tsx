@@ -11,8 +11,8 @@ import {
   Spin,
 } from 'antd'
 import dayjs from 'dayjs'
-import { supabase } from '../utils/supabase'
-import { apiQuery, apiExecute, handleApiError } from '../utils/apiClient'
+import { handleApiError } from '../utils/apiClient'
+import { fetchGenericRecord, updateGenericRecord } from '../services/genericRecordService'
 
 interface EditRecordModalProps {
   open: boolean
@@ -53,16 +53,17 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
   const loadRecord = async () => {
     setLoading(true)
     try {
-      const result = await apiQuery(
-        () => supabase.from(tableName).select(columns.map(c => c.name).join(',')).eq('id', recordId).single() as any,
-        'EditRecordModal-加载记录'
+      const result = await fetchGenericRecord(
+        tableName,
+        columns.map(c => c.name).join(','),
+        recordId,
       )
       if (!result.success) {
         handleApiError(result.errorMessage, 'EditRecordModal-加载记录')
         return
       }
 
-      const record = result.data as any
+      const record = result.data as Record<string, any>
       // 转换日期字段
       const formValues: Record<string, any> = {}
       columns.forEach((col) => {
@@ -98,10 +99,7 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
         }
       })
 
-      const result = await apiExecute(
-        () => (supabase.from(tableName) as any).update(updateData).eq('id', recordId),
-        'EditRecordModal-保存记录'
-      )
+      const result = await updateGenericRecord(tableName, recordId, updateData)
 
       if (!result.success) {
         handleApiError(result.errorMessage, 'EditRecordModal-保存记录')

@@ -21,7 +21,8 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { getActionColumn } from './ActionColumn'
-import { BaseService, apiExecute, handleApiError } from '../utils/apiClient'
+import { BaseService, handleApiError } from '../utils/apiClient'
+import { swapChapterNumbers } from '../services/novelChapterService'
 import { usePagination } from '../hooks/usePagination'
 
 // ==================== 类型定义 ====================
@@ -258,16 +259,12 @@ const NovelChapterModal: React.FC<{
       }
 
       // 交换章节号
-      const [update1, update2] = await Promise.all([
-        apiExecute(
-          () => (supabase.from('novel_chapters') as any).update({ chapter_num: targetChapter.chapter_num }).eq('id', chapter.id),
-          'NovelChapterModal-调整顺序1'
-        ),
-        apiExecute(
-          () => (supabase.from('novel_chapters') as any).update({ chapter_num: chapter.chapter_num }).eq('id', targetChapter.id),
-          'NovelChapterModal-调整顺序2'
-        ),
-      ])
+      const [update1, update2] = await swapChapterNumbers(
+        chapter.id,
+        targetChapter.chapter_num,
+        targetChapter.id,
+        chapter.chapter_num,
+      )
 
       if (!update1.success || !update2.success) {
         message.error('调整顺序失败')
