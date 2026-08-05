@@ -30,7 +30,7 @@ import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
-import { ACTION_MAP, OP_MODULE_MAP, ACTION_OPTIONS, MODULE_OPTIONS, DETAIL_ENUM_MAP } from '../constants'
+import { ACTION_MAP, ACTION_OPTIONS, MODULE_OPTIONS, DETAIL_ENUM_MAP, getModuleLabel, getModuleColor } from '../constants'
 import { useUsernames } from '../hooks/useUsernames'
 import { UserName } from '../components/UserName'
 
@@ -75,12 +75,11 @@ const MODULE_ICON_MAP: Record<string, React.ReactNode> = {
   user_feedback: <MessageOutlined />,
 }
 
-/** 带图标的完整模块信息（本地图标 + OP_MODULE_MAP label/color 兜底） */
+/** 带图标的完整模块信息（本地图标 + 模块中文名/颜色兜底链，审查 P3-2） */
 function getModuleInfo(module: string): { color: string; label: string; icon: React.ReactNode } {
-  const base = OP_MODULE_MAP[module]
   return {
-    color: base?.color || 'default',
-    label: base?.label || module,
+    color: getModuleColor(module),
+    label: getModuleLabel(module),
     icon: MODULE_ICON_MAP[module] || null,
   }
 }

@@ -145,6 +145,17 @@ export const TABLE_NAME_MAP: Record<string, string> = {
   weight_records: '体重记录',
 }
 
+/** 模块中文名（回退链：OP_MODULE_MAP → TABLE_NAME_MAP → 原始英文）。
+ *  保证任何写入 operation_logs.module 的值都有可读中文，审查 P3-2。 */
+export function getModuleLabel(module: string): string {
+  return OP_MODULE_MAP[module]?.label || TABLE_NAME_MAP[module] || module
+}
+
+/** 模块颜色（回退链：OP_MODULE_MAP → 默认蓝）。 */
+export function getModuleColor(module: string): string {
+  return OP_MODULE_MAP[module]?.color || 'blue'
+}
+
 /** 操作日志筛选下拉选项（按业务域分组展示） */
 export const MODULE_OPTIONS = [
   { label: '用户管理', value: 'users' },
