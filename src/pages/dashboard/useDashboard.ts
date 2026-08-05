@@ -211,9 +211,13 @@ export function useDashboard() {
         const userIds = [...new Set(logsRes.data.map(l => l.user_id).filter(Boolean))] as string[]
         if (userIds.length > 0) {
           const nickRes = await dashboardService.getUserNicknames(userIds)
-          const nickMap = new Map(
-            (nickRes.data || []).map(u => [u.id, u.nickname || u.id])
-          )
+          // 双键：同时按下业务 ID 与 auth_id 建映射（双 ID 架构，历史数据可能存 UUID）
+          const nickMap = new Map<string, string>()
+          for (const u of (nickRes.data || [])) {
+            const name = u.nickname || u.id
+            nickMap.set(u.id, name)
+            if (u.auth_id) nickMap.set(u.auth_id, name)
+          }
           setRecentActivities(
             logsRes.data.map(l => ({
               ...l,

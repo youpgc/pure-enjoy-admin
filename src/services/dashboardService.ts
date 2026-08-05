@@ -146,8 +146,16 @@ class DashboardService {
 
   /// 查询用户昵称
   async getUserNicknames(userIds: string[]) {
-    return apiQuery<{ id: string; nickname: string | null }[]>(
-      () => supabase.from('users').select('id, nickname').eq('is_deleted', false).in('id', userIds),
+    // 双键解析：业务存在双 ID 架构，部分历史数据（如早期 operation_logs/error_logs 的
+    // user_id 写入的是 auth UUID）仅能凭 UUID 命中，故同时按 id 与 auth_id 查询，
+    // 由调用方把两列都建入 nickMap，避免回退显示原始 ID。
+    const idsList = userIds.join(',')
+    return apiQuery<{ id: string; auth_id: string | null; nickname: string | null }[]>(
+      () =>
+        supabase
+          .from('users')
+          .select('id, auth_id, nickname')
+          .or(`id.in.(${idsList}),auth_id.in.(${idsList})`),
       'Dashboard-用户昵称查询'
     )
   }

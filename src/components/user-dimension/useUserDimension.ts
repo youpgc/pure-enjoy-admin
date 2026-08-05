@@ -69,13 +69,19 @@ export function useUserDimension({
       const map = new Map<string, { nickname: string; username: string }>()
       for (let i = 0; i < uniqueIds.length; i += batchSize) {
         const batch = uniqueIds.slice(i, i + batchSize)
+        const idsList = batch.join(',')
         const { data, error } = await supabase
           .from('users' as any)
-          .select('id, nickname, username')
-          .in('id', batch) as any
+          // 双键解析：业务存在双 ID 架构，部分历史数据（如早期日志的 user_id 写入的是
+          // auth UUID）仅能凭 UUID 命中，故同时按 id 与 auth_id 查询并都建入 map，
+          // 避免回退显示原始 ID。
+          .select('id, auth_id, nickname, username')
+          .or(`id.in.(${idsList}),auth_id.in.(${idsList})`) as any
         if (error) throw error
         for (const u of data || []) {
-          map.set(u.id, { nickname: u.nickname || '', username: u.username || '' })
+          const val = { nickname: u.nickname || '', username: u.username || '' }
+          map.set(u.id, val)
+          if (u.auth_id) map.set(u.auth_id, val)
         }
       }
       setUserMap(map)
