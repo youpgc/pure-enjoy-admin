@@ -55,7 +55,7 @@ export const buildMenuItems = (
     },
   ] : []),
   // 用户中心
-  ...(hasMenuPermission('menu:users', ['users:read', 'users:write', 'users:delete', 'points:read', 'points:write']) ? [
+  ...(hasMenuPermission('menu:users', ['users:read', 'users:write', 'users:delete', 'points:read', 'points:write']) || isAdmin() ? [
     {
       key: 'user-center',
       icon: <TeamOutlined />,
@@ -67,11 +67,18 @@ export const buildMenuItems = (
         ...(hasMenuPermission('menu:users', ['points:read', 'points:write']) ? [
           { key: 'points', icon: <StarFilled />, label: '积分管理' },
         ] : []),
+        // 登录日志：管理员/超级管理员可见，业务上归属用户中心（原顶层独立项，并入本组）
+        ...(isAdmin() ? [
+          { key: 'login_logs', icon: <AlertOutlined />, label: '登录日志' },
+        ] : []),
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
-  // 内容管理
-  ...(hasMenuPermission('menu:content', ['novels:read', 'novels:write', 'novels:delete', 'sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
+  // 内容管理（小说与内容）
+  // 组可见性在原有 novels/sensitive_words 基础上，补充 app_configs:read 与 analytics:read：
+  // 听书管理（沿用 app_configs:read 放行）、推荐管理（沿用 analytics:read 放行）迁入本组，
+  // 必须让这两个权限也能点亮本组，否则迁入后反而因「组不可见」而消失。
+  ...(hasMenuPermission('menu:content', ['novels:read', 'novels:write', 'novels:delete', 'sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete', 'app_configs:read', 'analytics:read']) ? [
     {
       key: 'content',
       icon: <ReadOutlined />,
@@ -80,17 +87,30 @@ export const buildMenuItems = (
         ...(hasMenuPermission('menu:content', ['novels:read', 'novels:write', 'novels:delete']) ? [
           { key: 'novels', icon: <ReadOutlined />, label: '小说管理' },
         ] : []),
+        // 书架管理：用户书架（user_novels），与小说同域；此前漏加菜单入口，本次补回（novels:read 放行）
+        ...(hasMenuPermission('menu:content', ['novels:read']) ? [
+          { key: 'novel_bookshelves', icon: <BookOutlined />, label: '书架管理' },
+        ] : []),
         ...(hasMenuPermission('menu:content', ['novels:read']) ? [
           { key: 'novel_comments', icon: <MessageOutlined />, label: '评论管理' },
         ] : []),
         ...(hasMenuPermission('menu:content', ['novels:read']) ? [
-          { key: 'rankings', icon: <TrophyOutlined />, label: '排行榜' },
+          { key: 'rankings', icon: <TrophyOutlined />, label: '排行榜管理' },
         ] : []),
+        // 阅读进度：页面实为「完读率聚合统计」，改名以与书架管理区分
         ...(hasMenuPermission('menu:content', ['novels:read']) ? [
-          { key: 'bookmarks', icon: <BookOutlined />, label: '阅读进度' },
+          { key: 'bookmarks', icon: <BookOutlined />, label: '阅读进度统计' },
         ] : []),
         ...(hasMenuPermission('menu:content', ['novels:read']) ? [
           { key: 'annotations', icon: <MessageOutlined />, label: '批注管理' },
+        ] : []),
+        // 听书管理：小说有声阅读功能，原误放系统设置，归入内容管理（沿用 app_configs:read 放行，避免改权限/SQL）
+        ...(hasMenuPermission('menu:content', ['app_configs:read']) ? [
+          { key: 'tts_management', icon: <SoundOutlined />, label: '听书管理' },
+        ] : []),
+        // 推荐管理：内容推荐，原误放运营管理（且误用 analytics:read 放行），归入内容管理（沿用 analytics:read 放行）
+        ...(hasMenuPermission('menu:content', ['analytics:read']) ? [
+          { key: 'recommendations', icon: <StarOutlined />, label: '推荐管理' },
         ] : []),
         ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
           { key: 'sensitive_words', icon: <SafetyOutlined />, label: '敏感词管理' },
@@ -157,9 +177,6 @@ export const buildMenuItems = (
         ...(hasMenuPermission('menu:operations', ['analytics:read']) ? [
           { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析' },
         ] : []),
-        ...(hasMenuPermission('menu:operations', ['analytics:read']) ? [
-          { key: 'recommendations', icon: <StarOutlined />, label: '推荐管理' },
-        ] : []),
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
@@ -191,18 +208,7 @@ export const buildMenuItems = (
         ...(hasMenuPermission('menu:system', ['error_logs:read']) ? [
           { key: 'error_logs', icon: <AlertOutlined />, label: '错误日志' },
         ] : []),
-        ...(hasMenuPermission('menu:system', ['app_configs:read']) ? [
-          { key: 'tts_management', icon: <SoundOutlined />, label: '听书管理' },
-        ] : []),
       ].filter((item): item is MenuItem => !!item),
-    },
-  ] : []),
-  // 登录日志（管理员/超级管理员可见，独立于系统设置组以确保任何管理员角色均可见）
-  ...(isAdmin() ? [
-    {
-      key: 'login_logs',
-      icon: <AlertOutlined />,
-      label: '登录日志',
     },
   ] : []),
 ].filter(Boolean)
