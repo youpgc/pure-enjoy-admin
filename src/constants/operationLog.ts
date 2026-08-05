@@ -143,6 +143,10 @@ export const TABLE_NAME_MAP: Record<string, string> = {
   user_recommendation_feedback: '推荐反馈',
   users: '用户管理',
   weight_records: '体重记录',
+
+  // ── 物化视图（get_table_stats RPC 会把 MV 一并返回，需单独登记中文名）──
+  mv_novel_chapters_index: '小说章节索引',
+  mv_novel_rankings: '小说排行榜',
 }
 
 /** 模块中文名（回退链：OP_MODULE_MAP → TABLE_NAME_MAP → 原始英文）。

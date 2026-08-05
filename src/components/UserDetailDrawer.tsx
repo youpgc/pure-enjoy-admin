@@ -29,6 +29,7 @@ import {
 } from '@ant-design/icons'
 import type { User, UserStats, OperationLog } from '../types/user'
 import dayjs from 'dayjs'
+import { ACTION_LABEL_MAP, getModuleLabel, getModuleColor } from '../constants'
 import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
 
 const { Text, Title } = Typography
@@ -317,7 +318,12 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
               children: (
                 <div>
                   <div>
-                    <Text strong>{log.action}</Text>
+                    <Text strong>{ACTION_LABEL_MAP[log.action] || log.action}</Text>
+                    {log.module && (
+                      <Tag color={getModuleColor(log.module)} style={{ marginLeft: 8 }}>
+                        {getModuleLabel(log.module)}
+                      </Tag>
+                    )}
                     <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
                       {dayjs(log.created_at).format('MM-DD HH:mm')}
                     </Text>

@@ -39,12 +39,6 @@ import { usePermission } from '../hooks/usePermission'
 import { systemMonitorService, type TableStat, type DbHealth, type RlsCoverage, type SeqScanHotspot, type LogTrendPoint } from '../services/systemMonitorService'
 import { TABLE_NAME_MAP } from '../constants/operationLog'
 
-/** 真实表名 → 中文名（未命中回退原英文表名） */
-function tableNameCn(tableName: string): React.ReactNode {
-  const cn = TABLE_NAME_MAP[tableName]
-  return cn ? <Tag color="blue">{cn}</Tag> : <Text type="secondary">{tableName}</Text>
-}
-
 const { Text } = Typography
 
 // ==================== 格式化辅助 ====================
@@ -118,8 +112,12 @@ const HealthOverview: React.FC<{ health: DbHealth | null; latencyMs: number | nu
 /** 分区2：数据规模 */
 const TableScaleTable: React.FC<{ data: TableStat[]; loading: boolean }> = ({ data, loading }) => {
   const columns = [
-    { title: '表名', dataIndex: 'table_name', key: 'table_name', render: (v: string) => <Text strong>{v}</Text>, sorter: (a: TableStat, b: TableStat) => a.table_name.localeCompare(b.table_name) },
-    { title: '中文名', dataIndex: 'table_name', key: 'table_cn', render: (v: string) => tableNameCn(v), sorter: (a: TableStat, b: TableStat) => (TABLE_NAME_MAP[a.table_name] ?? a.table_name).localeCompare(TABLE_NAME_MAP[b.table_name] ?? b.table_name) },
+    { title: '表名', dataIndex: 'table_name', key: 'table_name', render: (v: string) => {
+        const cn = TABLE_NAME_MAP[v]
+        return cn ? (
+          <span><Tag color="blue">{cn}</Tag> <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text></span>
+        ) : <Text type="secondary" strong>{v}</Text>
+      }, sorter: (a: TableStat, b: TableStat) => (TABLE_NAME_MAP[a.table_name] ?? a.table_name).localeCompare(TABLE_NAME_MAP[b.table_name] ?? b.table_name) },
     { title: '行数(估计)', dataIndex: 'row_estimate', key: 'row_estimate', align: 'right' as const, render: (v: number) => formatNumber(v), sorter: (a: TableStat, b: TableStat) => a.row_estimate - b.row_estimate, defaultSortOrder: 'descend' as const },
     { title: '表大小', dataIndex: 'table_size_bytes', key: 'table_size_bytes', align: 'right' as const, render: (v: number) => formatBytes(v), sorter: (a: TableStat, b: TableStat) => a.table_size_bytes - b.table_size_bytes },
     { title: '索引大小', dataIndex: 'index_size_bytes', key: 'index_size_bytes', align: 'right' as const, render: (v: number) => formatBytes(v), sorter: (a: TableStat, b: TableStat) => a.index_size_bytes - b.index_size_bytes },
@@ -179,8 +177,12 @@ const LogTrendChart: React.FC<{ data: LogTrendPoint[]; loading: boolean; days: n
 const SecurityPosture: React.FC<{ rls: RlsCoverage | null; hotspots: SeqScanHotspot[]; loading: boolean }> = ({ rls, hotspots, loading }) => {
   const rlsPct = rls && rls.total_tables > 0 ? Math.round((rls.rls_enabled / rls.total_tables) * 100) : 0
   const hotspotColumns = [
-    { title: '表名', dataIndex: 'table_name', key: 'table_name', render: (v: string) => <Text strong>{v}</Text> },
-    { title: '中文名', dataIndex: 'table_name', key: 'table_cn', render: (v: string) => tableNameCn(v) },
+    { title: '表名', dataIndex: 'table_name', key: 'table_name', render: (v: string) => {
+        const cn = TABLE_NAME_MAP[v]
+        return cn ? (
+          <span><Tag color="blue">{cn}</Tag> <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text></span>
+        ) : <Text type="secondary" strong>{v}</Text>
+      } },
     { title: '行数(估计)', dataIndex: 'row_estimate', key: 'row_estimate', align: 'right' as const, render: (v: number) => formatNumber(v), sorter: (a: SeqScanHotspot, b: SeqScanHotspot) => a.row_estimate - b.row_estimate },
     { title: '顺序扫描', dataIndex: 'seq_scan', key: 'seq_scan', align: 'right' as const, render: (v: number) => <Text type="danger">{formatNumber(v)}</Text>, sorter: (a: SeqScanHotspot, b: SeqScanHotspot) => a.seq_scan - b.seq_scan, defaultSortOrder: 'descend' as const },
     { title: '索引扫描', dataIndex: 'idx_scan', key: 'idx_scan', align: 'right' as const, render: (v: number) => formatNumber(v), sorter: (a: SeqScanHotspot, b: SeqScanHotspot) => a.idx_scan - b.idx_scan },

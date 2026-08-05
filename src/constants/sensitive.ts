@@ -6,6 +6,11 @@ export const SENSITIVE_CATEGORY_MAP: Record<string, { color: string; label: stri
   violence: { color: 'volcano', label: '暴力' },
   advertising: { color: 'blue', label: '广告' },
   other: { color: 'default', label: '其他' },
+  // 以下为 App 实际写入的分类（审查：前面映射缺失导致显示原始值）
+  novel: { color: 'purple', label: '小说' },
+  spam: { color: 'blue', label: '垃圾广告' },
+  fraud: { color: 'red', label: '诈骗' },
+  abuse: { color: 'volcano', label: '辱骂' },
 }
 
 export const SENSITIVE_CATEGORY_OPTIONS = [
@@ -14,6 +19,10 @@ export const SENSITIVE_CATEGORY_OPTIONS = [
   { label: '暴力', value: 'violence' },
   { label: '广告', value: 'advertising' },
   { label: '其他', value: 'other' },
+  { label: '小说', value: 'novel' },
+  { label: '垃圾广告', value: 'spam' },
+  { label: '诈骗', value: 'fraud' },
+  { label: '辱骂', value: 'abuse' },
 ]
 
 export const SENSITIVE_LEVEL_MAP: Record<string, { color: string; label: string }> = {
@@ -32,12 +41,19 @@ export const SENSITIVE_MATCH_MODE_MAP: Record<string, { color: string; label: st
   exact: { color: 'blue', label: '精确' },
   fuzzy: { color: 'orange', label: '模糊' },
   regex: { color: 'purple', label: '正则' },
+  // 以下为 App 实际写入的匹配模式（审查：前面映射缺失导致显示原始值）
+  contains: { color: 'cyan', label: '包含' },
+  replace: { color: 'geekblue', label: '替换' },
+  block: { color: 'red', label: '屏蔽' },
 }
 
 export const SENSITIVE_MATCH_MODE_OPTIONS = [
   { label: '精确', value: 'exact' },
   { label: '模糊', value: 'fuzzy' },
   { label: '正则', value: 'regex' },
+  { label: '包含', value: 'contains' },
+  { label: '替换', value: 'replace' },
+  { label: '屏蔽', value: 'block' },
 ]
 
 // 敏感词命中来源（sensitive_word_logs.source，自由字符串，由各业务端写入）
