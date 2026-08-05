@@ -30,7 +30,7 @@ import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
-import { ACTION_MAP, OP_MODULE_MAP, ACTION_OPTIONS, MODULE_OPTIONS } from '../constants'
+import { ACTION_MAP, OP_MODULE_MAP, ACTION_OPTIONS, MODULE_OPTIONS, DETAIL_ENUM_MAP } from '../constants'
 import { useUsernames } from '../hooks/useUsernames'
 import { UserName } from '../components/UserName'
 
@@ -93,30 +93,38 @@ function getModuleInfo(module: string): { color: string; label: string; icon: Re
 // 详情中需隐藏的系统字段，仅保留业务可读字段
 const DETAIL_HIDDEN_FIELDS = new Set(['id', 'created_at', 'updated_at', 'auth_id', 'user_id', 'is_deleted'])
 
-/** 把一条记录快照转成可读文本（隐藏系统字段、跳过空值） */
-function snapshotToText(rec: Record<string, unknown>): string {
+/** 把一条记录快照转成可读文本（隐藏系统字段、跳过空值），并按所属模块翻译枚举值 */
+function snapshotToText(rec: Record<string, unknown>, module?: string): string {
+  const enumByField = module ? DETAIL_ENUM_MAP[module] : undefined
   const parts: string[] = []
   for (const [k, v] of Object.entries(rec)) {
     if (DETAIL_HIDDEN_FIELDS.has(k)) continue
     if (v === null || v === undefined || v === '') continue
-    parts.push(`${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+    let display = typeof v === 'object' ? JSON.stringify(v) : String(v)
+    // 枚举值翻译：命中「模块 + 字段 + 值」时显示中文，否则保留原始值（不丢信息）
+    const fieldMap = enumByField?.[k]
+    if (fieldMap) {
+      const mapped = fieldMap[display]
+      if (mapped !== undefined) display = mapped
+    }
+    parts.push(`${k}=${display}`)
   }
   return parts.length ? parts.join('，') : '(无其它业务字段)'
 }
 
-/** 把 details 渲染为可读摘要：删除/更新快照优先展示业务内容，其余原样 JSON */
-function formatDetails(details: Record<string, unknown> | undefined): string {
+/** 把 details 渲染为可读摘要：删除/更新快照优先展示业务内容（枚举已翻译），其余原样 JSON */
+function formatDetails(details: Record<string, unknown> | undefined, module?: string): string {
   if (!details) return ''
   if (details.deleted !== undefined) {
     const d = details.deleted
     if (Array.isArray(d)) {
       if (d.length === 0) return `共删除 ${details.count ?? 0} 条（快照缺失）`
-      return `共删除 ${details.count ?? d.length} 条：${d.map((r) => snapshotToText(r as Record<string, unknown>)).join('；')}`
+      return `共删除 ${details.count ?? d.length} 条：${d.map((r) => snapshotToText(r as Record<string, unknown>, module)).join('；')}`
     }
-    return snapshotToText(d as Record<string, unknown>)
+    return snapshotToText(d as Record<string, unknown>, module)
   }
   if (details.changes !== undefined) {
-    return `变更：${snapshotToText(details.changes as Record<string, unknown>)}`
+    return `变更：${snapshotToText(details.changes as Record<string, unknown>, module)}`
   }
   return JSON.stringify(details)
 }
@@ -290,8 +298,8 @@ const OperationLogs: React.FC = () => {
       key: 'details',
       width: 320,
       ellipsis: true,
-      render: (v: Record<string, unknown>) => {
-        const text = formatDetails(v)
+      render: (v: Record<string, unknown>, record: OperationLog) => {
+        const text = formatDetails(v, record.module)
         return text ? (
           <EllipsisText text={text} maxWidth={320} stripHtml={false} />
         ) : (

@@ -9,6 +9,8 @@
 //
 // 新增表名时必须同步本映射，否则最近活动/操作日志/错误日志会回退显示原始英文。
 
+import { SENSITIVE_CATEGORY_MAP, SENSITIVE_LEVEL_MAP, SENSITIVE_MATCH_MODE_MAP } from './sensitive'
+
 export const ACTION_MAP: Record<string, { color: string; label: string }> = {
   create: { color: 'green', label: '创建' },
   update: { color: 'blue', label: '更新' },
@@ -170,3 +172,26 @@ export const MODULE_OPTIONS = [
   { label: '操作日志', value: 'operation_logs' },
   { label: '错误日志', value: 'error_logs' },
 ]
+
+// ==================== 操作内容枚举翻译 ====================
+//
+// 操作日志「操作内容」列对删除/更新快照中的枚举值做中文翻译。
+// 按「模块(真实表名) -> 字段 -> 枚举值 -> 中文」三级映射，避免同名异义字段跨表误翻
+// （如 category/level 仅对 sensitive_words 有意义，不能对所有表套用）。
+// 枚举标签一律复用 constants 既有映射（禁止硬编码）；未命中回退原始值，不丢信息。
+// 新增需要翻译的枚举：在此登记对应模块的字段即可（value 须与既有映射一致）。
+
+/** 把 { value: { color, label } } 形式的枚举映射压成 value -> label，便于翻译查表 */
+function enumToLabelMap(map: Record<string, { label: string }>): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const [value, { label }] of Object.entries(map)) out[value] = label
+  return out
+}
+
+export const DETAIL_ENUM_MAP: Record<string, Record<string, Record<string, string>>> = {
+  sensitive_words: {
+    category: enumToLabelMap(SENSITIVE_CATEGORY_MAP),
+    level: enumToLabelMap(SENSITIVE_LEVEL_MAP),
+    match_mode: enumToLabelMap(SENSITIVE_MATCH_MODE_MAP),
+  },
+}
