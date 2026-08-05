@@ -19,6 +19,9 @@ import {
   SettingOutlined,
   BookOutlined,
   FileTextOutlined,
+  SafetyCertificateOutlined,
+  WarningOutlined,
+  MessageOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -54,14 +57,32 @@ interface LogFilters {
   dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null
 }
 
-// ==================== 模块映射（合并本地图标） ====================
+// ==================== 模块映射（合并本地图标 + 集中映射兜底） ====================
+//
+// 本地图标仅覆盖高频模块；未命中时 render 回退到 OP_MODULE_MAP 取 label/color（无图标）。
+// 新增表名只需维护 OP_MODULE_MAP，此处无需同步。
 
-const MODULE_MAP: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
-  user: { color: OP_MODULE_MAP.user!.color, label: OP_MODULE_MAP.user!.label, icon: <UserOutlined /> },
-  users: { color: OP_MODULE_MAP.users!.color, label: OP_MODULE_MAP.users!.label, icon: <UserOutlined /> },
-  system: { color: OP_MODULE_MAP.system!.color, label: OP_MODULE_MAP.system!.label, icon: <SettingOutlined /> },
-  novel: { color: OP_MODULE_MAP.novel!.color, label: OP_MODULE_MAP.novel!.label, icon: <BookOutlined /> },
-  content: { color: OP_MODULE_MAP.content!.color, label: OP_MODULE_MAP.content!.label, icon: <FileTextOutlined /> },
+const MODULE_ICON_MAP: Record<string, React.ReactNode> = {
+  users: <UserOutlined />,
+  user: <UserOutlined />,
+  system: <SettingOutlined />,
+  novels: <BookOutlined />,
+  novel: <BookOutlined />,
+  content: <FileTextOutlined />,
+  files: <FileTextOutlined />,
+  roles: <SafetyCertificateOutlined />,
+  sensitive_words: <WarningOutlined />,
+  user_feedback: <MessageOutlined />,
+}
+
+/** 带图标的完整模块信息（本地图标 + OP_MODULE_MAP label/color 兜底） */
+function getModuleInfo(module: string): { color: string; label: string; icon: React.ReactNode } {
+  const base = OP_MODULE_MAP[module]
+  return {
+    color: base?.color || 'default',
+    label: base?.label || module,
+    icon: MODULE_ICON_MAP[module] || null,
+  }
 }
 
 // ==================== 组件 ====================
@@ -216,7 +237,7 @@ const OperationLogs: React.FC = () => {
       key: 'module',
       width: 120,
       render: (module: string) => {
-        const info = MODULE_MAP[module] || { color: 'default', label: module, icon: null }
+        const info = getModuleInfo(module)
         return <Tag color={info.color} icon={info.icon}>{info.label}</Tag>
       },
     },

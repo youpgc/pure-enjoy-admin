@@ -21,7 +21,7 @@ import { usePagination } from '../hooks/usePagination'
 import { usePermission } from '../hooks/usePermission'
 import { useMounted } from '../hooks/useMounted'
 import { getActionColumn } from '../components/ActionColumn'
-import { ERROR_LOG_LEVEL_MAP, ERROR_LOG_LEVEL_OPTIONS } from '../constants'
+import { ERROR_LOG_LEVEL_MAP, ERROR_LOG_LEVEL_OPTIONS, OP_MODULE_LABEL_MAP } from '../constants'
 import EllipsisText from '../components/EllipsisText'
 import { useUsernames } from '../hooks/useUsernames'
 import { UserName } from '../components/UserName'
@@ -167,7 +167,7 @@ const ErrorLogs: React.FC = () => {
       dataIndex: 'module',
       key: 'module',
       width: 120,
-      render: (v: string) => <Tag>{v}</Tag>,
+      render: (v: string) => <Tag>{OP_MODULE_LABEL_MAP[v] || v}</Tag>,
     },
     {
       title: '消息',
