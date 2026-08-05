@@ -95,6 +95,54 @@ export const OP_MODULE_LABEL_MAP: Record<string, string> = Object.fromEntries(
   Object.entries(OP_MODULE_MAP).map(([k, v]) => [k, v.label])
 )
 
+/** 全量 public 表名 → 中文名，与 src/types/database.ts 的 40 张表一一对应。
+ *  供系统监控「数据规模 / 全表扫描热点」把真实表名翻译成中文释义；
+ *  调用处对未命中项回退显示原始英文表名，不丢信息。
+ *  注意：OP_MODULE_MAP 是「审计模块」映射（键名与真实表名有错位且不全），
+ *        本表才是真实表名的权威中文映射，请勿混用。 */
+export const TABLE_NAME_MAP: Record<string, string> = {
+  admin_users: '后台管理员',
+  announcements: '公告管理',
+  app_configs: '应用配置',
+  app_versions: '版本管理',
+  dict_items: '字典项',
+  dict_types: '字典类型',
+  error_logs: '错误日志',
+  expenses: '消费记录',
+  feedback_flow_records: '反馈流转记录',
+  files: '文件管理',
+  habit_checkins: '打卡记录',
+  habits: '习惯打卡',
+  mood_diaries: '心情日记',
+  notes: '笔记本',
+  notifications: '通知管理',
+  novel_annotations: '小说批注',
+  novel_bookmarks: '小说书签',
+  novel_chapters: '小说章节',
+  novel_comments: '小说评论',
+  novels: '小说管理',
+  operation_logs: '操作日志',
+  permissions: '权限配置',
+  point_records: '积分记录',
+  reading_history: '阅读历史',
+  reminder_schedules: '提醒计划',
+  reminders: '提醒事项',
+  role_permissions: '角色权限关联',
+  roles: '角色权限',
+  sensitive_word_configs: '敏感词配置',
+  sensitive_word_logs: '敏感词命中日志',
+  sensitive_words: '敏感词',
+  system_configs: '系统配置',
+  tts_playback_logs: '听书播放日志',
+  user_anniversaries: '纪念日',
+  user_favorites: '收藏夹',
+  user_feedback: '问题反馈',
+  user_novels: '书架管理',
+  user_recommendation_feedback: '推荐反馈',
+  users: '用户管理',
+  weight_records: '体重记录',
+}
+
 /** 操作日志筛选下拉选项（按业务域分组展示） */
 export const MODULE_OPTIONS = [
   { label: '用户管理', value: 'users' },
