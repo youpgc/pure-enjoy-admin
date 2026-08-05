@@ -4,6 +4,9 @@ import type { CheckboxChangeEvent } from 'antd/es/checkbox'
 import type { Role, Permission } from '../types/permission'
 import { resolvePermissionPage, GROUP_ORDER, GROUP_COLORS } from '../constants/permissionMenuMap'
 
+/** 勾选面板中跳过的前缀（menu:* 是侧边栏门控元权限） */
+const PANEL_SKIP_PREFIXES = ['menu']
+
 interface PermissionConfigModalProps {
   visible: boolean
   role: Role | null
@@ -31,6 +34,10 @@ const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
     const groupMap: Record<string, Record<string, Permission[]>> = {}
     const pageIds: Record<string, number[]> = {}
     permissions.forEach(permission => {
+      // 跳过侧边栏门控元权限（menu:*）
+      const prefix = permission.name.split(':')[0] || permission.name
+      if (PANEL_SKIP_PREFIXES.includes(prefix)) return
+
       const info = resolvePermissionPage(permission.name, permission.module)
       const g = groupMap[info.group] || (groupMap[info.group] = {})
       const pg = g[info.page] || (g[info.page] = [])

@@ -30,6 +30,9 @@ import { roleService } from '../services/roleService'
 import EllipsisText from '../components/EllipsisText'
 import { resolvePermissionPage, GROUP_ORDER } from '../constants/permissionMenuMap'
 
+/** 权限树中跳过的前缀（menu:* 是侧边栏门控元权限，不属于功能资源权限，不应出现在角色配置树中） */
+const TREE_SKIP_PREFIXES = ['menu']
+
 const { Title } = Typography
 
 // ==================== 角色管理页面 ====================
@@ -206,6 +209,10 @@ const RolePermissionPage: React.FC = () => {
     const groupMap: Record<string, GroupNode> = {}
 
     permissions.forEach(p => {
+      // 跳过侧边栏门控元权限（menu:*），它们不属于功能资源权限
+      const prefix = p.name.split(':')[0] || p.name
+      if (TREE_SKIP_PREFIXES.includes(prefix)) return
+
       const info = resolvePermissionPage(p.name, p.module)
       let g = groupMap[info.group]
       if (!g) {
