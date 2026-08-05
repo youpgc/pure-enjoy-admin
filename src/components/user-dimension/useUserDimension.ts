@@ -4,6 +4,7 @@ import type { TablePaginationConfig } from 'antd/es/table'
 import { message } from 'antd'
 import { supabase } from '../../utils/supabase'
 import { BaseService, handleApiError, apiQuery, logApiError } from '../../utils/apiClient'
+import { buildUserLookupOr } from '../../utils/userId'
 import type { RecordItem, UserSummary } from './types'
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from './constants'
 
@@ -69,14 +70,14 @@ export function useUserDimension({
       const map = new Map<string, { nickname: string; username: string }>()
       for (let i = 0; i < uniqueIds.length; i += batchSize) {
         const batch = uniqueIds.slice(i, i + batchSize)
-        const idsList = batch.join(',')
+        // 双键解析：业务存在双 ID 架构，部分历史数据（如早期日志的 user_id 写入的是
+        // auth UUID）仅能凭 UUID 命中，故同时按 id 与 auth_id 查询并都建入 map；
+        // 但业务ID(U...) 只走 id 列，auth_id(uuid 类型) 仅接收 UUID 形态，否则报 22P02。
+        const orFilter = buildUserLookupOr(batch)
         const { data, error } = await supabase
           .from('users' as any)
-          // 双键解析：业务存在双 ID 架构，部分历史数据（如早期日志的 user_id 写入的是
-          // auth UUID）仅能凭 UUID 命中，故同时按 id 与 auth_id 查询并都建入 map，
-          // 避免回退显示原始 ID。
           .select('id, auth_id, nickname, username')
-          .or(`id.in.(${idsList}),auth_id.in.(${idsList})`) as any
+          .or(orFilter) as any
         if (error) throw error
         for (const u of data || []) {
           const val = { nickname: u.nickname || '', username: u.username || '' }

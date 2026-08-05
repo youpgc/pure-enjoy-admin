@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../utils/supabase'
 import { apiQuery } from '../utils/apiClient'
+import { buildUserLookupOr } from '../utils/userId'
 
 export interface UserInfo {
   username: string | null
@@ -39,13 +40,13 @@ export function useUsernames(ids: Array<string | null | undefined>): Map<string,
       setMap(new Map(cacheRef.current))
       return
     }
-    const idsList = missing.join(',')
+    const orFilter = buildUserLookupOr(missing)
     apiQuery<Array<{ id: string; auth_id: string | null; username: string | null; nickname: string | null }>>(
       () =>
         supabase
           .from('users')
           .select('id, auth_id, username, nickname')
-          .or(`id.in.(${idsList}),auth_id.in.(${idsList})`),
+          .or(orFilter),
       '批量查询用户名'
     )
       .then((res) => {

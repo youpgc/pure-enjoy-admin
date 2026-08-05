@@ -68,3 +68,28 @@ export function extractTimestamp(userId: string): Date | null {
   const timestamp = parseInt(userId.substring(1, 11), 10)
   return new Date(timestamp * 1000)
 }
+
+/**
+ * 判断字符串是否为标准 UUID（v1~v5，36 位带连字符）。
+ * 用于区分「业务ID(U...)」与「auth UUID」，避免把业务ID传入 uuid 类型列导致 22P02。
+ */
+export function isUuid(value: string | null | undefined): boolean {
+  if (!value) return false
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
+}
+
+/**
+ * 构建 users 表「双键解析」查询的 or 过滤串。
+ * - 业务ID（U...，文本列 users.id）走 id 过滤；
+ * - 仅 UUID 形态的值走 auth_id（uuid 类型列）过滤。
+ * 关键：业务ID 绝不进入 auth_id 过滤，否则 PostgreSQL 解析整个 IN 数组时
+ *       因 U... 无法转 uuid 而报 22P02 invalid input syntax for type uuid。
+ *
+ * @param ids 业务ID 或 UUID 混合列表（非空）
+ */
+export function buildUserLookupOr(ids: string[]): string {
+  const uuidIds = ids.filter(isUuid)
+  const idClause = `id.in.(${ids.join(',')})`
+  return uuidIds.length ? `${idClause},auth_id.in.(${uuidIds.join(',')})` : idClause
+}
+

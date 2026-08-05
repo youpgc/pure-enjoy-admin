@@ -1,5 +1,6 @@
 import { supabase } from '../utils/supabase'
 import { apiQuery, type ApiResponse } from '../utils/apiClient'
+import { buildUserLookupOr } from '../utils/userId'
 
 /// Dashboard 统计查询服务
 /// 注意：Dashboard 涉及大量跨表聚合和 count 查询，不适合 BaseService，
@@ -149,13 +150,14 @@ class DashboardService {
     // 双键解析：业务存在双 ID 架构，部分历史数据（如早期 operation_logs/error_logs 的
     // user_id 写入的是 auth UUID）仅能凭 UUID 命中，故同时按 id 与 auth_id 查询，
     // 由调用方把两列都建入 nickMap，避免回退显示原始 ID。
-    const idsList = userIds.join(',')
+    // 注意：业务ID(U...) 只走 id 列，auth_id(uuid 类型) 仅接收 UUID 形态，否则报 22P02。
+    const orFilter = buildUserLookupOr(userIds)
     return apiQuery<{ id: string; auth_id: string | null; nickname: string | null }[]>(
       () =>
         supabase
           .from('users')
           .select('id, auth_id, nickname')
-          .or(`id.in.(${idsList}),auth_id.in.(${idsList})`),
+          .or(orFilter),
       'Dashboard-用户昵称查询'
     )
   }
