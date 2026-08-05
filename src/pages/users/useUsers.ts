@@ -18,10 +18,11 @@ import {
   USER_STATUS_OPTIONS,
 } from '../../types/user'
 import { useDictOptions, useDictColors } from '../../hooks/useDictOptions'
+import { USER_STATUS_ACTIVE, USER_STATUS_DISABLED } from '../../constants/roles'
 import { generateUserId } from '../../utils/userId'
 import {
   createUser,
-  addPointRecord,
+  addPointRecordWithRecalc,
   recalcUserPoints,
   logUserOperation,
   fetchUserActivity,
@@ -235,7 +236,8 @@ export function useUsers() {
       // （云端无 point_records→users 同步触发器，须后台主动回写，详见 points skill §5.3）
       const initPoints = formData.available_points ?? 0
       if (initPoints > 0) {
-        const { data: pointRecord, error: recordError } = await addPointRecord({
+        // 原子化：插入初始积分流水 + 重算回写 users 展示列（审查 P1-3）
+        const { success, errorMessage } = await addPointRecordWithRecalc({
           user_id: userId,
           type: 'admin_adjust',
           amount: initPoints,
@@ -243,16 +245,9 @@ export function useUsers() {
           operator_name: adminUser?.nickname || adminUser?.email || '管理员',
           operator_id: adminUser?.id,
         })
-        if (recordError) {
-          console.warn('初始积分记录失败:', recordError.message)
-        } else if (!pointRecord || pointRecord.length === 0) {
-          console.warn('初始积分记录未写入：可能 RLS 策略阻止')
+        if (!success) {
+          message.warning(errorMessage || '初始积分记录/重算失败，积分展示可能短暂不同步')
         }
-      }
-      // 主动重算并回写 users 全部展示列（替代不存在的触发器）
-      const recalcOk = await recalcUserPoints(userId)
-      if (!recalcOk) {
-        message.warning('积分展示列重算失败，用户积分/连续签到展示可能短暂不同步')
       }
 
       // 同步创建 auth.users 记录（使 App 端可通过 Supabase Auth 登录）
@@ -290,7 +285,8 @@ export function useUsers() {
       const delta = newAvailable - oldAvailable
 
       if (delta !== 0) {
-        const { error: recordError } = await addPointRecord({
+        // 原子化：插入积分流水 + 重算回写（审查 P1-3）
+        const { success, errorMessage } = await addPointRecordWithRecalc({
           user_id: currentUser.id,
           type: 'admin_adjust',
           amount: delta,
@@ -298,16 +294,17 @@ export function useUsers() {
           operator_name: adminUser?.nickname || adminUser?.email || '管理员',
           operator_id: adminUser?.id,
         })
-        if (recordError) {
-          message.error('积分调整记录失败: ' + recordError.message)
+        if (!success) {
+          message.error(errorMessage || '积分调整失败')
           setSubmitting(false)
           return
         }
-      }
-      // 主动重算并回写 users 全部展示列（替代不存在的触发器）
-      const recalcOk = await recalcUserPoints(currentUser.id)
-      if (!recalcOk) {
-        message.warning('积分展示列重算失败，用户积分/连续签到展示可能短暂不同步')
+      } else {
+        // 无积分变动时也确保 users 展示列最新（替代不存在的触发器）
+        const recalcOk = await recalcUserPoints(currentUser.id)
+        if (!recalcOk) {
+          message.warning('积分展示列重算失败，用户积分/连续签到展示可能短暂不同步')
+        }
       }
 
       const updateData: Partial<User> = {
@@ -371,7 +368,7 @@ export function useUsers() {
 
   // 切换用户状态
   const handleToggleStatus = useCallback(async (user: User) => {
-    const newStatus: UserStatus = user.status === 'active' ? 'disabled' : 'active'
+    const newStatus: UserStatus = user.status === USER_STATUS_ACTIVE ? USER_STATUS_DISABLED : USER_STATUS_ACTIVE
 
     try {
       const result = await userService.toggleStatus(user.id, newStatus)

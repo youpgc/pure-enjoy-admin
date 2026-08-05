@@ -11,6 +11,7 @@ import {
 import { getActionColumn } from '../../components/ActionColumn'
 import type { ActionButton } from '../../components/ActionColumn'
 import { formatDateTime } from '../../utils/format'
+import { USER_STATUS_ACTIVE } from '../../constants/roles'
 import type { DictOption } from '../../hooks/useDictOptions'
 import type { User, UserRole, MemberLevel, UserStatus } from '../../types/user'
 
@@ -171,8 +172,8 @@ export function buildUserColumns(params: BuildUserColumnsParams): ColumnsType<Us
             },
             {
               key: 'toggle',
-              label: record.status === 'active' ? '禁用' : '启用',
-              icon: record.status === 'active' ? <StopOutlined /> : <CheckCircleOutlined />,
+            label: record.status === USER_STATUS_ACTIVE ? '禁用' : '启用',
+            icon: record.status === USER_STATUS_ACTIVE ? <StopOutlined /> : <CheckCircleOutlined />,
               danger: record.status === 'active',
               onClick: () => onToggleStatus(record),
             },

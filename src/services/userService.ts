@@ -1,6 +1,7 @@
 import { BaseService } from '../utils/apiClient'
-import { supabase } from '../utils/supabase'
+import { supabase, reportError } from '../utils/supabase'
 import type { User, OperationLog } from '../types/user'
+import { USER_STATUS_DISABLED, POINT_RECORD_STATUS_ACTIVE } from '../constants/roles'
 
 /// 用户管理服务（封装 users 表的 CRUD，替代页面层直接调用 supabase）
 class UserService extends BaseService<User> {
@@ -46,12 +47,12 @@ class UserService extends BaseService<User> {
 
   /// 软删除用户（禁用）
   async softDelete(id: string): Promise<ReturnType<BaseService<User>['update']>> {
-    return this.update(id, { status: 'disabled' })
+    return this.update(id, { status: USER_STATUS_DISABLED })
   }
 
   /// 批量软删除
   async batchSoftDelete(ids: string[]): Promise<ReturnType<BaseService<User>['batchUpdate']>> {
-    return this.batchUpdate(ids, { status: 'disabled' })
+    return this.batchUpdate(ids, { status: USER_STATUS_DISABLED })
   }
 
   /// 切换用户状态
@@ -64,7 +65,9 @@ export const userService = new UserService()
 
 // ==================== 以下为 #66 抽出的写操作/统计查询（替代页面层裸 supabase.from） ====================
 
-/// 创建用户记录（public.users），返回含 id 的记录
+/// 创建用户记录（public.users），返回含 id 的记录。
+/// 审计闭环：由调用方（useUsers.handleCreate）在创建成功后调 logUserOperation('create_user', ...)
+/// 负责，本函数不重复审计（避免双重审计；且 users 在 BaseService.AUDIT_EXCLUDED）。审查报告 P2-3。
 export const createUser = (data: Record<string, unknown>) =>
   (supabase.from('users') as any).insert(data).select().single()
 
@@ -80,8 +83,28 @@ export const addPointRecord = (record: {
   status?: string
 }) =>
   (supabase.from('point_records') as any)
-    .insert({ status: 'active', ...record })
+    .insert({ status: POINT_RECORD_STATUS_ACTIVE, ...record })
     .select()
+
+/// 原子化：新增积分流水并主动重算回写 users 展示列（替代不存在的触发器，审查 P1-3）。
+/// 内部串联 addPointRecord + recalcUserPoints，杜绝调用方遗漏导致 users.points 与真实流水漂移；
+/// recalc 失败写入 error_logs 告警（不回滚主流水，避免二次复杂度）。
+export const addPointRecordWithRecalc = async (
+  record: Parameters<typeof addPointRecord>[0]
+): Promise<{ success: boolean; errorMessage?: string }> => {
+  const { data, error } = await addPointRecord(record)
+  if (error) {
+    return { success: false, errorMessage: error.message }
+  }
+  if (!data || data.length === 0) {
+    return { success: false, errorMessage: '积分流水未写入（可能 RLS 策略阻止）' }
+  }
+  const ok = await recalcUserPoints(record.user_id)
+  if (!ok) {
+    await reportError('warning', 'points', `积分重算失败 user=${record.user_id}（流水已写入，需后台核对）`)
+  }
+  return { success: true }
+}
 
 /// 后台主动重算回写 users 积分展示列（替代不存在的触发器）。
 /// 调用 recalc_user_points RPC（SECURITY DEFINER + JWT 管理员校验，与 create_auth_user 同策略）。

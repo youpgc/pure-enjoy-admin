@@ -68,6 +68,7 @@ export const USER_STATUS_OPTIONS = [
 ]
 
 export const USER_STATUS_ACTIVE = 'active' as const
+export const USER_STATUS_DISABLED = 'disabled' as const
 
 export const DEFAULT_USER_FORM_VALUES = {
   gender: '保密',
@@ -76,3 +77,6 @@ export const DEFAULT_USER_FORM_VALUES = {
   status: USER_STATUS_ACTIVE as UserStatus,
   available_points: 0,
 }
+
+// point_records 流水状态枚举单一源（避免服务/页面硬编码 'active'，审查报告 P2-1）
+export const POINT_RECORD_STATUS_ACTIVE = 'active' as const
