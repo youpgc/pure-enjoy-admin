@@ -969,6 +969,43 @@ export interface Database {
         Args: Record<string, never>
         Returns: void
       }
+      get_db_health: {
+        Args: Record<string, never>
+        Returns: {
+          db_size_bytes: number
+          active_conns: number
+          max_conns: number
+          conn_util_pct: number
+          err_last_24h: number
+          err_prev_24h: number
+          total_tables: number
+          total_rows_est: number
+        }[]
+      }
+      get_table_stats: {
+        Args: Record<string, never>
+        Returns: {
+          table_name: string
+          row_estimate: number
+          table_size_bytes: number
+          index_size_bytes: number
+          total_size_bytes: number
+          last_vacuum: string | null
+          last_autovacuum: string | null
+        }[]
+      }
+      get_log_trends: {
+        Args: { p_days: number }
+        Returns: { day: string; op_count: number; err_count: number }[]
+      }
+      get_rls_coverage: {
+        Args: Record<string, never>
+        Returns: { total_tables: number; rls_enabled: number; unprotected: string[] }[]
+      }
+      get_seq_scan_hotspots: {
+        Args: { p_min_rows: number }
+        Returns: { table_name: string; row_estimate: number; seq_scan: number; idx_scan: number }[]
+      }
     }
     Enums: {}
     CompositeTypes: {
