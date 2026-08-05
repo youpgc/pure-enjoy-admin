@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import { supabase } from '../utils/supabase'
+import { USER_STATUS_ACTIVE } from '../constants/roles'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -49,6 +50,22 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
           if (!rpcError && !isAdmin) {
             await supabase.auth.signOut()
           }
+          setIsAuthenticated(false)
+          navigate('/login')
+          return
+        }
+
+        // 二级兜底：即便 is_admin() RPC 未含 status 条件，也按 users.status 拦截
+        // 禁用/封禁账户（软删除仅置 status，若 RPC 不校验则被禁管理员仍可进后台，审查 P1-2/P2-7）。
+        // RLS 限制下查不到 profile 时放行（主闭环依赖 is_admin SQL 加 status 条件）。
+        const result = await supabase
+          .from('users')
+          .select('status')
+          .eq('auth_id', session.user.id)
+          .maybeSingle()
+        const profile = result.data as { status?: string } | null
+        if (profile && profile.status !== USER_STATUS_ACTIVE) {
+          await supabase.auth.signOut()
           setIsAuthenticated(false)
           navigate('/login')
           return
