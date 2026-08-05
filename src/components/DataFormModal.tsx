@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Modal,
   Form,
@@ -7,176 +7,18 @@ import {
   Select,
   DatePicker,
   Switch,
-  Button,
-  Space,
 } from 'antd'
-import type { FormInstance, Rule } from 'antd/es/form'
+import type { Rule } from 'antd/es/form'
 import dayjs from 'dayjs'
-import { getMoodTypeOptions } from '../utils/dictService'
+import type { DataFormModalProps, FormField } from './dataFormModal/types'
+import EmojiSelect from './dataFormModal/EmojiSelect'
+import TagsInput from './dataFormModal/TagsInput'
+
+// 保留对外类型导出（拆分前由本文件直接 export，避免破坏任何潜在调用方）
+export type { FieldType, FormField, DataFormModalProps } from './dataFormModal/types'
 
 const { TextArea } = Input
 const { RangePicker } = DatePicker
-
-// ==================== 类型定义 ====================
-
-export type FieldType =
-  | 'text'
-  | 'number'
-  | 'textarea'
-  | 'select'
-  | 'date'
-  | 'dateRange'
-  | 'switch'
-  | 'emoji'
-  | 'tags'
-
-export interface FormField {
-  name: string
-  label: string
-  type: FieldType
-  placeholder?: string
-  required?: boolean
-  rules?: Rule[]
-  options?: { label: string; value: string | number }[]
-  min?: number
-  max?: number
-  precision?: number
-  rows?: number
-  disabled?: boolean
-  defaultValue?: unknown
-  span?: number // 栅格占位
-  dependencies?: string[] // 依赖字段
-  tooltip?: string
-  render?: (form: FormInstance, field: FormField) => React.ReactNode // 自定义渲染
-}
-
-export interface DataFormModalProps {
-  open: boolean
-  title: string
-  mode: 'create' | 'edit'
-  fields: FormField[]
-  initialValues?: Record<string, unknown>
-  onOk: (values: Record<string, unknown>) => Promise<void> | void
-  onCancel: () => void
-  confirmLoading?: boolean
-  width?: number | string
-  destroyOnClose?: boolean
-  layout?: 'horizontal' | 'vertical' | 'inline'
-  labelCol?: { span: number }
-  wrapperCol?: { span: number }
-}
-
-// ==================== Emoji 选择器 ====================
-
-// Emoji 映射：心情值 -> 对应的 Emoji
-const MOOD_EMOJI_MAP: Record<string, string> = {
-  happy: '😊',
-  calm: '😌',
-  normal: '😐',
-  sad: '😢',
-  anxious: '😰',
-  tired: '😴',
-  开心: '😊',
-  平静: '😌',
-  一般: '😐',
-  难过: '😢',
-  焦虑: '😰',
-  疲惫: '😴',
-}
-
-// Fallback 心情选项
-const FALLBACK_MOOD_OPTIONS = [
-  { label: '开心', value: '开心' },
-  { label: '平静', value: '平静' },
-  { label: '一般', value: '一般' },
-  { label: '难过', value: '难过' },
-  { label: '焦虑', value: '焦虑' },
-]
-
-const EmojiSelect: React.FC<{
-  value?: string
-  onChange?: (value: string) => void
-}> = ({ value, onChange }) => {
-  const [moodOptions, setMoodOptions] = useState(FALLBACK_MOOD_OPTIONS)
-
-  useEffect(() => {
-    getMoodTypeOptions().then((options) => {
-      if (options.length > 0) {
-        setMoodOptions(options)
-      }
-    })
-  }, [])
-
-  return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-      {moodOptions.map((option) => {
-        const emoji = MOOD_EMOJI_MAP[option.value] || '😐'
-        return (
-          <Button
-            key={option.value}
-            type={value === option.value ? 'primary' : 'default'}
-            onClick={() => onChange?.(option.value as string)}
-            style={{ fontSize: 18, padding: '4px 12px' }}
-          >
-            {emoji} {option.label}
-          </Button>
-        )
-      })}
-    </div>
-  )
-}
-
-// ==================== 标签输入组件 ====================
-
-const TagsInput: React.FC<{
-  value?: string[]
-  onChange?: (value: string[]) => void
-  placeholder?: string
-}> = ({ value = [], onChange, placeholder }) => {
-  const [inputValue, setInputValue] = React.useState('')
-
-  const handleAdd = () => {
-    const tag = inputValue.trim()
-    if (tag && !value.includes(tag)) {
-      onChange?.([...value, tag])
-      setInputValue('')
-    }
-  }
-
-  const handleRemove = (tag: string) => {
-    onChange?.(value.filter((t) => t !== tag))
-  }
-
-  return (
-    <div>
-      <Space.Compact style={{ width: '100%', marginBottom: 8 }}>
-        <Input
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder={placeholder || '输入标签后按回车或点击添加'}
-          onPressEnter={handleAdd}
-        />
-        <Button type="primary" onClick={handleAdd}>
-          添加
-        </Button>
-      </Space.Compact>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-        {value.map((tag) => (
-          <Button
-            key={tag}
-            size="small"
-            onClick={() => handleRemove(tag)}
-            style={{ borderRadius: 4 }}
-          >
-            {tag} ×
-          </Button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ==================== 主组件 ====================
 
 const DataFormModal: React.FC<DataFormModalProps> = ({
   open,
@@ -343,15 +185,11 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
         )
 
       case 'emoji':
-        return (
-          <EmojiSelect />
-        )
+        return <EmojiSelect />
 
       case 'tags':
         return (
-          <TagsInput
-            placeholder={field.placeholder || '输入标签后按回车添加'}
-          />
+          <TagsInput placeholder={field.placeholder || '输入标签后按回车添加'} />
         )
 
       default:
