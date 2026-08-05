@@ -175,9 +175,21 @@ export class BaseService<T extends Record<string, any>> {
   /// 删除
   async delete(id: string | number): Promise<ApiResponse<boolean>> {
     try {
+      // 删除前抓取被删记录快照，写入审计以便追溯「删除了什么」（best-effort，失败不影响删除）
+      let snapshot: Record<string, unknown> | null = null
+      try {
+        const before = await (supabase.from(this.tableName) as any)
+          .select(this.options?.select || '*')
+          .eq('id', id)
+          .maybeSingle()
+        snapshot = ((before?.data as Record<string, unknown> | null) || null)
+      } catch {
+        snapshot = null
+      }
+
       const { error } = await supabase.from(this.tableName).delete().eq('id', id)
       if (error) throw error
-      this.audit('delete', id)
+      this.audit('delete', id, snapshot ? { deleted: snapshot } : undefined)
       return successResponse(true)
     } catch (err) {
       return errorResponse(handleApiError(err, `${this.tableName}.delete`))
@@ -187,9 +199,20 @@ export class BaseService<T extends Record<string, any>> {
   /// 批量删除
   async batchDelete(ids: (string | number)[]): Promise<ApiResponse<boolean>> {
     try {
+      // 删除前抓取被删记录快照（best-effort，失败不影响删除）
+      let snapshots: Record<string, unknown>[] = []
+      try {
+        const before = await (supabase.from(this.tableName) as any)
+          .select(this.options?.select || '*')
+          .in('id', ids)
+        snapshots = ((before?.data as Record<string, unknown>[] | null) || null) || []
+      } catch {
+        snapshots = []
+      }
+
       const { error } = await supabase.from(this.tableName).delete().in('id', ids)
       if (error) throw error
-      this.audit('batch_delete', ids, { count: ids.length })
+      this.audit('batch_delete', ids, { count: ids.length, deleted: snapshots })
       return successResponse(true)
     } catch (err) {
       return errorResponse(handleApiError(err, `${this.tableName}.batchDelete`))

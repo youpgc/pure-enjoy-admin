@@ -85,6 +85,42 @@ function getModuleInfo(module: string): { color: string; label: string; icon: Re
   }
 }
 
+// ==================== 详情渲染（让「删除了什么」可读） ====================
+//
+// 删除/更新操作现在会把被改记录的快照写入 details（见 BaseService.delete/batchDelete）。
+// 此处把快照翻译为业务可读文本；历史日志（details 为 null）回退显示「—」。
+
+// 详情中需隐藏的系统字段，仅保留业务可读字段
+const DETAIL_HIDDEN_FIELDS = new Set(['id', 'created_at', 'updated_at', 'auth_id', 'user_id', 'is_deleted'])
+
+/** 把一条记录快照转成可读文本（隐藏系统字段、跳过空值） */
+function snapshotToText(rec: Record<string, unknown>): string {
+  const parts: string[] = []
+  for (const [k, v] of Object.entries(rec)) {
+    if (DETAIL_HIDDEN_FIELDS.has(k)) continue
+    if (v === null || v === undefined || v === '') continue
+    parts.push(`${k}=${typeof v === 'object' ? JSON.stringify(v) : String(v)}`)
+  }
+  return parts.length ? parts.join('，') : '(无其它业务字段)'
+}
+
+/** 把 details 渲染为可读摘要：删除/更新快照优先展示业务内容，其余原样 JSON */
+function formatDetails(details: Record<string, unknown> | undefined): string {
+  if (!details) return ''
+  if (details.deleted !== undefined) {
+    const d = details.deleted
+    if (Array.isArray(d)) {
+      if (d.length === 0) return `共删除 ${details.count ?? 0} 条（快照缺失）`
+      return `共删除 ${details.count ?? d.length} 条：${d.map((r) => snapshotToText(r as Record<string, unknown>)).join('；')}`
+    }
+    return snapshotToText(d as Record<string, unknown>)
+  }
+  if (details.changes !== undefined) {
+    return `变更：${snapshotToText(details.changes as Record<string, unknown>)}`
+  }
+  return JSON.stringify(details)
+}
+
 // ==================== 组件 ====================
 
 const OperationLogs: React.FC = () => {
@@ -261,12 +297,19 @@ const OperationLogs: React.FC = () => {
       },
     },
     {
-      title: '详情',
+      title: '操作内容',
       dataIndex: 'details',
       key: 'details',
-      render: (v: Record<string, unknown>) => (
-        <EllipsisText text={v ? JSON.stringify(v) : null} maxWidth={240} stripHtml={false} />
-      ),
+      width: 320,
+      ellipsis: true,
+      render: (v: Record<string, unknown>) => {
+        const text = formatDetails(v)
+        return text ? (
+          <EllipsisText text={text} maxWidth={320} stripHtml={false} />
+        ) : (
+          <span style={{ color: '#bbb' }}>—</span>
+        )
+      },
     },
     {
       title: 'IP',
