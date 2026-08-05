@@ -77,12 +77,16 @@ export class BaseService<T extends Record<string, any>> {
   }
 
   /// 操作审计（best-effort，不阻塞主流程）：写入 operation_logs
+  /// 审查 P3-3：target_id 存储为数组（而非逗号拼接字符串），便于事后按 id 关联
   private audit(action: string, targetId: string | number | Array<string | number>, detail?: object) {
     if (BaseService.AUDIT_EXCLUDED.has(this.tableName)) return
+    const targetIdArray = Array.isArray(targetId)
+      ? targetId.map(String)
+      : [String(targetId)]
     logOperation({
       action,
       module: this.tableName,
-      target_id: Array.isArray(targetId) ? targetId.join(',') : String(targetId),
+      target_id: targetIdArray,
       detail,
     }).catch(() => {})
   }

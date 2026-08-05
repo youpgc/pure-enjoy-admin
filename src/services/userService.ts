@@ -119,13 +119,18 @@ export const recalcUserPoints = async (userId: string): Promise<boolean> => {
 }
 
 /// 记录操作日志（写 operation_logs）
+/// 审查 P3-3：target_id 存储为数组，单值包成 [v]
 export const logUserOperation = (entry: {
   user_id?: string | null
   action: string
   module: string
-  target_id: string
+  target_id: string | string[]
   details: Record<string, unknown>
-}) => (supabase.from('operation_logs') as any).insert(entry)
+}) =>
+  (supabase.from('operation_logs') as any).insert({
+    ...entry,
+    target_id: Array.isArray(entry.target_id) ? entry.target_id : [entry.target_id],
+  })
 
 /// 统计用户各模块数据量与最近操作日志（返回与页面 Promise.all 解构顺序一致的元组）
 export const fetchUserActivity = (userId: string) =>

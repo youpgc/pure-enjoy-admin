@@ -43,7 +43,7 @@ interface OperationLog {
   user_id: string
   action: string
   module: string
-  target_id?: string
+  target_id?: string[] | null
   details?: Record<string, unknown>
   ip?: string
   user_agent?: string
@@ -289,7 +289,7 @@ const OperationLogs: React.FC = () => {
       dataIndex: 'target_id',
       key: 'target_id',
       width: 120,
-      render: (v: string) => v || '-',
+      render: (v: string[] | null) => (v && v.length ? v.join(', ') : '-'),
     },
     {
       title: '操作内容',

@@ -178,7 +178,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
         layout="vertical"
         initialValues={{
           ...DEFAULT_USER_FORM_VALUES,
-        } as any}
+        }}
       >
         <Divider orientation="left">基本信息</Divider>
 

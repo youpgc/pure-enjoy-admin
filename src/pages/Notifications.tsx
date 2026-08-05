@@ -194,7 +194,7 @@ const Notifications: React.FC = () => {
           ...values,
           user_id: values.user_id || null,
           is_read: false,
-        } as any)
+        })
         if (!result.success) {
           handleApiError(result.errorMessage, 'Notifications-创建')
           return

@@ -143,7 +143,7 @@ export async function logOperation(params: {
   action: string
   module: string
   detail?: string | object
-  target_id?: string
+  target_id?: string | string[]
   ip?: string
   user_agent?: string
   immediate?: boolean // 保留参数但忽略，始终立即写入
@@ -159,6 +159,13 @@ export async function logOperation(params: {
       }
     }
 
+    // 审查 P3-3：target_id 统一规整为数组（单值包成 [v]，已为数组则原样），便于按 id 关联
+    const targetId = params.target_id == null
+      ? null
+      : Array.isArray(params.target_id)
+        ? params.target_id
+        : [params.target_id]
+
     // 前端无法获得真实客户端 IP，ip 列保留为占位值（'127.0.0.1'）；
     // user_agent 取浏览器 UA，补上审计字段闭环（审查报告 P2-2）。
     const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : null
@@ -166,7 +173,7 @@ export async function logOperation(params: {
       user_id: await getCurrentBusinessUserId(),
       action: params.action,
       module: params.module,
-      target_id: params.target_id || null,
+      target_id: targetId,
       ip: params.ip || '127.0.0.1',
       user_agent: params.user_agent || userAgent,
       details: details,

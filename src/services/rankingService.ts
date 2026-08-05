@@ -99,7 +99,7 @@ async function logOperation(action: string, module: string, detail: object) {
       user_id: await getCurrentBusinessUserId(),
       action,
       module,
-      target_id: GLOBAL_ID,
+      target_id: [GLOBAL_ID],
       ip: '127.0.0.1',
       details: detail,
     })
