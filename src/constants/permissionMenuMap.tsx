@@ -12,9 +12,9 @@
 // - 一个资源前缀通常对应一个页面（如 novels -> 小说管理）。
 // - 少数前缀被多个子页面复用（如 novels:read 同时控制 书架/评论/排行/阅读进度统计/批注），
 //   这些子页面本就是「小说管理」的子功能，归到该页面下更直观。
-// - 听书管理(tss_management) 与 推荐管理(recommendations) 已按业务归入「内容管理」菜单组；
-//   二者当前分别沿用 app_configs:read / analytics:read 放行（无独立权限，避免改权限/SQL），
-//   故权限树中其控制权限仍分别落在「配置管理」「数据分析」下，属已知残留，待补独立权限再彻底对齐。
+// - 听书管理(tss_management) 与 推荐管理(recommendations) 已按业务归入「内容管理」菜单组，
+//   并补齐独立权限 tts:read / recommendations:read（见 feature_admin_tts_recommendations_perms.sql），
+//   权限树与菜单现已 1:1 对齐。
 // - dict 与 dict_management 并存（历史种子 SQL 用 dict，菜单用 dict_management），
 //   这里统一归到「字典管理」，避免拆成两项。
 
@@ -62,6 +62,7 @@ export const RESOURCE_PAGE_MAP: Record<string, PermissionPageInfo> = {
   points: { group: '用户中心', page: '积分管理', icon: <StarFilled /> },
   novels: { group: '内容管理', page: '小说管理', icon: <ReadOutlined /> },
   user_novels: { group: '内容管理', page: '书架管理', icon: <BookOutlined /> },
+  tts: { group: '内容管理', page: '听书管理', icon: <SoundOutlined /> },
   recommendations: { group: '内容管理', page: '推荐管理', icon: <StarOutlined /> },
   sensitive_words: { group: '内容管理', page: '敏感词管理', icon: <SafetyOutlined /> },
   expenses: { group: '生活服务', page: '消费记录', icon: <WalletOutlined /> },

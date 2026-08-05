@@ -75,10 +75,8 @@ export const buildMenuItems = (
     },
   ] : []),
   // 内容管理（小说与内容）
-  // 组可见性在原有 novels/sensitive_words 基础上，补充 app_configs:read 与 analytics:read：
-  // 听书管理（沿用 app_configs:read 放行）、推荐管理（沿用 analytics:read 放行）迁入本组，
-  // 必须让这两个权限也能点亮本组，否则迁入后反而因「组不可见」而消失。
-  ...(hasMenuPermission('menu:content', ['novels:read', 'novels:write', 'novels:delete', 'sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete', 'app_configs:read', 'analytics:read']) ? [
+  // 听书管理 -> tts:read、推荐管理 -> recommendations:read（独立权限，已通过 SQL 补齐并授予相关角色）。
+  ...(hasMenuPermission('menu:content', ['novels:read', 'novels:write', 'novels:delete', 'sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete', 'tts:read', 'recommendations:read']) ? [
     {
       key: 'content',
       icon: <ReadOutlined />,
@@ -104,12 +102,12 @@ export const buildMenuItems = (
         ...(hasMenuPermission('menu:content', ['novels:read']) ? [
           { key: 'annotations', icon: <MessageOutlined />, label: '批注管理' },
         ] : []),
-        // 听书管理：小说有声阅读功能，原误放系统设置，归入内容管理（沿用 app_configs:read 放行，避免改权限/SQL）
-        ...(hasMenuPermission('menu:content', ['app_configs:read']) ? [
+        // 听书管理：小说有声阅读功能，独立权限 tts:read（配套 SQL 已补并授予相关角色）
+        ...(hasMenuPermission('menu:content', ['tts:read']) ? [
           { key: 'tts_management', icon: <SoundOutlined />, label: '听书管理' },
         ] : []),
-        // 推荐管理：内容推荐，原误放运营管理（且误用 analytics:read 放行），归入内容管理（沿用 analytics:read 放行）
-        ...(hasMenuPermission('menu:content', ['analytics:read']) ? [
+        // 推荐管理：内容推荐，独立权限 recommendations:read（页面写按钮沿用 recommendations:write）
+        ...(hasMenuPermission('menu:content', ['recommendations:read']) ? [
           { key: 'recommendations', icon: <StarOutlined />, label: '推荐管理' },
         ] : []),
         ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
