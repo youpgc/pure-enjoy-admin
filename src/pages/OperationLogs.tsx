@@ -285,18 +285,6 @@ const OperationLogs: React.FC = () => {
       render: (v: string) => v || '-',
     },
     {
-      title: '目标用户名',
-      dataIndex: 'target_id',
-      key: 'target_username',
-      width: 120,
-      render: (v: string) => {
-        if (!v) return '-'
-        const info = userMap.get(v)
-        const name = info?.username || info?.nickname
-        return name || '-'
-      },
-    },
-    {
       title: '操作内容',
       dataIndex: 'details',
       key: 'details',
