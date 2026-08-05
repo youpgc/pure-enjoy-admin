@@ -218,7 +218,7 @@ const RolePermissionPage: React.FC = () => {
         g.pages[info.page] = pg
       }
       pg.children.push({
-        title: `${p.name} (${p.display_name || '-'})`,
+        title: p.display_name || p.name,
         key: String(p.id),
       })
     })
