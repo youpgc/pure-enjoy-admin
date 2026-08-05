@@ -28,6 +28,7 @@ import type { Role, Permission } from '../types/permission'
 import { ROLE_STATUS_LABELS, ROLE_STATUS_COLORS, ROLE_STATUS } from '../types/permission'
 import { roleService } from '../services/roleService'
 import EllipsisText from '../components/EllipsisText'
+import { resolvePermissionPage, GROUP_ORDER } from '../constants/permissionMenuMap'
 
 const { Title } = Typography
 
@@ -197,28 +198,47 @@ const RolePermissionPage: React.FC = () => {
     }
   }
 
-  // 权限树数据
+  // 权限树数据：按「菜单分组 -> 页面 -> 权限」三级组织，与侧边栏对齐
   const permissionTreeData = useCallback(() => {
-    const moduleMap: Record<string, { title: string; key: string; children: { title: string; key: string }[] }> = {}
+    interface PageNode { title: string; key: string; children: { title: string; key: string }[] }
+    interface GroupNode { title: string; key: string; pages: Record<string, PageNode> }
+
+    const groupMap: Record<string, GroupNode> = {}
 
     permissions.forEach(p => {
-      const modKey = p.module || '未分类'
-      let mod = moduleMap[modKey]
-      if (!mod) {
-        mod = {
-          title: modKey,
-          key: `module_${modKey}`,
-          children: [],
-        }
-        moduleMap[modKey] = mod
+      const info = resolvePermissionPage(p.name, p.module)
+      let g = groupMap[info.group]
+      if (!g) {
+        g = { title: info.group, key: `group_${info.group}`, pages: {} }
+        groupMap[info.group] = g
       }
-      mod.children.push({
+      let pg = g.pages[info.page]
+      if (!pg) {
+        pg = { title: info.page, key: `page_${info.group}_${info.page}`, children: [] }
+        g.pages[info.page] = pg
+      }
+      pg.children.push({
         title: `${p.name} (${p.display_name || '-'})`,
         key: String(p.id),
       })
     })
 
-    return Object.values(moduleMap)
+    // 按侧边栏分组顺序输出
+    const orderedGroups = Object.values(groupMap).sort((a, b) => {
+      const ia = GROUP_ORDER.indexOf(a.title)
+      const ib = GROUP_ORDER.indexOf(b.title)
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+    })
+
+    return orderedGroups.map(g => ({
+      title: g.title,
+      key: g.key,
+      children: Object.values(g.pages).map(pg => ({
+        title: pg.title,
+        key: pg.key,
+        children: pg.children,
+      })),
+    }))
   }, [permissions])
 
   // 表格列定义
@@ -353,7 +373,7 @@ const RolePermissionPage: React.FC = () => {
               onCheck={(checkedKeys) => {
                 setSelectedPermissions(
                   (checkedKeys as string[])
-                    .filter(key => !key.startsWith('module_'))
+                    .filter(key => !key.startsWith('group_') && !key.startsWith('page_'))
                     .map(Number)
                 )
               }}

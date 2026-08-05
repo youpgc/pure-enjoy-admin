@@ -1,20 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Modal, Checkbox, Button, message, Divider, Tag } from 'antd'
 import type { CheckboxChangeEvent } from 'antd/es/checkbox'
-import {
-  UserOutlined,
-  WalletOutlined,
-  SmileOutlined,
-  LineChartOutlined,
-  BookOutlined,
-  ReadOutlined,
-  MobileOutlined,
-  SettingOutlined,
-  MessageOutlined,
-  SoundOutlined,
-} from '@ant-design/icons'
 import type { Role, Permission } from '../types/permission'
-import { MODULE_DISPLAY_NAMES, MODULE_COLORS } from '../types/permission'
+import { resolvePermissionPage, GROUP_ORDER, GROUP_COLORS } from '../constants/permissionMenuMap'
 
 interface PermissionConfigModalProps {
   visible: boolean
@@ -24,20 +12,6 @@ interface PermissionConfigModalProps {
   onClose: () => void
   onSave: (roleId: number, permissionIds: number[]) => Promise<void>
   readOnly?: boolean
-}
-
-// 模块图标映射
-const MODULE_ICONS: Record<string, React.ReactNode> = {
-  users: <UserOutlined />,
-  expenses: <WalletOutlined />,
-  moods: <SmileOutlined />,
-  weights: <LineChartOutlined />,
-  notes: <BookOutlined />,
-  novels: <ReadOutlined />,
-  versions: <MobileOutlined />,
-  system: <SettingOutlined />,
-  feedback: <MessageOutlined />,
-  announcements: <SoundOutlined />,
 }
 
 const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
@@ -52,16 +26,28 @@ const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
   const [saving, setSaving] = useState(false)
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<number[]>([])
 
-  // 按模块分组的权限
-  const permissionsByModule = useMemo(() => {
-    const grouped: Record<string, Permission[]> = {}
+  // 按「菜单分组 -> 页面」组织的权限
+  const { groupedPermissions, pagePermissionIds } = useMemo(() => {
+    const groupMap: Record<string, Record<string, Permission[]>> = {}
+    const pageIds: Record<string, number[]> = {}
     permissions.forEach(permission => {
-      if (!grouped[permission.module]) {
-        grouped[permission.module] = []
-      }
-      grouped[permission.module]!.push(permission)
+      const info = resolvePermissionPage(permission.name, permission.module)
+      const g = groupMap[info.group] || (groupMap[info.group] = {})
+      const pg = g[info.page] || (g[info.page] = [])
+      pg.push(permission)
+      const ids = pageIds[info.page] || (pageIds[info.page] = [])
+      ids.push(permission.id)
     })
-    return grouped
+    // 分组按侧边栏顺序
+    const orderedGroups: Record<string, Record<string, Permission[]>> = {}
+    Object.keys(groupMap)
+      .sort((a, b) => {
+        const ia = GROUP_ORDER.indexOf(a)
+        const ib = GROUP_ORDER.indexOf(b)
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+      })
+      .forEach(g => { orderedGroups[g] = groupMap[g]! })
+    return { groupedPermissions: orderedGroups, pagePermissionIds: pageIds }
   }, [permissions])
 
   // 加载角色权限
@@ -83,15 +69,15 @@ const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
     )
   }
 
-  // 处理模块全选/取消
-  const handleModuleCheckAll = (module: string, checked: boolean) => {
+  // 处理页面全选/取消
+  const handlePageCheckAll = (page: string, checked: boolean) => {
     if (readOnly) return
-    const modulePermissionIds = permissionsByModule[module]!.map(p => p.id)
+    const pagePermissionIdsList = pagePermissionIds[page] || []
     setSelectedPermissionIds(prev => {
       if (checked) {
-        return [...new Set([...prev, ...modulePermissionIds])]
+        return [...new Set([...prev, ...pagePermissionIdsList])]
       }
-      return prev.filter(id => !modulePermissionIds.includes(id))
+      return prev.filter(id => !pagePermissionIdsList.includes(id))
     })
   }
 
@@ -111,17 +97,18 @@ const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
     }
   }
 
-  // 检查模块是否全选
-  const isModuleAllChecked = (module: string) => {
-    const modulePermissionIds = permissionsByModule[module]!.map(p => p.id)
-    return modulePermissionIds.every(id => selectedPermissionIds.includes(id))
+  // 检查页面是否全选
+  const isPageAllChecked = (page: string) => {
+    const pagePermissionIdsList = pagePermissionIds[page] || []
+    return pagePermissionIdsList.length > 0 &&
+      pagePermissionIdsList.every(id => selectedPermissionIds.includes(id))
   }
 
-  // 检查模块是否部分选中
-  const isModuleIndeterminate = (module: string) => {
-    const modulePermissionIds = permissionsByModule[module]!.map(p => p.id)
-    const checkedCount = modulePermissionIds.filter(id => selectedPermissionIds.includes(id)).length
-    return checkedCount > 0 && checkedCount < modulePermissionIds.length
+  // 检查页面是否部分选中
+  const isPageIndeterminate = (page: string) => {
+    const pagePermissionIdsList = pagePermissionIds[page] || []
+    const checkedCount = pagePermissionIdsList.filter(id => selectedPermissionIds.includes(id)).length
+    return checkedCount > 0 && checkedCount < pagePermissionIdsList.length
   }
 
   return (
@@ -156,52 +143,62 @@ const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
         </div>
       )}
 
-      {Object.entries(permissionsByModule).map(([module, modulePermissions]) => (
-        <div key={module} style={{ marginBottom: 16 }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: 8,
-              padding: '8px 12px',
-              background: '#fafafa',
-              borderRadius: 6,
-            }}
+      {Object.entries(groupedPermissions).map(([group, pages]) => (
+        <div key={group} style={{ marginBottom: 20 }}>
+          <Divider
+            orientation="left"
+            style={{ color: GROUP_COLORS[group] || '#666', fontWeight: 600, fontSize: 14 }}
           >
-            <Checkbox
-              checked={isModuleAllChecked(module)}
-              indeterminate={isModuleIndeterminate(module)}
-              onChange={e => handleModuleCheckAll(module, e.target.checked)}
-              disabled={readOnly}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ color: MODULE_COLORS[module] || '#666' }}>
-                  {MODULE_ICONS[module]}
-                </span>
-                <span style={{ fontWeight: 500 }}>{MODULE_DISPLAY_NAMES[module] || module}</span>
-              </span>
-            </Checkbox>
-          </div>
-          <div style={{ paddingLeft: 24 }}>
-            <Checkbox.Group
-              value={selectedPermissionIds}
-              style={{ width: '100%' }}
-              disabled={readOnly}
-            >
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
-                {modulePermissions.map(permission => (
+            {group}
+          </Divider>
+          {Object.entries(pages).map(([page, pagePermissions]) => {
+            const pageIcon = resolvePermissionPage(pagePermissions[0]!.name, pagePermissions[0]!.module).icon
+            return (
+              <div key={page} style={{ marginBottom: 16 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    marginBottom: 8,
+                    padding: '8px 12px',
+                    background: '#fafafa',
+                    borderRadius: 6,
+                  }}
+                >
                   <Checkbox
-                    key={permission.id}
-                    value={permission.id}
-                    onChange={handlePermissionChange(permission.id)}
+                    checked={isPageAllChecked(page)}
+                    indeterminate={isPageIndeterminate(page)}
+                    onChange={e => handlePageCheckAll(page, e.target.checked)}
+                    disabled={readOnly}
                   >
-                    {permission.display_name}
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ color: GROUP_COLORS[group] || '#666' }}>{pageIcon}</span>
+                      <span style={{ fontWeight: 500 }}>{page}</span>
+                    </span>
                   </Checkbox>
-                ))}
+                </div>
+                <div style={{ paddingLeft: 24 }}>
+                  <Checkbox.Group
+                    value={selectedPermissionIds}
+                    style={{ width: '100%' }}
+                    disabled={readOnly}
+                  >
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
+                      {pagePermissions.map(permission => (
+                        <Checkbox
+                          key={permission.id}
+                          value={permission.id}
+                          onChange={handlePermissionChange(permission.id)}
+                        >
+                          {permission.display_name}
+                        </Checkbox>
+                      ))}
+                    </div>
+                  </Checkbox.Group>
+                </div>
               </div>
-            </Checkbox.Group>
-          </div>
-          <Divider style={{ margin: '12px 0' }} />
+            )
+          })}
         </div>
       ))}
     </Modal>
