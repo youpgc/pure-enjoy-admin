@@ -21,6 +21,8 @@ export const ACTION_MAP: Record<string, { color: string; label: string }> = {
   delete_user: { color: 'red', label: '删除用户' },
   toggle_user_status: { color: 'orange', label: '切换用户状态' },
   batch_delete: { color: 'red', label: '批量删除' },
+  // 以下为开发期误写入 operation_logs 的测试垃圾数据，仅作兜底展示（建议清理该测试行）
+  test_action: { color: 'default', label: '测试操作' },
 }
 
 export const ACTION_LABEL_MAP: Record<string, string> = Object.fromEntries(
@@ -86,6 +88,9 @@ export const OP_MODULE_MAP: Record<string, { color: string; label: string }> = {
   system: { color: 'purple', label: '系统' },
   novel: { color: 'green', label: '小说' },
   content: { color: 'orange', label: '内容' },
+
+  // 开发期误写入 operation_logs 的测试模块，仅作兜底展示（建议清理该测试行）
+  test_module: { color: 'default', label: '测试模块' },
 
   // ── 系统 / 错误上报专用 ──
   api: { color: 'default', label: '接口请求' },

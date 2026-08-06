@@ -29,22 +29,25 @@ export const SENSITIVE_LEVEL_MAP: Record<string, { color: string; label: string 
   low: { color: 'orange', label: '低' },
   medium: { color: 'red', label: '中' },
   high: { color: 'purple', label: '高' },
+  // 以下为 App 实际写入的等级（处理动作语义：replace=替换敏感词，block=拦截内容）
+  replace: { color: 'geekblue', label: '替换' },
+  block: { color: 'red', label: '屏蔽' },
 }
 
 export const SENSITIVE_LEVEL_OPTIONS = [
   { label: '低', value: 'low' },
   { label: '中', value: 'medium' },
   { label: '高', value: 'high' },
+  { label: '替换', value: 'replace' },
+  { label: '屏蔽', value: 'block' },
 ]
 
 export const SENSITIVE_MATCH_MODE_MAP: Record<string, { color: string; label: string }> = {
   exact: { color: 'blue', label: '精确' },
   fuzzy: { color: 'orange', label: '模糊' },
   regex: { color: 'purple', label: '正则' },
-  // 以下为 App 实际写入的匹配模式（审查：前面映射缺失导致显示原始值）
+  // App 实际写入的匹配模式（审查：前面映射缺失导致显示原始值）
   contains: { color: 'cyan', label: '包含' },
-  replace: { color: 'geekblue', label: '替换' },
-  block: { color: 'red', label: '屏蔽' },
 }
 
 export const SENSITIVE_MATCH_MODE_OPTIONS = [
@@ -52,8 +55,6 @@ export const SENSITIVE_MATCH_MODE_OPTIONS = [
   { label: '模糊', value: 'fuzzy' },
   { label: '正则', value: 'regex' },
   { label: '包含', value: 'contains' },
-  { label: '替换', value: 'replace' },
-  { label: '屏蔽', value: 'block' },
 ]
 
 // 敏感词命中来源（sensitive_word_logs.source，自由字符串，由各业务端写入）
