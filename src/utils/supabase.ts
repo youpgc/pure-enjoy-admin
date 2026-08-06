@@ -232,7 +232,18 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
       }
 
       try {
-        const response = await fetch(url, options)
+        // 请求超时保护：Supabase JS 默认无请求超时，任一查询挂起（网络抖动 / 长 RPC /
+        // Supabase 边缘冷启动）会让 await 永不返回、finally 永不执行，页面永久卡在 loading。
+        // 加 AbortSignal 超时，超时即中止并由上层 catch/finally 复位 loading 并提示错误，
+        // 而非无限转圈。正常请求不受影响；若调用方已自带 signal 则优先保留。
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 30000)
+        let response: Response
+        try {
+          response = await fetch(url, { ...options, signal: options.signal ?? controller.signal })
+        } finally {
+          clearTimeout(timer)
+        }
         const duration = Date.now() - startTime
 
         // 处理 401 未授权 — 清除登录状态并跳转登录页
@@ -282,6 +293,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
 
         if (isDev) {
           console.error(`[Supabase] ${method} ${tableName} - 网络错误 (${duration}ms):`, error)
+        }
+        // 超时中止：给出明确文案，避免向上暴露 AbortError 内部信息
+        if (error?.name === 'AbortError') {
+          throw new Error('请求超时，请稍后重试')
         }
         throw error
       }
