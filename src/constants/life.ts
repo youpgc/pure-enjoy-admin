@@ -22,7 +22,7 @@ export const MOOD_TYPE_MAP: Record<string, string> = {
   sad: '难过',
   anxious: '焦虑',
   angry: '生气',
-  tired: '笮惫',
+  tired: '疲惫',
   grateful: '感恩',
 }
 
