@@ -165,6 +165,7 @@ export interface Database {
           message: string
           detail: Json | null
           user_id: string | null
+          source: string
           created_at: string | null
         }
         Insert: Omit<Database['public']['Tables']['error_logs']['Row'], 'id' | 'created_at'> & {
@@ -228,6 +229,8 @@ export interface Database {
           thumbnail_url: string | null
           description: string | null
           uploaded_by: string | null
+          bucket: string | null
+          path: string | null
           created_at: string | null
           updated_at: string | null
         }
@@ -369,6 +372,9 @@ export interface Database {
           deleted_at: string | null
           created_at: string | null
           updated_at: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
         }
         Insert: Omit<Database['public']['Tables']['novel_annotations']['Row'], 'id' | 'created_at' | 'updated_at'> & {
           id?: string
@@ -470,6 +476,9 @@ export interface Database {
           updated_at: string | null
           rating_count: number | null
           tts_play_count: number | null
+          source_id: string | null
+          source_status: string | null
+          last_synced_at: string | null
         }
         Insert: Omit<Database['public']['Tables']['novels']['Row'], 'id' | 'created_at' | 'updated_at'> & {
           id?: string
@@ -598,6 +607,8 @@ export interface Database {
           repeat_type: string | null
           created_at: string | null
           updated_at: string | null
+          remind_enabled: boolean
+          remind_offsets: Json
         }
         Insert: Omit<Database['public']['Tables']['reminders']['Row'], 'id' | 'created_at' | 'updated_at'> & {
           id?: string
@@ -756,6 +767,8 @@ export interface Database {
           created_at: string
           updated_at: string | null
           is_lunar: boolean | null
+          remind_time: string
+          remind_offsets: Json
         }
         Insert: Omit<Database['public']['Tables']['user_anniversaries']['Row'], 'id' | 'created_at' | 'updated_at'> & {
           id?: string
@@ -833,6 +846,7 @@ export interface Database {
           font_style_hash: string | null
           layout_cache: unknown | null
           updated_device: string | null
+          last_page: number
         }
         Insert: Omit<Database['public']['Tables']['user_novels']['Row'], 'id' | 'created_at' | 'updated_at'> & {
           id?: string
