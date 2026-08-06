@@ -302,7 +302,7 @@ const SystemMonitor: React.FC = () => {
     if (!isAdmin()) return
     setRefreshing(true)
     await Promise.all([loadHealth(), loadTables(), loadTrends(trendDays), loadSecurity()])
-    if (mountedRef.current) setRefreshing(false)
+    setRefreshing(false)
   }, [isAdmin, loadHealth, loadTables, loadTrends, loadSecurity, trendDays, mountedRef])
 
   useEffect(() => {

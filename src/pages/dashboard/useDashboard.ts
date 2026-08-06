@@ -233,7 +233,7 @@ export function useDashboard() {
     } catch (error) {
       handleApiError(error, 'Dashboard-加载数据')
     } finally {
-      if (mountedRef.current) setLoading(false)
+      setLoading(false)
     }
   }, []) // 依赖清空：hasPermission 改为经 hasPermissionRef 读取最新值，避免引用变化触发重复刷新
 
@@ -256,7 +256,7 @@ export function useDashboard() {
     } catch (error) {
       handleApiError(error, 'Dashboard-获取小说列表')
     } finally {
-      if (mountedRef.current) setNovelsLoading(false)
+      setNovelsLoading(false)
     }
   }, [novelPagination.pagination.current, novelPagination.pagination.pageSize])
 
@@ -305,7 +305,7 @@ export function useDashboard() {
     } catch (error) {
       handleApiError(error, 'Dashboard-获取评论列表')
     } finally {
-      if (mountedRef.current) setCommentsLoading(false)
+      setCommentsLoading(false)
     }
   }, [commentPagination.pagination.current, commentPagination.pagination.pageSize])
 

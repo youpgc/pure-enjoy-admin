@@ -4,9 +4,10 @@ import { useEffect, useRef, useCallback } from 'react'
 /// 用法：const mountedRef = useMounted()
 ///       if (!mountedRef.current) return
 export function useMounted() {
-  const mountedRef = useRef(true)
+  const mountedRef = useRef(false)
 
   useEffect(() => {
+    mountedRef.current = true
     return () => {
       mountedRef.current = false
     }
