@@ -944,6 +944,166 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['weight_records']['Row']>
       }
+
+      // 41. user_avatars
+      user_avatars: {
+        Row: {
+          id: string
+          user_id: string
+          type: string
+          avatar_url: string
+          style_key: string | null
+          background_color: string | null
+          seed: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['user_avatars']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['user_avatars']['Row']>
+      }
+
+      // 42. ranking_interventions
+      ranking_interventions: {
+        Row: {
+          id: string
+          pin_ids: Json
+          block_ids: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: Omit<Database['public']['Tables']['ranking_interventions']['Row'], 'id' | 'updated_at'> & {
+          id?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['ranking_interventions']['Row']>
+      }
+
+      // 43. ranking_rules
+      ranking_rules: {
+        Row: {
+          id: string
+          rating_min_count: number
+          new_book_days_threshold: number
+          read_weight: number
+          collect_weight: number
+          rating_weight: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: Omit<Database['public']['Tables']['ranking_rules']['Row'], 'id' | 'updated_at'> & {
+          id?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['ranking_rules']['Row']>
+      }
+
+      // 44. recommend_config
+      recommend_config: {
+        Row: {
+          id: string
+          cold_start: string
+          cold_min_reads: number
+          rec_limit: number
+          exclude_ongoing: boolean
+          exclude_draft: boolean
+          exclude_ids: string
+          weight_category: number
+          weight_read: number
+          weight_collect: number
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['recommend_config']['Row'], 'id' | 'updated_at'> & {
+          id?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['recommend_config']['Row']>
+      }
+
+      // 45. login_logs
+      login_logs: {
+        Row: {
+          id: string
+          user_id: string | null
+          username: string | null
+          role: string | null
+          user_type: string
+          ip: string | null
+          location: string | null
+          user_agent: string | null
+          login_at: string
+          status: string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['login_logs']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['login_logs']['Row']>
+      }
+
+      // 46. novel_ratings
+      novel_ratings: {
+        Row: {
+          id: string
+          user_id: string
+          novel_id: string
+          rating: number
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: Omit<Database['public']['Tables']['novel_ratings']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['novel_ratings']['Row']>
+      }
+
+      // 47. offline_reading_meta
+      offline_reading_meta: {
+        Row: {
+          id: string
+          user_id: string
+          novel_id: string
+          total_chapters: number | null
+          downloaded_chapters: number | null
+          last_sync_at: string | null
+          device_id: string | null
+          created_at: string | null
+        }
+        Insert: Omit<Database['public']['Tables']['offline_reading_meta']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['offline_reading_meta']['Row']>
+      }
+
+      // 48. reading_progress_sync
+      reading_progress_sync: {
+        Row: {
+          id: string
+          user_id: string
+          novel_id: string
+          device_id: string
+          last_chapter: number | null
+          content_offset: number | null
+          page_index: number | null
+          progress: number | null
+          font_style_hash: string | null
+          layout_cache: Json | null
+          sync_version: number | null
+          created_at: string | null
+        }
+        Insert: Omit<Database['public']['Tables']['reading_progress_sync']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['reading_progress_sync']['Row']>
+      }
     }
     Views: {
       mv_novel_rankings: {
@@ -967,6 +1127,17 @@ export interface Database {
           monthly_collects: number
           created_at: string | null
           computed_at: string
+        }
+      }
+      mv_novel_chapters_index: {
+        Row: {
+          chapter_id: string | null
+          novel_id: string | null
+          chapter_num: number | null
+          title: string | null
+          word_count: number | null
+          is_free: boolean | null
+          price: number | null
         }
       }
     }
