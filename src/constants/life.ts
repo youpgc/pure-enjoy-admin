@@ -33,6 +33,7 @@ export const MOOD_COLOR_MAP: Record<string, string> = {
   anxious: '#faad14',
   calm: '#13c2c2',
   excited: '#eb2f96',
+  tired: '#8c8c8c',
 }
 
 // ==================== 笔记分类 ====================
