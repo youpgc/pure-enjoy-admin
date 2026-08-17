@@ -25,7 +25,6 @@ const detailColumns: ColumnsType<RecordItem> = [
     render: (v: string) => EXPENSE_CATEGORY_MAP[v] || v || '-',
   },
   { title: '描述', dataIndex: 'description', key: 'description', render: (v: string) => <EllipsisText text={v} maxWidth={220} /> },
-  { title: '笔记', dataIndex: 'note', key: 'note', render: (v: string) => <EllipsisText text={v} maxWidth={220} /> },
   {
     title: '日期',
     dataIndex: 'date',
