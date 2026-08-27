@@ -25,10 +25,14 @@ const CheckinCalendarDrawer: React.FC<{
 }> = ({ open, user, onClose }) => {
   const [displayMonth, setDisplayMonth] = useState<Dayjs>(dayjs())
   const [checkinDates, setCheckinDates] = useState<Set<string>>(new Set())
+  const [makeupDates, setMakeupDates] = useState<Set<string>>(new Set())
+  const [earliestMonth, setEarliestMonth] = useState<Dayjs | null>(null)
   const [loadingDates, setLoadingDates] = useState(false)
 
   const today = dayjs()
   const canGoNext = displayMonth.isBefore(today, 'month')
+  // 对齐 App _earliestDataMonth / canGoPrev：展示月到该用户最早签到月即禁用「上一月」
+  const canGoPrev = earliestMonth == null || displayMonth.isAfter(earliestMonth, 'month')
 
   const fetchDates = useCallback(async (m: Dayjs) => {
     if (!user) return
@@ -40,12 +44,15 @@ const CheckinCalendarDrawer: React.FC<{
         p_month: m.month() + 1,
       } as any)) as any
       if (error) throw error
-      const set = new Set<string>(
-        (data || []).map((r: { checkin_date: string }) =>
-          dayjs(r.checkin_date).format('YYYY-MM-DD')
-        )
-      )
+      const set = new Set<string>()
+      const makeup = new Set<string>()
+      for (const r of (data || []) as Array<{ checkin_date: string; is_makeup: boolean }>) {
+        const key = dayjs(r.checkin_date).format('YYYY-MM-DD')
+        set.add(key)
+        if (r.is_makeup) makeup.add(key)
+      }
       setCheckinDates(set)
+      setMakeupDates(makeup)
     } catch (e: any) {
       message.error(`加载签到日历失败：${e?.message || e}`)
     } finally {
@@ -61,7 +68,34 @@ const CheckinCalendarDrawer: React.FC<{
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, user, displayMonth])
 
-  const goPrev = () => setDisplayMonth((m) => m.subtract(1, 'month'))
+  // 取该用户最早签到月份，约束向前翻月范围（对齐 App getEarliestCheckinMonth / _earliestDataMonth）
+  useEffect(() => {
+    if (!open || !user) {
+      setEarliestMonth(null)
+      return
+    }
+    setDisplayMonth(dayjs()) // 每切换用户从当前月看起
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data, error } = (await supabase.rpc('get_user_earliest_checkin_month', {
+          p_user_id: user.user_id,
+        } as any)) as any
+        if (cancelled) return
+        if (error) throw error
+        setEarliestMonth(data ? dayjs(data as string).startOf('month') : null)
+      } catch {
+        setEarliestMonth(null) // 取不到不阻断日历，仅不约束上一月
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [open, user])
+
+  const goPrev = () => {
+    if (canGoPrev) setDisplayMonth((m) => m.subtract(1, 'month'))
+  }
   const goNext = () => {
     if (canGoNext) setDisplayMonth((m) => m.add(1, 'month'))
   }
@@ -81,6 +115,8 @@ const CheckinCalendarDrawer: React.FC<{
     const key = displayMonth.format('YYYY-MM-') + String(day).padStart(2, '0')
     const isToday = key === today.format('YYYY-MM-DD')
     const checked = checkinDates.has(key)
+    const isMakeup = makeupDates.has(key)
+    const dotColor = isMakeup ? '#FF9800' : '#6C63FF'
     cells.push(
       <div key={key} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 4 }}>
         <div
@@ -94,9 +130,10 @@ const CheckinCalendarDrawer: React.FC<{
             fontSize: 13,
             fontWeight: checked ? 600 : 400,
             color: checked ? '#fff' : isToday ? '#6C63FF' : 'rgba(0,0,0,0.65)',
-            background: checked ? '#6C63FF' : isToday ? 'rgba(108,99,255,0.12)' : 'transparent',
-            border: isToday && !checked ? '1px solid #6C63FF' : 'none',
+            background: checked ? dotColor : isToday ? 'rgba(108,99,255,0.12)' : 'transparent',
+            border: !checked && isToday ? '1px solid #6C63FF' : 'none',
           }}
+          title={checked ? (isMakeup ? '补签' : '正常签到') : undefined}
         >
           {day}
         </div>
@@ -120,7 +157,7 @@ const CheckinCalendarDrawer: React.FC<{
         </Space>
       )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Button type="text" icon={<LeftOutlined />} onClick={goPrev} />
+        <Button type="text" icon={<LeftOutlined />} onClick={goPrev} disabled={!canGoPrev} />
         <Typography.Text strong>{displayMonth.format('YYYY 年 M 月')}</Typography.Text>
         <Button type="text" icon={<RightOutlined />} onClick={goNext} disabled={!canGoNext} />
       </div>
@@ -137,7 +174,8 @@ const CheckinCalendarDrawer: React.FC<{
         </div>
       )}
       <div style={{ marginTop: 16, fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>
-        紫色圆点为已签到日期（补签 amount=0 也计入）。
+        <span style={{ color: '#6C63FF', fontWeight: 700 }}>●</span> 正常签到
+        <span style={{ margin: '0 12px', color: '#FF9800', fontWeight: 700 }}>●</span> 补签（本月 {makeupDates.size} 天）
       </div>
     </Drawer>
   )
