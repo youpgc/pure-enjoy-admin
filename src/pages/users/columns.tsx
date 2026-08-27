@@ -1,5 +1,5 @@
 // 用户表格列定义（从 Users.tsx 抽取，行为保持）
-import { Tag, Tooltip, Typography, Badge } from 'antd'
+import { Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   EyeOutlined,
@@ -125,9 +125,12 @@ export function buildUserColumns(params: BuildUserColumnsParams): ColumnsType<Us
       title: '积分',
       dataIndex: 'points',
       key: 'points',
-      width: 80,
-      sorter: (a, b) => a.points - b.points,
-      render: (points: number) => <Badge count={points} showZero style={{ backgroundColor: '#faad14' }} />,
+      width: 100,
+      sorter: (a, b) => (a.points ?? 0) - (b.points ?? 0),
+      render: (points: number | null) =>
+        points != null
+          ? <Text strong>{points.toLocaleString('zh-CN')}</Text>
+          : <Text type="secondary">0</Text>,
     },
     {
       title: '状态',
