@@ -113,14 +113,6 @@ export function buildVersionColumns(params: BuildVersionColumnsParams): ColumnsT
       ),
     },
     {
-      title: 'GitHub 地址',
-      dataIndex: 'github_url',
-      key: 'github_url',
-      width: 180,
-      render: (url: string) =>
-        url ? <EllipsisText text={url} maxWidth={180} /> : <Text type="secondary">-</Text>,
-    },
-    {
       title: '更新说明',
       dataIndex: 'release_notes',
       key: 'release_notes',
