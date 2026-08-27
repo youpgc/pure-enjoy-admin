@@ -55,7 +55,7 @@ export const buildMenuItems = (
     },
   ] : []),
   // 用户中心
-  ...(hasMenuPermission('menu:users', ['users:read', 'users:write', 'users:delete', 'points:read', 'points:write']) || isAdmin() ? [
+  ...(hasMenuPermission('menu:users', ['users:read', 'users:write', 'users:delete', 'points:read', 'points:write', 'checkin:read', 'login_logs:read']) || isAdmin() ? [
     {
       key: 'user-center',
       icon: <TeamOutlined />,
@@ -66,10 +66,13 @@ export const buildMenuItems = (
         ] : []),
         ...(hasMenuPermission('menu:users', ['points:read', 'points:write']) ? [
           { key: 'points', icon: <StarFilled />, label: '积分管理' },
+        ] : []),
+        // 签到管理：独立 checkin:read 权限（此前复用 points:read/points:write）
+        ...(hasMenuPermission('menu:users', ['checkin:read']) ? [
           { key: 'checkin', icon: <CalendarOutlined />, label: '签到管理' },
         ] : []),
-        // 登录日志：管理员/超级管理员可见，业务上归属用户中心（原顶层独立项，并入本组）
-        ...(isAdmin() ? [
+        // 登录日志：独立 login_logs:read 权限门控（此前仅靠 isAdmin），归属用户中心
+        ...(hasMenuPermission('menu:users', ['login_logs:read']) ? [
           { key: 'login_logs', icon: <AlertOutlined />, label: '登录日志' },
         ] : []),
       ].filter((item): item is MenuItem => !!item),

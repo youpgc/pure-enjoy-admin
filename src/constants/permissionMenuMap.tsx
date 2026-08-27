@@ -61,6 +61,8 @@ export const RESOURCE_PAGE_MAP: Record<string, PermissionPageInfo> = {
   dashboard: { group: '数据概览', page: '数据概览', icon: <DashboardOutlined /> },
   users: { group: '用户中心', page: '用户管理', icon: <UserOutlined /> },
   points: { group: '用户中心', page: '积分管理', icon: <StarFilled /> },
+  checkin: { group: '用户中心', page: '签到管理', icon: <CalendarOutlined /> },
+  login_logs: { group: '用户中心', page: '登录日志', icon: <AlertOutlined /> },
   novels: { group: '内容管理', page: '小说管理', icon: <ReadOutlined /> },
   user_novels: { group: '内容管理', page: '书架管理', icon: <BookOutlined /> },
   tts: { group: '内容管理', page: '听书管理', icon: <SoundOutlined /> },
