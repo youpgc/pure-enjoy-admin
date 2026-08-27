@@ -36,6 +36,7 @@ export const PAGE_TITLES: Record<PageKey, string> = {
   feedback: '问题反馈',
   anniversaries: '纪念日',
   points: '积分管理',
+  checkin: '签到管理',
   error_logs: '错误日志',
   login_logs: '登录日志',
 }

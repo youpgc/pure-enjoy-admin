@@ -42,6 +42,7 @@ const Notifications = lazy(() => import('./pages/Notifications'))
 const Announcements = lazy(() => import('./pages/Announcements'))
 const Feedback = lazy(() => import('./pages/Feedback'))
 const PointsManagement = lazy(() => import('./pages/PointsManagement'))
+const CheckinManagement = lazy(() => import('./pages/CheckinManagement'))
 const ErrorLogs = lazy(() => import('./pages/ErrorLogs'))
 const NovelComments = lazy(() => import('./pages/NovelComments'))
 const Rankings = lazy(() => import('./pages/Rankings'))
@@ -157,7 +158,7 @@ export type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'w
   'novels' | 'novel_bookshelves' | 'novel_comments' | 'rankings' | 'bookmarks' | 'annotations' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
-  | 'anniversaries' | 'points' | 'error_logs' | 'recommendations' | 'tts_management' | 'login_logs'
+  | 'anniversaries' | 'points' | 'error_logs' | 'recommendations' | 'tts_management' | 'login_logs' | 'checkin'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -225,6 +226,7 @@ const MainLayout: React.FC = () => {
     announcements: Announcements,
     feedback: Feedback,
     points: PointsManagement,
+    checkin: CheckinManagement,
     error_logs: ErrorLogs,
     login_logs: LoginLogs,
   }

@@ -66,6 +66,7 @@ export const buildMenuItems = (
         ] : []),
         ...(hasMenuPermission('menu:users', ['points:read', 'points:write']) ? [
           { key: 'points', icon: <StarFilled />, label: '积分管理' },
+          { key: 'checkin', icon: <CalendarOutlined />, label: '签到管理' },
         ] : []),
         // 登录日志：管理员/超级管理员可见，业务上归属用户中心（原顶层独立项，并入本组）
         ...(isAdmin() ? [
