@@ -177,7 +177,7 @@ export function buildUserColumns(params: BuildUserColumnsParams): ColumnsType<Us
               key: 'toggle',
             label: record.status === USER_STATUS_ACTIVE ? '禁用' : '启用',
             icon: record.status === USER_STATUS_ACTIVE ? <StopOutlined /> : <CheckCircleOutlined />,
-              danger: record.status === 'active',
+              danger: record.status === USER_STATUS_ACTIVE,
               onClick: () => onToggleStatus(record),
             },
             {

@@ -1,4 +1,5 @@
 // 批注审核模块类型（从 Annotations.tsx 抽离，审查 P1 膨胀）
+import type { AnnotationStatus } from '../../constants'
 
 export interface NovelAnnotation {
   id: string
@@ -14,7 +15,7 @@ export interface NovelAnnotation {
   is_deleted: boolean
   deleted_at: string | null
   // 审核状态（新增，feature_admin_annotations_review.sql 注册）：pending 待审核 / approved 通过 / rejected 封禁
-  review_status?: 'pending' | 'approved' | 'rejected' | null
+  review_status?: AnnotationStatus | null
   reviewed_at?: string | null
   reviewed_by?: string | null
   created_at: string

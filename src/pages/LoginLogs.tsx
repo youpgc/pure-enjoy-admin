@@ -18,6 +18,7 @@ import {
   PoweroffOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { LOGIN_SOURCE_APP, LOGIN_SOURCE_ADMIN, type LoginSource } from '../constants/roles'
 import dayjs from 'dayjs'
 import { supabase } from '../utils/supabase'
 import { BaseService, handleApiError } from '../utils/apiClient'
@@ -35,7 +36,7 @@ interface LoginLog {
   user_id: string | null
   username: string | null
   role: string | null
-  user_type: 'app' | 'admin'
+  user_type: LoginSource
   ip: string | null
   location: string | null
   user_agent: string | null
@@ -306,8 +307,8 @@ const LoginLogs: React.FC = () => {
             style={{ width: 120 }}
             allowClear
             options={[
-              { value: 'app', label: 'App端' },
-              { value: 'admin', label: '管理后台' },
+              { value: LOGIN_SOURCE_APP, label: 'App端' },
+              { value: LOGIN_SOURCE_ADMIN, label: '管理后台' },
             ]}
           />
           <RangePicker

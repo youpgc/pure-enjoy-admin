@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Card, Form, Input, Button, message, Typography } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { supabase } from '../utils/supabase'
+import { LOGIN_SOURCE_ADMIN } from '../constants/roles'
 
 const { Title, Text } = Typography
 
@@ -46,7 +47,7 @@ async function recordAdminLogin(username: string, success: boolean) {
   ])
   try {
     await supabase.rpc('record_login', {
-      p_source: 'admin',
+      p_source: LOGIN_SOURCE_ADMIN,
       p_status: success ? 'success' : 'failed',
       p_user_agent: navigator.userAgent,
       p_location: location,

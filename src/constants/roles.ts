@@ -6,6 +6,11 @@ export const ROLE_SUPER_ADMIN = 'super_admin' as const
 
 export const ADMIN_ROLE_CODES = [ROLE_ADMIN, ROLE_SUPER_ADMIN] as const
 
+// 登录来源（record_login RPC 的 p_source / 登录日志 user_type）：admin 管理后台 / app 客户端
+export type LoginSource = 'app' | 'admin'
+export const LOGIN_SOURCE_APP = 'app' as const
+export const LOGIN_SOURCE_ADMIN = 'admin' as const
+
 export type UserRole = 'user' | 'admin' | 'super_admin'
 export type MemberLevel = 'normal' | 'member' | 'super_member'
 export type UserStatus = 'active' | 'abnormal' | 'disabled' | 'banned'

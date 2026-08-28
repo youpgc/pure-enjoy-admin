@@ -13,6 +13,12 @@ import { useAuth } from '../../App'
 import { useMounted } from '../../hooks/useMounted'
 import { useUsernames } from '../../hooks/useUsernames'
 import { containsSensitive } from './constants'
+import {
+  ANNOTATION_STATUS_PENDING,
+  ANNOTATION_STATUS_APPROVED,
+  ANNOTATION_STATUS_REJECTED,
+  type AnnotationStatus,
+} from '../../constants'
 import type { NovelAnnotation, TrendItem } from './types'
 
 export const useAnnotations = () => {
@@ -162,21 +168,21 @@ export const useAnnotations = () => {
   }
 
   // 审核写回：通过 / 封禁（feature_admin_annotations_review.sql 注册 review_status 列）
-  // 通过 -> review_status='approved'；封禁 -> review_status='rejected' 并软删（is_deleted=true）
-  const handleReview = async (id: string, status: 'approved' | 'rejected') => {
+  // 通过 -> review_status=ANNOTATION_STATUS_APPROVED；封禁 -> ANNOTATION_STATUS_REJECTED 并软删（is_deleted=true）
+  const handleReview = async (id: string, status: AnnotationStatus) => {
     const patch: Partial<NovelAnnotation> = {
       review_status: status,
       reviewed_at: new Date().toISOString(),
       reviewed_by: adminUser?.id ?? null,
     }
-    if (status === 'rejected') {
+    if (status === ANNOTATION_STATUS_REJECTED) {
       patch.is_deleted = true
       patch.deleted_at = new Date().toISOString()
     }
     try {
       const result = await annotationService.update(id, patch)
       if (result.success) {
-        message.success(status === 'approved' ? '已通过审核' : '已封禁并删除')
+        message.success(status === ANNOTATION_STATUS_APPROVED ? '已通过审核' : '已封禁并删除')
         fetchData()
       } else {
         handleApiError(result.errorMessage, 'Annotations-审核')
@@ -189,7 +195,7 @@ export const useAnnotations = () => {
   // 待审核 = 含敏感词 且 审核状态为 pending/null（已审核通过的不再出现）
   const reviewData = data.filter((a) => {
     const text = (a.highlighted_text || '') + (a.note || '')
-    const isPending = !a.review_status || a.review_status === 'pending'
+    const isPending = !a.review_status || a.review_status === ANNOTATION_STATUS_PENDING
     return isPending && containsSensitive(text).length > 0
   })
 
@@ -215,14 +221,14 @@ export const useAnnotations = () => {
         key: 'approve',
         label: '通过',
         icon: <CheckOutlined />,
-        onClick: () => handleReview(record.id, 'approved'),
+        onClick: () => handleReview(record.id, ANNOTATION_STATUS_APPROVED),
       })
       actions.push({
         key: 'ban',
         label: '封禁',
         icon: <StopOutlined />,
         danger: true,
-        onClick: () => handleReview(record.id, 'rejected'),
+        onClick: () => handleReview(record.id, ANNOTATION_STATUS_REJECTED),
       })
       actions.push({
         key: 'delete',
