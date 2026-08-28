@@ -12,9 +12,9 @@ export const POINT_TYPE_MAP: Record<string, { color: string; label: string }> = 
 }
 
 // 状态展示映射（active/expired/used）。
-// 注意：App 端不按 status 直接映射，而是基于 expires_at 临近度展示 有效/即将过期/已过期
-// （见 point_records_screen._getExpiryInfo）；两端展示口径不同属预期（App 强调到期提醒），
-// 但 status 取值（active/expired/used）须两端一致。
+// 注意：status 取值仅后台使用；`used` 是后台内部"已抵扣"展示态，App 端不写也不消费 status，
+// 而是基于 expires_at 临近度展示 有效/即将过期/已过期（见 point_records_screen._getExpiryInfo）。
+// 故 App 端无需同步 `used` 状态——两端展示口径不同属预期，不存在必须一致约束。
 export const POINT_STATUS_MAP: Record<string, { color: string; label: string }> = {
   active: { color: 'green', label: '有效' },
   expired: { color: 'default', label: '已过期' },
