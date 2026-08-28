@@ -2,9 +2,8 @@
 // 组件只负责渲染两个 Modal，所有状态/数据/处理器/表单集中此处。
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { message, Form } from 'antd'
-import { supabase } from '../../utils/supabase'
 import { BaseService, handleApiError } from '../../utils/apiClient'
-import { swapChapterNumbers } from '../../services/novelChapterService'
+import { swapChapterNumbers, findAdjacentChapter, findMaxChapterNum } from '../../services/novelChapterService'
 import { usePagination } from '../../hooks/usePagination'
 import { buildChapterColumns } from './columns'
 import type { NovelChapter } from './helpers'
@@ -62,20 +61,12 @@ export const useChapterManager = ({ open, novelId }: { open: boolean; novelId: s
     setEditingChapter(null)
     form.resetFields()
     let nextNumber = 1
-    try {
-      const { data, error } = (await supabase
-        .from('novel_chapters' as any)
-        .select('chapter_num')
-        .eq('novel_id', novelId)
-        .order('chapter_num', { ascending: false })
-        .limit(1)
-        .single()) as any
-      if (!error && data) {
-        nextNumber = (data.chapter_num || 0) + 1
-      }
-    } catch (err) {
-      console.error('查询最大章节号失败:', err)
-      nextNumber = chapters.length > 0 ? Math.max(...chapters.map((c) => c.chapter_num)) + 1 : 1
+    const result = await findMaxChapterNum(novelId)
+    if (result.success && result.data) {
+      nextNumber = (result.data.chapter_num || 0) + 1
+    } else if (!result.success && chapters.length > 0) {
+      // 仅在查询异常时回退本地（与原文 catch 一致）
+      nextNumber = Math.max(...chapters.map((c) => c.chapter_num)) + 1
     }
     form.setFieldsValue({ chapter_num: nextNumber })
     setEditModalOpen(true)
@@ -150,25 +141,14 @@ export const useChapterManager = ({ open, novelId }: { open: boolean; novelId: s
   // 调整章节顺序（查询数据库真实相邻章节，支持跨页移动）
   const handleMoveChapter = async (chapter: NovelChapter, direction: 'up' | 'down') => {
     try {
-      let query = (supabase.from('novel_chapters') as any)
-        .select('id, chapter_num')
-        .eq('novel_id', novelId)
-        .neq('id', chapter.id)
+      const result = await findAdjacentChapter(novelId, chapter.chapter_num, chapter.id, direction)
 
-      if (direction === 'up') {
-        query = query.lt('chapter_num', chapter.chapter_num).order('chapter_num', { ascending: false })
-      } else {
-        query = query.gt('chapter_num', chapter.chapter_num).order('chapter_num', { ascending: true })
-      }
-
-      const { data: targetData, error: targetError } = await query.limit(1)
-
-      if (targetError || !targetData || targetData.length === 0) {
+      if (!result.success || !result.data || result.data.length === 0) {
         message.warning(direction === 'up' ? '已经是第一章' : '已经是最后一章')
         return
       }
 
-      const targetChapter = targetData[0]
+      const targetChapter = result.data[0]
       if (!targetChapter) {
         message.warning(direction === 'up' ? '已经是第一章' : '已经是最后一章')
         return
