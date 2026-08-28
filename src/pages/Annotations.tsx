@@ -2,6 +2,7 @@ import React from 'react'
 import {
   Card, Table, Tabs, Button, Space, Input,
   Spin, Empty, Statistic, Row, Col, DatePicker,
+  theme,
 } from 'antd'
 import {
   MessageOutlined, DeleteOutlined, ReloadOutlined,
@@ -14,6 +15,7 @@ import { buildAnnotationColumns, buildReviewColumns } from './annotations/column
 import { ColorDot } from './annotations/constants'
 
 const Annotations: React.FC = () => {
+  const { token } = theme.useToken()
   const {
     activeTab,
     setActiveTab,
@@ -119,7 +121,7 @@ const Annotations: React.FC = () => {
               <Card><Statistic title='批注用户数' value={totalUsers} prefix={<MessageOutlined />} /></Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
-              <Card><Statistic title='本周新增' value={thisWeek.length} prefix={<RiseOutlined />} valueStyle={{ color: '#52c41a' }} /></Card>
+              <Card><Statistic title='本周新增' value={thisWeek.length} prefix={<RiseOutlined />} valueStyle={{ color: token.colorSuccess }} /></Card>
             </Col>
             <Col xs={24} sm={12} lg={6}>
               <Card><Statistic title='日均新增' value={trendData.length > 0 ? (data.length / 30).toFixed(1) : '0'} prefix={<LineChartOutlined />} /></Card>
@@ -138,18 +140,18 @@ const Annotations: React.FC = () => {
                       const height = maxTrendCount > 0 ? (item.count / maxTrendCount) * 180 : 0
                       return (
                         <div key={item.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end' }}>
-                          <div style={{ fontSize: 10, color: '#999', marginBottom: 4 }}>{item.count}</div>
+                          <div style={{ fontSize: 10, color: token.colorTextTertiary, marginBottom: 4 }}>{item.count}</div>
                           <div
                             style={{
                               width: '100%',
                               height: `${height}px`,
-                              background: index % 7 === 6 ? '#1890ff' : '#91d5ff',
+                              background: index % 7 === 6 ? token.colorPrimary : token.colorPrimaryBg,
                               borderRadius: '2px 2px 0 0',
                               minHeight: item.count > 0 ? 4 : 0,
                             }}
                             title={`${item.date}: ${item.count} 条`}
                           />
-                          <div style={{ fontSize: 10, color: '#999', marginTop: 4, transform: 'rotate(-45deg)', transformOrigin: 'top left', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: 10, color: token.colorTextTertiary, marginTop: 4, transform: 'rotate(-45deg)', transformOrigin: 'top left', whiteSpace: 'nowrap' }}>
                             {dayjs(item.date).format('MM-DD')}
                           </div>
                         </div>
@@ -180,8 +182,8 @@ const Annotations: React.FC = () => {
               <Card title={`待审核批注: ${reviewData.length} 条`}>
                 {reviewData.length > 0 && (
                   <Space>
-                    <WarningOutlined style={{ color: '#ff4d4f' }} />
-                    <span style={{ color: '#ff4d4f' }}>发现 {reviewData.length} 条含敏感词的批注，请尽快审核</span>
+                    <WarningOutlined style={{ color: token.colorError }} />
+                    <span style={{ color: token.colorError }}>发现 {reviewData.length} 条含敏感词的批注，请尽快审核</span>
                   </Space>
                 )}
               </Card>

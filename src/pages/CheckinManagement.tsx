@@ -1,11 +1,16 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { Card, Table, Button, Drawer, Space, Typography, Empty, Spin, Tag, message } from 'antd'
+import { Card, Table, Button, Drawer, Space, Typography, Empty, Spin, Tag, message, theme } from 'antd'
 import { ReloadOutlined, CalendarOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { supabase } from '../utils/supabase'
 
 // ==================== 类型 ====================
+
+// 签到日历专用品牌色（无对应 antd token，集中定义避免散落内联 hex）
+const CHECKIN_ACCENT = '#6C63FF' // 正常签到主色（品牌紫）
+const CHECKIN_ACCENT_MAKEUP = '#FF9800' // 补签色（橙）
+const CHECKIN_ACCENT_SOFT = 'rgba(108,99,255,0.12)' // 签到主色浅底
 
 interface CheckinSummary {
   user_id: string
@@ -23,6 +28,7 @@ const CheckinCalendarDrawer: React.FC<{
   user: CheckinSummary | null
   onClose: () => void
 }> = ({ open, user, onClose }) => {
+  const { token } = theme.useToken()
   const [displayMonth, setDisplayMonth] = useState<Dayjs>(dayjs())
   const [checkinDates, setCheckinDates] = useState<Set<string>>(new Set())
   const [makeupDates, setMakeupDates] = useState<Set<string>>(new Set())
@@ -116,7 +122,7 @@ const CheckinCalendarDrawer: React.FC<{
     const isToday = key === today.format('YYYY-MM-DD')
     const checked = checkinDates.has(key)
     const isMakeup = makeupDates.has(key)
-    const dotColor = isMakeup ? '#FF9800' : '#6C63FF'
+    const dotColor = isMakeup ? CHECKIN_ACCENT_MAKEUP : CHECKIN_ACCENT
     cells.push(
       <div key={key} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 4 }}>
         <div
@@ -129,9 +135,9 @@ const CheckinCalendarDrawer: React.FC<{
             alignItems: 'center',
             fontSize: 13,
             fontWeight: checked ? 600 : 400,
-            color: checked ? '#fff' : isToday ? '#6C63FF' : 'rgba(0,0,0,0.65)',
-            background: checked ? dotColor : isToday ? 'rgba(108,99,255,0.12)' : 'transparent',
-            border: !checked && isToday ? '1px solid #6C63FF' : 'none',
+            color: checked ? '#fff' : isToday ? CHECKIN_ACCENT : token.colorText,
+            background: checked ? dotColor : isToday ? CHECKIN_ACCENT_SOFT : 'transparent',
+            border: !checked && isToday ? `1px solid ${CHECKIN_ACCENT}` : 'none',
           }}
           title={checked ? (isMakeup ? '补签' : '正常签到') : undefined}
         >
@@ -173,9 +179,9 @@ const CheckinCalendarDrawer: React.FC<{
           {cells}
         </div>
       )}
-      <div style={{ marginTop: 16, fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>
-        <span style={{ color: '#6C63FF', fontWeight: 700 }}>●</span> 正常签到
-        <span style={{ margin: '0 12px', color: '#FF9800', fontWeight: 700 }}>●</span> 补签（本月 {makeupDates.size} 天）
+      <div style={{ marginTop: 16, fontSize: 12, color: token.colorTextTertiary }}>
+        <span style={{ color: CHECKIN_ACCENT, fontWeight: 700 }}>●</span> 正常签到
+        <span style={{ margin: '0 12px', color: CHECKIN_ACCENT_MAKEUP, fontWeight: 700 }}>●</span> 补签（本月 {makeupDates.size} 天）
       </div>
     </Drawer>
   )

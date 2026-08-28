@@ -1,5 +1,5 @@
 // Dashboard 最近活动列表（从 Dashboard.tsx 抽取，行为保持）
-import { Avatar, Card, Empty, Tag, Typography } from 'antd'
+import { Avatar, Card, Empty, Tag, Typography, theme } from 'antd'
 import { UserOutlined } from '@ant-design/icons'
 import { formatDateTime } from '../../utils/format'
 import { ACTION_LABEL_MAP, getModuleLabel, getModuleColor } from '../../constants'
@@ -10,6 +10,7 @@ interface RecentActivitiesProps {
 }
 
 export function RecentActivities({ activities }: RecentActivitiesProps) {
+  const { token } = theme.useToken()
   const { Text } = Typography
 
   return (
@@ -23,7 +24,7 @@ export function RecentActivities({ activities }: RecentActivitiesProps) {
               display: 'flex',
               alignItems: 'center',
               padding: '12px 0',
-              borderBottom: '1px solid #f0f0f0',
+              borderBottom: `1px solid ${token.colorBorderSecondary}`,
             }}>
               <Avatar size="small" icon={<UserOutlined />} style={{ marginRight: 12 }} />
               <div style={{ flex: 1 }}>

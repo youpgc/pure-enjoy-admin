@@ -37,7 +37,8 @@ class FeedbackService extends BaseService<FeedbackRow> {
     // 先记录流转
     const flowResult = await apiExecute(
       () => {
-        // TODO: Supabase type inference issue - feedback_flow_records Insert resolves to never
+        // 已知类型坑：generated database.ts 对 feedback_flow_records 的 Insert 解析为 never，
+        // 故用 as any 绕过类型检查（运行时正常），非遗留 TODO。
         return (supabase.from('feedback_flow_records') as any).insert({
           feedback_id: id,
           action: 'deleted',
@@ -62,7 +63,8 @@ class FeedbackService extends BaseService<FeedbackRow> {
     // 记录流转
     const flowResult = await apiExecute(
       () => {
-        // TODO: Supabase type inference issue - feedback_flow_records Insert resolves to never
+        // 已知类型坑：generated database.ts 对 feedback_flow_records 的 Insert 解析为 never，
+        // 故用 as any 绕过类型检查（运行时正常），非遗留 TODO。
         return (supabase.from('feedback_flow_records') as any).insert({
           feedback_id: id,
           action: status,

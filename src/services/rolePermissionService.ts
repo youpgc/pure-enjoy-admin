@@ -54,7 +54,8 @@ class RolePermissionService {
           role_id: roleId,
           permission_id: Number(pid),
         }))
-        // TODO: Supabase type inference issue - role_permissions Insert resolves to never
+        // 已知类型坑：generated database.ts 对 role_permissions 的 Insert 解析为 never，
+        // 故用 as any 绕过类型检查（运行时正常），非遗留 TODO。
         const { error: insertError } = await (supabase.from('role_permissions') as any)
           .insert(records)
         if (insertError) throw insertError

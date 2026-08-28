@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import {
   Card, Table, Tabs, Progress, Tag, Statistic, Row, Col,
   Input, Button, Space, Spin, Empty,
+  theme,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -46,6 +47,7 @@ interface CompletionRate {
 // ==================== 组件 ====================
 
 const Bookmarks: React.FC = () => {
+  const { token } = theme.useToken()
   const [activeTab, setActiveTab] = useState('progress')
   const [loading, setLoading] = useState(false)
   const [progressData, setProgressData] = useState<UserNovelProgress[]>([])
@@ -214,7 +216,7 @@ const Bookmarks: React.FC = () => {
           <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={24} sm={12} lg={8}>
               <Card>
-                <Statistic title='高风险流失小说' value={churnNovels.length} prefix={<WarningOutlined />} valueStyle={{ color: '#cf1322' }} />
+                <Statistic title='高风险流失小说' value={churnNovels.length} prefix={<WarningOutlined />} valueStyle={{ color: token.colorError }} />
               </Card>
             </Col>
             <Col xs={24} sm={12} lg={8}>
