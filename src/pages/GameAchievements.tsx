@@ -22,6 +22,10 @@ import type { Database } from '../types/database'
 import { usePermission } from '../hooks/usePermission'
 import { gameDimensionService } from '../services/gameService'
 import type { DbGameDimension } from '../types/database'
+import {
+  ACHIEVEMENT_SHARED_ICON_BASE,
+  ACHIEVEMENT_ICON_OPTIONS,
+} from '../constants/game'
 
 type DbGameAchievement = Database['public']['Tables']['game_achievements']['Row']
 
@@ -34,19 +38,9 @@ const COND_OPTIONS = [
   { value: 'level', label: '通关关卡号达到（通关第 N 关及以上）' },
 ]
 
-// 常用成就图标（material icon 名，App 端按名映射；未知名回退默认）
-const ICON_OPTIONS = [
-  'emoji_events',
-  'military_tech',
-  'workspace_premium',
-  'star',
-  'stars',
-  'local_fire_department',
-  'speed',
-  'diamond',
-  'rocket_launch',
-  'bolt',
-].map((v) => ({ value: v, label: v }))
+// 成就图标改为独立 SVG 资产（与游戏图标分离）：文件即取值，后台经
+// /game-achievements/<name>.svg 引用，与 App 端 assets/games/achievements 同一套文件。
+// 选项来自 constants/game.ts 的 ACHIEVEMENT_ICON_OPTIONS。
 
 /// 把 condition JSON 渲染成中文摘要（与 App 端解析口径一致）
 function condSummary(cond: Record<string, any>): string {
@@ -228,7 +222,18 @@ const GameAchievements: React.FC = () => {
       title: '图标',
       dataIndex: 'icon',
       width: 90,
-      render: (v: string | null) => v || '-',
+      render: (v: string | null) =>
+        v ? (
+          <img
+            src={`${ACHIEVEMENT_SHARED_ICON_BASE}/${v}`}
+            width={30}
+            height={30}
+            alt={v}
+            style={{ borderRadius: 6 }}
+          />
+        ) : (
+          '-'
+        ),
     },
     {
       title: '达成条件',
@@ -372,10 +377,10 @@ const GameAchievements: React.FC = () => {
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={2} placeholder="成就说明，展示给玩家" />
           </Form.Item>
-          <Form.Item name="icon" label="成就图标" tooltip="material icon 名；App 端按名映射，未知名回退默认图标">
+          <Form.Item name="icon" label="成就图标" tooltip="成就 SVG 文件名；与游戏图标分目录存放，未设置则展示默认图标">
             <Select
-              placeholder="选择图标"
-              options={ICON_OPTIONS}
+              placeholder="选择成就图标"
+              options={ACHIEVEMENT_ICON_OPTIONS}
               allowClear
               showSearch
               optionFilterProp="label"
