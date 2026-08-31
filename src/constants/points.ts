@@ -1,14 +1,18 @@
 // ==================== 积分 ====================
 // ⚠️ 单一真源（type 展示映射）：本 MAP 是 point_records.type 的展示标签权威来源。
-//   App 端镜像位于 lib/features/profile/screens/point_records_screen.dart 的 _getTypeInfo，
+//   App 端镜像位于 lib/features/profile/screens/point_records/point_records_parts.dart 的 _getTypeInfo，
 //   两端 label/color 须保持一致；新增或改名 type 时务必同步修改两端。
 //   注：admin_recharge 为历史遗留别名，仅 App 端作为 admin_adjust 的兼容分支处理，本 MAP 不单列。
+//   注：game_earn / game_spend 为游戏中心模块新增（2026-08-31），用于游戏奖励与游戏内消费，
+//       写入口统一走 App 端 PointService.updatePointsStats({ type: 'game_earn' | 'game_spend' })。
 export const POINT_TYPE_MAP: Record<string, { color: string; label: string }> = {
   checkin:      { color: 'green',  label: '签到' },
   earn:         { color: 'green',  label: '获得' },
   spend:        { color: 'red',    label: '消费' },
   adjust:       { color: 'blue',   label: '调整' },
   admin_adjust: { color: 'purple', label: '管理员调整' },
+  game_earn:    { color: 'green',  label: '游戏奖励' },
+  game_spend:   { color: 'red',    label: '游戏消费' },
 }
 
 // 状态展示映射（active/expired/used）。
