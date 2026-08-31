@@ -51,6 +51,11 @@ const Annotations = lazy(() => import('./pages/Annotations'))
 const Recommendations = lazy(() => import('./pages/Recommendations'))
 const TtsManagement = lazy(() => import('./pages/TtsManagement'))
 const LoginLogs = lazy(() => import('./pages/LoginLogs'))
+const GameConfigs = lazy(() => import('./pages/GameConfigs'))
+const GameLevels = lazy(() => import('./pages/GameLevels'))
+const GameRewardRules = lazy(() => import('./pages/GameRewardRules'))
+const GameScores = lazy(() => import('./pages/GameScores'))
+const GameAnalytics = lazy(() => import('./pages/GameAnalytics'))
 import { supabase } from './utils/supabase'
 import { buildMenuItems } from './config/menuConfig'
 import { PAGE_TITLES } from './config/pageTitles'
@@ -159,6 +164,7 @@ export type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'w
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
   | 'anniversaries' | 'points' | 'error_logs' | 'recommendations' | 'tts_management' | 'login_logs' | 'checkin'
+  | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -229,6 +235,11 @@ const MainLayout: React.FC = () => {
     checkin: CheckinManagement,
     error_logs: ErrorLogs,
     login_logs: LoginLogs,
+    game_configs: GameConfigs,
+    game_levels: GameLevels,
+    game_reward_rules: GameRewardRules,
+    game_scores: GameScores,
+    game_analytics: GameAnalytics,
   }
 
   const renderPage = () => {

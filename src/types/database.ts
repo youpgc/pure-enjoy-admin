@@ -1104,6 +1104,202 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['reading_progress_sync']['Row']>
       }
+
+      // ============================================================
+      // 49~57. 游戏中心（games 模块，9 张表）
+      // ⚠️ 手动同步说明：本段由 feature_create_games.sql + feature_game_levels_daily_clear_flag.sql
+      //    手动补齐（用户已在 Supabase 执行建表 DDL，但未重跑 `supabase gen types typescript`）。
+      //    后续若变更 schema，请重新生成整文件以保持单一真源：
+      //    npx supabase gen types typescript --project-id mhdrbjpqmzswswoazwjg --schema public > src/types/database.ts
+      //    列定义以 SQL 为准，禁止臆改。
+      // ============================================================
+
+      // 49. games（游戏配置，全局）
+      games: {
+        Row: {
+          id: string
+          code: string
+          name: string
+          icon: string | null
+          description: string | null
+          engine: string
+          enabled: boolean
+          sort_order: number
+          config: Json
+          version: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['games']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['games']['Row']>
+      }
+
+      // 50. game_dimensions（成绩维度配置，按游戏）
+      game_dimensions: {
+        Row: {
+          id: string
+          game_id: string
+          code: string
+          name: string
+          unit: string | null
+          value_type: string
+          aggregate: string
+          sort_order: number
+          is_primary: boolean
+          enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['game_dimensions']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['game_dimensions']['Row']>
+      }
+
+      // 51. game_levels（关卡配置，按游戏；含 count_for_daily_clear 每日首通标记）
+      game_levels: {
+        Row: {
+          id: string
+          game_id: string
+          level_no: number
+          name: string
+          config: Json
+          target: Json
+          enabled: boolean
+          sort_order: number
+          count_for_daily_clear: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['game_levels']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['game_levels']['Row']>
+      }
+
+      // 52. game_achievements（成就定义，全局；game_id 为 null 表示跨游戏）
+      game_achievements: {
+        Row: {
+          id: string
+          game_id: string | null
+          code: string
+          name: string
+          description: string | null
+          icon: string | null
+          condition: Json
+          reward_points: number
+          enabled: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['game_achievements']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['game_achievements']['Row']>
+      }
+
+      // 53. game_reward_rules（积分奖励规则，全局；game_id 为 null 表示全局规则）
+      game_reward_rules: {
+        Row: {
+          id: string
+          game_id: string | null
+          rule_type: string
+          name: string | null
+          condition: Json
+          points: number
+          enabled: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['game_reward_rules']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['game_reward_rules']['Row']>
+      }
+
+      // 54. game_scores（游玩/成绩主记录，用户数据）
+      game_scores: {
+        Row: {
+          id: string
+          user_id: string
+          game_id: string
+          level_id: string | null
+          status: string
+          duration_ms: number | null
+          played_at: string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['game_scores']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['game_scores']['Row']>
+      }
+
+      // 55. game_score_values（成绩维度值，EAV；一条 game_scores 对应多个维度值）
+      game_score_values: {
+        Row: {
+          id: string
+          score_id: string
+          dimension_id: string
+          value: number
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['game_score_values']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['game_score_values']['Row']>
+      }
+
+      // 56. user_game_achievements（用户成就，用户数据；唯一索引即防重复发奖核心）
+      user_game_achievements: {
+        Row: {
+          id: string
+          user_id: string
+          achievement_id: string
+          unlocked_at: string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['user_game_achievements']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['user_game_achievements']['Row']>
+      }
+
+      // 57. game_reward_claims（奖励领取流水，用户数据；防刷 A 方案支点）
+      game_reward_claims: {
+        Row: {
+          id: string
+          user_id: string
+          game_id: string | null
+          rule_id: string | null
+          claim_key: string
+          points: number
+          claimed_at: string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['game_reward_claims']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['game_reward_claims']['Row']>
+      }
     }
     Views: {
       mv_novel_rankings: {
@@ -1191,6 +1387,25 @@ export interface Database {
         Args: { p_min_rows: number }
         Returns: { table_name: string; row_estimate: number; seq_scan: number; idx_scan: number }[]
       }
+      get_game_best_scores: {
+        // 游戏最佳成绩聚合（feature_game_best_scores_rpc.sql）。p_game_id 为 null 返回全部游戏。
+        // 注意：函数内按 get_user_business_id() 过滤，仅返回当前用户本人数据（admin 调用亦同）。
+        Args: { p_game_id?: string | null }
+        Returns: {
+          game_id: string | null
+          game_code: string | null
+          game_name: string | null
+          dimension_id: string | null
+          dimension_code: string | null
+          dimension_name: string | null
+          unit: string | null
+          aggregate: string | null
+          is_primary: boolean | null
+          sort_order: number | null
+          best_value: number | null
+          achieved_at: string | null
+        }[]
+      }
     }
     Enums: {}
     CompositeTypes: {
@@ -1243,3 +1458,15 @@ export type DbUserRecommendationFeedback = Database['public']['Tables']['user_re
 export type DbTtsPlaybackLog = Database['public']['Tables']['tts_playback_logs']['Row']
 export type DbDictType = Database['public']['Tables']['dict_types']['Row']
 export type DbDictItem = Database['public']['Tables']['dict_items']['Row']
+
+// 游戏中心模块类型别名（9 表 + 最佳成绩 RPC 行）
+export type DbGame = Database['public']['Tables']['games']['Row']
+export type DbGameDimension = Database['public']['Tables']['game_dimensions']['Row']
+export type DbGameLevel = Database['public']['Tables']['game_levels']['Row']
+export type DbGameAchievement = Database['public']['Tables']['game_achievements']['Row']
+export type DbGameRewardRule = Database['public']['Tables']['game_reward_rules']['Row']
+export type DbGameScore = Database['public']['Tables']['game_scores']['Row']
+export type DbGameScoreValue = Database['public']['Tables']['game_score_values']['Row']
+export type DbUserGameAchievement = Database['public']['Tables']['user_game_achievements']['Row']
+export type DbGameRewardClaim = Database['public']['Tables']['game_reward_claims']['Row']
+export type DbGameBestScore = Database['public']['Functions']['get_game_best_scores']['Returns'][number]

@@ -157,6 +157,21 @@ export const buildMenuItems = (
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
+  // 游戏中心（games 模块：配置 / 维度 / 关卡 / 奖励 / 成绩 / 分析）
+  ...(hasMenuPermission('menu:games', ['games:read', 'games:write', 'games:delete']) ? [
+    {
+      key: 'games',
+      icon: <TrophyOutlined />,
+      label: '游戏中心',
+      children: [
+        { key: 'game_configs', icon: <SettingOutlined />, label: '游戏与维度配置' },
+        { key: 'game_levels', icon: <AppstoreOutlined />, label: '关卡配置' },
+        { key: 'game_reward_rules', icon: <StarOutlined />, label: '积分奖励规则' },
+        { key: 'game_scores', icon: <TrophyOutlined />, label: '成绩看板' },
+        { key: 'game_analytics', icon: <BarChartOutlined />, label: '游戏数据分析' },
+      ].filter((item): item is MenuItem => !!item),
+    },
+  ] : []),
   // 运营管理
   ...(hasMenuPermission('menu:operations', ['versions:read', 'notifications:read', 'announcements:read', 'feedback:read', 'analytics:read']) ? [
     {
