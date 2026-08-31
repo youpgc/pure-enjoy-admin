@@ -227,11 +227,11 @@ const GameScores: React.FC = () => {
       },
     },
     {
-      title: '耗时(ms)',
+      title: '耗时(s)',
       dataIndex: 'duration_ms',
       key: 'duration_ms',
       width: 110,
-      render: (v: number | null) => (v ?? '-'),
+      render: (v: number | null) => (v == null ? '-' : `${(v / 1000).toFixed(1)}s`),
     },
     {
       title: '游玩时间',

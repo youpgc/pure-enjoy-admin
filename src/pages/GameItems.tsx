@@ -95,24 +95,11 @@ const GameItems: React.FC = () => {
 
   const openCreate = () => {
     setEditing(null)
-    form.resetFields()
-    form.setFieldsValue({ enabled: true, point_cost: 20, per_game_limit: 1, mode: '' })
     setModalOpen(true)
   }
 
   const openEdit = (record: DbGameItem) => {
     setEditing(record)
-    form.setFieldsValue({
-      game_code: record.game_code,
-      mode: record.mode,
-      item_type: record.item_type,
-      name: record.name,
-      description: record.description ?? '',
-      point_cost: record.point_cost,
-      per_game_limit: record.per_game_limit,
-      enabled: record.enabled,
-      sort_order: record.sort_order,
-    })
     setModalOpen(true)
   }
 
@@ -257,7 +244,27 @@ const GameItems: React.FC = () => {
         onCancel={() => setModalOpen(false)}
         destroyOnClose
       >
-        <Form form={form} layout="vertical" preserve={false}>
+        <Form
+          form={form}
+          layout="vertical"
+          preserve={false}
+          key={editing?.id ?? 'create'}
+          initialValues={
+            editing
+              ? {
+                  game_code: editing.game_code,
+                  mode: editing.mode,
+                  item_type: editing.item_type,
+                  name: editing.name,
+                  description: editing.description ?? '',
+                  point_cost: editing.point_cost,
+                  per_game_limit: editing.per_game_limit,
+                  enabled: editing.enabled,
+                  sort_order: editing.sort_order,
+                }
+              : { enabled: true, point_cost: 20, per_game_limit: 1, mode: '', sort_order: 0 }
+          }
+        >
           <Form.Item
             name="game_code"
             label="适用游戏"

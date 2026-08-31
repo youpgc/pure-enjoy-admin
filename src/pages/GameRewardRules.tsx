@@ -14,6 +14,7 @@ import {
   Popconfirm,
   Switch,
   Typography,
+  Alert,
 } from 'antd'
 import {
   ReloadOutlined,
@@ -151,8 +152,7 @@ const GameRewardRules: React.FC = () => {
         return
       }
       if (editing) {
-        const { id, ...rest } = payload as { id: string } & Record<string, any>
-        const result = await gameRewardRuleService.update(id, rest)
+        const result = await gameRewardRuleService.update(editing.id, payload)
         if (!result.success) {
           handleApiError(result.errorMessage, 'GameRewardRules-更新')
           return
@@ -244,6 +244,21 @@ const GameRewardRules: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
+      <Alert
+        type="info"
+        showIcon
+        style={{ marginBottom: 16 }}
+        message="积分奖励规则配置说明"
+        description={
+          <ol style={{ margin: 0, paddingLeft: 18 }}>
+            <li>规则类型（rule_type）：daily_limit 控制单日游戏奖励积分上限；daily_first_clear 为每日首次通关奖励（每日可叠加）；score_range / achievement 为指定分数段或成就奖励。</li>
+            <li>适用游戏：选「全局规则」则该规则对所有游戏生效；选具体游戏仅对该游戏生效。同一类规则可同时存在全局与单游戏两条，单游戏优先。</li>
+            <li>积分（points）：通关成功时发放的积分数，0 表示不发放奖励。游戏过关本身还可在「关卡配置」里单独设置每关奖励（reward_points / reward_repeatable）。</li>
+            <li>condition：按规则类型的 JSON 条件，如分数段 {"{ \"min\": 100 }"}；一般留空 {} 即可。</li>
+            <li>单日上限默认 10 分，若需要「可重复通关获取奖励」真正有意义，请在此调高 daily_limit 的 points 上限。</li>
+          </ol>
+        }
+      />
       <Card style={{ marginBottom: 16 }}>
         <Space wrap>
           <Text>适用游戏：</Text>

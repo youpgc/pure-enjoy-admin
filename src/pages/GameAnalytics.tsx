@@ -272,7 +272,7 @@ const GameAnalytics: React.FC = () => {
                       <XAxis dataKey="game" />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="count" name="对局数" fill="#1890ff" />
+                      <Bar dataKey="count" name="对局数" fill="#1890ff" maxBarSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -289,7 +289,7 @@ const GameAnalytics: React.FC = () => {
                       <XAxis dataKey="date" />
                       <YAxis />
                       <Tooltip />
-                      <Bar dataKey="count" name="对局数" fill="#52c41a" />
+                      <Bar dataKey="count" name="对局数" fill="#52c41a" maxBarSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -309,7 +309,7 @@ const GameAnalytics: React.FC = () => {
                       <XAxis dataKey="game" />
                       <YAxis unit="%" />
                       <Tooltip />
-                      <Bar dataKey="rate" name="通关率" fill="#722ed1" />
+                      <Bar dataKey="rate" name="通关率" fill="#722ed1" maxBarSize={40} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
