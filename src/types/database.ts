@@ -1127,6 +1127,7 @@ export interface Database {
           sort_order: number
           config: Json
           version: number
+          level_selectable: boolean
           created_at: string
           updated_at: string
         }

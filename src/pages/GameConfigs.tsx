@@ -155,8 +155,8 @@ const GameConfigs: React.FC = () => {
   const openAdd = () => {
     setEditing(null)
     form.resetFields()
-    if (activeTab === 'games') {
-      form.setFieldsValue({ engine: 'widget', enabled: true, sort_order: 0, version: 1, config: '{}' })
+      if (activeTab === 'games') {
+      form.setFieldsValue({ engine: 'widget', enabled: true, sort_order: 0, version: 1, level_selectable: false, config: '{}' })
     } else {
       form.setFieldsValue({
         game_id: selectedGameId || undefined,
@@ -278,6 +278,14 @@ const GameConfigs: React.FC = () => {
       },
     },
     { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 80 },
+    {
+      title: '选关',
+      dataIndex: 'level_selectable',
+      key: 'level_selectable',
+      width: 90,
+      render: (v: boolean) =>
+        v ? <Tag color="green">可</Tag> : <Tag>不可</Tag>,
+    },
     {
       title: '状态',
       dataIndex: 'enabled',
@@ -512,6 +520,9 @@ const GameConfigs: React.FC = () => {
               </Form.Item>
               <Form.Item name="version" label="配置版本" initialValue={1}>
                 <InputNumber style={{ width: '100%' }} min={1} />
+              </Form.Item>
+              <Form.Item name="level_selectable" label="允许选关" valuePropName="checked">
+                <Switch checkedChildren="是" unCheckedChildren="否" />
               </Form.Item>
             </>
           ) : (
