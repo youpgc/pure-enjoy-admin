@@ -169,6 +169,7 @@ export const buildMenuItems = (
         { key: 'game_reward_rules', icon: <StarOutlined />, label: '积分奖励规则' },
         { key: 'game_scores', icon: <TrophyOutlined />, label: '成绩看板' },
         { key: 'game_analytics', icon: <BarChartOutlined />, label: '游戏数据分析' },
+        { key: 'game_items', icon: <ToolOutlined />, label: '道具管理' },
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),

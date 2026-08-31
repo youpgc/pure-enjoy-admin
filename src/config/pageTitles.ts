@@ -44,4 +44,5 @@ export const PAGE_TITLES: Record<PageKey, string> = {
   game_reward_rules: '积分奖励规则',
   game_scores: '成绩看板',
   game_analytics: '游戏数据分析',
+  game_items: '道具管理',
 }

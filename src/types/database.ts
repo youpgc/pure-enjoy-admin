@@ -1304,6 +1304,50 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['game_reward_claims']['Row']>
       }
+
+      // 58. game_items（游戏道具目录，后台可配）
+      game_items: {
+        Row: {
+          id: string
+          game_code: string
+          mode: string
+          item_type: string
+          name: string
+          description: string | null
+          point_cost: number
+          per_game_limit: number
+          enabled: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['game_items']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['game_items']['Row']>
+        Relationships: []
+      }
+
+      // 59. user_game_items（用户道具持有库存）
+      user_game_items: {
+        Row: {
+          id: string
+          user_id: string
+          item_id: string
+          owned: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['user_game_items']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['user_game_items']['Row']>
+        Relationships: []
+      }
     }
     Views: {
       mv_novel_rankings: {
