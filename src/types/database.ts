@@ -1128,6 +1128,7 @@ export interface Database {
           config: Json
           version: number
           level_selectable: boolean
+          level_select_mode: string
           created_at: string
           updated_at: string
         }

@@ -287,6 +287,18 @@ const GameConfigs: React.FC = () => {
         v ? <Tag color="green">可</Tag> : <Tag>不可</Tag>,
     },
     {
+      title: '选关模式',
+      dataIndex: 'level_select_mode',
+      key: 'level_select_mode',
+      width: 120,
+      render: (v: string, record: DbGame) =>
+        record.level_selectable
+          ? v === 'free'
+            ? <Tag color="blue">直接选关</Tag>
+            : <Tag color="gold">需通关</Tag>
+          : <Tag>—</Tag>,
+    },
+    {
       title: '状态',
       dataIndex: 'enabled',
       key: 'enabled',
@@ -523,6 +535,23 @@ const GameConfigs: React.FC = () => {
               </Form.Item>
               <Form.Item name="level_selectable" label="允许选关" valuePropName="checked">
                 <Switch checkedChildren="是" unCheckedChildren="否" />
+              </Form.Item>
+              <Form.Item
+                noStyle
+                shouldUpdate={(prev, cur) => prev.level_selectable !== cur.level_selectable}
+              >
+                {({ getFieldValue }) =>
+                  getFieldValue('level_selectable') ? (
+                    <Form.Item name="level_select_mode" label="选关模式" initialValue="gated">
+                      <Select
+                        options={[
+                          { value: 'gated', label: '需通关后选关（前置未通关则上锁，已通关可重挑战）' },
+                          { value: 'free', label: '直接选关挑战（无视前置关卡是否通关）' },
+                        ]}
+                      />
+                    </Form.Item>
+                  ) : null
+                }
               </Form.Item>
             </>
           ) : (
