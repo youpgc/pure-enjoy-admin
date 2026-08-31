@@ -1176,6 +1176,8 @@ export interface Database {
           enabled: boolean
           sort_order: number
           count_for_daily_clear: boolean
+          reward_points: number
+          reward_repeatable: boolean
           created_at: string
           updated_at: string
         }

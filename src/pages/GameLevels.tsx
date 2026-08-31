@@ -104,6 +104,8 @@ const GameLevels: React.FC = () => {
       game_id: selectedGameId || undefined,
       enabled: true,
       count_for_daily_clear: false,
+      reward_points: 0,
+      reward_repeatable: false,
       sort_order: 0,
       config: '{}',
       target: '{}',
@@ -192,6 +194,21 @@ const GameLevels: React.FC = () => {
             else loadLevels()
           }}
         />
+      ),
+    },
+    {
+      title: '通关奖励',
+      key: 'reward',
+      width: 140,
+      render: (_: unknown, record: DbGameLevel) => (
+        record.reward_points > 0 ? (
+          <Space>
+            <Tag color="gold">+{record.reward_points}分</Tag>
+            {record.reward_repeatable && <Tag>可重复</Tag>}
+          </Space>
+        ) : (
+          <Text type="secondary">无</Text>
+        )
       ),
     },
     {
@@ -301,6 +318,12 @@ const GameLevels: React.FC = () => {
           </Form.Item>
           <Form.Item name="count_for_daily_clear" label="计入每日首次通关奖励" valuePropName="checked" tooltip="仅当开启时，通关该关才会触发每日首通奖励（应对首关过简单场景）">
             <Switch checkedChildren="计入" unCheckedChildren="不计" />
+          </Form.Item>
+          <Form.Item name="reward_points" label="通关奖励积分" tooltip="通关该关获得的积分；0 表示无通关奖励">
+            <InputNumber style={{ width: '100%' }} min={0} />
+          </Form.Item>
+          <Form.Item name="reward_repeatable" label="可重复通关获取" valuePropName="checked" tooltip="开启后每次通关均可获得（受单日上限约束）；关闭则仅首次通关获得（终身一次）">
+            <Switch checkedChildren="可重复" unCheckedChildren="仅一次" />
           </Form.Item>
           <Form.Item name="sort_order" label="排序" initialValue={0}>
             <InputNumber style={{ width: '100%' }} min={0} />
