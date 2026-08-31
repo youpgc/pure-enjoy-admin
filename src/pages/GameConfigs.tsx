@@ -37,6 +37,8 @@ import {
   GAME_DIMENSION_VALUE_TYPE_OPTIONS,
   GAME_DIMENSION_AGGREGATE_MAP,
   GAME_DIMENSION_AGGREGATE_OPTIONS,
+  GAME_SHARED_ICON_OPTIONS,
+  GAME_SHARED_ICON_BASE,
 } from '../constants'
 import {
   gameService,
@@ -521,14 +523,33 @@ const GameConfigs: React.FC = () => {
               <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
                 <Input placeholder="如 羊了个羊" />
               </Form.Item>
-              <Form.Item name="icon" label="图标标识">
-                <Input placeholder="App 端映射的图标 key" />
+              <Form.Item name="icon" label="图标">
+                <Select
+                  allowClear
+                  placeholder="选择共享图标资产（与 App 端同一套 SVG）"
+                  showSearch
+                  optionFilterProp="label"
+                  options={GAME_SHARED_ICON_OPTIONS.map((o) => ({
+                    value: o.value,
+                    label: (
+                      <span key={o.value} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <img
+                          src={`${GAME_SHARED_ICON_BASE}/${o.value}.svg`}
+                          width={22}
+                          height={22}
+                          alt={o.label}
+                        />
+                        <span>[{o.group}] {o.label}</span>
+                      </span>
+                    ),
+                  }))}
+                />
               </Form.Item>
               <Form.Item name="description" label="描述">
                 <Input.TextArea rows={2} placeholder="玩法简介" />
               </Form.Item>
-              <Form.Item name="engine" label="渲染引擎" rules={[{ required: true }]}>
-                <Select options={GAME_ENGINE_OPTIONS} />
+              <Form.Item name="engine" label="渲染引擎" rules={[{ required: true }]} tooltip="引擎为初始化默认选项，禁止编辑">
+                <Select options={GAME_ENGINE_OPTIONS} disabled={!!editing} />
               </Form.Item>
               <Form.Item name="config" label="玩法参数(config, JSON)">
                 <Input.TextArea rows={3} placeholder='如 {"size":4,"target":2048}' />
