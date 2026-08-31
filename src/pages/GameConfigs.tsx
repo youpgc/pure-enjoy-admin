@@ -152,34 +152,37 @@ const GameConfigs: React.FC = () => {
   }
 
   // ========== 弹窗 ==========
+  // 表单回显走 key 强制重挂载 + initialValues：Modal 惰性挂载前 setFieldsValue 无效，
+  // 会导致编辑不回显；且 payload 里无 id 字段，旧写法 const { id } = payload 解构出
+  // undefined 再 update 拼出 uuid:"undefined" 触发 22P02。
   const openAdd = () => {
     setEditing(null)
-    form.resetFields()
-      if (activeTab === 'games') {
-      form.setFieldsValue({ engine: 'widget', enabled: true, sort_order: 0, version: 1, level_selectable: false, config: '{}' })
-    } else {
-      form.setFieldsValue({
-        game_id: selectedGameId || undefined,
-        value_type: 'int',
-        aggregate: 'max',
-        is_primary: false,
-        enabled: true,
-        sort_order: 0,
-      })
-    }
     setModalVisible(true)
   }
 
   const openEdit = (record: DbGame | DbGameDimension) => {
     setEditing(record)
-    if (activeTab === 'games') {
-      const g = record as DbGame
-      form.setFieldsValue({ ...g, config: JSON.stringify(g.config ?? {}) })
-    } else {
-      const d = record as DbGameDimension
-      form.setFieldsValue({ ...d })
-    }
     setModalVisible(true)
+  }
+
+  // 表单初始值（Form 重挂载时生效）
+  const formInitialValues = (): Record<string, any> => {
+    if (activeTab === 'games') {
+      if (editing) {
+        const g = editing as DbGame
+        return { ...g, config: JSON.stringify(g.config ?? {}) }
+      }
+      return { engine: 'widget', enabled: true, sort_order: 0, version: 1, level_selectable: false, config: '{}' }
+    }
+    if (editing) return { ...(editing as DbGameDimension) }
+    return {
+      game_id: selectedGameId || undefined,
+      value_type: 'int',
+      aggregate: 'max',
+      is_primary: false,
+      enabled: true,
+      sort_order: 0,
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -213,8 +216,7 @@ const GameConfigs: React.FC = () => {
           return
         }
         if (editing) {
-          const { id, ...rest } = payload as { id: string } & Record<string, any>
-          const result = await gameService.update(id, rest)
+          const result = await gameService.update(editing.id, payload)
           if (!result.success) {
             handleApiError(result.errorMessage, 'GameConfigs-更新游戏')
             return
@@ -230,8 +232,7 @@ const GameConfigs: React.FC = () => {
         }
       } else {
         if (editing) {
-          const { id, ...rest } = values as { id: string } & Record<string, any>
-          const result = await gameDimensionService.update(id, rest)
+          const result = await gameDimensionService.update(editing.id, values)
           if (!result.success) {
             handleApiError(result.errorMessage, 'GameConfigs-更新维度')
             return
@@ -506,7 +507,12 @@ const GameConfigs: React.FC = () => {
         }}
         width={600}
       >
-        <Form form={form} layout="vertical">
+        <Form
+          form={form}
+          layout="vertical"
+          key={`${activeTab}-${editing?.id ?? 'create'}`}
+          initialValues={formInitialValues()}
+        >
           {activeTab === 'games' ? (
             <>
               <Form.Item name="code" label="游戏编码" rules={[{ required: true, message: '请输入编码' }]}>

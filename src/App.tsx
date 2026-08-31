@@ -57,6 +57,7 @@ const GameRewardRules = lazy(() => import('./pages/GameRewardRules'))
 const GameScores = lazy(() => import('./pages/GameScores'))
 const GameAnalytics = lazy(() => import('./pages/GameAnalytics'))
 const GameItems = lazy(() => import('./pages/GameItems'))
+const GameAchievements = lazy(() => import('./pages/GameAchievements'))
 import { supabase } from './utils/supabase'
 import { buildMenuItems } from './config/menuConfig'
 import { PAGE_TITLES } from './config/pageTitles'
@@ -165,7 +166,7 @@ export type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'w
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
   | 'anniversaries' | 'points' | 'error_logs' | 'recommendations' | 'tts_management' | 'login_logs' | 'checkin'
-  | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics' | 'game_items'
+  | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics' | 'game_items' | 'game_achievements'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -242,6 +243,7 @@ const MainLayout: React.FC = () => {
     game_scores: GameScores,
     game_analytics: GameAnalytics,
     game_items: GameItems,
+    game_achievements: GameAchievements,
   }
 
   const renderPage = () => {

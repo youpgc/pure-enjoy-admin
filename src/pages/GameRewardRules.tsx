@@ -248,15 +248,27 @@ const GameRewardRules: React.FC = () => {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="积分奖励规则配置说明"
+        message="积分奖励配置说明"
         description={
-          <ol style={{ margin: 0, paddingLeft: 18 }}>
-            <li>规则类型（rule_type）：daily_limit 控制单日游戏奖励积分上限；daily_first_clear 为每日首次通关奖励（每日可叠加）；score_range / achievement 为指定分数段或成就奖励。</li>
-            <li>适用游戏：选「全局规则」则该规则对所有游戏生效；选具体游戏仅对该游戏生效。同一类规则可同时存在全局与单游戏两条，单游戏优先。</li>
-            <li>积分（points）：通关成功时发放的积分数，0 表示不发放奖励。游戏过关本身还可在「关卡配置」里单独设置每关奖励（reward_points / reward_repeatable）。</li>
-            <li>condition：按规则类型的 JSON 条件，如分数段 {"{ \"min\": 100 }"}；一般留空 {} 即可。</li>
-            <li>单日上限默认 10 分，若需要「可重复通关获取奖励」真正有意义，请在此调高 daily_limit 的 points 上限。</li>
-          </ol>
+          <div style={{ lineHeight: 1.8 }}>
+            <p style={{ margin: '4px 0' }}>
+              <b>如何配置：</b>新增一条规则 → 选择「规则类型」与「适用游戏」→ 填写发放积分（points）→
+              按类型填写 condition（JSON）；启用后 App 端通关结算时自动评估发放。规则与「关卡配置」里的每关奖励
+              （reward_points / 可重复）相互独立、可叠加。
+            </p>
+            <p style={{ margin: '4px 0' }}>
+              <b>规则类型（rule_type）：</b>
+              <ul style={{ margin: '4px 0', paddingLeft: 18 }}>
+                <li><b>每日首次通关 daily_first_clear</b>：每个自然日（北京时间）第一次通关「计入每日首通」的关卡时发放，跨游戏共享、单日一次；condition 留空 {'{}'}。</li>
+                <li><b>成绩区间 score_range</b>：通关时某维度值落入配置区间即发放，同一档位终身一次；condition 形如 {'{ "dimension": "score", "gte": 100, "lte": 999 }'}（dimension 填维度编码，见「游戏与维度配置」）。</li>
+                <li><b>单日上限 daily_limit</b>：控制当日全部游戏奖励积分总和的上限，达到后当日不再发任何游戏奖励；全局唯一一条，points 填每日上限值。建议按运营需要设置（偏低会让「可重复通关获取奖励」很快触顶）。</li>
+                <li><b>成就达成 achievement</b>：已拆分至「游戏成就配置」页独立维护、独立判断（成就走 game_achievements 表，终身只发一次），此处类型仅保留兼容旧数据，请勿新增。</li>
+              </ul>
+            </p>
+            <p style={{ margin: '4px 0' }}>
+              <b>适用游戏：</b>选「全局规则」对所有游戏生效；选具体游戏仅对该游戏生效，同类规则单游戏优先。
+            </p>
+          </div>
         }
       />
       <Card style={{ marginBottom: 16 }}>

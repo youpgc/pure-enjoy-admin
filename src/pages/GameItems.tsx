@@ -35,6 +35,21 @@ const ITEM_TYPE_OPTIONS = [
   { value: 'add_time', label: '加时（消消乐·限时）' },
 ]
 
+// 模式编码 → 中文（与 App 端 Match3Mode 枚举一致）
+const MODE_LABEL: Record<string, string> = {
+  score: '计分模式',
+  clear: '消除模式',
+  collect: '收集模式',
+  obstacle: '破冰模式',
+  timed: '限时模式',
+  boss: 'Boss 模式',
+}
+
+const MODE_OPTIONS = [
+  { value: '', label: '通用（该游戏全部模式）' },
+  ...Object.entries(MODE_LABEL).map(([value, label]) => ({ value, label })),
+]
+
 /**
  * 游戏道具目录管理（game_items）。
  * 配置：适用游戏 / 模式 / 道具类型 / 名称 / 积分成本 / 单局使用上限 / 启停。
@@ -166,7 +181,7 @@ const GameItems: React.FC = () => {
       title: '模式',
       dataIndex: 'mode',
       width: 90,
-      render: (v: string) => (v ? <Tag>{v}</Tag> : <Tag color="default">通用</Tag>),
+      render: (v: string) => (v ? <Tag>{MODE_LABEL[v] ?? v}</Tag> : <Tag color="default">通用</Tag>),
     },
     {
       title: '类型',
@@ -285,8 +300,8 @@ const GameItems: React.FC = () => {
               optionFilterProp="label"
             />
           </Form.Item>
-          <Form.Item name="mode" label="模式" tooltip="留空表示适用于该游戏全部模式；如 timed（消消乐限时）">
-            <Input placeholder="通用（留空）" />
+          <Form.Item name="mode" label="模式" tooltip="「通用」表示适用于该游戏全部模式；也可指定消消乐某一模式">
+            <Select options={MODE_OPTIONS} />
           </Form.Item>
           <Form.Item
             name="item_type"

@@ -41,8 +41,9 @@ export const PAGE_TITLES: Record<PageKey, string> = {
   login_logs: '登录日志',
   game_configs: '游戏与维度配置',
   game_levels: '关卡配置',
-  game_reward_rules: '积分奖励规则',
+  game_reward_rules: '积分奖励配置',
   game_scores: '成绩看板',
   game_analytics: '游戏数据分析',
+  game_achievements: '游戏成就配置',
   game_items: '道具管理',
 }

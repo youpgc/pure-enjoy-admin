@@ -97,10 +97,27 @@ const GameLevels: React.FC = () => {
     if (selectedGameId) loadLevels()
   }, [selectedGameId, loadLevels])
 
+  // 弹窗回显走 key 强制重挂载 + initialValues（Modal 惰性挂载前 setFieldsValue 无效；
+  // 且表单值无 id，旧写法解构 id 为 undefined 拼出 uuid:"undefined" 触发 22P02）
   const openAdd = () => {
     setEditing(null)
-    form.resetFields()
-    form.setFieldsValue({
+    setModalVisible(true)
+  }
+
+  const openEdit = (record: DbGameLevel) => {
+    setEditing(record)
+    setModalVisible(true)
+  }
+
+  const formInitialValues = (): Record<string, any> => {
+    if (editing) {
+      return {
+        ...editing,
+        config: JSON.stringify(editing.config ?? {}),
+        target: JSON.stringify(editing.target ?? {}),
+      }
+    }
+    return {
       game_id: selectedGameId || undefined,
       enabled: true,
       count_for_daily_clear: false,
@@ -109,18 +126,7 @@ const GameLevels: React.FC = () => {
       sort_order: 0,
       config: '{}',
       target: '{}',
-    })
-    setModalVisible(true)
-  }
-
-  const openEdit = (record: DbGameLevel) => {
-    setEditing(record)
-    form.setFieldsValue({
-      ...record,
-      config: JSON.stringify(record.config ?? {}),
-      target: JSON.stringify(record.target ?? {}),
-    })
-    setModalVisible(true)
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -148,8 +154,7 @@ const GameLevels: React.FC = () => {
         return
       }
       if (editing) {
-        const { id, ...rest } = payload as { id: string } & Record<string, any>
-        const result = await gameLevelService.update(id, rest)
+        const result = await gameLevelService.update(editing.id, payload)
         if (!result.success) {
           handleApiError(result.errorMessage, 'GameLevels-更新')
           return
@@ -297,7 +302,12 @@ const GameLevels: React.FC = () => {
         }}
         width={600}
       >
-        <Form form={form} layout="vertical">
+        <Form
+          form={form}
+          layout="vertical"
+          key={`${editing?.id ?? 'create'}-${selectedGameId}`}
+          initialValues={formInitialValues()}
+        >
           <Form.Item name="game_id" label="所属游戏" rules={[{ required: true, message: '请选择游戏' }]}>
             <Select
               placeholder="选择游戏"

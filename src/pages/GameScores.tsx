@@ -33,6 +33,10 @@ import type { DbGame, DbGameLevel, DbGameDimension, DbGameScore, DbGameScoreValu
 const { Text } = Typography
 const { RangePicker } = DatePicker
 
+// 毫秒类维度（value_type=duration_ms 或 unit=ms）统一按秒展示
+const isMsDim = (dim?: { value_type?: string; unit?: string | null }) =>
+  dim?.value_type === 'duration_ms' || dim?.unit === 'ms'
+
 interface BestOverviewRow {
   gameId: string
   gameName: string
@@ -194,8 +198,7 @@ const GameScores: React.FC = () => {
     }
   }
 
-  const columns: ColumnsType<DbGameScore> = [
-    {
+  const columns: ColumnsType<DbGameScore> = [    {
       title: '用户',
       dataIndex: 'user_id',
       key: 'user_id',
@@ -243,12 +246,24 @@ const GameScores: React.FC = () => {
 
   const valueColumns = [
     { title: '维度', dataIndex: 'dimension_id', key: 'dimension_id', render: (id: string) => dimMap[id]?.name || id },
-    { title: '数值', dataIndex: 'value', key: 'value' },
+    {
+      title: '数值',
+      dataIndex: 'value',
+      key: 'value',
+      render: (v: number, row: DbGameScoreValue) => {
+        const dim = dimMap[row.dimension_id]
+        return isMsDim(dim) ? `${(v / 1000).toFixed(1)}s` : v
+      },
+    },
     {
       title: '单位',
       dataIndex: 'dimension_id',
       key: 'unit',
-      render: (id: string) => dimMap[id]?.unit || '-',
+      render: (id: string) => {
+        const dim = dimMap[id]
+        if (isMsDim(dim)) return 's'
+        return dim?.unit || '-'
+      },
     },
   ]
 
@@ -280,11 +295,15 @@ const GameScores: React.FC = () => {
               {
                 title: '最佳值',
                 key: 'value',
-                render: (_, r) => (
-                  <Text strong>
-                    {r.value} {r.unit || ''}
-                  </Text>
-                ),
+                render: (_, r) => {
+                  const ms = r.unit === 'ms'
+                  return (
+                    <Text strong>
+                      {ms ? `${(r.value / 1000).toFixed(1)}s` : r.value}{' '}
+                      {ms ? '' : r.unit || ''}
+                    </Text>
+                  )
+                },
               },
               {
                 title: '达成用户',

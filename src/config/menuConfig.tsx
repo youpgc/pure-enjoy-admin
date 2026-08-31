@@ -25,6 +25,7 @@ import {
   SoundOutlined,
   MessageOutlined,
   TrophyOutlined,
+  CrownOutlined,
   ControlOutlined,
   SettingOutlined,
   ToolOutlined,
@@ -166,7 +167,8 @@ export const buildMenuItems = (
       children: [
         { key: 'game_configs', icon: <SettingOutlined />, label: '游戏与维度配置' },
         { key: 'game_levels', icon: <AppstoreOutlined />, label: '关卡配置' },
-        { key: 'game_reward_rules', icon: <StarOutlined />, label: '积分奖励规则' },
+        { key: 'game_reward_rules', icon: <StarOutlined />, label: '积分奖励配置' },
+        { key: 'game_achievements', icon: <CrownOutlined />, label: '游戏成就配置' },
         { key: 'game_scores', icon: <TrophyOutlined />, label: '成绩看板' },
         { key: 'game_analytics', icon: <BarChartOutlined />, label: '游戏数据分析' },
         { key: 'game_items', icon: <ToolOutlined />, label: '道具管理' },

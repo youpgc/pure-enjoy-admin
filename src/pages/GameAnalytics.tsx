@@ -75,14 +75,12 @@ async function loadAllRows<T>(
 const GameAnalytics: React.FC = () => {
   const mountedRef = useMounted()
   const [loading, setLoading] = useState(false)
+  // 首次加载完成前才全屏 Spin；之后局部更新避免闪烁
+  const [loadedOnce, setLoadedOnce] = useState(false)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
     dayjs().subtract(29, 'day'),
     dayjs(),
   ])
-
-  const [gameMap, setGameMap] = useState<Record<string, DbGame>>({})
-  const [achMap, setAchMap] = useState<Record<string, DbGameAchievement>>({})
-  const [ruleMap, setRuleMap] = useState<Record<string, DbGameRewardRule>>({})
 
   // 指标
   const [totalScores, setTotalScores] = useState(0)
@@ -97,32 +95,22 @@ const GameAnalytics: React.FC = () => {
   const [rewardData, setRewardData] = useState<{ name: string; value: number }[]>([])
   const [achTopData, setAchTopData] = useState<{ name: string; count: number }[]>([])
 
-  // 加载映射（游戏/成就/奖励规则）
-  const loadMaps = useCallback(async () => {
-    const gRes = await gameService.findAll()
-    const aRes = await gameAchievementService.findAll()
-    const rRes = await gameRewardRuleService.findAll()
-    if (!mountedRef.current) return
-    if (gRes.success && gRes.data) {
-      const gm: Record<string, DbGame> = {}
-      gRes.data.forEach((g) => (gm[g.id] = g))
-      setGameMap(gm)
-    }
-    if (aRes.success && aRes.data) {
-      const am: Record<string, DbGameAchievement> = {}
-      aRes.data.forEach((a) => (am[a.id] = a))
-      setAchMap(am)
-    }
-    if (rRes.success && rRes.data) {
-      const rm: Record<string, DbGameRewardRule> = {}
-      rRes.data.forEach((r) => (rm[r.id] = r))
-      setRuleMap(rm)
-    }
-  }, [mountedRef])
-
-  const loadAnalytics = useCallback(async () => {
+  // 一次性加载：先拉映射（游戏/成就/规则），再拉数据聚合计算，全部用局部变量传递。
+  // 旧实现拆成两个 effect，且 loadAnalytics 依赖 gameMap/achMap/ruleMap state——
+  // 映射异步到位后其引用变化会再次触发 loadAnalytics → 首屏请求两次并全屏 Spin 闪烁。
+  const loadAll = useCallback(async () => {
     setLoading(true)
     try {
+      const gRes = await gameService.findAll()
+      const aRes = await gameAchievementService.findAll()
+      const rRes = await gameRewardRuleService.findAll()
+      if (!mountedRef.current) return
+      const gm: Record<string, DbGame> = {}
+      gRes.data?.forEach((g) => (gm[g.id] = g))
+      const am: Record<string, DbGameAchievement> = {}
+      aRes.data?.forEach((a) => (am[a.id] = a))
+      const rm: Record<string, DbGameRewardRule> = {}
+      rRes.data?.forEach((r) => (rm[r.id] = r))
       const [scores, claims, achs] = await Promise.all([
         loadAllRows<DbGameScore>(gameScoreService),
         loadAllRows<DbGameRewardClaim>(gameRewardClaimService),
@@ -156,11 +144,11 @@ const GameAnalytics: React.FC = () => {
         if (s.status === 'cleared') gameCleared[s.game_id] = (gameCleared[s.game_id] || 0) + 1
       })
       const perGame = Object.entries(gameCount).map(([gid, count]) => ({
-        game: gameMap[gid]?.name || gid,
+        game: gm[gid]?.name || gid,
         count,
       }))
       const clearRates = Object.entries(gameCount).map(([gid, count]) => ({
-        game: gameMap[gid]?.name || gid,
+        game: gm[gid]?.name || gid,
         rate: count ? Math.round(((gameCleared[gid] || 0) / count) * 1000) / 10 : 0,
       }))
       setPerGameData(perGame)
@@ -181,7 +169,7 @@ const GameAnalytics: React.FC = () => {
       // 积分发放构成（按 rule_type：claims 仅存 rule_id，需经奖励规则表映射）
       const rulePoints: Record<string, number> = {}
       claims.forEach((c) => {
-        const type = (c.rule_id && ruleMap[c.rule_id]?.rule_type) || 'unknown'
+        const type = (c.rule_id && rm[c.rule_id]?.rule_type) || 'unknown'
         rulePoints[type] = (rulePoints[type] || 0) + c.points
       })
       setRewardData(
@@ -197,24 +185,21 @@ const GameAnalytics: React.FC = () => {
         achCount[a.achievement_id] = (achCount[a.achievement_id] || 0) + 1
       })
       const achTop = Object.entries(achCount)
-        .map(([aid, count]) => ({ name: achMap[aid]?.name || '未知成就', count }))
+        .map(([aid, count]) => ({ name: am[aid]?.name || '未知成就', count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 10)
       setAchTopData(achTop)
     } catch (error) {
       handleApiError(error, 'GameAnalytics-加载统计')
     } finally {
+      setLoadedOnce(true)
       setLoading(false)
     }
-  }, [dateRange, gameMap, achMap, ruleMap])
+  }, [dateRange, mountedRef])
 
   useEffect(() => {
-    loadMaps()
-  }, [loadMaps])
-
-  useEffect(() => {
-    loadAnalytics()
-  }, [loadAnalytics])
+    loadAll()
+  }, [loadAll])
 
   return (
     <div style={{ padding: 24 }}>
@@ -226,13 +211,13 @@ const GameAnalytics: React.FC = () => {
           <RangePicker value={dateRange} onChange={(d) => {
             if (d && d[0] && d[1]) setDateRange([d[0], d[1]])
           }} />
-          <Button icon={<ReloadOutlined />} onClick={loadAnalytics} loading={loading}>
+          <Button icon={<ReloadOutlined />} onClick={loadAll} loading={loading}>
             刷新
           </Button>
         </Space>
       </div>
 
-      {loading ? (
+      {loading && !loadedOnce ? (
         <div style={{ textAlign: 'center', padding: 100 }}>
           <Spin size="large" />
         </div>
