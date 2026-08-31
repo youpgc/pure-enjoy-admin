@@ -115,6 +115,7 @@ const GameItems: React.FC = () => {
         description: values.description || null,
         point_cost: Number(values.point_cost) || 0,
         per_game_limit: Number(values.per_game_limit) || 1,
+        free_per_game: Number(values.free_per_game) || 0,
         enabled: !!values.enabled,
         sort_order: Number(values.sort_order) || 0,
       }
@@ -184,6 +185,12 @@ const GameItems: React.FC = () => {
     {
       title: '单局上限',
       dataIndex: 'per_game_limit',
+      width: 90,
+      render: (v: number) => `${v} 次`,
+    },
+    {
+      title: '免费次数',
+      dataIndex: 'free_per_game',
       width: 90,
       render: (v: number) => `${v} 次`,
     },
@@ -259,10 +266,11 @@ const GameItems: React.FC = () => {
                   description: editing.description ?? '',
                   point_cost: editing.point_cost,
                   per_game_limit: editing.per_game_limit,
+                  free_per_game: editing.free_per_game,
                   enabled: editing.enabled,
                   sort_order: editing.sort_order,
                 }
-              : { enabled: true, point_cost: 20, per_game_limit: 1, mode: '', sort_order: 0 }
+              : { enabled: true, point_cost: 20, per_game_limit: 1, free_per_game: 0, mode: '', sort_order: 0 }
           }
         >
           <Form.Item
@@ -310,6 +318,14 @@ const GameItems: React.FC = () => {
             rules={[{ required: true, message: '请输入上限' }]}
           >
             <InputNumber min={1} style={{ width: '100%' }} addonAfter="次" />
+          </Form.Item>
+          <Form.Item
+            name="free_per_game"
+            label="每局免费次数"
+            tooltip="单局内免费使用次数，不消耗购买库存；超出部分才消耗库存。全游戏可配。"
+            rules={[{ required: true, message: '请输入免费次数' }]}
+          >
+            <InputNumber min={0} style={{ width: '100%' }} addonAfter="次" />
           </Form.Item>
           <Form.Item name="sort_order" label="排序号">
             <InputNumber min={0} style={{ width: '100%' }} />

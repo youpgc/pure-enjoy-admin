@@ -1316,6 +1316,7 @@ export interface Database {
           description: string | null
           point_cost: number
           per_game_limit: number
+          free_per_game: number
           enabled: boolean
           sort_order: number
           created_at: string
