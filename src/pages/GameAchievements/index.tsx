@@ -15,7 +15,7 @@ import {
   Alert,
   Typography,
 } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { supabase } from '../../utils/supabase'
 import type { Database } from '../../types/database'
@@ -359,6 +359,13 @@ const GameAchievements: React.FC = () => {
             showSearch
             optionFilterProp="label"
           />
+          <Button
+            icon={<ReloadOutlined />}
+            loading={loading}
+            onClick={() => loadItems()}
+          >
+            刷新
+          </Button>
         </Space>
         <Button
           type="primary"

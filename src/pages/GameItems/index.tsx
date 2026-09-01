@@ -13,7 +13,7 @@ import {
   Space,
   Tag,
 } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { supabase } from '../../utils/supabase'
 import type { Database } from '../../types/database'
@@ -239,7 +239,15 @@ const GameItems: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-end' }}>
+      <div
+        style={{
+          marginBottom: 12,
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -247,6 +255,13 @@ const GameItems: React.FC = () => {
           onClick={openCreate}
         >
           新增道具
+        </Button>
+        <Button
+          icon={<ReloadOutlined />}
+          loading={loading}
+          onClick={() => loadItems()}
+        >
+          刷新
         </Button>
       </div>
       <Table
