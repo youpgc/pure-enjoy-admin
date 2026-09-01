@@ -167,16 +167,19 @@ const GameAnalytics: React.FC = () => {
       setTrendData(Object.entries(trendMap).map(([date, count]) => ({ date, count })))
 
       // 积分发放构成（按发放类别）：
-      // - 成就达成：claim_key 以 'achievement:' 开头、rule_id 为 NULL（成就在
-      //   game_achievements，不在 game_reward_rules，故不能经 rule_id 映射）
-      // - 规则类：rule_id 经 game_reward_rules 映射 rule_type
-      // - 其余（规则已删除等）：unknown
+      // 优先以 claim_key 前缀判定（通关奖励/每日首通/成绩区间/成就 在发奖时
+      // 即写入固定前缀，绝不依赖 rule_id；其中通关奖励 claim_key 为
+      // 'level_clear'/'level_clear_once'，rule_id 恒为 NULL，旧逻辑据此误判
+      // 为 unknown）——rule_id 仅作为兜底（规则已删等少数情况）。
       const rulePoints: Record<string, number> = {}
       claims.forEach((c) => {
-        const type =
-          c.claim_key?.startsWith('achievement:')
-            ? 'achievement'
-            : (c.rule_id && rm[c.rule_id]?.rule_type) || 'unknown'
+        const key = (c.claim_key as string | undefined) ?? ''
+        let type: string
+        if (key.startsWith('level_clear')) type = 'level_clear'
+        else if (key.startsWith('daily_first_clear:')) type = 'daily_first_clear'
+        else if (key.startsWith('score_range:')) type = 'score_range'
+        else if (key.startsWith('achievement:')) type = 'achievement'
+        else type = (c.rule_id && rm[c.rule_id]?.rule_type) || 'unknown'
         rulePoints[type] = (rulePoints[type] || 0) + c.points
       })
       setRewardData(

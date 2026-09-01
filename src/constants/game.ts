@@ -65,6 +65,7 @@ export const GAME_REWARD_RULE_TYPE_MAP: Record<string, { color: string; label: s
   daily_first_clear: { color: 'green', label: '每日首次通关' },
   achievement: { color: 'gold', label: '成就达成' },
   score_range: { color: 'blue', label: '成绩区间' },
+  level_clear: { color: 'purple', label: '通关奖励' },
   daily_limit: { color: 'red', label: '单日上限' },
 }
 
