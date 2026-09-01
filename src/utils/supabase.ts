@@ -5,8 +5,7 @@ import { formatSupabaseErrorMessage } from './errorCode'
 // 使用 Vite 环境变量判断开发环境
 const isDev = import.meta.env.DEV
 
-// 根据环境控制调试日志：开发环境开启，生产环境关闭
-const enableDebugLog = isDev
+// 不再输出请求生命周期 console 日志（保留 ErrorLogger / OperationLog 数据库日志）
 
 // Supabase 项目配置（公开信息，非敏感数据）
 // 优先使用环境变量，未配置时回退到硬编码默认值
@@ -210,27 +209,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
     },
     // 请求拦截器 - 用于日志记录和错误上报
     fetch: async (url, options = {}) => {
-      const startTime = Date.now()
-      const method = options.method || 'GET'
-
-      // 解析表名（用于日志）
-      let tableName = 'unknown'
-      try {
-        const urlObj = new URL(url as string)
-        const pathParts = urlObj.pathname.split('/')
-        // Supabase REST API 路径格式: /rest/v1/{table}
-        const restIndex = pathParts.indexOf('rest')
-        if (restIndex !== -1 && pathParts[restIndex + 1] === 'v1') {
-          tableName = pathParts[restIndex + 2] || 'unknown'
-        }
-      } catch (e) {
-        console.error('URL parse failed:', e)
-      }
-
-      if (enableDebugLog) {
-        console.log(`[Supabase] ${method} ${tableName} - 请求开始`)
-      }
-
       try {
         // 请求超时保护：Supabase JS 默认无请求超时，任一查询挂起（网络抖动 / 长 RPC /
         // Supabase 边缘冷启动）会让 await 永不返回、finally 永不执行，页面永久卡在 loading。
@@ -244,13 +222,9 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
         } finally {
           clearTimeout(timer)
         }
-        const duration = Date.now() - startTime
 
         // 处理 401 未授权 — 清除登录状态并跳转登录页
         if (response.status === 401) {
-          if (isDev) {
-            console.error(`[Supabase] ${method} ${tableName} - 401 未授权`)
-          }
           // 使用 setTimeout 避免在拦截器中直接调用 signOut 导致的循环问题
           setTimeout(() => {
             supabase.auth.signOut().then(() => {
@@ -263,37 +237,18 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
         }
 
         if (!response.ok) {
-          // 尝试解析错误信息
+          // 解析错误信息用于提示（不再打印到控制台）
           let errorMessage = `HTTP ${response.status}`
-          let errorData: any = null
           try {
-            errorData = await response.clone().json()
+            const errorData = await response.clone().json()
             errorMessage = errorData.message || errorData.error_description || errorMessage
           } catch {
             /* JSON 解析失败，使用默认错误信息 */
-          }
-
-          // 控制台输出（仅开发环境）
-          if (isDev) {
-            console.error(`[Supabase] ${method} ${tableName} - 请求失败 (${duration}ms):`, {
-              status: response.status,
-              message: errorMessage,
-              url: url.toString().split('?')[0], // 移除查询参数，保护敏感信息
-            })
-          }
-        } else {
-          if (enableDebugLog) {
-            console.log(`[Supabase] ${method} ${tableName} - 请求成功 (${duration}ms)`)
           }
         }
 
         return response
       } catch (error: any) {
-        const duration = Date.now() - startTime
-
-        if (isDev) {
-          console.error(`[Supabase] ${method} ${tableName} - 网络错误 (${duration}ms):`, error)
-        }
         // 超时中止：给出明确文案，避免向上暴露 AbortError 内部信息
         if (error?.name === 'AbortError') {
           throw new Error('请求超时，请稍后重试')

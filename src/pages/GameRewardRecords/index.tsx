@@ -30,12 +30,14 @@ type DbRewardClaim = {
   user_id: string
   game_id: string | null
   rule_id: string | null
+  claim_key: string | null
   points: number
   claimed_at: string
 }
 type DbUser = { id: string; nickname: string | null; phone: string | null }
 type DbGame = { id: string; name: string }
 type DbRewardRule = { id: string; name: string | null; rule_type: string }
+type DbAchievement = { code: string; name: string }
 
 const fmtLocal = (iso: string | null) =>
   iso ? dayjs(iso).format('YYYY-MM-DD HH:mm') : '-'
@@ -50,6 +52,7 @@ export default function GameRewardRecords() {
   const [gameMap, setGameMap] = useState<Record<string, string>>({})
   const [userMap, setUserMap] = useState<Record<string, string>>({})
   const [ruleMap, setRuleMap] = useState<Record<string, string>>({})
+  const [achievementMap, setAchievementMap] = useState<Record<string, string>>({})
 
   const [flowType, setFlowType] = useState<string>('all')
 
@@ -59,10 +62,11 @@ export default function GameRewardRecords() {
   const [spendTotal, setSpendTotal] = useState(0)
 
   const loadMaps = useCallback(async () => {
-    const [gRes, uRes, rRes] = await Promise.all([
+    const [gRes, uRes, rRes, aRes] = await Promise.all([
       supabase.from('games').select('id,name'),
       supabase.from('users').select('id,nickname,phone') as any,
       supabase.from('game_reward_rules').select('id,name,rule_type') as any,
+      supabase.from('game_achievements').select('code,name') as any,
     ])
     if (!mountedRef.current) return
     if (gRes.data) {
@@ -79,6 +83,11 @@ export default function GameRewardRecords() {
       const rm: Record<string, string> = {}
       rRes.data.forEach((r: DbRewardRule) => (rm[r.id] = r.name || r.rule_type))
       setRuleMap(rm)
+    }
+    if (aRes.data) {
+      const am: Record<string, string> = {}
+      aRes.data.forEach((a: DbAchievement) => (am[a.code] = a.name))
+      setAchievementMap(am)
     }
   }, [mountedRef])
 
@@ -114,7 +123,7 @@ export default function GameRewardRecords() {
     try {
       let q = supabase
         .from('game_reward_claims')
-        .select('id,user_id,game_id,rule_id,points,claimed_at')
+        .select('id,user_id,game_id,rule_id,claim_key,points,claimed_at')
         .order('claimed_at', { ascending: false })
         .limit(500) as any
       const { data, error } = await q
@@ -169,6 +178,42 @@ export default function GameRewardRecords() {
     },
   ]
 
+  // 按 claim_key 解析「用户具体达成了哪条规则/成就」。
+  // claim_key 格式（与 App GameRewardService 一致）：
+  //   achievement:{code}          -> 成就达成（取 game_achievements.name）
+  //   daily_first_clear:{date}    -> 每日首次通关
+  //   score_range:{gameCode}:{ruleId} -> 成绩区间规则（取 game_reward_rules.name）
+  //   level_clear[:once]:{levelId}[:uuid] -> 每关通关奖励
+  // 旧数据无 claim_key 时回退到 rule_id 映射。
+  const renderClaimTarget = (claim: DbRewardClaim) => {
+    const key = claim.claim_key
+    if (key) {
+      if (key.startsWith('achievement:')) {
+        const code = key.slice('achievement:'.length)
+        const name = achievementMap[code]
+        return <Tag color="gold">成就：{name || code}</Tag>
+      }
+      if (key.startsWith('daily_first_clear:')) {
+        return <Tag color="blue">每日首次通关</Tag>
+      }
+      if (key.startsWith('score_range:')) {
+        const parts = key.split(':')
+        const ruleId = parts.length >= 3 ? parts[2] : ''
+        const name = ruleId ? ruleMap[ruleId] || '成绩达标' : '成绩达标'
+        return <Tag color="cyan">{name}</Tag>
+      }
+      if (key.startsWith('level_clear')) {
+        return <Tag color="green">通关奖励</Tag>
+      }
+    }
+    // 兜底：无 claim_key 的历史数据
+    return claim.rule_id ? (
+      ruleMap[claim.rule_id] || claim.rule_id
+    ) : (
+      <Tag color="gold">成就达成</Tag>
+    )
+  }
+
   const claimColumns: ColumnsType<DbRewardClaim> = [
     { title: '用户', dataIndex: 'user_id', key: 'user_id', render: (id: string) => userName(id, userMap) },
     {
@@ -180,9 +225,8 @@ export default function GameRewardRecords() {
     },
     {
       title: '规则/成就',
-      dataIndex: 'rule_id',
-      key: 'rule_id',
-      render: (id: string | null) => (id ? ruleMap[id] || id : <Tag color="gold">成就达成</Tag>),
+      key: 'claim_target',
+      render: (_: unknown, r: DbRewardClaim) => renderClaimTarget(r),
     },
     {
       title: '积分',
