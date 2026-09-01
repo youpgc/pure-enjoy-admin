@@ -18,6 +18,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { supabase } from '../../utils/supabase'
 import type { Database } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
+import { MATCH3_MODE_MAP, MATCH3_MODE_OPTIONS_WITH_ANY } from '../../constants/game'
 
 type DbGameItem = Database['public']['Tables']['game_items']['Row']
 
@@ -35,20 +36,8 @@ const ITEM_TYPE_OPTIONS = [
   { value: 'add_time', label: '加时（消消乐·限时）' },
 ]
 
-// 模式编码 → 中文（与 App 端 Match3Mode 枚举一致）
-const MODE_LABEL: Record<string, string> = {
-  score: '计分模式',
-  clear: '消除模式',
-  collect: '收集模式',
-  obstacle: '破冰模式',
-  timed: '限时模式',
-  boss: 'Boss 模式',
-}
-
-const MODE_OPTIONS = [
-  { value: '', label: '通用（该游戏全部模式）' },
-  ...Object.entries(MODE_LABEL).map(([value, label]) => ({ value, label })),
-]
+// 模式枚举统一从 constants/game.ts 取（单一源，禁止在页面硬编码）
+const MODE_OPTIONS = MATCH3_MODE_OPTIONS_WITH_ANY
 
 /**
  * 游戏道具目录管理（game_items）。
@@ -71,9 +60,13 @@ const GameItems: React.FC = () => {
   const loadItems = async () => {
     setLoading(true)
     try {
+      // 显式列（列名以 /d/workspace/sql/feature_game_items_tables.sql 建表 DDL
+      // + feature_game_items_free_per_game.sql 的 free_per_game 为准）
       const { data, error } = await supabase
         .from('game_items')
-        .select('*')
+        .select(
+          'id,game_code,mode,item_type,name,description,point_cost,per_game_limit,free_per_game,enabled,sort_order,created_at,updated_at'
+        )
         .order('sort_order', { ascending: true })
       if (error) throw error
       setItems((data as DbGameItem[]) ?? [])
@@ -181,7 +174,12 @@ const GameItems: React.FC = () => {
       title: '模式',
       dataIndex: 'mode',
       width: 90,
-      render: (v: string) => (v ? <Tag>{MODE_LABEL[v] ?? v}</Tag> : <Tag color="default">通用</Tag>),
+      render: (v: string) =>
+        v ? (
+          <Tag color={MATCH3_MODE_MAP[v]?.color}>{MATCH3_MODE_MAP[v]?.label ?? v}</Tag>
+        ) : (
+          <Tag color="default">通用</Tag>
+        ),
     },
     {
       title: '类型',

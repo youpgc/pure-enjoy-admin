@@ -30,6 +30,32 @@ export const GAME_DIMENSION_AGGREGATE_MAP: Record<string, { color: string; label
   latest: { color: 'purple', label: '最近一次' },
 }
 
+// 消消乐玩法模式（game_levels.config.mode / game_items.mode）
+//   与 App 端 lib/features/games/models/match3_mode.dart 的 Match3Mode 枚举严格对齐。
+//   ⚠️ level_no 编码规则：模式序号 × 100 + 模式内关序(1~50)，即
+//      101~150=计分、201~250=消除、301~350=收集、401~450=破冰、501~550=限时、601~650=Boss，
+//      共 300 关（见 /d/workspace/sql/feature_reseed_match3_levels_300.sql）。
+//      新增关卡务必按此编码填 level_no，否则 App 端模式归类与成就关序判定都会错。
+export const MATCH3_MODE_MAP: Record<string, { color: string; label: string; order: number }> = {
+  score: { color: 'orange', label: '计分模式', order: 1 },
+  clear: { color: 'purple', label: '消除模式', order: 2 },
+  collect: { color: 'green', label: '收集模式', order: 3 },
+  obstacle: { color: 'blue', label: '破冰模式', order: 4 },
+  timed: { color: 'red', label: '限时模式', order: 5 },
+  // antd 无棕色预设（App 端 Boss 为 0xFF8D6E63 棕色），取视觉最接近的 volcano，
+  // 避免写 'brown' 被当成自定义 CSS 色渲染出实心底、与其余浅底标签样式不一致。
+  boss: { color: 'volcano', label: 'Boss 模式', order: 6 },
+}
+
+// 每个 match3 模式的关卡容量（level_no 编码的个/十位段）
+export const MATCH3_LEVELS_PER_MODE = 50
+
+// 下拉选项：首项「通用」表示适用于该游戏全部模式（game_items.mode 留空）
+export const MATCH3_MODE_OPTIONS_WITH_ANY = [
+  { value: '', label: '通用（该游戏全部模式）' },
+  ...Object.entries(MATCH3_MODE_MAP).map(([value, v]) => ({ value, label: v.label })),
+]
+
 // 积分奖励规则类型（game_reward_rules.rule_type）
 //   daily_first_clear = 每日首次通关（单日 1 次，跨游戏共享）
 //   achievement       = 成就达成（分值以 game_achievements.reward_points 为准）

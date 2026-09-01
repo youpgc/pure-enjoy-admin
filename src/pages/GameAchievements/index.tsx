@@ -87,9 +87,12 @@ const GameAchievements: React.FC = () => {
   const loadItems = async () => {
     setLoading(true)
     try {
+      // 显式列（列名以 /d/workspace/sql/feature_create_games.sql 的建表 DDL 为准）
       const { data, error } = await supabase
         .from('game_achievements')
-        .select('*')
+        .select(
+          'id,game_id,code,name,description,icon,condition,reward_points,enabled,sort_order,created_at,updated_at'
+        )
         .order('sort_order', { ascending: true })
       if (error) throw error
       setItems((data as DbGameAchievement[]) ?? [])
