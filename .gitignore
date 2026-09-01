@@ -19,3 +19,6 @@ sql/
 # 数据库迁移文件和Supabase配置（敏感/本地开发用，不上传仓库）
 database/
 supabase/
+
+# 构建临时产物（不被追踪）
+.tmp-dist/

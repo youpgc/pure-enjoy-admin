@@ -166,10 +166,17 @@ const GameAnalytics: React.FC = () => {
       })
       setTrendData(Object.entries(trendMap).map(([date, count]) => ({ date, count })))
 
-      // 积分发放构成（按 rule_type：claims 仅存 rule_id，需经奖励规则表映射）
+      // 积分发放构成（按发放类别）：
+      // - 成就达成：claim_key 以 'achievement:' 开头、rule_id 为 NULL（成就在
+      //   game_achievements，不在 game_reward_rules，故不能经 rule_id 映射）
+      // - 规则类：rule_id 经 game_reward_rules 映射 rule_type
+      // - 其余（规则已删除等）：unknown
       const rulePoints: Record<string, number> = {}
       claims.forEach((c) => {
-        const type = (c.rule_id && rm[c.rule_id]?.rule_type) || 'unknown'
+        const type =
+          c.claim_key?.startsWith('achievement:')
+            ? 'achievement'
+            : (c.rule_id && rm[c.rule_id]?.rule_type) || 'unknown'
         rulePoints[type] = (rulePoints[type] || 0) + c.points
       })
       setRewardData(
