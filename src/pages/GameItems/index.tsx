@@ -18,6 +18,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { supabase } from '../../utils/supabase'
 import type { Database } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
+import { useGameMeta } from '../../utils/gameMetaCache'
 import { MATCH3_MODE_MAP, MATCH3_MODE_OPTIONS_WITH_ANY } from '../../constants/game'
 
 type DbGameItem = Database['public']['Tables']['game_items']['Row']
@@ -50,12 +51,14 @@ const GameItems: React.FC = () => {
   const canDelete = hasPermission('games:delete')
 
   const [items, setItems] = useState<DbGameItem[]>([])
-  const [games, setGames] = useState<{ code: string; name: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<DbGameItem | null>(null)
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
+
+  // 全局游戏元数据（games 一次拉取、跨页复用），用于「游戏」列转译与下拉。
+  const meta = useGameMeta()
 
   const loadItems = async () => {
     setLoading(true)
@@ -77,28 +80,8 @@ const GameItems: React.FC = () => {
     }
   }
 
-  const loadGames = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('games')
-        .select('code,name')
-        .eq('enabled', true)
-      if (!error && data) {
-        setGames(
-          (data as { code: string; name: string }[]).map((g) => ({
-            code: g.code,
-            name: g.name,
-          }))
-        )
-      }
-    } catch {
-      // 忽略：下拉仅辅助
-    }
-  }
-
   useEffect(() => {
     loadItems()
-    loadGames()
   }, [])
 
   const openCreate = () => {
@@ -164,12 +147,18 @@ const GameItems: React.FC = () => {
   }
 
   const gameOptions = useMemo(
-    () => games.map((g) => ({ value: g.code, label: `${g.name}（${g.code}）` })),
-    [games]
+    () => (meta?.games ?? []).map((g) => ({ value: g.code, label: `${g.name}（${g.code}）` })),
+    [meta]
   )
 
   const columns: ColumnsType<DbGameItem> = [
-    { title: '游戏', dataIndex: 'game_code', width: 100 },
+    {
+      title: '游戏',
+      dataIndex: 'game_code',
+      width: 100,
+      // 由 game_code 转译游戏名称（meta 未就绪时回退显示原始编码）
+      render: (v: string) => meta?.gameMapByCode[v]?.name ?? v,
+    },
     {
       title: '模式',
       dataIndex: 'mode',

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../utils/supabase'
 import { apiQuery } from '../utils/apiClient'
 import { buildUserLookupOr } from '../utils/userId'
@@ -8,6 +8,10 @@ export interface UserInfo {
   nickname: string | null
 }
 
+// 模块级全局缓存：跨组件 / 跨页面 / 跨挂载复用，避免对固定用户 ID 重复请求 users 表。
+// 仅记录解析结果；命中即用，未命中才发起一次批量查询。
+const moduleUserCache = new Map<string, UserInfo>()
+
 /**
  * 批量解析用户信息（username / nickname）。
  *
@@ -15,15 +19,14 @@ export interface UserInfo {
  * - 同时按业务 ID（users.id）与 auth_id（UUID）建映射：业务存在双 ID 架构，
  *   部分历史数据（如早期 operation_logs/error_logs 的 user_id 写入的是 auth UUID）
  *   仅能凭 UUID 命中，故两键都建，避免回退显示原始 ID。
- * - 结果带内存缓存，跨页/跨组件复用；
+ * - 结果存入模块级全局缓存，跨页/跨组件/跨挂载复用（解决看板因重挂载反复请求闪烁）；
  * - 解析不到的 ID 在 map 中记为 { username: null, nickname: null }，
  *   交由 <UserName /> 回退显示原始 user_id。
  *
  * @param ids 当前页数据中的 user_id 列表（任意顺序、可含空值；业务 ID 或 UUID 均可）
  */
 export function useUsernames(ids: Array<string | null | undefined>): Map<string, UserInfo> {
-  const [map, setMap] = useState<Map<string, UserInfo>>(new Map())
-  const cacheRef = useRef<Map<string, UserInfo>>(new Map())
+  const [map, setMap] = useState<Map<string, UserInfo>>(() => new Map(moduleUserCache))
 
   // 用排序后的 id 串做依赖，避免每次渲染（新数组引用）都重查
   const key = Array.from(new Set(ids.filter(Boolean) as string[])).sort().join('|')
@@ -31,13 +34,13 @@ export function useUsernames(ids: Array<string | null | undefined>): Map<string,
   useEffect(() => {
     const valid = Array.from(new Set(ids.filter(Boolean) as string[]))
     if (valid.length === 0) {
-      setMap(new Map(cacheRef.current))
+      setMap(new Map(moduleUserCache))
       return
     }
     let cancelled = false
-    const missing = valid.filter((id) => !cacheRef.current.has(id))
+    const missing = valid.filter((id) => !moduleUserCache.has(id))
     if (missing.length === 0) {
-      setMap(new Map(cacheRef.current))
+      setMap(new Map(moduleUserCache))
       return
     }
     const orFilter = buildUserLookupOr(missing)
@@ -51,7 +54,6 @@ export function useUsernames(ids: Array<string | null | undefined>): Map<string,
     )
       .then((res) => {
         if (cancelled) return
-        const next = new Map(cacheRef.current)
         const found = new Map<
           string,
           { id: string; auth_id: string | null; username: string | null; nickname: string | null }
@@ -61,10 +63,9 @@ export function useUsernames(ids: Array<string | null | undefined>): Map<string,
           if (r.auth_id) found.set(r.auth_id, r)
         })
         missing.forEach((id) => {
-          next.set(id, found.get(id) || { username: null, nickname: null })
+          moduleUserCache.set(id, found.get(id) || { username: null, nickname: null })
         })
-        cacheRef.current = next
-        setMap(new Map(next))
+        setMap(new Map(moduleUserCache))
       })
       .catch(() => {
         // 查询失败不阻塞列表：保留已缓存，缺失项由 <UserName /> 回退原 ID

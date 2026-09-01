@@ -19,16 +19,14 @@ import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/UserName'
+import { useGameMeta } from '../../utils/gameMetaCache'
 import { GAME_STATUS_MAP } from '../../constants'
 import { supabase } from '../../utils/supabase'
 import {
-  gameService,
   gameScoreService,
   gameScoreValueService,
-  gameDimensionService,
-  gameLevelService,
 } from '../../services/gameService'
-import type { DbGame, DbGameLevel, DbGameDimension, DbGameScore, DbGameScoreValue } from '../../types/database'
+import type { DbGameScore, DbGameScoreValue } from '../../types/database'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
@@ -50,10 +48,12 @@ interface BestOverviewRow {
 const GameScores: React.FC = () => {
   const mountedRef = useMounted()
 
-  const [games, setGames] = useState<DbGame[]>([])
-  const [gameMap, setGameMap] = useState<Record<string, DbGame>>({})
-  const [levelMap, setLevelMap] = useState<Record<string, DbGameLevel>>({})
-  const [dimMap, setDimMap] = useState<Record<string, DbGameDimension>>({})
+  // 全局游戏元数据（games/levels/dimensions 仅请求一次，跨页复用，消除看板闪烁）。
+  const meta = useGameMeta()
+  const gameMap = meta?.gameMapById ?? {}
+  const levelMap = meta?.levelMap ?? {}
+  const dimMap = meta?.dimMap ?? {}
+  const games = meta?.games ?? []
 
   const [gameFilter, setGameFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -71,30 +71,6 @@ const GameScores: React.FC = () => {
 
   const userIds = Array.from(new Set(scores.map((s) => s.user_id).concat(bestRows.map((b) => b.userId))))
   const userMap = useUsernames(userIds)
-
-  // ========== 加载游戏/关卡/维度映射（一次） ==========
-  const loadMeta = useCallback(async () => {
-    const gRes = await gameService.findAll()
-    const lRes = await gameLevelService.findAll()
-    const dRes = await gameDimensionService.findAll()
-    if (!mountedRef.current) return
-    if (gRes.success && gRes.data) {
-      setGames(gRes.data)
-      const gm: Record<string, DbGame> = {}
-      gRes.data.forEach((g) => (gm[g.id] = g))
-      setGameMap(gm)
-    }
-    if (lRes.success && lRes.data) {
-      const lm: Record<string, DbGameLevel> = {}
-      lRes.data.forEach((l) => (lm[l.id] = l))
-      setLevelMap(lm)
-    }
-    if (dRes.success && dRes.data) {
-      const dm: Record<string, DbGameDimension> = {}
-      dRes.data.forEach((d) => (dm[d.id] = d))
-      setDimMap(dm)
-    }
-  }, [mountedRef])
 
   // ========== 加载成绩列表 ==========
   const loadScores = useCallback(async () => {
@@ -127,17 +103,15 @@ const GameScores: React.FC = () => {
   }, [gameFilter, statusFilter, dateRange, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
 
   // ========== 最佳成绩概览（各游戏主维度全局最佳） ==========
+  // 主维度直接取自全局缓存 meta.dimensions（不再额外请求接口）；
+  // 仅 game_score_values 的「数据」查询按维度循环，这是数据而非配置，无法避免。
   const loadBestOverview = useCallback(async () => {
+    if (!meta) return
     setOverviewLoading(true)
     try {
-      const dRes = await gameDimensionService.findAll((q) => q.eq('is_primary', true))
-      if (!dRes.success || !dRes.data) {
-        if (!mountedRef.current) return
-        setBestRows([])
-        return
-      }
+      const primaryDims = meta.dimensions.filter((d) => d.is_primary)
       const rows: BestOverviewRow[] = []
-      for (const d of dRes.data) {
+      for (const d of primaryDims) {
         // EAV：按聚合方向取最优一条，并附带所属 game_scores（用于取 user_id / status 过滤）
         const { data } = await (supabase as any)
           .from('game_score_values')
@@ -154,7 +128,7 @@ const GameScores: React.FC = () => {
         if (best?.score) {
           rows.push({
             gameId: best.score.game_id,
-            gameName: gameMap[best.score.game_id]?.name || '未知游戏',
+            gameName: meta.gameMapById[best.score.game_id]?.name || '未知游戏',
             dimName: d.name,
             unit: d.unit,
             value: best.value,
@@ -170,16 +144,17 @@ const GameScores: React.FC = () => {
     } finally {
       setOverviewLoading(false)
     }
-  }, [mountedRef, gameMap])
-
-  useEffect(() => {
-    loadMeta()
-  }, [loadMeta])
+  }, [meta, mountedRef])
 
   useEffect(() => {
     loadScores()
+  }, [loadScores])
+
+  // 最佳概览随 meta 就绪加载一次；filter 变化只重查成绩列表，不再连带动重查概览。
+  // 手动「刷新」按钮直接调用 loadBestOverview()（见 Card extra）。
+  useEffect(() => {
     loadBestOverview()
-  }, [loadScores, loadBestOverview])
+  }, [loadBestOverview])
 
   // ========== 展开维度值 ==========
   const handleExpand = async (scoreId: string) => {
