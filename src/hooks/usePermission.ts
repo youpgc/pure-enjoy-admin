@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../utils/supabase'
+import { getSessionCache, setSessionCache, removeSessionCache } from '../utils/sessionCache'
 import { hasPermission as checkPermission } from '../types/permission'
 import { ROLE_SUPER_ADMIN, ROLE_ADMIN } from '../constants'
 
@@ -19,7 +20,11 @@ let permissionCache: PermissionLoadResult | null = null
 // 防止新账号读到旧账号的角色/权限缓存
 let permissionCacheUserId: string | null = null
 
+// 标签页级缓存 key 前缀：跨「整页重载」复用初始化结果，避免切走再切回时重复请求
+const PERM_CACHE_KEY = 'perm_'
+
 function clearPermissionCache() {
+  if (permissionCacheUserId) removeSessionCache(PERM_CACHE_KEY + permissionCacheUserId)
   permissionInflight = null
   permissionCache = null
   permissionCacheUserId = null
@@ -39,6 +44,13 @@ async function fetchPermissionData(): Promise<PermissionLoadResult> {
   }
   if (permissionInflight) return permissionInflight
   if (permissionCache) return permissionCache
+  // 跨整页重载复用：同标签页内已拉取过则直接返回，跳过 get_my_role / permissions 等请求
+  const cached = getSessionCache<PermissionLoadResult>(PERM_CACHE_KEY + currentUserId)
+  if (cached) {
+    permissionCacheUserId = currentUserId
+    permissionCache = cached
+    return cached
+  }
   permissionCacheUserId = currentUserId
 
   permissionInflight = (async (): Promise<PermissionLoadResult> => {
@@ -105,6 +117,8 @@ async function fetchPermissionData(): Promise<PermissionLoadResult> {
     // 等待期间可能已切换账号并清理/重建缓存归属，只有归属未变时才落缓存
     if (permissionCacheUserId === currentUserId) {
       permissionCache = result
+      // 写标签页级缓存：重载后仍可复用，避免重复请求固定接口
+      setSessionCache(PERM_CACHE_KEY + currentUserId, result)
     }
     return result
   } finally {

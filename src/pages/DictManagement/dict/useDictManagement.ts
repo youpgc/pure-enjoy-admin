@@ -1,10 +1,10 @@
 // 字典管理页数据/操作逻辑 Hook（从 DictManagement.tsx 抽取，行为保持）
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { message, Form } from 'antd'
-import { BaseService, handleApiError } from '../../utils/apiClient'
-import { usePagination } from '../../hooks/usePagination'
-import { useMounted } from '../../hooks/useMounted'
-import { usePermission } from '../../hooks/usePermission'
+import { BaseService, handleApiError } from '../../../utils/apiClient'
+import { usePagination } from '../../../hooks/usePagination'
+import { useMounted } from '../../../hooks/useMounted'
+import { usePermission } from '../../../hooks/usePermission'
 import type { DictType, DictItem } from './types'
 
 export function useDictManagement() {

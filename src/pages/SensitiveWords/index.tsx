@@ -24,9 +24,9 @@ import {
   SENSITIVE_CATEGORY_OPTIONS,
   SENSITIVE_LEVEL_OPTIONS,
 } from '../../constants'
-import type { SensitiveWord, SensitiveWordFilters } from '../sensitive-words/types'
-import { buildSensitiveWordsColumns } from '../sensitive-words/columns'
-import { SensitiveWordsFormModal } from '../sensitive-words/SensitiveWordsFormModal'
+import type { SensitiveWord, SensitiveWordFilters } from './sensitive-words/types'
+import { buildSensitiveWordsColumns } from './sensitive-words/columns'
+import { SensitiveWordsFormModal } from './sensitive-words/SensitiveWordsFormModal'
 
 // ==================== 组件 ====================
 

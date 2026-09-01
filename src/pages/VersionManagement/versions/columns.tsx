@@ -1,6 +1,6 @@
 // 应用版本表格列定义（从 VersionManagement.tsx 抽取，行为保持）
 import { Tag, Typography } from 'antd'
-import EllipsisText from '../../components/EllipsisText'
+import EllipsisText from '../../../components/EllipsisText'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import {
@@ -12,9 +12,9 @@ import {
   QrcodeOutlined,
   DownloadOutlined,
 } from '@ant-design/icons'
-import { getActionColumn } from '../../components/ActionColumn'
-import type { ActionButton } from '../../components/ActionColumn'
-import { VERSION_STATUS_MAP, VERSION_PLATFORM_MAP } from '../../constants'
+import { getActionColumn } from '../../../components/ActionColumn'
+import type { ActionButton } from '../../../components/ActionColumn'
+import { VERSION_STATUS_MAP, VERSION_PLATFORM_MAP } from '../../../constants'
 import type { AppVersion } from './types'
 
 const { Text } = Typography

@@ -13,11 +13,11 @@ import {
   AppstoreOutlined,
   UnorderedListOutlined,
 } from '@ant-design/icons'
-import { useDictManagement } from '../dict/useDictManagement'
-import { buildTypeColumns, buildItemColumns } from '../dict/columns'
-import { DictTypeFormModal } from '../dict/DictTypeFormModal'
-import { DictItemFormModal } from '../dict/DictItemFormModal'
-import type { DictType, DictItem } from '../dict/types'
+import { useDictManagement } from './dict/useDictManagement'
+import { buildTypeColumns, buildItemColumns } from './dict/columns'
+import { DictTypeFormModal } from './dict/DictTypeFormModal'
+import { DictItemFormModal } from './dict/DictItemFormModal'
+import type { DictType, DictItem } from './dict/types'
 
 // ==================== 主组件 ====================
 const DictManagement: React.FC = () => {

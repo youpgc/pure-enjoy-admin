@@ -5,7 +5,7 @@ import {
   SENSITIVE_CATEGORY_OPTIONS,
   SENSITIVE_LEVEL_OPTIONS,
   SENSITIVE_MATCH_MODE_OPTIONS,
-} from '../../constants'
+} from '../../../constants'
 import type { SensitiveWord } from './types'
 
 interface SensitiveWordsFormModalProps {

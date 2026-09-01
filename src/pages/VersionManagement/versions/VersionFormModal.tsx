@@ -1,7 +1,7 @@
 // 应用版本新增/编辑表单弹窗（从 VersionManagement.tsx 抽取，行为保持）
 import { Modal, Form, Input, InputNumber, Select, Switch } from 'antd'
 import type { FormInstance } from 'antd'
-import { VERSION_PLATFORM_OPTIONS } from '../../constants'
+import { VERSION_PLATFORM_OPTIONS } from '../../../constants'
 import type { AppVersion } from './types'
 
 interface VersionFormModalProps {

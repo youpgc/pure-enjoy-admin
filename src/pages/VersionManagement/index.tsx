@@ -24,11 +24,11 @@ import {
 import { QRCodeSVG } from 'qrcode.react'
 import dayjs from 'dayjs'
 import { VERSION_STATUS_OPTIONS, VERSION_PLATFORM_OPTIONS, VERSION_PLATFORM_MAP } from '../../constants'
-import { useVersions } from '../versions/useVersions'
-import { buildVersionColumns } from '../versions/columns'
-import { VersionFormModal } from '../versions/VersionFormModal'
-import { VersionQrModal } from '../versions/VersionQrModal'
-import type { AppVersion } from '../versions/types'
+import { useVersions } from './versions/useVersions'
+import { buildVersionColumns } from './versions/columns'
+import { VersionFormModal } from './versions/VersionFormModal'
+import { VersionQrModal } from './versions/VersionQrModal'
+import type { AppVersion } from './versions/types'
 
 const { Text } = Typography
 

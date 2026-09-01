@@ -2,12 +2,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { Key } from 'react'
 import { Modal, message, Form } from 'antd'
-import { supabase } from '../../utils/supabase'
-import { appVersionService } from '../../services/appVersionService'
-import { usePermission } from '../../hooks/usePermission'
-import { BaseService, handleApiError } from '../../utils/apiClient'
-import { usePagination } from '../../hooks/usePagination'
-import { useMounted } from '../../hooks/useMounted'
+import { supabase } from '../../../utils/supabase'
+import { appVersionService } from '../../../services/appVersionService'
+import { usePermission } from '../../../hooks/usePermission'
+import { BaseService, handleApiError } from '../../../utils/apiClient'
+import { usePagination } from '../../../hooks/usePagination'
+import { useMounted } from '../../../hooks/useMounted'
 import type { AppVersion, VersionFilters } from './types'
 
 export function useVersions() {

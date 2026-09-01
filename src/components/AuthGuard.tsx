@@ -2,7 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import { supabase } from '../utils/supabase'
+import { getSessionCache, setSessionCache, removeSessionCache } from '../utils/sessionCache'
 import { USER_STATUS_ACTIVE } from '../constants/roles'
+
+// 标签页级鉴权缓存 key：跨「整页重载」复用 is_admin + users.status 校验结果，
+// 避免切走应用再切回浏览器（标签页被丢弃后重载）时重复请求固定鉴权接口。
+// 关闭标签页即失效；主动登出 / 会话失效时清除，保证新开标签页仍走服务端校验。
+const AUTH_CACHE_KEY = 'auth'
 
 interface AuthGuardProps {
   children: React.ReactNode
@@ -40,6 +46,14 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
           return
         }
 
+        // 同标签页内已校验过（重载后复用），直接放行，跳过 is_admin / users 重复请求
+        const authCached = getSessionCache<{ ok: true }>(AUTH_CACHE_KEY)
+        if (authCached?.ok) {
+          setIsAuthenticated(true)
+          setIsLoading(false)
+          return
+        }
+
         // 角色判定以数据库 public.users.role 为准（public.is_admin() 防篡改），
         // 不再把 JWT 的 user_metadata / app_metadata.role 作为首要判定源。
         // fail-closed：RPC 失败一律按"非管理员"拒绝进入，不回退 JWT metadata
@@ -50,6 +64,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
           if (!rpcError && !isAdmin) {
             await supabase.auth.signOut()
           }
+          removeSessionCache(AUTH_CACHE_KEY)
           setIsAuthenticated(false)
           navigate('/login')
           return
@@ -66,12 +81,14 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         const profile = result.data as { status?: string } | null
         if (profile && profile.status !== USER_STATUS_ACTIVE) {
           await supabase.auth.signOut()
+          removeSessionCache(AUTH_CACHE_KEY)
           setIsAuthenticated(false)
           navigate('/login')
           return
         }
 
         // 会话有效且角色正确
+        setSessionCache(AUTH_CACHE_KEY, { ok: true })
         setIsAuthenticated(true)
       } catch (e) {
         if (import.meta.env.DEV) {
@@ -90,6 +107,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === 'SIGNED_OUT' || !session) {
+          removeSessionCache(AUTH_CACHE_KEY)
           setIsAuthenticated(false)
           navigate('/login')
         } else if (event === 'SIGNED_IN') {

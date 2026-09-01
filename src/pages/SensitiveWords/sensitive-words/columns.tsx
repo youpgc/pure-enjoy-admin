@@ -3,13 +3,13 @@ import { Typography, Tag } from 'antd'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { getActionColumn, type ActionButton } from '../../components/ActionColumn'
+import { getActionColumn, type ActionButton } from '../../../components/ActionColumn'
 import { Switch } from 'antd'
 import {
   SENSITIVE_CATEGORY_MAP,
   SENSITIVE_LEVEL_MAP,
   SENSITIVE_MATCH_MODE_MAP,
-} from '../../constants'
+} from '../../../constants'
 import type { SensitiveWord } from './types'
 
 const { Text } = Typography
