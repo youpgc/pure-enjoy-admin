@@ -78,6 +78,12 @@ const GameAchievements: React.FC = () => {
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
 
+  // 列表筛选与分页
+  const [nameFilter, setNameFilter] = useState('')
+  const [gameFilter, setGameFilter] = useState<string | undefined>(undefined)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
   const loadItems = async () => {
     setLoading(true)
     try {
@@ -209,6 +215,20 @@ const GameAchievements: React.FC = () => {
     [games]
   )
 
+  // 客户端筛选：名称模糊匹配 + 游戏（含「全局」）
+  const filteredItems = useMemo(() => {
+    const kw = nameFilter.trim().toLowerCase()
+    return items.filter((it) => {
+      if (kw && !(it.name ?? '').toLowerCase().includes(kw)) return false
+      if (gameFilter === 'global') {
+        if (it.game_id) return false
+      } else if (gameFilter) {
+        if (it.game_id !== gameFilter) return false
+      }
+      return true
+    })
+  }, [items, nameFilter, gameFilter])
+
   const columns: ColumnsType<DbGameAchievement> = [
     {
       title: '游戏',
@@ -217,7 +237,7 @@ const GameAchievements: React.FC = () => {
       render: (v: string | null) => (v ? (gameNameMap[v] ?? v) : <Tag>全局</Tag>),
     },
     { title: '编码', dataIndex: 'code', width: 140, render: (v: string) => <Tag>{v}</Tag> },
-    { title: '名称', dataIndex: 'name', width: 140 },
+    { title: '名称', dataIndex: 'name', width: 220, ellipsis: true },
     {
       title: '图标',
       dataIndex: 'icon',
@@ -306,7 +326,40 @@ const GameAchievements: React.FC = () => {
           </div>
         }
       />
-      <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'flex-end' }}>
+      <div
+        style={{
+          marginBottom: 12,
+          display: 'flex',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Space wrap>
+          <Input.Search
+            placeholder="模糊搜索成就名称"
+            allowClear
+            value={nameFilter}
+            onChange={(e) => {
+              setNameFilter(e.target.value)
+              setPage(1)
+            }}
+            style={{ width: 240 }}
+          />
+          <Select
+            placeholder="按游戏筛选"
+            allowClear
+            value={gameFilter}
+            onChange={(v) => {
+              setGameFilter(v)
+              setPage(1)
+            }}
+            options={[{ value: 'global', label: '全局（无所属游戏）' }, ...gameOptions]}
+            style={{ width: 220 }}
+            showSearch
+            optionFilterProp="label"
+          />
+        </Space>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -320,8 +373,18 @@ const GameAchievements: React.FC = () => {
         rowKey="id"
         loading={loading}
         columns={columns}
-        dataSource={items}
-        pagination={false}
+        dataSource={filteredItems}
+        pagination={{
+          current: page,
+          pageSize,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50'],
+          showTotal: (t) => `共 ${t} 条`,
+          onChange: (p: number, ps: number) => {
+            setPage(p)
+            setPageSize(ps)
+          },
+        }}
         size="middle"
         scroll={{ x: 'max-content' }}
       />
