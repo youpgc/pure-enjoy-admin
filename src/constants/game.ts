@@ -61,7 +61,9 @@ export const GAME_REWARD_RULE_TYPE_OPTIONS = Object.entries(GAME_REWARD_RULE_TYP
 // 风格：100×100 viewBox、#5D4037 粗描边、白色高光、圆角卡通。
 // 文件名即取值；后台通过 /game-icons/<name>.svg 引用，App 通过 assets/games/icons/<name>.svg 引用。
 // 后期整体替换只需覆盖两端同名文件，调用方无需改动。
-export const GAME_SHARED_ICON_BASE = '/game-icons'
+// ⚠️ 必须带 import.meta.env.BASE_URL 前缀：本工程 vite base 为 /pure-enjoy-admin/，
+//    硬编码根路径 /game-icons 在 dev 与构建产物下都会 404（public 文件实际挂在 base 路径下）。
+export const GAME_SHARED_ICON_BASE = import.meta.env.BASE_URL + 'game-icons'
 export const GAME_SHARED_ICON_OPTIONS: { label: string; value: string; group: string }[] = [
   // 牧场主题（羊了个羊）
   { group: '牧场', label: '小羊', value: 'sheep_01_lamb' },
@@ -86,7 +88,8 @@ export const GAME_SHARED_ICON_OPTIONS: { label: string; value: string; group: st
 // 成就图标资产（独立目录，与游戏图标分离）
 // 风格：100×100 viewBox、无边框、径向渐变+柔光、颜色随等级递增。
 // App 端 assets/games/achievements、管理后台 public/game-achievements 同一套文件。
-export const ACHIEVEMENT_SHARED_ICON_BASE = '/game-achievements'
+// ⚠️ 同上，必须带 import.meta.env.BASE_URL 前缀，否则 /game-achievements 在 base 下 404。
+export const ACHIEVEMENT_SHARED_ICON_BASE = import.meta.env.BASE_URL + 'game-achievements'
 export const ACHIEVEMENT_ICON_OPTIONS: { label: string; value: string }[] = [
   { label: '初出茅庐', value: 'ach_first_clear_all' },
   { label: '羊·初次通关', value: 'ach_first_clear_sheep' },
