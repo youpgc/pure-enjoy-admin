@@ -14,6 +14,7 @@ import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { supabase } from '../../utils/supabase'
 import { handleApiError } from '../../utils/apiClient'
+import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import dayjs from 'dayjs'
 
@@ -48,6 +49,8 @@ export default function GameRewardRecords() {
   const mountedRef = useMounted()
   const [tab, setTab] = useState<'flow' | 'claims'>('flow')
   const [loading, setLoading] = useState(false)
+  // 服务端分页（默认 10 条/页，切换 Tab 时归首页）
+  const pager = usePagination()
 
   const [gameMap, setGameMap] = useState<Record<string, string>>({})
   const [userMap, setUserMap] = useState<Record<string, string>>({})
@@ -94,13 +97,15 @@ export default function GameRewardRecords() {
   const loadFlow = useCallback(async () => {
     setLoading(true)
     try {
+      const from = (pager.pagination.current - 1) * pager.pagination.pageSize
+      const to = from + pager.pagination.pageSize - 1
       let q = supabase
         .from('point_records')
-        .select('id,user_id,type,amount,remark,created_at')
+        .select('id,user_id,type,amount,remark,created_at', { count: 'exact' })
         .in('type', ['game_earn', 'game_spend'])
         .order('created_at', { ascending: false })
-        .limit(500) as any
-      const { data, error } = await q
+        .range(from, to) as any
+      const { data, error, count } = await q
       if (error) {
         handleApiError(error, 'GameRewardRecords-积分流水')
         return
@@ -108,6 +113,7 @@ export default function GameRewardRecords() {
       if (!mountedRef.current) return
       const list = (data || []) as DbPointRecord[]
       setFlow(list)
+      if (count != null) pager.setTotal(count)
       setEarnTotal(list.filter((r) => r.type === 'game_earn').reduce((s, r) => s + r.amount, 0))
       setSpendTotal(
         list.filter((r) => r.type === 'game_spend').reduce((s, r) => s + Math.abs(r.amount), 0)
@@ -115,32 +121,40 @@ export default function GameRewardRecords() {
     } finally {
       setLoading(false)
     }
-  }, [mountedRef])
+  }, [mountedRef, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
 
   // 奖励领取：流水来自 game_reward_claims（含成就与规则发放，point_records 已含对应 game_earn）
   const loadClaims = useCallback(async () => {
     setLoading(true)
     try {
+      const from = (pager.pagination.current - 1) * pager.pagination.pageSize
+      const to = from + pager.pagination.pageSize - 1
       let q = supabase
         .from('game_reward_claims')
-        .select('id,user_id,game_id,rule_id,claim_key,points,claimed_at')
+        .select('id,user_id,game_id,rule_id,claim_key,points,claimed_at', { count: 'exact' })
         .order('claimed_at', { ascending: false })
-        .limit(500) as any
-      const { data, error } = await q
+        .range(from, to) as any
+      const { data, error, count } = await q
       if (error) {
         handleApiError(error, 'GameRewardRecords-奖励领取')
         return
       }
       if (!mountedRef.current) return
       setClaims((data || []) as DbRewardClaim[])
+      if (count != null) pager.setTotal(count)
     } finally {
       setLoading(false)
     }
-  }, [mountedRef])
+  }, [mountedRef, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
 
   useEffect(() => {
     loadMaps()
   }, [loadMaps])
+
+  useEffect(() => {
+    // 切 Tab 归首页，避免两个 Tab 共用 pager 串页
+    pager.resetPage()
+  }, [tab, pager.resetPage])
 
   useEffect(() => {
     if (tab === 'flow') loadFlow()
@@ -295,7 +309,7 @@ export default function GameRewardRecords() {
                     loading={loading}
                     columns={flowColumns}
                     dataSource={filteredFlow}
-                    pagination={{ pageSize: 20, showSizeChanger: true }}
+                    pagination={pager.tablePagination}
                     size="middle"
                   />
                 </>
@@ -310,7 +324,7 @@ export default function GameRewardRecords() {
                   loading={loading}
                   columns={claimColumns}
                   dataSource={claims}
-                  pagination={{ pageSize: 20, showSizeChanger: true }}
+                  pagination={pager.tablePagination}
                   size="middle"
                 />
               ),
