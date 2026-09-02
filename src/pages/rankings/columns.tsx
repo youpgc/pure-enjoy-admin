@@ -6,12 +6,14 @@ import { PushpinOutlined } from '@ant-design/icons'
 import { getActionColumn, type ActionButton } from '../../components/ActionColumn'
 import EllipsisText from '../../components/EllipsisText'
 import type { RankingItem, Intervention } from './types'
+import styles from './columns.module.css'
+import common from '../../styles/common.module.css'
 
 const RankBadge = ({ rank }: { rank: number }) => {
-  if (rank === 1) return <Tag color='gold' style={{ fontWeight: 700, fontSize: 14 }}>🥇</Tag>
-  if (rank === 2) return <Tag color='silver' style={{ fontWeight: 700, fontSize: 14 }}>🥈</Tag>
-  if (rank === 3) return <Tag color='orange' style={{ fontWeight: 700, fontSize: 14 }}>🥉</Tag>
-  return <span style={{ color: '#999', fontWeight: 500 }}>{rank}</span>
+  if (rank === 1) return <Tag color='gold' className={`${styles.rankBadge} ${common.bold700}`}>🥇</Tag>
+  if (rank === 2) return <Tag color='silver' className={`${styles.rankBadge} ${common.bold700}`}>🥈</Tag>
+  if (rank === 3) return <Tag color='orange' className={`${styles.rankBadge} ${common.bold700}`}>🥉</Tag>
+  return <span className={`${styles.rankText} ${common.bold500}`}>{rank}</span>
 }
 
 export const buildRankingColumns = (params: {
@@ -34,7 +36,7 @@ export const buildRankingColumns = (params: {
       render: (title: string, record) => (
         <Space>
           {intervention.pin_ids.includes(record.novel_id) && (
-            <PushpinOutlined style={{ color: '#faad14' }} />
+            <PushpinOutlined className={styles.pinIcon} />
           )}
           <EllipsisText text={title} maxWidth={200} />
         </Space>
