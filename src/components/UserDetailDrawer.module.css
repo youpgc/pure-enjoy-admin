@@ -1,0 +1,34 @@
+/* 用户详情抽屉：页面级样式（不污染其他页面） */
+
+/* 头部信息块：居中 + 下间距 */
+.profileHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+/* 个人简介保留换行 */
+.bioPreWrap {
+  white-space: pre-wrap;
+}
+
+/* 积分金色图标（仅本页成就积分用） */
+.goldIcon {
+  color: #faad14;
+}
+
+/* 数据统计各指标数值配色（覆盖 antd Statistic 默认色） */
+.statColor1 :global(.ant-statistic-content) {
+  color: #6c63ff;
+}
+.statColor2 :global(.ant-statistic-content) {
+  color: #52c41a;
+}
+.statColor3 :global(.ant-statistic-content) {
+  color: #1890ff;
+}
+.statColor4 :global(.ant-statistic-content) {
+  color: #faad14;
+}
+.statColor5 :global(.ant-statistic-content) {
+  color: #722ed1;
+}

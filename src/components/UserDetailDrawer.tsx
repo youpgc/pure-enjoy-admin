@@ -31,6 +31,8 @@ import type { User, UserStats, OperationLog } from '../types/user'
 import dayjs from 'dayjs'
 import { ACTION_LABEL_MAP, getModuleLabel, getModuleColor } from '../constants'
 import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
+import common from '../styles/common.module.css'
+import styles from './UserDetailDrawer.module.css'
 
 const { Text, Title } = Typography
 
@@ -71,25 +73,25 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
     >
       <Spin spinning={loading}>
         {/* 用户头像和基本信息 */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <div className={styles.profileHeader}>
           <Avatar
             size={80}
             src={user.avatar_url}
             icon={<UserOutlined />}
-            style={{ marginBottom: 12 }}
+            className={common.mb12}
           />
-          <Title level={4} style={{ margin: 0 }}>
+          <Title level={4} className={common.noMargin}>
             {user.nickname || '未设置昵称'}
           </Title>
           <Text type="secondary">{user.email}</Text>
         </div>
 
         {/* 状态标签 */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <Tag color={getRoleColor(user.role) || 'default'} style={{ marginRight: 8 }}>
+        <div className={styles.profileHeader}>
+          <Tag color={getRoleColor(user.role) || 'default'} className={common.mr8}>
             {roleOptions.find(opt => opt.value === user.role)?.label || user.role}
           </Tag>
-          <Tag color={getLevelColor(user.member_level) || 'default'} style={{ marginRight: 8 }}>
+          <Tag color={getLevelColor(user.member_level) || 'default'} className={common.mr8}>
             {levelOptions.find(opt => opt.value === user.member_level)?.label || user.member_level}
           </Tag>
           <Tag color={getStatusColor(user.status) || 'default'}>
@@ -101,23 +103,23 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
 
         {/* 基本信息 */}
         <Title level={5}>
-          <UserOutlined style={{ marginRight: 8 }} />
+          <UserOutlined className={common.mr8} />
           基本信息
         </Title>
         <Descriptions column={2} size="small" bordered>
           <Descriptions.Item label="用户ID" span={2}>
-            <Text copyable style={{ fontSize: 12 }}>
+            <Text copyable className={common.smallText}>
               {user.id}
             </Text>
           </Descriptions.Item>
           <Descriptions.Item label="邮箱">
-            <MailOutlined style={{ marginRight: 4 }} />
+            <MailOutlined className={common.mr4} />
             {user.email}
           </Descriptions.Item>
           <Descriptions.Item label="手机号">
             {user.phone ? (
               <>
-                <PhoneOutlined style={{ marginRight: 4 }} />
+                <PhoneOutlined className={common.mr4} />
                 {user.phone}
               </>
             ) : (
@@ -125,11 +127,11 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
             )}
           </Descriptions.Item>
           <Descriptions.Item label="积分">
-            <TrophyOutlined style={{ marginRight: 4, color: '#faad14' }} />
+            <TrophyOutlined className={`${common.mr4} ${styles.goldIcon}`} />
             <Text strong>{user.points}</Text>
           </Descriptions.Item>
           <Descriptions.Item label="登录次数">
-            <LoginOutlined style={{ marginRight: 4 }} />
+            <LoginOutlined className={common.mr4} />
             {user.login_count} 次
           </Descriptions.Item>
         </Descriptions>
@@ -138,7 +140,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
 
         {/* 个人资料（扩展字段） */}
         <Title level={5}>
-          <IdcardOutlined style={{ marginRight: 8 }} />
+          <IdcardOutlined className={common.mr8} />
           个人资料
         </Title>
         <Descriptions column={2} size="small" bordered>
@@ -157,7 +159,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
           <Descriptions.Item label="生日">
             {user.birthday ? (
               <>
-                <CalendarOutlined style={{ marginRight: 4 }} />
+                <CalendarOutlined className={common.mr4} />
                 {dayjs(user.birthday).format('YYYY-MM-DD')}
               </>
             ) : (
@@ -170,7 +172,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
           <Descriptions.Item label="所在地">
             {user.location ? (
               <>
-                <HomeOutlined style={{ marginRight: 4 }} />
+                <HomeOutlined className={common.mr4} />
                 {user.location}
               </>
             ) : (
@@ -180,7 +182,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
           <Descriptions.Item label="职业">
             {user.occupation ? (
               <>
-                <SolutionOutlined style={{ marginRight: 4 }} />
+                <SolutionOutlined className={common.mr4} />
                 {user.occupation}
               </>
             ) : (
@@ -193,7 +195,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
           <Descriptions.Item label="个人网站" span={2}>
             {user.website ? (
               <a href={user.website} target="_blank" rel="noopener noreferrer">
-                <GlobalOutlined style={{ marginRight: 4 }} />
+                <GlobalOutlined className={common.mr4} />
                 {user.website}
               </a>
             ) : (
@@ -202,7 +204,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
           </Descriptions.Item>
           <Descriptions.Item label="个人简介" span={2}>
             {user.bio ? (
-              <Text style={{ whiteSpace: 'pre-wrap' }}>{user.bio}</Text>
+              <Text className={styles.bioPreWrap}>{user.bio}</Text>
             ) : (
               <Text type="secondary">未设置</Text>
             )}
@@ -213,7 +215,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
 
         {/* 登录信息 */}
         <Title level={5}>
-          <ClockCircleOutlined style={{ marginRight: 8 }} />
+          <ClockCircleOutlined className={common.mr8} />
           登录信息
         </Title>
         <Descriptions column={1} size="small" bordered>
@@ -223,7 +225,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
           <Descriptions.Item label="注册IP">
             {user.register_ip ? (
               <>
-                <EnvironmentOutlined style={{ marginRight: 4 }} />
+                <EnvironmentOutlined className={common.mr4} />
                 {user.register_ip}
               </>
             ) : (
@@ -238,7 +240,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
           <Descriptions.Item label="最后登录IP">
             {user.last_login_ip ? (
               <>
-                <EnvironmentOutlined style={{ marginRight: 4 }} />
+                <EnvironmentOutlined className={common.mr4} />
                 {user.last_login_ip}
               </>
             ) : (
@@ -254,7 +256,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
 
         {/* 数据统计 */}
         <Title level={5}>
-          <TrophyOutlined style={{ marginRight: 8 }} />
+          <TrophyOutlined className={common.mr8} />
           数据统计
         </Title>
         {stats ? (
@@ -264,7 +266,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
                 title="消费记录"
                 value={stats.expense_count}
                 suffix="条"
-                valueStyle={{ color: '#6C63FF' }}
+                className={styles.statColor1}
               />
             </Col>
             <Col span={8}>
@@ -272,7 +274,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
                 title="心情日记"
                 value={stats.mood_count}
                 suffix="篇"
-                valueStyle={{ color: '#52c41a' }}
+                className={styles.statColor2}
               />
             </Col>
             <Col span={8}>
@@ -280,7 +282,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
                 title="体重记录"
                 value={stats.weight_count}
                 suffix="条"
-                valueStyle={{ color: '#1890ff' }}
+                className={styles.statColor3}
               />
             </Col>
             <Col span={8}>
@@ -288,7 +290,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
                 title="笔记"
                 value={stats.note_count}
                 suffix="篇"
-                valueStyle={{ color: '#faad14' }}
+                className={styles.statColor4}
               />
             </Col>
             <Col span={8}>
@@ -296,7 +298,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
                 title="书架小说"
                 value={stats.novel_count}
                 suffix="本"
-                valueStyle={{ color: '#722ed1' }}
+                className={styles.statColor5}
               />
             </Col>
           </Row>
@@ -308,7 +310,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
 
         {/* 操作日志 */}
         <Title level={5}>
-          <ClockCircleOutlined style={{ marginRight: 8 }} />
+          <ClockCircleOutlined className={common.mr8} />
           最近操作
         </Title>
         {logs && logs.length > 0 ? (
@@ -320,21 +322,27 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
                   <div>
                     <Text strong>{ACTION_LABEL_MAP[log.action] || log.action}</Text>
                     {log.module && (
-                      <Tag color={getModuleColor(log.module)} style={{ marginLeft: 8 }}>
+                      <Tag color={getModuleColor(log.module)} className={common.ml8}>
                         {getModuleLabel(log.module)}
                       </Tag>
                     )}
-                    <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
+                    <Text
+                      type="secondary"
+                      className={`${common.ml8} ${common.smallText}`}
+                    >
                       {dayjs(log.created_at).format('MM-DD HH:mm')}
                     </Text>
                   </div>
                   {log.details && (
-                    <Text type="secondary" style={{ fontSize: 12 }}>
+                    <Text type="secondary" className={common.smallText}>
                       {JSON.stringify(log.details)}
                     </Text>
                   )}
                   {log.ip && (
-                    <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+                    <Text
+                      type="secondary"
+                      className={`${common.smallText} ${common.block}`}
+                    >
                       IP: {log.ip}
                     </Text>
                   )}
