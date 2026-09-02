@@ -8,6 +8,8 @@ import { usePagination } from '../../hooks/usePagination'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
 import dayjs from 'dayjs'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 interface NovelComment {
   id: string
@@ -132,7 +134,7 @@ const NovelComments: React.FC = () => {
       width: 100,
       render: (rating: number | null) =>
         rating ? (
-          <span style={{ color: '#faad14' }}>
+          <span className={styles.ratingStars}>
             {'★'.repeat(rating)}{'☆'.repeat(5 - rating)}
           </span>
         ) : (
@@ -184,7 +186,7 @@ const NovelComments: React.FC = () => {
   return (
     <div>
       {/* 搜索筛选 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Input
             placeholder="搜索评论内容"
@@ -192,7 +194,7 @@ const NovelComments: React.FC = () => {
             value={filters.keyword}
             onChange={(e) => setFilters({ ...filters, keyword: e.target.value })}
             onPressEnter={() => { resetPage(); loadComments() }}
-            style={{ width: 250 }}
+            className={styles.inputWidthLg}
             allowClear
           />
           <Input
@@ -200,7 +202,7 @@ const NovelComments: React.FC = () => {
             value={filters.novelId}
             onChange={(e) => setFilters({ ...filters, novelId: e.target.value })}
             onPressEnter={() => { resetPage(); loadComments() }}
-            style={{ width: 300 }}
+            className={styles.inputWidthXl}
             allowClear
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={() => { resetPage(); loadComments() }}>
@@ -213,7 +215,7 @@ const NovelComments: React.FC = () => {
       </Card>
 
       {/* 操作栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space>
           <Popconfirm
             title={`确定删除选中的 ${selectedRowKeys.length} 条评论吗？`}
@@ -230,7 +232,7 @@ const NovelComments: React.FC = () => {
               批量删除 ({selectedRowKeys.length})
             </Button>
           </Popconfirm>
-          <span style={{ color: '#999' }}>共 {pagination.total} 条评论</span>
+          <span className={styles.hintText}>共 {pagination.total} 条评论</span>
         </Space>
       </Card>
 
