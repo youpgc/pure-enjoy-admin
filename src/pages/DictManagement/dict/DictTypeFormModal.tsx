@@ -2,6 +2,7 @@
 import { Modal, Form, Input, InputNumber, Switch } from 'antd'
 import type { FormInstance } from 'antd'
 import type { DictType } from './types'
+import common from '../../../styles/common.module.css'
 
 interface DictTypeFormModalProps {
   open: boolean
@@ -54,7 +55,7 @@ export function DictTypeFormModal({
           name="sort_order"
           label="排序"
         >
-          <InputNumber style={{ width: '100%' }} placeholder="请输入排序" min={0} />
+          <InputNumber className={common.fullWidth} placeholder="请输入排序" min={0} />
         </Form.Item>
         <Form.Item
           name="is_active"
