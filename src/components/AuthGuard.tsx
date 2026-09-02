@@ -4,6 +4,7 @@ import { Spin } from 'antd'
 import { supabase } from '../utils/supabase'
 import { getSessionCache, setSessionCache, removeSessionCache } from '../utils/sessionCache'
 import { USER_STATUS_ACTIVE } from '../constants/roles'
+import styles from './AuthGuard.module.css'
 
 // 标签页级鉴权缓存 key：跨「整页重载」复用 is_admin + users.status 校验结果，
 // 避免切走应用再切回浏览器（标签页被丢弃后重载）时重复请求固定鉴权接口。
@@ -125,12 +126,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
 
   if (isLoading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-      }}>
+      <div className={styles.centerScreen}>
         <Spin size="large" />
       </div>
     )
