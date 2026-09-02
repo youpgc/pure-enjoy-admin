@@ -45,7 +45,7 @@ export interface DataFormModalProps {
   onCancel: () => void
   confirmLoading?: boolean
   width?: number | string
-  destroyOnClose?: boolean
+  destroyOnHidden?: boolean
   layout?: 'horizontal' | 'vertical' | 'inline'
   labelCol?: { span: number }
   wrapperCol?: { span: number }

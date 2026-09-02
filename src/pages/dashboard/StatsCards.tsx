@@ -99,7 +99,7 @@ export function StatsCards({ userStats, novelStats, onNavigate }: StatsCardsProp
           <Card
             hoverable
             onClick={() => onNavigate(card.link)}
-            bodyStyle={{ padding: 16 }}
+            styles={{ body: { padding: 16 } }}
           >
             <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
               {card.icon}

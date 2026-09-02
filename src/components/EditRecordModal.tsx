@@ -143,7 +143,7 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
       onOk={handleSubmit}
       onCancel={onCancel}
       confirmLoading={saving}
-      destroyOnClose
+      destroyOnHidden
     >
       <Spin spinning={loading}>
         <Form form={form} layout="vertical">

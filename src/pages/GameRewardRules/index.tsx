@@ -256,7 +256,7 @@ const GameRewardRules: React.FC = () => {
               按类型填写 condition（JSON）；启用后 App 端通关结算时自动评估发放。规则与「关卡配置」里的每关奖励
               （reward_points / 可重复）相互独立、可叠加。
             </p>
-            <p style={{ margin: '4px 0' }}>
+            <div style={{ margin: '4px 0' }}>
               <b>规则类型（rule_type）：</b>
               <ul style={{ margin: '4px 0', paddingLeft: 18 }}>
                 <li><b>每日首次通关 daily_first_clear</b>：每个自然日（北京时间）第一次通关「计入每日首通」的关卡时发放，跨游戏共享、单日一次；condition 留空 {'{}'}。</li>
@@ -264,7 +264,7 @@ const GameRewardRules: React.FC = () => {
                 <li><b>单日上限 daily_limit</b>：控制当日全部游戏奖励积分总和的上限，达到后当日不再发任何游戏奖励；全局唯一一条，points 填每日上限值。建议按运营需要设置（偏低会让「可重复通关获取奖励」很快触顶）。</li>
                 <li><b>成就达成 achievement</b>：已拆分至「游戏成就配置」页独立维护、独立判断（成就走 game_achievements 表，终身只发一次），此处类型仅保留兼容旧数据，请勿新增。</li>
               </ul>
-            </p>
+            </div>
             <p style={{ margin: '4px 0' }}>
               <b>适用游戏：</b>选「全局规则」对所有游戏生效；选具体游戏仅对该游戏生效，同类规则单游戏优先。
             </p>

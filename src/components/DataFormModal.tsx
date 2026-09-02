@@ -30,7 +30,7 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
   onCancel,
   confirmLoading = false,
   width = 600,
-  destroyOnClose = true,
+  destroyOnHidden = true,
   layout = 'vertical',
   labelCol,
   wrapperCol,
@@ -222,7 +222,7 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
       onOk={handleOk}
       onCancel={handleCancel}
       confirmLoading={submitting || confirmLoading}
-      destroyOnClose={destroyOnClose}
+      destroyOnHidden={destroyOnHidden}
       width={width}
       okText={mode === 'create' ? '创建' : '保存'}
       cancelText="取消"

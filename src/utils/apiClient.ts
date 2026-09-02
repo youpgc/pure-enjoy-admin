@@ -65,14 +65,8 @@ export class BaseService<T extends Record<string, any>> {
     'users',
   ])
 
-  /// 解析实际 select 列：未配置时回退 '*'，开发环境告警提示显式配置（审查报告 P2-8）
+  /// 解析实际 select 列：未配置时回退 '*'（审查报告 P2-8：显式配置 select 可减小传输与脱敏面）
   private resolvedSelect(): string {
-    if (!this.options?.select && import.meta.env.DEV) {
-      console.warn(
-        `[BaseService] 表 "${this.tableName}" 未配置 select，将拉取全列（增大传输与脱敏面）。` +
-        `建议构造 BaseService 时传 options.select 显式指定列。`
-      )
-    }
     return this.options?.select || '*'
   }
 

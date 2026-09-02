@@ -18,7 +18,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <ConfigProvider
         locale={zhCN}
       >
-        <BrowserRouter basename="/pure-enjoy-admin">
+        <BrowserRouter
+          basename="/pure-enjoy-admin"
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
           <App />
         </BrowserRouter>
       </ConfigProvider>

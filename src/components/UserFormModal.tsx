@@ -171,7 +171,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
       onCancel={handleCancel}
       confirmLoading={submitting || loading}
       width={600}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

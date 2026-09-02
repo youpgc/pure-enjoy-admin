@@ -179,11 +179,15 @@ const Bookmarks: React.FC = () => {
 
   return (
     <div>
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <Tabs.TabPane tab='阅读进度' key='progress' />
-        <Tabs.TabPane tab='完读率' key='completion' />
-        <Tabs.TabPane tab='流失分析' key='churn' />
-      </Tabs>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          { key: 'progress', label: '阅读进度' },
+          { key: 'completion', label: '完读率' },
+          { key: 'churn', label: '流失分析' },
+        ]}
+      />
 
       {activeTab === 'progress' && (
         <>

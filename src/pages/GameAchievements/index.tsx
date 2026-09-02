@@ -314,7 +314,7 @@ const GameAchievements: React.FC = () => {
               奖励积分走 game_earn 流水，仍受「积分奖励配置」里的<b>单日上限</b>约束。
               积分奖励配置中的「成就达成」枚举仅兼容旧数据，请勿在其中新增。
             </p>
-            <p style={{ margin: '4px 0' }}>
+            <div style={{ margin: '4px 0' }}>
               <b>如何配置：</b>选择所属游戏 → 填写成就编码（唯一，如 first_win）与名称 → 选择达成条件类型 →
               填写奖励积分 → 启用即生效，无需重启 App。
               <ul style={{ margin: '4px 0', paddingLeft: 18 }}>
@@ -322,7 +322,7 @@ const GameAchievements: React.FC = () => {
                 <li><b>维度分数达到</b>：选择维度（来自「游戏与维度配置」的维度编码，如 score）与阈值，通关时该维度值 ≥ 阈值即达成；适合「单局得分 2048」类成就。</li>
                 <li><b>通关关卡号达到</b>：通关的关卡号 ≥ N 即达成；适合「通过第 5 关」类进阶成就。</li>
               </ul>
-            </p>
+            </div>
             <p style={{ margin: '4px 0' }}>
               <b>奖励积分：</b>达成时发放的积分；填 0 表示仅解锁成就、不发积分。
             </p>
@@ -405,7 +405,7 @@ const GameAchievements: React.FC = () => {
         onOk={handleSave}
         confirmLoading={saving}
         onCancel={() => setModalOpen(false)}
-        destroyOnClose
+        destroyOnHidden
         width={600}
       >
         <Form

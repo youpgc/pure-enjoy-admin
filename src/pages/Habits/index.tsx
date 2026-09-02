@@ -143,7 +143,7 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
       onCancel={onClose}
       width={720}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
     >
       <Spin spinning={loading}>
         {checkins.length === 0 && !loading ? (

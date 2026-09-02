@@ -219,11 +219,15 @@ const TtsManagement: React.FC = () => {
         </Col>
       </Row>
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <Tabs.TabPane tab='播放记录' key='logs' />
-        <Tabs.TabPane tab='热门内容' key='hot' />
-        <Tabs.TabPane tab='异常监控' key='error' />
-      </Tabs>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          { key: 'logs', label: '播放记录' },
+          { key: 'hot', label: '热门内容' },
+          { key: 'error', label: '异常监控' },
+        ]}
+      />
 
       {activeTab === 'logs' && (
         <Card

@@ -379,7 +379,7 @@ const MainLayout: React.FC = () => {
                 hideAdd
                 size="small"
                 activeKey={currentPage}
-                destroyInactiveTabPane={false}
+                destroyOnHidden={false}
                 onChange={(key) => setCurrentPage(key as PageKey)}
                 onEdit={(targetKey, action) => {
                   if (action === 'remove') {
@@ -398,7 +398,7 @@ const MainLayout: React.FC = () => {
                   closable: k !== 'dashboard',
                   children: (
                     <ErrorBoundary>
-                      <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}><Spin size="large" tip="页面加载中..." /></div>}>
+                      <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}><Spin size="large" /></div>}>
                         {React.createElement(PAGE_COMPONENTS[k])}
                       </Suspense>
                     </ErrorBoundary>

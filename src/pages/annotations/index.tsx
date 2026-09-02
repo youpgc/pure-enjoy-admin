@@ -50,11 +50,15 @@ const Annotations: React.FC = () => {
 
   return (
     <div>
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
-        <Tabs.TabPane tab='批注列表' key='list' />
-        <Tabs.TabPane tab={`待审核${reviewData.length > 0 ? ` (${reviewData.length})` : ''}`} key='review' />
-        <Tabs.TabPane tab='统计报表' key='stats' />
-      </Tabs>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          { key: 'list', label: '批注列表' },
+          { key: 'review', label: `待审核${reviewData.length > 0 ? ` (${reviewData.length})` : ''}` },
+          { key: 'stats', label: '统计报表' },
+        ]}
+      />
 
       {activeTab === 'list' && (
         <>

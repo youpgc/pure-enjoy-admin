@@ -131,7 +131,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         alignItems: 'center',
         height: '100vh',
       }}>
-        <Spin size="large" tip="验证登录状态中..." />
+        <Spin size="large" />
       </div>
     )
   }

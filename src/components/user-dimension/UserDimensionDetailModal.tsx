@@ -87,7 +87,7 @@ export function UserDimensionDetailModal({
       onCancel={onClose}
       footer={null}
       width={900}
-      destroyOnClose
+      destroyOnHidden
     >
       {selectedUser && (
         <>
