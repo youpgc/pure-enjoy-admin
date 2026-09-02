@@ -1,14 +1,16 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Layout, Menu, theme } from 'antd'
+import { Layout, Menu, theme, Tabs, Avatar, Dropdown } from 'antd'
 import {
   LogoutOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
+  UserOutlined,
+  DownOutlined,
 } from '@ant-design/icons'
 import type { AdminUser } from './types/auth'
 import { lazy, Suspense } from 'react'
-import { Button, Spin } from 'antd'
+import { Spin } from 'antd'
 import AuthGuard from './components/AuthGuard'
 import ErrorBoundary from './components/ErrorBoundary'
 import { usePermission } from './hooks/usePermission'
@@ -59,6 +61,7 @@ const GameAnalytics = lazy(() => import('./pages/GameAnalytics'))
 const GameItems = lazy(() => import('./pages/GameItems'))
 const GameAchievements = lazy(() => import('./pages/GameAchievements'))
 const GameRewardRecords = lazy(() => import('./pages/GameRewardRecords'))
+const Profile = lazy(() => import('./pages/Profile'))
 import { supabase } from './utils/supabase'
 import { buildMenuItems } from './config/menuConfig'
 import { PAGE_TITLES } from './config/pageTitles'
@@ -168,6 +171,7 @@ export type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'w
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
   | 'anniversaries' | 'points' | 'error_logs' | 'recommendations' | 'tts_management' | 'login_logs' | 'checkin'
   | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics' | 'game_items' | 'game_achievements' | 'game_reward_records'
+  | 'profile'
 
 interface NavigationContextType {
   currentPage: PageKey
@@ -186,6 +190,13 @@ const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false)
   const [openKeys, setOpenKeys] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState<PageKey>('dashboard')
+  // 已打开页签（keepalive）：默认含仪表盘，切换 / 跳转页面时追加，关闭页签时移除（仅当前会话，不持久化到 sessionStorage）
+  const [openTabs, setOpenTabs] = useState<PageKey[]>(['dashboard'])
+  // 统一跳转入口：激活页签 + 按需追加到已打开列表（供侧边菜单与子页面 useNavigation 复用，实现不刷新切换）
+  const openPage = useCallback((page: PageKey) => {
+    setCurrentPage(page)
+    setOpenTabs((prev) => (prev.includes(page) ? prev : [...prev, page]))
+  }, [])
   const { user, logout } = useAuth()
   const { hasMenuPermission, isAdmin } = usePermission()
   const {
@@ -246,11 +257,7 @@ const MainLayout: React.FC = () => {
     game_items: GameItems,
     game_achievements: GameAchievements,
     game_reward_records: GameRewardRecords,
-  }
-
-  const renderPage = () => {
-    const Comp = PAGE_COMPONENTS[currentPage] || Dashboard
-    return <Comp />
+    profile: Profile,
   }
 
   const getPageTitle = () => {
@@ -289,7 +296,7 @@ const MainLayout: React.FC = () => {
             openKeys={openKeys}
             onOpenChange={(keys) => setOpenKeys(keys.length > 0 ? [String(keys[keys.length - 1])] : [])}
             items={menuItems}
-            onClick={({ key }) => setCurrentPage(key as PageKey)}
+            onClick={({ key }) => openPage(key as PageKey)}
             style={{ borderRight: 0 }}
             inlineCollapsed={collapsed}
           />
@@ -324,34 +331,80 @@ const MainLayout: React.FC = () => {
               {getPageTitle()}
             </h1>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <span style={{ color: '#999' }}>{user?.email}</span>
-            <span style={{ color: '#bbb' }}>|</span>
-            <Button type="link" onClick={handleLogout} style={{ color: '#999', padding: 0, height: 'auto' }}>
-              <LogoutOutlined /> 退出
-            </Button>
-          </div>
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'profile', icon: <UserOutlined />, label: '个人中心' },
+                { type: 'divider', key: 'divider-1' },
+                { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', danger: true },
+              ],
+              onClick: ({ key }) => {
+                if (key === 'profile') openPage('profile')
+                else if (key === 'logout') handleLogout()
+              },
+            }}
+            placement="bottomRight"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '0 8px' }}>
+              <Avatar
+                size={32}
+                src={user?.avatar_url}
+                icon={!user?.avatar_url && <UserOutlined />}
+                style={{ backgroundColor: user?.avatar_url ? 'transparent' : '#6C63FF' }}
+              />
+              <span style={{ color: '#333', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user?.nickname || user?.email}
+              </span>
+              <DownOutlined style={{ fontSize: 12, color: '#999' }} />
+            </div>
+          </Dropdown>
         </Header>
 
-        {/* 内容区域 - 带顶部偏移 */}
+        {/* 内容区域 - 带顶部偏移 + keepalive 页签 */}
         <Content
           style={{
-            marginTop: 64,
+            marginTop: 80,
             padding: '16px 24px',
-            minHeight: 'calc(100vh - 64px)',
+            minHeight: 'calc(100vh - 104px)',
             overflow: 'auto',
           }}
         >
-          <div style={{ background: colorBgContainer, borderRadius: 8, padding: 24 }}>
+          <div style={{ background: colorBgContainer, borderRadius: 8, padding: '8px 16px 16px', minHeight: 'calc(100vh - 104px - 32px)' }}>
             <NavigationContext.Provider value={{
               currentPage,
-              setCurrentPage,
+              setCurrentPage: openPage,
             }}>
-            <ErrorBoundary>
-              <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}><Spin size="large" tip="页面加载中..." /></div>}>
-                {renderPage()}
-              </Suspense>
-            </ErrorBoundary>
+              <Tabs
+                type="editable-card"
+                hideAdd
+                size="small"
+                activeKey={currentPage}
+                destroyInactiveTabPane={false}
+                onChange={(key) => setCurrentPage(key as PageKey)}
+                onEdit={(targetKey, action) => {
+                  if (action === 'remove') {
+                    const target = targetKey as PageKey
+                    if (target === 'dashboard') return
+                    const next = openTabs.filter((t) => t !== target)
+                    setOpenTabs(next)
+                    if (target === currentPage) {
+                      setCurrentPage(next[next.length - 1] ?? 'dashboard')
+                    }
+                  }
+                }}
+                items={openTabs.map((k) => ({
+                  key: k,
+                  label: PAGE_TITLES[k] || '未命名',
+                  closable: k !== 'dashboard',
+                  children: (
+                    <ErrorBoundary>
+                      <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}><Spin size="large" tip="页面加载中..." /></div>}>
+                        {React.createElement(PAGE_COMPONENTS[k])}
+                      </Suspense>
+                    </ErrorBoundary>
+                  ),
+                }))}
+              />
             </NavigationContext.Provider>
           </div>
         </Content>
