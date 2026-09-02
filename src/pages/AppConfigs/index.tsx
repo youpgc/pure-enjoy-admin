@@ -30,6 +30,8 @@ import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { CONFIG_TYPE_MAP } from '../../constants'
 import EllipsisText from '../../components/EllipsisText'
+import common from '../../styles/common.module.css'
+import styles from './index.module.css'
 
 const { Text } = Typography
 
@@ -267,9 +269,9 @@ const AppConfigs: React.FC = () => {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Input
             placeholder="搜索配置键/标题"
@@ -277,7 +279,7 @@ const AppConfigs: React.FC = () => {
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            className={styles.searchInput}
             allowClear
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
@@ -287,7 +289,7 @@ const AppConfigs: React.FC = () => {
       </Card>
 
       {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div className={`${common.flexBetween} ${common.mb16}`}>
           <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={handleAdd}>
             新增配置
           </Button>
@@ -360,7 +362,7 @@ const AppConfigs: React.FC = () => {
             label="排序"
             initialValue={0}
           >
-            <InputNumber style={{ width: '100%' }} placeholder="排序值" min={0} />
+            <InputNumber className={common.fullWidth} placeholder="排序值" min={0} />
           </Form.Item>
           <Form.Item
             name="is_active"
