@@ -30,6 +30,8 @@ import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { gameService, gameLevelService } from '../../services/gameService'
 import type { DbGame, DbGameLevel } from '../../types/database'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const { Text } = Typography
 
@@ -250,12 +252,12 @@ const GameLevels: React.FC = () => {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
-      <Card style={{ marginBottom: 16 }}>
+    <div className={common.p24}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Text>选择游戏：</Text>
           <Select
-            style={{ width: 240 }}
+            className={styles.sel240}
             placeholder="请选择游戏"
             value={selectedGameId || undefined}
             onChange={(v) => {
@@ -272,7 +274,7 @@ const GameLevels: React.FC = () => {
 
       {selectedGameId ? (
         <>
-          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+          <div className={styles.toolbar}>
             <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
               新增关卡
             </Button>
@@ -315,7 +317,7 @@ const GameLevels: React.FC = () => {
             />
           </Form.Item>
           <Form.Item name="level_no" label="关卡号" rules={[{ required: true, message: '请输入关卡号' }]}>
-            <InputNumber style={{ width: '100%' }} min={1} />
+            <InputNumber className={common.fullWidth} min={1} />
           </Form.Item>
           <Form.Item name="name" label="关卡名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input placeholder="如 第 1 关 / 第二关" />
@@ -330,13 +332,13 @@ const GameLevels: React.FC = () => {
             <Switch checkedChildren="计入" unCheckedChildren="不计" />
           </Form.Item>
           <Form.Item name="reward_points" label="通关奖励积分" tooltip="通关该关获得的积分；0 表示无通关奖励">
-            <InputNumber style={{ width: '100%' }} min={0} />
+            <InputNumber className={common.fullWidth} min={0} />
           </Form.Item>
           <Form.Item name="reward_repeatable" label="可重复通关获取" valuePropName="checked" tooltip="开启后每次通关均可获得（受单日上限约束）；关闭则仅首次通关获得（终身一次）">
             <Switch checkedChildren="可重复" unCheckedChildren="仅一次" />
           </Form.Item>
           <Form.Item name="sort_order" label="排序" initialValue={0}>
-            <InputNumber style={{ width: '100%' }} min={0} />
+            <InputNumber className={common.fullWidth} min={0} />
           </Form.Item>
           <Form.Item name="enabled" label="状态" valuePropName="checked">
             <Switch checkedChildren="启用" unCheckedChildren="停用" />
