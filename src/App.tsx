@@ -213,7 +213,8 @@ const MainLayout: React.FC = () => {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; tab: PageKey } | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  // 页签横向滚动（溢出时左右箭头可用）
+  // 页签横向滚动：左右滑动按钮全状态常驻，通过 disabled 表达"无可滚动内容"，
+  // 避免触底消失导致点击穿透到页签；未溢出时两者均禁用。
   const tabListRef = useRef<HTMLDivElement>(null)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(false)
@@ -267,10 +268,12 @@ const MainLayout: React.FC = () => {
   }, [ctxMenu])
 
   // 滚动条状态（页签溢出时左右按钮可用）
+  // 仅判断是否溢出：滚动按钮在溢出时一直展示，不随触底消失，杜绝点击穿透
   const updateScrollState = useCallback(() => {
     const el = tabListRef.current
     if (!el) return
-    setCanScrollLeft(el.scrollLeft > 1)
+    // 左按钮：scrollLeft > 0 时启用；右按钮：未到最右时启用；未溢出时 scrollLeft=0 且 scrollWidth===clientWidth，两者均禁用
+    setCanScrollLeft(el.scrollLeft > 0)
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
   }, [])
   useEffect(() => {
@@ -378,11 +381,6 @@ const MainLayout: React.FC = () => {
     profile: Profile,
   }
 
-  const getPageTitle = () => {
-    // 标题映射已抽离到 src/config/pageTitles.ts（God File 优化，审查报告 P2a）
-    return PAGE_TITLES[currentPage] || '数据概览'
-  }
-
   return (
     <Layout className={styles.layoutMinH}>
       {/* 固定左侧菜单栏 */}
@@ -414,7 +412,7 @@ const MainLayout: React.FC = () => {
 
       {/* 主内容区域 */}
       <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
-        {/* 固定顶部信息栏 */}
+        {/* 固定顶部信息栏：左侧折叠按钮 + 页签（替换原菜单名称），右侧用户区 */}
         <Header
           style={{
             padding: '0 24px',
@@ -432,13 +430,74 @@ const MainLayout: React.FC = () => {
           }}
         >
           <div className={styles.headerLeft}>
-            {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
-              className: styles.collapseIcon,
-              onClick: () => setCollapsed(!collapsed),
-            })}
-            <h1 className={styles.pageTitle}>
-              {getPageTitle()}
-            </h1>
+            <span
+              className={styles.collapseWrap}
+            >
+              {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
+                className: styles.collapseIcon,
+                onClick: () => setCollapsed(!collapsed),
+              })}
+            </span>
+            {/* 页签栏：antd 卡片式页签（左上右上圆角 + 菜单间距 + 底部贯穿线）；
+                flex 占满 Header 左侧折叠按钮与右侧用户区之间的全部空间，贯穿线随容器铺满；
+                选中页签底边框/背景传 colorBgContainer 主题 token，露出贯穿线作为选中标识；
+                左右滑动按钮全状态常驻，通过 disabled 表达"无可滚动内容"（避免点击穿透到页签） */}
+            <div
+              className={styles.tabBar}
+            >
+              <Button
+                type="text"
+                size="small"
+                icon={<LeftOutlined />}
+                onClick={() => scrollTabs(-1)}
+                disabled={!canScrollLeft}
+                style={{ flex: '0 0 auto' }}
+              />
+              <div
+                ref={tabListRef}
+                className={styles.tabList}
+                onScroll={updateScrollState}
+              >
+                {openTabs.map((k) => {
+                  const active = k === currentPage
+                  const isHome = k === 'dashboard'
+                  return (
+                    <div
+                      key={k}
+                      data-tab-key={k}
+                      onClick={() => setCurrentPage(k)}
+                      onContextMenu={(e) => {
+                        e.preventDefault()
+                        setCtxMenu({ x: e.clientX, y: e.clientY, tab: k })
+                      }}
+                      className={`${styles.tab}`}
+                      style={active ? {
+                        // 主题 token（colorBgContainer）保留 inline：选中页签底边框与背景与内容区同色，
+                        // 让底部贯穿线透出作为选中标识
+                        borderBottomColor: colorBgContainer,
+                        background: colorBgContainer,
+                      } : undefined}
+                    >
+                      <span>{PAGE_TITLES[k] || '未命名'}</span>
+                      {!isHome && (
+                        <CloseOutlined
+                          style={{ fontSize: 10, opacity: 0.55 }}
+                          onClick={(e) => { e.stopPropagation(); closeTab(k) }}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+              <Button
+                type="text"
+                size="small"
+                icon={<RightOutlined />}
+                onClick={() => scrollTabs(1)}
+                disabled={!canScrollRight}
+                style={{ flex: '0 0 auto' }}
+              />
+            </div>
           </div>
           <Dropdown
             menu={{
@@ -479,67 +538,7 @@ const MainLayout: React.FC = () => {
               currentPage,
               setCurrentPage: openPage,
             }}>
-              {/* 页签栏：左滚动 / 页签列表 / 右滚动（溢出时显示箭头，盒式页签 + 圆角 + 间距） */}
-              <div className={styles.tabBar}>
-                {canScrollLeft && (
-                  <Button type="text" size="small" icon={<LeftOutlined />} onClick={() => scrollTabs(-1)} style={{ flex: '0 0 auto' }} />
-                )}
-                <div
-                  ref={tabListRef}
-                  onScroll={updateScrollState}
-                  className={styles.tabList}
-                >
-                  {openTabs.map((k) => {
-                    const active = k === currentPage
-                    const isHome = k === 'dashboard'
-                    return (
-                      <div
-                        key={k}
-                        data-tab-key={k}
-                        onClick={() => setCurrentPage(k)}
-                        onContextMenu={(e) => {
-                          e.preventDefault()
-                          setCtxMenu({ x: e.clientX, y: e.clientY, tab: k })
-                        }}
-                        onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = '#f5f5f5' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-                        style={{
-                          flex: '0 0 auto',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          height: 32,
-                          padding: '0 12px',
-                          marginRight: 6,
-                          marginBottom: -1,
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                          fontSize: 13,
-                          color: '#555',
-                          fontWeight: active ? 600 : 400,
-                          // 盒式圆角页签：选中页签底部线为空，覆盖贯穿线以联动内容区
-                          border: '1px solid #e8e8e8',
-                          borderBottomColor: active ? colorBgContainer : '#e8e8e8',
-                          borderRadius: '6px 6px 0 0',
-                          background: active ? colorBgContainer : 'transparent',
-                        }}
-                      >
-                        <span>{PAGE_TITLES[k] || '未命名'}</span>
-                        {!isHome && (
-                          <CloseOutlined
-                            style={{ fontSize: 10, opacity: 0.55 }}
-                            onClick={(e) => { e.stopPropagation(); closeTab(k) }}
-                          />
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-                {canScrollRight && (
-                  <Button type="text" size="small" icon={<RightOutlined />} onClick={() => scrollTabs(1)} style={{ flex: '0 0 auto' }} />
-                )}
-              </div>
-
+              {/* 页签栏已上移至 Header（与菜单名称合并），此处仅渲染内容 */}
               {/* 页签内容（keepalive：非活动页签仅 display:none 隐藏，组件实例保留不重挂载） */}
               <div className={common.mt8}>
                 {openTabs.map((k) => (

@@ -43,17 +43,21 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.collapseWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
 }
 
 .collapseIcon {
   font-size: 18px;
   cursor: pointer;
   color: #999;
-}
-
-.pageTitle {
-  margin: 0;
-  font-size: 18px;
 }
 
 .userBox {
@@ -78,6 +82,7 @@
 }
 
 .content {
+  margin: 24px;
   margin-top: 80px;
   padding: 16px 24px;
   min-height: calc(100vh - 104px);
@@ -89,26 +94,60 @@
 .contentInner {
   border-radius: 8px;
   padding: 8px 16px 16px;
-  min-height: calc(100vh - 104px - 32px);
+  min-height: calc(100vh - 120px - 32px);
 }
 
+/* 页签栏（位于 Header 内，替换原菜单名称）：flex 占满左侧折叠按钮与右侧用户区之间的全部空间，
+   底部贯穿线随容器宽度铺满；选中页签底边框/背景由 JS 传入 colorBgContainer 主题 token 覆盖，
+   露出底部贯穿线作为选中标识；页签垂直居中、上下间距一致 */
 .tabBar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  height: 64px;
   border-bottom: 1px solid #e8e8e8;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .tabList {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   white-space: nowrap;
   /* 页签过多时横向溢出滚动；原生滚动条隐藏，统一用左右箭头按钮导航 */
   overflow-x: auto;
   scrollbar-width: none;
+  min-width: 0;
+  padding: 0 16px; /* 左右开始部分间距 */
 }
 .tabList::-webkit-scrollbar {
   display: none;
+}
+
+/* 单个页签：antd 卡片式页签默认外观
+   - 左上 + 右上圆角（8px，antd 卡片式页签默认值）
+   - 非选中：浅灰填充 #fafafa（antd 卡片式页签默认值）
+   - 选中：主题色背景 + 底边透明，覆盖底部贯穿线，与下方内容区合并
+   - 菜单之间"一点间距"由 margin-right 控制 */
+.tab {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 6px 16px;
+  margin-right: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.85);
+  border: 1px solid #f0f0f0;
+  border-radius: 8px 8px 0 0;
+  background: #f0f0f0;
+  transition: background 0.2s, color 0.2s;
+}
+.tab:not(.tabActive):hover {
+  background: #fafafa;
 }
 
 .loadingBox {
