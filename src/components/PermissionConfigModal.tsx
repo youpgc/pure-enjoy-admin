@@ -3,6 +3,8 @@ import { Modal, Checkbox, Button, message, Divider, Tag } from 'antd'
 import type { CheckboxChangeEvent } from 'antd/es/checkbox'
 import type { Role, Permission } from '../types/permission'
 import { resolvePermissionPage, GROUP_ORDER, GROUP_COLORS } from '../constants/permissionMenuMap'
+import common from '../styles/common.module.css'
+import styles from './PermissionConfigModal.module.css'
 
 /** 勾选面板中跳过的前缀（menu:* 是侧边栏门控元权限） */
 const PANEL_SKIP_PREFIXES = ['menu']
@@ -123,7 +125,7 @@ const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
       title={
         <span>
           配置权限 - {role?.name}
-          {readOnly && <Tag color="orange" style={{ marginLeft: 8 }}>只读模式</Tag>}
+          {readOnly && <Tag color="orange" className={common.ml8}>只读模式</Tag>}
         </span>
       }
       open={visible}
@@ -141,56 +143,48 @@ const PermissionConfigModal: React.FC<PermissionConfigModalProps> = ({
       ]}
     >
       {role && (
-        <div style={{ marginBottom: 16, padding: 12, background: '#f5f5f5', borderRadius: 8 }}>
-          <div style={{ fontWeight: 500, marginBottom: 4 }}>{role.name}</div>
-          <div style={{ color: '#666', fontSize: 13 }}>{role.description}</div>
-          <div style={{ marginTop: 8 }}>
+        <div className={styles.roleCard}>
+          <div className={`${common.bold500} ${common.mb4}`}>{role.name}</div>
+          <div className={styles.roleDesc}>{role.description}</div>
+          <div className={common.mt8}>
             <Tag color="green">{selectedPermissionIds.length} 个权限</Tag>
           </div>
         </div>
       )}
 
       {Object.entries(groupedPermissions).map(([group, pages]) => (
-        <div key={group} style={{ marginBottom: 20 }}>
+        <div key={group} className={styles.groupBlock}>
           <Divider
             orientation="left"
-            style={{ color: GROUP_COLORS[group] || '#666', fontWeight: 600, fontSize: 14 }}
+            className={styles.divider}
+            style={{ color: GROUP_COLORS[group] || '#666' }}
           >
             {group}
           </Divider>
           {Object.entries(pages).map(([page, pagePermissions]) => {
             const pageIcon = resolvePermissionPage(pagePermissions[0]!.name, pagePermissions[0]!.module).icon
             return (
-              <div key={page} style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    marginBottom: 8,
-                    padding: '8px 12px',
-                    background: '#fafafa',
-                    borderRadius: 6,
-                  }}
-                >
+              <div key={page} className={common.mb16}>
+                <div className={styles.pageRow}>
                   <Checkbox
                     checked={isPageAllChecked(page)}
                     indeterminate={isPageIndeterminate(page)}
                     onChange={e => handlePageCheckAll(page, e.target.checked)}
                     disabled={readOnly}
                   >
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className={styles.iconLabel}>
                       <span style={{ color: GROUP_COLORS[group] || '#666' }}>{pageIcon}</span>
-                      <span style={{ fontWeight: 500 }}>{page}</span>
+                      <span className={common.bold500}>{page}</span>
                     </span>
                   </Checkbox>
                 </div>
-                <div style={{ paddingLeft: 24 }}>
+                <div className={styles.permIndent}>
                   <Checkbox.Group
                     value={selectedPermissionIds}
-                    style={{ width: '100%' }}
+                    className={common.fullWidth}
                     disabled={readOnly}
                   >
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px 24px' }}>
+                    <div className={styles.permWrap}>
                       {pagePermissions.map(permission => (
                         <Checkbox
                           key={permission.id}

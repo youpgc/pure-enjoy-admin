@@ -1,0 +1,53 @@
+/* 权限配置弹窗：页面级样式（不污染其他页面） */
+
+/* 角色信息卡 */
+.roleCard {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+.roleDesc {
+  color: #666;
+  font-size: 13px;
+}
+
+/* 分组块 */
+.groupBlock {
+  margin-bottom: 20px;
+}
+
+/* 分组标题分隔线（动态色用内联 GROUP_COLORS，其余进类） */
+.divider {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* 页面行（全选复选框容器） */
+.pageRow {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-radius: 6px;
+}
+
+/* 图标 + 文字同行 */
+.iconLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 权限项缩进 */
+.permIndent {
+  padding-left: 24px;
+}
+
+/* 权限复选框换行排列 */
+.permWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
