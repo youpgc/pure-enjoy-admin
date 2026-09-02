@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { Input, Button, Space } from 'antd'
+import styles from './TagsInput.module.css'
+import common from '../../styles/common.module.css'
 
 interface TagsInputProps {
   value?: string[]
@@ -24,7 +26,7 @@ const TagsInput: React.FC<TagsInputProps> = ({ value = [], onChange, placeholder
 
   return (
     <div>
-      <Space.Compact style={{ width: '100%', marginBottom: 8 }}>
+      <Space.Compact className={`${common.fullWidth} ${common.mb8}`}>
         <Input
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
@@ -35,13 +37,13 @@ const TagsInput: React.FC<TagsInputProps> = ({ value = [], onChange, placeholder
           添加
         </Button>
       </Space.Compact>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+      <div className={`${common.flex} ${common.flexWrap} ${common.gap4}`}>
         {value.map((tag) => (
           <Button
             key={tag}
             size="small"
             onClick={() => handleRemove(tag)}
-            style={{ borderRadius: 4 }}
+            className={styles.tagBtn}
           >
             {tag} ×
           </Button>
