@@ -8,6 +8,8 @@ import { useFeedback } from './useFeedback'
 import { buildFeedbackColumns } from './columns'
 import { ActionModal } from './ActionModal'
 import { FlowHistoryModal } from './FlowHistoryModal'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const Feedback: React.FC = () => {
   const { hasPermission } = usePermission()
@@ -47,8 +49,8 @@ const Feedback: React.FC = () => {
 
   return (
     <>
-      <div style={{ padding: '0 0 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ margin: 0 }}>问题反馈</h3>
+      <div className={styles.header}>
+        <h3 className={common.noMargin}>问题反馈</h3>
         <Space>
           {statusOptions.length > 0 ? statusOptions.map(opt => (
             <Badge key={opt.value} count={data.filter(d => d.status === opt.value).length} offset={[0, 0]}>
