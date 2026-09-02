@@ -16,6 +16,7 @@ import { getActionColumn } from '../../../components/ActionColumn'
 import type { ActionButton } from '../../../components/ActionColumn'
 import { VERSION_STATUS_MAP, VERSION_PLATFORM_MAP } from '../../../constants'
 import type { AppVersion } from './types'
+import common from '../../../styles/common.module.css'
 
 const { Text } = Typography
 
@@ -51,8 +52,8 @@ export function buildVersionColumns(params: BuildVersionColumnsParams): ColumnsT
       width: 200,
       render: (_: unknown, record: AppVersion) => (
         <div>
-          <div style={{ fontWeight: 500 }}>{record.version}</div>
-          <Text type="secondary" style={{ fontSize: 12 }}>Build {record.build_number}</Text>
+          <div className={common.bold500}>{record.version}</div>
+          <Text type="secondary" className={common.smallText}>Build {record.build_number}</Text>
         </div>
       ),
     },
