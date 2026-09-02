@@ -20,6 +20,8 @@ import type { Database } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import { MATCH3_MODE_MAP, MATCH3_MODE_OPTIONS_WITH_ANY } from '../../constants/game'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 type DbGameItem = Database['public']['Tables']['game_items']['Row']
 
@@ -226,15 +228,7 @@ const GameItems: React.FC = () => {
 
   return (
     <div>
-      <div
-        style={{
-          marginBottom: 12,
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
-      >
+      <div className={styles.toolbar}>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -327,14 +321,14 @@ const GameItems: React.FC = () => {
             label="积分成本"
             rules={[{ required: true, message: '请输入积分成本' }]}
           >
-            <InputNumber min={0} style={{ width: '100%' }} addonAfter="分" />
+            <InputNumber min={0} className={common.fullWidth} addonAfter="分" />
           </Form.Item>
           <Form.Item
             name="per_game_limit"
             label="单局使用上限"
             rules={[{ required: true, message: '请输入上限' }]}
           >
-            <InputNumber min={1} style={{ width: '100%' }} addonAfter="次" />
+            <InputNumber min={1} className={common.fullWidth} addonAfter="次" />
           </Form.Item>
           <Form.Item
             name="free_per_game"
@@ -342,10 +336,10 @@ const GameItems: React.FC = () => {
             tooltip="单局内免费使用次数，不消耗购买库存；超出部分才消耗库存。全游戏可配。"
             rules={[{ required: true, message: '请输入免费次数' }]}
           >
-            <InputNumber min={0} style={{ width: '100%' }} addonAfter="次" />
+            <InputNumber min={0} className={common.fullWidth} addonAfter="次" />
           </Form.Item>
           <Form.Item name="sort_order" label="排序号">
-            <InputNumber min={0} style={{ width: '100%' }} />
+            <InputNumber min={0} className={common.fullWidth} />
           </Form.Item>
           <Form.Item name="enabled" label="启用" valuePropName="checked">
             <Switch checkedChildren="启用" unCheckedChildren="停用" />
