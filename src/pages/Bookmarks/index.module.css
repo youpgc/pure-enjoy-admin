@@ -1,0 +1,10 @@
+.inputWidth {
+  width: 160px;
+}
+.centerBox {
+  text-align: center;
+  padding: 80px;
+}
+.rateText {
+  min-width: 40px;
+}

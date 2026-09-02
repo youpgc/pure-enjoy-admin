@@ -15,6 +15,8 @@ import { BaseService, apiQuery, handleApiError } from '../../utils/apiClient'
 import EllipsisText from '../../components/EllipsisText'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/UserName'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 // ==================== 类型定义 ====================
 
@@ -164,7 +166,7 @@ const Bookmarks: React.FC = () => {
       render: (v: number) => (
         <Space>
           <Progress percent={v} size='small' status={v >= 80 ? 'success' : v >= 50 ? 'active' : 'exception'} />
-          <span style={{ minWidth: 40 }}>{v}%</span>
+          <span className={styles.rateText}>{v}%</span>
         </Space>
       ),
     },
@@ -191,16 +193,16 @@ const Bookmarks: React.FC = () => {
 
       {activeTab === 'progress' && (
         <>
-          <Card style={{ marginBottom: 16 }}>
+          <Card className={common.mb16}>
             <Space>
-              <Input placeholder='用户ID' value={searchUser} onChange={e => setSearchUser(e.target.value)} style={{ width: 160 }} prefix={<SearchOutlined />} />
-              <Input placeholder='小说ID' value={searchNovel} onChange={e => setSearchNovel(e.target.value)} style={{ width: 160 }} prefix={<BookOutlined />} />
+              <Input placeholder='用户ID' value={searchUser} onChange={e => setSearchUser(e.target.value)} className={styles.inputWidth} prefix={<SearchOutlined />} />
+              <Input placeholder='小说ID' value={searchNovel} onChange={e => setSearchNovel(e.target.value)} className={styles.inputWidth} prefix={<BookOutlined />} />
               <Button type='primary' icon={<SearchOutlined />} onClick={() => { resetPage(); fetchData() }}>查询</Button>
               <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
             </Space>
           </Card>
           <Card>
-            {loading ? <div style={{ textAlign: 'center', padding: 80 }}><Spin size='large' /></div> :
+            {loading ? <div className={styles.centerBox}><Spin size='large' /></div> :
               <Table columns={progressColumns} dataSource={progressData} rowKey='id' scroll={{ x: 900 }} pagination={tablePagination} size='small' bordered />
             }
           </Card>
@@ -209,15 +211,15 @@ const Bookmarks: React.FC = () => {
 
       {activeTab === 'completion' && (
         <Card>
-          {loading ? <div style={{ textAlign: 'center', padding: 80 }}><Spin size='large' /></div> :
-            <Table columns={completionColumns} dataSource={completionData} rowKey='novel_id' scroll={{ x: 800 }} pagination={{ pageSize: 20 }} size='small' bordered />
-          }
+            {loading ? <div className={styles.centerBox}><Spin size='large' /></div> :
+              <Table columns={completionColumns} dataSource={completionData} rowKey='novel_id' scroll={{ x: 800 }} pagination={{ pageSize: 20 }} size='small' bordered />
+            }
         </Card>
       )}
 
       {activeTab === 'churn' && (
         <>
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} className={common.mb16}>
             <Col xs={24} sm={12} lg={8}>
               <Card>
                 <Statistic title='高风险流失小说' value={churnNovels.length} prefix={<WarningOutlined />} valueStyle={{ color: token.colorError }} />
