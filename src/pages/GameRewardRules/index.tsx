@@ -34,6 +34,8 @@ import {
 } from '../../constants'
 import { gameService, gameRewardRuleService } from '../../services/gameService'
 import type { DbGame, DbGameRewardRule } from '../../types/database'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const { Text } = Typography
 
@@ -243,39 +245,39 @@ const GameRewardRules: React.FC = () => {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       <Alert
         type="info"
         showIcon
-        style={{ marginBottom: 16 }}
+        className={common.mb16}
         message="积分奖励配置说明"
         description={
-          <div style={{ lineHeight: 1.8 }}>
-            <p style={{ margin: '4px 0' }}>
+          <div className={styles.desc}>
+            <p className={styles.para}>
               <b>如何配置：</b>新增一条规则 → 选择「规则类型」与「适用游戏」→ 填写发放积分（points）→
               按类型填写 condition（JSON）；启用后 App 端通关结算时自动评估发放。规则与「关卡配置」里的每关奖励
               （reward_points / 可重复）相互独立、可叠加。
             </p>
-            <div style={{ margin: '4px 0' }}>
+            <div className={styles.para}>
               <b>规则类型（rule_type）：</b>
-              <ul style={{ margin: '4px 0', paddingLeft: 18 }}>
+              <ul className={styles.list}>
                 <li><b>每日首次通关 daily_first_clear</b>：每个自然日（北京时间）第一次通关「计入每日首通」的关卡时发放，跨游戏共享、单日一次；condition 留空 {'{}'}。</li>
                 <li><b>成绩区间 score_range</b>：通关时某维度值落入配置区间即发放，同一档位终身一次；condition 形如 {'{ "dimension": "score", "gte": 100, "lte": 999 }'}（dimension 填维度编码，见「游戏与维度配置」）。</li>
                 <li><b>单日上限 daily_limit</b>：控制当日全部游戏奖励积分总和的上限，达到后当日不再发任何游戏奖励；全局唯一一条，points 填每日上限值。建议按运营需要设置（偏低会让「可重复通关获取奖励」很快触顶）。</li>
                 <li><b>成就达成 achievement</b>：已拆分至「游戏成就配置」页独立维护、独立判断（成就走 game_achievements 表，终身只发一次），此处类型仅保留兼容旧数据，请勿新增。</li>
               </ul>
             </div>
-            <p style={{ margin: '4px 0' }}>
+            <p className={styles.para}>
               <b>适用游戏：</b>选「全局规则」对所有游戏生效；选具体游戏仅对该游戏生效，同类规则单游戏优先。
             </p>
           </div>
         }
       />
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Text>适用游戏：</Text>
           <Select
-            style={{ width: 240 }}
+            className={styles.sel240}
             value={gameFilter}
             onChange={(v) => {
               setGameFilter(v)
@@ -293,7 +295,7 @@ const GameRewardRules: React.FC = () => {
         </Space>
       </Card>
 
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div className={styles.toolbar}>
         <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
           新增规则
         </Button>
@@ -337,13 +339,13 @@ const GameRewardRules: React.FC = () => {
             <Input placeholder="如 每日首次通关奖励" />
           </Form.Item>
           <Form.Item name="points" label="积分" rules={[{ required: true }]}>
-            <InputNumber style={{ width: '100%' }} min={0} />
+            <InputNumber className={common.fullWidth} min={0} />
           </Form.Item>
           <Form.Item name="condition" label="条件(condition, JSON)">
             <Input.TextArea rows={3} placeholder='如 {}' />
           </Form.Item>
           <Form.Item name="sort_order" label="排序" initialValue={0}>
-            <InputNumber style={{ width: '100%' }} min={0} />
+            <InputNumber className={common.fullWidth} min={0} />
           </Form.Item>
           <Form.Item name="enabled" label="状态" valuePropName="checked">
             <Switch checkedChildren="启用" unCheckedChildren="停用" />

@@ -1,0 +1,18 @@
+.desc {
+  line-height: 1.8;
+}
+.para {
+  margin: 4px 0;
+}
+.list {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+.sel240 {
+  width: 240px;
+}
+.toolbar {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+}
