@@ -1,0 +1,29 @@
+/* 文件管理辅助（fileManagement/helpers）局部样式。
+ * 经 CSS Modules 编译后类名局部作用域，不会与项目其他页面冲突。
+ * 仅放本页使用的样式；跨页通用样式见 src/styles/common.module.css。
+ */
+
+/* 图片文件图标颜色 */
+.iconImage {
+  color: #1890ff;
+}
+
+/* 视频文件图标颜色 */
+.iconVideo {
+  color: #ff4d4f;
+}
+
+/* 音频文件图标颜色 */
+.iconAudio {
+  color: #52c41a;
+}
+
+/* 文本文件图标颜色 */
+.iconText {
+  color: #faad14;
+}
+
+/* 其他文件图标颜色 */
+.iconFile {
+  color: #999;
+}

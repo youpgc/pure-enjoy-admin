@@ -6,6 +6,7 @@ import {
   FileTextOutlined,
   FileOutlined,
 } from '@ant-design/icons'
+import styles from './helpers.module.css'
 
 export interface FileItem {
   id: string
@@ -34,9 +35,9 @@ export const formatFileSize = (bytes: number) => {
 
 // 获取文件图标
 export const getFileIcon = (mimeType: string) => {
-  if (mimeType.startsWith('image/')) return <PictureOutlined style={{ color: '#1890ff' }} />
-  if (mimeType.startsWith('video/')) return <VideoCameraOutlined style={{ color: '#ff4d4f' }} />
-  if (mimeType.startsWith('audio/')) return <AudioOutlined style={{ color: '#52c41a' }} />
-  if (mimeType.startsWith('text/')) return <FileTextOutlined style={{ color: '#faad14' }} />
-  return <FileOutlined style={{ color: '#999' }} />
+  if (mimeType.startsWith('image/')) return <PictureOutlined className={styles.iconImage} />
+  if (mimeType.startsWith('video/')) return <VideoCameraOutlined className={styles.iconVideo} />
+  if (mimeType.startsWith('audio/')) return <AudioOutlined className={styles.iconAudio} />
+  if (mimeType.startsWith('text/')) return <FileTextOutlined className={styles.iconText} />
+  return <FileOutlined className={styles.iconFile} />
 }
