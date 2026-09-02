@@ -1,4 +1,5 @@
 import React from 'react'
+import styles from './NovelCover.module.css'
 
 interface NovelCoverProps {
   coverUrl?: string | null
@@ -60,21 +61,7 @@ const NovelCover: React.FC<NovelCoverProps> = ({
         overflow: 'hidden',
       }}
     >
-      <span
-        style={{
-          color: '#fff',
-          fontSize: 12,
-          fontWeight: 600,
-          textAlign: 'center',
-          lineHeight: 1.4,
-          textShadow: '0 1px 4px rgba(0,0,0,0.3)',
-          wordBreak: 'break-all',
-          display: '-webkit-box',
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-        }}
-      >
+      <span className={styles.coverTitle}>
         {title || '未知'}
       </span>
     </div>
