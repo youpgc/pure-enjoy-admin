@@ -3,6 +3,7 @@ import { Modal, Form, Input, InputNumber, Select, Switch } from 'antd'
 import type { FormInstance } from 'antd'
 import { VERSION_PLATFORM_OPTIONS } from '../../../constants'
 import type { AppVersion } from './types'
+import common from '../../../styles/common.module.css'
 
 interface VersionFormModalProps {
   open: boolean
@@ -53,7 +54,7 @@ export function VersionFormModal({
           label="构建号"
           rules={[{ required: true, message: '请输入构建号' }]}
         >
-          <InputNumber style={{ width: '100%' }} placeholder="请输入构建号" min={0} />
+          <InputNumber className={common.fullWidth} placeholder="请输入构建号" min={0} />
         </Form.Item>
         <Form.Item
           name="release_notes"
@@ -83,7 +84,7 @@ export function VersionFormModal({
           name="apk_size"
           label="文件大小(字节)"
         >
-          <InputNumber style={{ width: '100%' }} placeholder="请输入文件大小(字节)" min={0} />
+          <InputNumber className={common.fullWidth} placeholder="请输入文件大小(字节)" min={0} />
         </Form.Item>
         <Form.Item
           name="checksum"
