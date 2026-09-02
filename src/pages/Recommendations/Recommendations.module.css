@@ -1,0 +1,29 @@
+/* 推荐配置页：页面级样式（不污染其他页面） */
+
+/* 表单字段标签：块级 + 下间距 + 中等字重 */
+.fieldLabel {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+/* 行内两端对齐（开关项） */
+.rowBetween {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 加载态居中 */
+.spinCenter {
+  text-align: center;
+  padding: 80px;
+}
+
+/* Statistic 数值配色（覆盖 antd 默认色） */
+.statGreen :global(.ant-statistic-content) {
+  color: #52c41a;
+}
+.statAmber :global(.ant-statistic-content) {
+  color: #faad14;
+}

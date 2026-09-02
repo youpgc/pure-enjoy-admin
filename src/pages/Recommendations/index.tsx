@@ -17,6 +17,8 @@ import { fetchRecommendConfig, saveRecommendConfig } from '../../services/recomm
 import { RECOMMENDATION_FEEDBACK_TYPE_MAP } from '../../constants'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/UserName'
+import common from '../../styles/common.module.css'
+import styles from './Recommendations.module.css'
 
 // ==================== 类型定义 ====================
 
@@ -142,28 +144,28 @@ const Recommendations: React.FC = () => {
   return (
     <div>
       {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} className={common.mb16}>
         <Col xs={24} sm={12} lg={8}>
           <Card><Statistic title='推荐点击率' value={ctr} suffix='%' prefix={<EyeOutlined />} /></Card>
         </Col>
         <Col xs={24} sm={12} lg={8}>
-          <Card><Statistic title='阅读转化率' value={convRead} suffix='%' prefix={<ReadOutlined />} valueStyle={{ color: '#52c41a' }} /></Card>
+          <Card><Statistic title='阅读转化率' value={convRead} suffix='%' prefix={<ReadOutlined />} className={styles.statGreen} /></Card>
         </Col>
         <Col xs={24} sm={12} lg={8}>
-          <Card><Statistic title='收藏转化率' value={convCollect} suffix='%' prefix={<StarOutlined />} valueStyle={{ color: '#faad14' }} /></Card>
+          <Card><Statistic title='收藏转化率' value={convCollect} suffix='%' prefix={<StarOutlined />} className={styles.statAmber} /></Card>
         </Col>
       </Row>
 
       {/* 配置面板 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} className={common.mb16}>
         <Col xs={24} lg={12}>
           <Card title='冷启动策略' extra={<Button type='primary' icon={<SaveOutlined />} onClick={saveConfig} disabled={!canWrite}>保存</Button>}>
-            <Space direction='vertical' style={{ width: '100%' }}>
+            <Space direction='vertical' className={common.fullWidth}>
               <div>
-                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>新用户默认推荐</label>
+                <label className={styles.fieldLabel}>新用户默认推荐</label>
                 <Select
                   value={config.cold_start}
-                  style={{ width: '100%' }}
+                  className={common.fullWidth}
                   options={[
                     { label: '热门推荐', value: 'hot' },
                     { label: '最新上架', value: 'latest' },
@@ -173,21 +175,21 @@ const Recommendations: React.FC = () => {
                 />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>冷启动小说池下限（阅读量）</label>
+                <label className={styles.fieldLabel}>冷启动小说池下限（阅读量）</label>
                 <InputNumber
                   value={config.cold_min_reads}
                   min={0}
-                  style={{ width: '100%' }}
+                  className={common.fullWidth}
                   onChange={v => setConfig({ ...config, cold_min_reads: v || 0 })}
                 />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>推荐数量</label>
+                <label className={styles.fieldLabel}>推荐数量</label>
                 <InputNumber
                   value={config.rec_limit}
                   min={1}
                   max={50}
-                  style={{ width: '100%' }}
+                  className={common.fullWidth}
                   onChange={v => setConfig({ ...config, rec_limit: v || 10 })}
                 />
               </div>
@@ -196,17 +198,17 @@ const Recommendations: React.FC = () => {
         </Col>
         <Col xs={24} lg={12}>
           <Card title='内容池管理' extra={<Button type='primary' icon={<SaveOutlined />} onClick={saveConfig} disabled={!canWrite}>保存</Button>}>
-            <Space direction='vertical' style={{ width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Space direction='vertical' className={common.fullWidth}>
+              <div className={styles.rowBetween}>
                 <span>排除未完结小说</span>
                 <Switch checked={config.exclude_ongoing} onChange={v => setConfig({ ...config, exclude_ongoing: v })} />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className={styles.rowBetween}>
                 <span>排除草稿状态</span>
                 <Switch checked={config.exclude_draft} onChange={v => setConfig({ ...config, exclude_draft: v })} />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>排除小说ID（逗号分隔）</label>
+                <label className={styles.fieldLabel}>排除小说ID（逗号分隔）</label>
                 <Input.TextArea
                   rows={2}
                   value={config.exclude_ids}
@@ -219,17 +221,17 @@ const Recommendations: React.FC = () => {
         </Col>
         <Col xs={24} lg={12}>
           <Card title='权重调整' extra={<Button type='primary' icon={<SaveOutlined />} onClick={saveConfig} disabled={!canWrite}>保存</Button>}>
-            <Space direction='vertical' style={{ width: '100%' }}>
+            <Space direction='vertical' className={common.fullWidth}>
               <div>
-                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>分类偏好权重: {config.weight_category}</label>
+                <label className={styles.fieldLabel}>分类偏好权重: {config.weight_category}</label>
                 <Slider value={config.weight_category} min={0} max={100} onChange={v => setConfig({ ...config, weight_category: v })} />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>阅读时长权重: {config.weight_read}</label>
+                <label className={styles.fieldLabel}>阅读时长权重: {config.weight_read}</label>
                 <Slider value={config.weight_read} min={0} max={100} onChange={v => setConfig({ ...config, weight_read: v })} />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: 4, fontWeight: 500 }}>收藏权重: {config.weight_collect}</label>
+                <label className={styles.fieldLabel}>收藏权重: {config.weight_collect}</label>
                 <Slider value={config.weight_collect} min={0} max={100} onChange={v => setConfig({ ...config, weight_collect: v })} />
               </div>
             </Space>
@@ -260,7 +262,7 @@ const Recommendations: React.FC = () => {
 
       {/* 反馈明细 */}
       <Card title='用户反馈明细' extra={<Button icon={<ReloadOutlined />} onClick={fetchFeedback}>刷新</Button>}>
-        {loading ? <div style={{ textAlign: 'center', padding: 80 }}><Spin size='large' /></div> :
+        {loading ? <div className={styles.spinCenter}><Spin size='large' /></div> :
           <Table columns={columns} dataSource={feedbackData} rowKey='id' scroll={{ x: 800 }} pagination={tablePagination} size='small' bordered />
         }
       </Card>
