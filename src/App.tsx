@@ -438,8 +438,8 @@ const MainLayout: React.FC = () => {
                       e.preventDefault()
                       setCtxMenu({ x: e.clientX, y: e.clientY, tab: k })
                     }}
-                    onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = '#f5f5f5' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = active ? 'rgba(108,99,255,0.08)' : '#f5f5f5' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = active ? 'rgba(108,99,255,0.08)' : 'transparent' }}
                     style={{
                       flex: '0 0 auto',
                       display: 'inline-flex',
@@ -448,17 +448,14 @@ const MainLayout: React.FC = () => {
                       height: 32,
                       padding: '0 12px',
                       marginRight: 6,
-                      marginBottom: -1,
                       cursor: 'pointer',
                       userSelect: 'none',
                       fontSize: 13,
-                      color: '#555',
+                      color: active ? '#6C63FF' : '#555',
                       fontWeight: active ? 600 : 400,
-                      // 盒式圆角页签：选中页签底部线为空，覆盖贯穿线以联动内容区
-                      border: '1px solid #e8e8e8',
-                      borderBottomColor: active ? colorBgContainer : '#e8e8e8',
-                      borderRadius: '6px 6px 0 0',
-                      background: active ? colorBgContainer : 'transparent',
+                      borderRadius: 6,
+                      background: active ? 'rgba(108,99,255,0.08)' : 'transparent',
+                      transition: 'background 0.15s, color 0.15s',
                     }}
                   >
                     <span>{PAGE_TITLES[k] || '未命名'}</span>

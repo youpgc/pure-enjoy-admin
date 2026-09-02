@@ -100,10 +100,11 @@
 }
 
 .content {
-  /* 105px = Header(64) + 页签栏(41)，精确避开固定顶部区域，避免内容被遮挡 */
-  margin-top: 105px;
+  /* 112px = Header(64) + 页签栏(48)，精确避开固定顶部区域，避免内容被遮挡；
+     顶部 16px 内边距即为「main 与顶部页签栏的间距」 */
+  margin-top: 112px;
   padding: 16px 24px;
-  min-height: calc(100vh - 105px);
+  min-height: calc(100vh - 112px);
   overflow: auto;
 }
 
@@ -112,15 +113,18 @@
 .contentInner {
   border-radius: 8px;
   padding: 8px 16px 16px;
-  min-height: calc(100vh - 105px - 32px);
+  min-height: calc(100vh - 112px - 32px);
 }
 
 .tabBar {
   display: flex;
   align-items: flex-end;
-  height: 41px;
-  padding: 0 24px;
+  /* 高度由 41 增至 48：底部 8px 留白给页签呼吸空间，不再贴着内容 */
+  height: 48px;
+  padding: 0 24px 8px;
   border-bottom: 1px solid #e8e8e8;
+  /* 向下阴影，与顶部 header 风格一致，明确分隔页签栏与下方内容 */
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
   box-sizing: border-box;
 }
 
