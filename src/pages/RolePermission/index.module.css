@@ -1,0 +1,8 @@
+.pageWrap {
+  padding: 0 0 24px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+}

@@ -29,6 +29,8 @@ import { ROLE_STATUS_LABELS, ROLE_STATUS_COLORS, ROLE_STATUS } from '../../types
 import { roleService } from '../../services/roleService'
 import EllipsisText from '../../components/EllipsisText'
 import { resolvePermissionPage, GROUP_ORDER } from '../../constants/permissionMenuMap'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 /** 权限树中跳过的前缀（menu:* 是侧边栏门控元权限，不属于功能资源权限，不应出现在角色配置树中） */
 const TREE_SKIP_PREFIXES = ['menu']
@@ -294,14 +296,14 @@ const RolePermissionPage: React.FC = () => {
   ]
 
   return (
-    <div style={{ padding: '0 0 24px' }}>
+    <div className={styles.pageWrap}>
       <Row gutter={[16, 16]}>
         <Col span={24}>
           <Card
             title={
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <SafetyOutlined style={{ marginRight: 8 }} />
-                <Title level={5} style={{ margin: 0 }}>角色权限管理</Title>
+              <div className={styles.titleRow}>
+                <SafetyOutlined className={common.mr8} />
+                <Title level={5} className={common.noMargin}>角色权限管理</Title>
               </div>
             }
             extra={
