@@ -40,6 +40,8 @@ const COLORS = ['#ff4d4f', '#faad14', '#52c41a', '#1890ff', '#722ed1']
 
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/UserName'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 // ==================== 类型定义 ====================
 
@@ -205,7 +207,7 @@ const SensitiveWordAnalytics: React.FC = () => {
       title: '敏感词',
       dataIndex: 'word',
       key: 'word',
-      render: (word: string) => <Text strong style={{ color: '#ff4d4f' }}>{word}</Text>,
+      render: (word: string) => <Text strong className={styles.hitWord}>{word}</Text>,
     },
     {
       title: '分类',
@@ -263,9 +265,9 @@ const SensitiveWordAnalytics: React.FC = () => {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={4} style={{ margin: 0 }}>敏感词分析</Title>
+    <div className={common.p24}>
+      <div className={`${common.flexBetween} ${common.mb16}`}>
+        <Title level={4} className={common.noMargin}>敏感词分析</Title>
         <Space>
           <RangePicker
             value={dateRange}
@@ -282,12 +284,12 @@ const SensitiveWordAnalytics: React.FC = () => {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 100 }}>
+        <div className={styles.loadingWrap}>
           <Spin size="large" />
         </div>
       ) : (
         <>
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} className={common.mb16}>
             <Col xs={24} lg={12}>
               <Card title="分类分布">
                 {categoryStats.length > 0 ? (
@@ -334,7 +336,7 @@ const SensitiveWordAnalytics: React.FC = () => {
             </Col>
           </Row>
 
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} className={common.mb16}>
             <Col xs={24} lg={12}>
               <Card title="热门敏感词 Top 10">
                 <Table
