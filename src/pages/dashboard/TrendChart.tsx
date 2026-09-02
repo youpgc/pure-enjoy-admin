@@ -2,6 +2,7 @@
 import { Empty, Typography, Tooltip } from 'antd'
 import dayjs from 'dayjs'
 import type { TrendPoint } from './types'
+import styles from './TrendChart.module.css'
 
 const { Text } = Typography
 
@@ -14,19 +15,13 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
   const barWidth = Math.max(20, 800 / data.length)
 
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', height: '100%', gap: 2, padding: '20px 0' }}>
+    <div className={styles.chartRoot}>
       {data.map((item, index) => {
         const height = (item.count / maxCount) * 250
         const isToday = dayjs(item.date).isSame(dayjs(), 'day')
         return (
           <Tooltip key={index} title={`${item.date}: ${item.count} 人`}>
-            <div style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              cursor: 'pointer',
-            }}>
+            <div className={styles.barCol}>
               <div style={{
                 width: barWidth,
                 height: Math.max(height, 4),
@@ -34,7 +29,7 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
                 borderRadius: '2px 2px 0 0',
                 transition: 'height 0.3s',
               }} />
-              <Text type="secondary" style={{ fontSize: 10, marginTop: 4, transform: 'rotate(-45deg)', transformOrigin: 'top left' }}>
+              <Text type="secondary" className={styles.barLabel}>
                 {dayjs(item.date).format('MM-DD')}
               </Text>
             </div>
