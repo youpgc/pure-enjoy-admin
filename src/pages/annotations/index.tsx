@@ -13,6 +13,8 @@ import dayjs from 'dayjs'
 import { useAnnotations } from './useAnnotations'
 import { buildAnnotationColumns, buildReviewColumns } from './columns'
 import { ColorDot } from './constants'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const Annotations: React.FC = () => {
   const { token } = theme.useToken()
@@ -62,20 +64,20 @@ const Annotations: React.FC = () => {
 
       {activeTab === 'list' && (
         <>
-          <Card style={{ marginBottom: 16 }}>
+          <Card className={common.mb16}>
             <Space wrap>
               <Input
                 placeholder='用户ID'
                 value={searchUser}
                 onChange={(e) => setSearchUser(e.target.value)}
-                style={{ width: 160 }}
+                className={styles.inputWidth160}
                 prefix={<SearchOutlined />}
               />
               <Input
                 placeholder='小说ID'
                 value={searchNovel}
                 onChange={(e) => setSearchNovel(e.target.value)}
-                style={{ width: 160 }}
+                className={styles.inputWidth160}
               />
               <DatePicker.RangePicker value={dateRange} onChange={(dates) => setDateRange(dates || [null, null])} />
               <Button type='primary' icon={<SearchOutlined />} onClick={() => { resetPage(); fetchData() }}>查询</Button>
@@ -88,7 +90,7 @@ const Annotations: React.FC = () => {
           </Card>
           <Card>
             {loading ? (
-              <div style={{ textAlign: 'center', padding: 80 }}><Spin size='large' /></div>
+              <div className={styles.centerPad80}><Spin size='large' /></div>
             ) : (
               <Table
                 columns={columns}
@@ -131,19 +133,19 @@ const Annotations: React.FC = () => {
               <Card><Statistic title='日均新增' value={trendData.length > 0 ? (data.length / 30).toFixed(1) : '0'} prefix={<LineChartOutlined />} /></Card>
             </Col>
           </Row>
-          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          <Row gutter={[16, 16]} className={common.mt16}>
             <Col span={24}>
               <Card title='近30天批注趋势'>
                 {loading ? (
-                  <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+                  <div className={styles.centerPad40}><Spin /></div>
                 ) : trendData.length === 0 ? (
                   <Empty description='暂无趋势数据' />
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'flex-end', height: 200, gap: 4, padding: '0 8px' }}>
+                  <div className={styles.trendChart}>
                     {trendData.map((item, index) => {
                       const height = maxTrendCount > 0 ? (item.count / maxTrendCount) * 180 : 0
                       return (
-                        <div key={item.date} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end' }}>
+                        <div key={item.date} className={styles.trendBarWrap}>
                           <div style={{ fontSize: 10, color: token.colorTextTertiary, marginBottom: 4 }}>{item.count}</div>
                           <div
                             style={{
