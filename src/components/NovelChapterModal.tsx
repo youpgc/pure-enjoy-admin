@@ -2,6 +2,8 @@ import React from 'react'
 import { Modal, Table, Button, Input, InputNumber, Form } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useChapterManager } from './novelChapterModal/useChapterManager'
+import styles from './NovelChapterModal.module.css'
+import common from '../styles/common.module.css'
 
 const NovelChapterModal: React.FC<{
   open: boolean
@@ -26,7 +28,7 @@ const NovelChapterModal: React.FC<{
   return (
     <>
       <Modal title='章节管理' open={open} onCancel={onClose} footer={null} width={900}>
-        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+        <div className={styles.toolbar}>
           <Button type='primary' icon={<PlusOutlined />} onClick={handleAdd}>
             新增章节
           </Button>
@@ -56,7 +58,7 @@ const NovelChapterModal: React.FC<{
       >
         <Form form={form} layout='vertical'>
           <Form.Item name='chapter_num' label='章节号' rules={[{ required: true, message: '请输入章节号' }]}>
-            <InputNumber style={{ width: '100%' }} placeholder='请输入章节号' min={1} />
+            <InputNumber className={common.fullWidth} placeholder='请输入章节号' min={1} />
           </Form.Item>
           <Form.Item name='title' label='标题' rules={[{ required: true, message: '请输入标题' }]}>
             <Input placeholder='请输入标题' />
