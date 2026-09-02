@@ -1,0 +1,34 @@
+.noPermission {
+  padding: 24px;
+  text-align: center;
+}
+
+.pageWrap {
+  padding: 0 0 24px;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.chartBox {
+  height: 300px;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+}
+
+.titleIconPurple {
+  margin-right: 8px;
+  color: #722ed1;
+}
+
+.titleIconGreen {
+  margin-right: 8px;
+  color: #52c41a;
+}

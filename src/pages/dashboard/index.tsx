@@ -11,6 +11,8 @@ import { buildNovelColumns, buildCommentColumns } from './columns'
 import { StatsCards } from './StatsCards'
 import { RecentActivities } from './RecentActivities'
 import { TrendChart } from './TrendChart'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const { Text } = Typography
 
@@ -40,16 +42,16 @@ const Dashboard: React.FC = () => {
 
   if (!hasPermission('dashboard:read')) {
     return (
-      <div style={{ padding: 24, textAlign: 'center' }}>
+      <div className={styles.noPermission}>
         <Empty description="暂无仪表盘访问权限" />
       </div>
     )
   }
 
   return (
-    <div style={{ padding: '0 0 24px' }}>
+    <div className={styles.pageWrap}>
       {/* 工具栏：最后更新时间 + 手动刷新按钮 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <div className={styles.toolbar}>
         <Text type="secondary">
           {lastUpdated ? `最后更新：${lastUpdated}` : '数据加载中…'}
         </Text>
@@ -72,8 +74,8 @@ const Dashboard: React.FC = () => {
           />
 
           {/* 用户增长趋势 */}
-          <Card title="用户增长趋势" style={{ marginBottom: 24 }}>
-            <div style={{ height: 300 }}>
+          <Card title="用户增长趋势" className={common.mb24}>
+            <div className={styles.chartBox}>
               <TrendChart data={userTrendData} />
             </div>
           </Card>
@@ -84,12 +86,12 @@ const Dashboard: React.FC = () => {
           {/* 小说排行榜 */}
           <Card
             title={
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <BookOutlined style={{ marginRight: 8, color: '#722ed1' }} />
+              <div className={styles.cardTitle}>
+                <BookOutlined className={styles.titleIconPurple} />
                 <span>小说排行榜</span>
               </div>
             }
-            style={{ marginBottom: 24 }}
+            className={common.mb24}
           >
             <Table
               columns={novelColumns}
@@ -112,8 +114,8 @@ const Dashboard: React.FC = () => {
           {/* 最新评论 */}
           <Card
             title={
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <MessageOutlined style={{ marginRight: 8, color: '#52c41a' }} />
+              <div className={styles.cardTitle}>
+                <MessageOutlined className={styles.titleIconGreen} />
                 <span>最新评论</span>
               </div>
             }
