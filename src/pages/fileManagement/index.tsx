@@ -18,6 +18,8 @@ import {
   InboxOutlined,
 } from '@ant-design/icons'
 import { useFileManagement } from './useFileManagement'
+import common from '../../styles/common.module.css'
+import styles from './index.module.css'
 
 const { Dragger } = Upload
 
@@ -41,9 +43,9 @@ const FileManagement: React.FC = () => {
   } = useFileManagement()
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Input
             placeholder='搜索文件名'
@@ -51,14 +53,14 @@ const FileManagement: React.FC = () => {
             onChange={(e) => setFilters((prev) => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 220 }}
+            className={styles.searchInput}
             allowClear
           />
           <Select
             placeholder='存储桶'
             value={filters.bucket}
             onChange={(value) => setFilters((prev) => ({ ...prev, bucket: value }))}
-            style={{ width: 120 }}
+            className={styles.filterSelect}
             allowClear
             options={[
               { label: 'public', value: 'public' },
@@ -75,7 +77,7 @@ const FileManagement: React.FC = () => {
       </Card>
 
       {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div className={`${common.flexBetween} ${common.mb16}`}>
         <Space>
           <Button type='primary' icon={<UploadOutlined />} onClick={() => setUploadModalOpen(true)}>
             上传文件
