@@ -66,6 +66,7 @@
   gap: 8px;
   cursor: pointer;
   padding: 0 8px;
+  padding-left: 100px;
 }
 
 .userText {
@@ -103,7 +104,6 @@
 .tabBar {
   display: flex;
   align-items: center;
-  height: 64px;
   border-bottom: 1px solid #e8e8e8;
   flex: 1 1 auto;
   min-width: 0;

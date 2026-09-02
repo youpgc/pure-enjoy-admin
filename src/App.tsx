@@ -470,7 +470,7 @@ const MainLayout: React.FC = () => {
                         e.preventDefault()
                         setCtxMenu({ x: e.clientX, y: e.clientY, tab: k })
                       }}
-                      className={`${styles.tab}`}
+                      className={styles.tab}
                       style={active ? {
                         // 主题 token（colorBgContainer）保留 inline：选中页签底边框与背景与内容区同色，
                         // 让底部贯穿线透出作为选中标识
