@@ -1,0 +1,26 @@
+.loadingBox {
+  text-align: center;
+  padding: 40px;
+}
+.flowHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.timeText {
+  color: #999;
+  font-size: 12px;
+}
+.operatorText {
+  color: #666;
+  font-size: 12px;
+}
+.remarkBox {
+  background: #f5f5f5;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #333;
+  margin-top: 4px;
+}

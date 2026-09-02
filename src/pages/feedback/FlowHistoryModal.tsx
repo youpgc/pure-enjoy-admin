@@ -9,6 +9,8 @@ import { useMounted } from '../../hooks/useMounted'
 import { FEEDBACK_STATUS_MAP } from '../../constants'
 import { ACTION_TAG_MAP } from './actionMeta'
 import type { FeedbackRecord, FlowRecord } from './types'
+import styles from './FlowHistoryModal.module.css'
+import common from '../../styles/common.module.css'
 
 interface FlowHistoryModalProps {
   open: boolean
@@ -66,7 +68,7 @@ export function FlowHistoryModal({ open, record, onClose }: FlowHistoryModalProp
       width={560}
     >
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40 }}>加载中...</div>
+        <div className={styles.loadingBox}>加载中...</div>
       ) : records.length === 0 ? (
         <Empty description="暂无流转记录" />
       ) : (
@@ -83,20 +85,17 @@ export function FlowHistoryModal({ open, record, onClose }: FlowHistoryModalProp
               color: config.color,
               children: (
                 <div key={r.id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                    <Tag color={config.color} style={{ margin: 0 }}>
+                  <div className={styles.flowHeader}>
+                    <Tag color={config.color} className={common.noMargin}>
                       {config.icon} {config.label}
                     </Tag>
-                    <span style={{ color: '#999', fontSize: 12 }}>{formatDateTime(r.created_at)}</span>
+                    <span className={styles.timeText}>{formatDateTime(r.created_at)}</span>
                     {r.operator_name && (
-                      <span style={{ color: '#666', fontSize: 12 }}>操作人: {r.operator_name}</span>
+                      <span className={styles.operatorText}>操作人: {r.operator_name}</span>
                     )}
                   </div>
                   {r.remark && (
-                    <div style={{
-                      background: '#f5f5f5', padding: '8px 12px', borderRadius: 6,
-                      fontSize: 13, color: '#333', marginTop: 4
-                    }}>
+                    <div className={styles.remarkBox}>
                       {r.remark}
                     </div>
                   )}
