@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { Button, Result } from 'antd'
+import styles from './ErrorBoundary.module.css'
 
 interface Props {
   children: ReactNode
@@ -37,12 +38,7 @@ class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       if (this.props.global) {
         return (
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100vh',
-          }}>
+          <div className={styles.centerScreen}>
             <Result
               status="error"
               title="应用出错了"
