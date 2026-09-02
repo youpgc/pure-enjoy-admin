@@ -18,6 +18,8 @@ import { buildTypeColumns, buildItemColumns } from './dict/columns'
 import { DictTypeFormModal } from './dict/DictTypeFormModal'
 import { DictItemFormModal } from './dict/DictItemFormModal'
 import type { DictType, DictItem } from './dict/types'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 // ==================== 主组件 ====================
 const DictManagement: React.FC = () => {
@@ -37,7 +39,7 @@ const DictManagement: React.FC = () => {
   })
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       {/* ==================== 字典类型区域 ==================== */}
       <Card
         title={
@@ -46,10 +48,10 @@ const DictManagement: React.FC = () => {
             <span>字典类型</span>
           </Space>
         }
-        style={{ marginBottom: 16 }}
+        className={common.mb16}
       >
         {/* 类型筛选栏 */}
-        <div style={{ marginBottom: 16 }}>
+        <div className={common.mb16}>
           <Space wrap>
             <Input
               placeholder="搜索类型编码/名称"
@@ -57,7 +59,7 @@ const DictManagement: React.FC = () => {
               onChange={(e) => d.setTypeSearchKeyword(e.target.value)}
               onPressEnter={d.handleTypeSearch}
               prefix={<SearchOutlined />}
-              style={{ width: 300 }}
+              className={styles.inputWidth}
               allowClear
             />
             <Button type="primary" icon={<SearchOutlined />} onClick={d.handleTypeSearch}>
@@ -101,7 +103,7 @@ const DictManagement: React.FC = () => {
         }
       >
         {/* 字典项筛选栏 */}
-        <div style={{ marginBottom: 16 }}>
+        <div className={common.mb16}>
           <Space wrap>
             <Input
               placeholder="搜索字典项编码/标签"
@@ -109,7 +111,7 @@ const DictManagement: React.FC = () => {
               onChange={(e) => d.setItemSearchKeyword(e.target.value)}
               onPressEnter={d.handleItemSearch}
               prefix={<SearchOutlined />}
-              style={{ width: 300 }}
+              className={styles.inputWidth}
               allowClear
               disabled={!d.selectedTypeId}
             />
