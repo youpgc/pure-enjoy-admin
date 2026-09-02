@@ -9,6 +9,8 @@ import {
 import { formatNumber } from './format'
 import type { NovelStats, UserStats } from './types'
 import type { PageKey } from '../../App'
+import styles from './StatsCards.module.css'
+import common from '../../styles/common.module.css'
 
 interface StatCard {
   title: string
@@ -93,7 +95,7 @@ export function StatsCards({ userStats, novelStats, onNavigate }: StatsCardsProp
   ], [userStats, novelStats])
 
   return (
-    <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+    <Row gutter={[16, 16]} className={common.mb24}>
       {statsCards.map((card, index) => (
         <Col xs={24} sm={12} lg={8} xl={8} key={index}>
           <Card
@@ -101,18 +103,18 @@ export function StatsCards({ userStats, novelStats, onNavigate }: StatsCardsProp
             onClick={() => onNavigate(card.link)}
             styles={{ body: { padding: 16 } }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <div className={styles.statHead}>
               {card.icon}
-              <Text type="secondary" style={{ marginLeft: 8, fontSize: 14 }}>{card.title}</Text>
+              <Text type="secondary" className={styles.statTitle}>{card.title}</Text>
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <div className={styles.statBody}>
               <Text style={{ fontSize: 28, fontWeight: 700, color: token.colorText }}>
                 {typeof card.value === 'number' ? formatNumber(card.value) : card.value}
               </Text>
               {card.change !== undefined && (
                 <Tag
                   color={card.change >= 0 ? 'success' : 'error'}
-                  style={{ fontSize: 12 }}
+                  className={styles.statTag}
                 >
                   {card.change >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
                   {card.isPercentage ? `${Math.abs(card.change)}%` : Math.abs(card.change)}

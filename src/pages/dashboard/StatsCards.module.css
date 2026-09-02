@@ -1,0 +1,20 @@
+.statHead {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.statTitle {
+  margin-left: 8px;
+  font-size: 14px;
+}
+
+.statBody {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.statTag {
+  font-size: 12px;
+}
