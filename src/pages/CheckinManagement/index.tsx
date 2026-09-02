@@ -183,6 +183,9 @@ const CheckinCalendarDrawer: React.FC<{
         <span style={{ color: CHECKIN_ACCENT, fontWeight: 700 }}>●</span> 正常签到
         <span style={{ margin: '0 12px', color: CHECKIN_ACCENT_MAKEUP, fontWeight: 700 }}>●</span> 补签（本月 {makeupDates.size} 天）
       </div>
+      <div style={{ marginTop: 8, fontSize: 12, color: token.colorTextTertiary }}>
+        补签仅支持近 3 个自然月内的漏签日期。
+      </div>
     </Drawer>
   )
 }
