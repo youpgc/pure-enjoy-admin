@@ -17,6 +17,8 @@ import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import dayjs from 'dayjs'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 type DbPointRecord = {
   id: string
@@ -247,7 +249,7 @@ export default function GameRewardRecords() {
       dataIndex: 'points',
       key: 'points',
       width: 90,
-      render: (v: number) => <span style={{ color: '#389e0d', fontWeight: 600 }}>+{v}</span>,
+      render: (v: number) => <span className={styles.claimPoints}>+{v}</span>,
     },
     {
       title: '时间',
@@ -263,7 +265,7 @@ export default function GameRewardRecords() {
     : flow.filter((r) => r.type === (flowType === 'earn' ? 'game_earn' : 'game_spend'))
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       <Card
         title="游戏奖励记录"
         extra={
@@ -285,12 +287,12 @@ export default function GameRewardRecords() {
               label: '积分流水（获取/消费）',
               children: (
                 <>
-                  <Row gutter={16} style={{ marginBottom: 16 }}>
+                  <Row gutter={16} className={common.mb16}>
                     <Col span={8}>
-                      <Statistic title="累计获取（游戏）" value={earnTotal} suffix="分" valueStyle={{ color: '#389e0d' }} />
+                      <Statistic title="累计获取（游戏）" value={earnTotal} suffix="分" className={styles.statEarn} />
                     </Col>
                     <Col span={8}>
-                      <Statistic title="累计消费（游戏）" value={spendTotal} suffix="分" valueStyle={{ color: '#cf1322' }} />
+                      <Statistic title="累计消费（游戏）" value={spendTotal} suffix="分" className={styles.statSpend} />
                     </Col>
                     <Col span={8}>
                       <Segmented

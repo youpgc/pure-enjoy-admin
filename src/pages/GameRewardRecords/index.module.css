@@ -1,0 +1,10 @@
+.claimPoints {
+  color: #389e0d;
+  font-weight: 600;
+}
+.statEarn :global(.ant-statistic-content) {
+  color: #389e0d;
+}
+.statSpend :global(.ant-statistic-content) {
+  color: #cf1322;
+}
