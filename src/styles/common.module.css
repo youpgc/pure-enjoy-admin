@@ -1,58 +1,114 @@
 /* 跨页面通用工具类
- * 仅放真正高频复用、与具体业务无关的基础样式。
+ * 仅放真正高频复用、与具体业务无关的基础样式（纯基元）。
  * 页面级 / 业务级样式请放在各自 *.module.css，避免同名污染其他页面。
- * （CSS Modules 会为所有类名生成局部作用域哈希，common 与 page 均安全隔离）
+ *
+ * 关于「公共同名 class 冲突」：
+ * CSS Modules 会为所有类名生成局部作用域哈希，import 后通过别名访问
+ * （如 `common.mb16`、`styles.mb16`）。因此：
+ *   1) 同一工具类在多处复用是「共享同一定义」，不会冲突；
+ *   2) 本文件只放纯工具（间距/布局/文字基元），不含任何语义样式，
+ *      从根上避免「同名 class 含义互相污染」。
+ * 切勿在本文件添加带业务语义的类（如 .userCard / .gameTitle）。
  */
 
-/* 下间距 */
-.mb4 {
-  margin-bottom: 4px;
-}
-.mb12 {
-  margin-bottom: 12px;
-}
-.mt8 {
-  margin-top: 8px;
-}
-.mb16 {
-  margin-bottom: 16px;
-}
-.mb24 {
-  margin-bottom: 24px;
-}
+/* ===== 外边距 margin ===== */
+.m0 { margin: 0; }
+.mt4 { margin-top: 4px; }
+.mt8 { margin-top: 8px; }
+.mt12 { margin-top: 12px; }
+.mt16 { margin-top: 16px; }
+.mt24 { margin-top: 24px; }
+.mb4 { margin-bottom: 4px; }
+.mb8 { margin-bottom: 8px; }
+.mb12 { margin-bottom: 12px; }
+.mb16 { margin-bottom: 16px; }
+.mb24 { margin-bottom: 24px; }
+.mb32 { margin-bottom: 32px; }
+.ml4 { margin-left: 4px; }
+.ml8 { margin-left: 8px; }
+.ml12 { margin-left: 12px; }
+.ml16 { margin-left: 16px; }
+.mr4 { margin-right: 4px; }
+.mr8 { margin-right: 8px; }
+.mr12 { margin-right: 12px; }
+.mr16 { margin-right: 16px; }
+.mx8 { margin-left: 8px; margin-right: 8px; }
+.mx12 { margin-left: 12px; margin-right: 12px; }
+.mx16 { margin-left: 16px; margin-right: 16px; }
+.my8 { margin-top: 8px; margin-bottom: 8px; }
+.my12 { margin-top: 12px; margin-bottom: 12px; }
+.my16 { margin-top: 16px; margin-bottom: 16px; }
 
 /* 清零默认外边距 */
-.noMargin {
-  margin: 0;
-}
+.noMargin { margin: 0; }
 
-/* 右侧 / 左侧小间距（图标与文字、标签之间） */
-.mr4 {
-  margin-right: 4px;
-}
-.mr8 {
-  margin-right: 8px;
-}
-.ml8 {
-  margin-left: 8px;
-}
+/* ===== 内边距 padding ===== */
+.p4 { padding: 4px; }
+.p8 { padding: 8px; }
+.p12 { padding: 12px; }
+.p16 { padding: 16px; }
+.p24 { padding: 24px; }
+.pt8 { padding-top: 8px; }
+.pt12 { padding-top: 12px; }
+.pt16 { padding-top: 16px; }
+.pb8 { padding-bottom: 8px; }
+.pb12 { padding-bottom: 12px; }
+.pb16 { padding-bottom: 16px; }
+.pl12 { padding-left: 12px; }
+.pr12 { padding-right: 12px; }
 
-/* 次要小号文字 */
-.smallText {
-  font-size: 12px;
+/* ===== 布局 layout ===== */
+.flex { display: flex; }
+.flexRow { display: flex; flex-direction: row; }
+.flexCol { display: flex; flex-direction: column; }
+.flexCenter { display: flex; align-items: center; justify-content: center; }
+.flexBetween {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
+.flexAround {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+.flexWrap { flex-wrap: wrap; }
+.flex1 { flex: 1; min-width: 0; }
+.flexShrink0 { flex-shrink: 0; }
+.gap4 { gap: 4px; }
+.gap8 { gap: 8px; }
+.gap12 { gap: 12px; }
+.gap16 { gap: 16px; }
+.gap24 { gap: 24px; }
+.fullWidth { width: 100%; }
+.fullHeight { height: 100%; }
+.relative { position: relative; }
 
-/* 中等字重（表单标签、用户名等） */
-.bold500 {
-  font-weight: 500;
+/* ===== 文字 text ===== */
+.smallText { font-size: 12px; }
+.tinyText { font-size: 11px; }
+.bold400 { font-weight: 400; }
+.bold500 { font-weight: 500; }
+.bold600 { font-weight: 600; }
+.bold700 { font-weight: 700; }
+.block { display: block; }
+.inlineBlock { display: inline-block; }
+.textCenter { text-align: center; }
+.textRight { text-align: right; }
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+.lineHeight18 { line-height: 1.8; }
+.whiteSpacePreWrap { white-space: pre-wrap; }
 
-/* 块级展示 */
-.block {
-  display: block;
-}
-
-/* 表单控件占满容器宽（InputNumber 等） */
-.fullWidth {
-  width: 100%;
-}
+/* ===== 圆角 / 边框 / 溢出 ===== */
+.rounded4 { border-radius: 4px; }
+.rounded6 { border-radius: 6px; }
+.rounded8 { border-radius: 8px; }
+.rounded12 { border-radius: 12px; }
+.borderBox { box-sizing: border-box; }
+.scrollY { overflow-y: auto; }
+.overflowHidden { overflow: hidden; }
+.cursorPointer { cursor: pointer; }
