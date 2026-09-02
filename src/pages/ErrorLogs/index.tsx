@@ -25,6 +25,8 @@ import { ERROR_LOG_LEVEL_MAP, ERROR_LOG_LEVEL_OPTIONS, OP_MODULE_LABEL_MAP } fro
 import EllipsisText from '../../components/EllipsisText'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/UserName'
+import common from '../../styles/common.module.css'
+import styles from './index.module.css'
 
 // ==================== 类型定义 ====================
 
@@ -224,9 +226,9 @@ const ErrorLogs: React.FC = () => {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Input
             placeholder="搜索消息/模块"
@@ -234,14 +236,14 @@ const ErrorLogs: React.FC = () => {
             onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 220 }}
+            className={styles.searchInput}
             allowClear
           />
           <Select
             placeholder="日志级别"
             value={filters.level}
             onChange={(value) => setFilters(prev => ({ ...prev, level: value }))}
-            style={{ width: 120 }}
+            className={styles.filterSelect}
             allowClear
             options={ERROR_LOG_LEVEL_OPTIONS}
           />
@@ -255,7 +257,7 @@ const ErrorLogs: React.FC = () => {
       </Card>
 
       {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div className={`${common.flexBetween} ${common.mb16}`}>
         <Space>
           {selectedRowKeys.length > 0 && (
             <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete}>
