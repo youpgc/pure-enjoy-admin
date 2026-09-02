@@ -1,0 +1,16 @@
+.sel300 {
+  width: 300px;
+}
+.toolbar {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+}
+.sel240 {
+  width: 240px;
+}
+.iconOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

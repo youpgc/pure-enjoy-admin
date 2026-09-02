@@ -45,6 +45,8 @@ import {
   gameDimensionService,
 } from '../../services/gameService'
 import type { DbGame, DbGameDimension } from '../../types/database'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const { Text } = Typography
 
@@ -403,8 +405,8 @@ const GameConfigs: React.FC = () => {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
-      <Card style={{ marginBottom: 16 }}>
+    <div className={common.p24}>
+      <Card className={common.mb16}>
         <Tabs
           activeKey={activeTab}
           onChange={(k) => setActiveTab(k as 'games' | 'dimensions')}
@@ -417,7 +419,7 @@ const GameConfigs: React.FC = () => {
 
       {activeTab === 'games' ? (
         <>
-          <Card style={{ marginBottom: 16 }}>
+          <Card className={common.mb16}>
             <Space wrap>
               <Input
                 placeholder="搜索编码/名称"
@@ -428,7 +430,7 @@ const GameConfigs: React.FC = () => {
                   loadGames()
                 }}
                 prefix={<SearchOutlined />}
-                style={{ width: 300 }}
+                className={styles.sel300}
                 allowClear
               />
               <Button type="primary" icon={<SearchOutlined />} onClick={() => { gamePager.resetPage(); loadGames() }}>
@@ -436,7 +438,7 @@ const GameConfigs: React.FC = () => {
               </Button>
             </Space>
           </Card>
-          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+          <div className={styles.toolbar}>
             <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
               新增游戏
             </Button>
@@ -455,11 +457,11 @@ const GameConfigs: React.FC = () => {
         </>
       ) : (
         <>
-          <Card style={{ marginBottom: 16 }}>
+          <Card className={common.mb16}>
             <Space wrap>
               <Text>选择游戏：</Text>
               <Select
-                style={{ width: 240 }}
+                className={styles.sel240}
                 placeholder="请选择游戏"
                 value={selectedGameId || undefined}
                 onChange={(v) => {
@@ -473,9 +475,9 @@ const GameConfigs: React.FC = () => {
           </Card>
           {selectedGameId ? (
             <>
-              <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
-                  新增维度
+            <div className={styles.toolbar}>
+              <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
+                新增维度
                 </Button>
                 <Button icon={<ReloadOutlined />} onClick={loadDimensions} loading={loading}>
                   刷新
@@ -532,7 +534,7 @@ const GameConfigs: React.FC = () => {
                   options={GAME_SHARED_ICON_OPTIONS.map((o) => ({
                     value: o.value,
                     label: (
-                      <span key={o.value} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <span key={o.value} className={styles.iconOption}>
                         <img
                           src={`${GAME_SHARED_ICON_BASE}/${o.value}.svg`}
                           width={22}
@@ -555,10 +557,10 @@ const GameConfigs: React.FC = () => {
                 <Input.TextArea rows={3} placeholder='如 {"size":4,"target":2048}' />
               </Form.Item>
               <Form.Item name="sort_order" label="排序" initialValue={0}>
-                <InputNumber style={{ width: '100%' }} min={0} />
+                <InputNumber className={common.fullWidth} min={0} />
               </Form.Item>
               <Form.Item name="version" label="配置版本" initialValue={1}>
-                <InputNumber style={{ width: '100%' }} min={1} />
+                <InputNumber className={common.fullWidth} min={1} />
               </Form.Item>
               <Form.Item name="level_selectable" label="允许选关" valuePropName="checked">
                 <Switch checkedChildren="是" unCheckedChildren="否" />
@@ -608,7 +610,7 @@ const GameConfigs: React.FC = () => {
                 <Switch checkedChildren="是" unCheckedChildren="否" />
               </Form.Item>
               <Form.Item name="sort_order" label="排序" initialValue={0}>
-                <InputNumber style={{ width: '100%' }} min={0} />
+                <InputNumber className={common.fullWidth} min={0} />
               </Form.Item>
             </>
           )}
