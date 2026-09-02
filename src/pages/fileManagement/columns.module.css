@@ -1,0 +1,9 @@
+/* 文件管理表格列（fileManagement/columns）局部样式。
+ * 经 CSS Modules 编译后类名局部作用域，不会与项目其他页面冲突。
+ * 仅放本页使用的样式；跨页通用样式见 src/styles/common.module.css。
+ */
+
+/* 文件名标题字重 */
+.nameTitle {
+  font-weight: 500;
+}

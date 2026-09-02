@@ -6,6 +6,8 @@ import dayjs from 'dayjs'
 import { getActionColumn, type ActionButton } from '../../components/ActionColumn'
 import EllipsisText from '../../components/EllipsisText'
 import { getFileIcon, formatFileSize, type FileItem } from './helpers'
+import common from '../../styles/common.module.css'
+import styles from './columns.module.css'
 
 export const buildFileColumns = (params: {
   handleDelete: (record: FileItem) => void
@@ -20,10 +22,10 @@ export const buildFileColumns = (params: {
         <Space>
           {getFileIcon(record.mime_type)}
           <div>
-            <div style={{ fontWeight: 500 }}>
+            <div className={styles.nameTitle}>
               <EllipsisText text={record.file_name} maxWidth={200} />
             </div>
-            <Typography.Text type='secondary' style={{ fontSize: 12 }}>
+            <Typography.Text type='secondary' className={common.smallText}>
               {record.bucket}
             </Typography.Text>
           </div>
