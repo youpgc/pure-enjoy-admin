@@ -1,0 +1,9 @@
+.titleInlineFlex {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dividerY12 {
+  margin: 12px 0;
+}

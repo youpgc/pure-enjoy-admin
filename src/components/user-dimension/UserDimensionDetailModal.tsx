@@ -5,6 +5,8 @@ import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { RecordItem, UserSummary } from './types'
+import styles from './UserDimensionDetailModal.module.css'
+import common from '../../styles/common.module.css'
 
 interface UserDimensionDetailModalProps {
   open: boolean
@@ -76,7 +78,7 @@ export function UserDimensionDetailModal({
   return (
     <Modal
       title={
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+        <span className={styles.titleInlineFlex}>
           <span>{detailTitle || title} - 用户详情</span>
           {selectedUser && (
             <Tag color="blue">{selectedUser.total_count} 条记录</Tag>
@@ -92,7 +94,7 @@ export function UserDimensionDetailModal({
       {selectedUser && (
         <>
           {/* 用户信息 */}
-          <Descriptions bordered size="small" column={2} style={{ marginBottom: 16 }}>
+          <Descriptions bordered size="small" column={2} className={common.mb16}>
             <Descriptions.Item label="用户名">
               {(() => {
                 const info = userMap.get(selectedUser.user_id)
@@ -113,7 +115,7 @@ export function UserDimensionDetailModal({
             </Descriptions.Item>
           </Descriptions>
 
-          <Divider style={{ margin: '12px 0' }} />
+          <Divider className={styles.dividerY12} />
 
           {/* 详情列表 */}
           <Table<RecordItem>
