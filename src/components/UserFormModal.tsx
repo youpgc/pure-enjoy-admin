@@ -21,6 +21,7 @@ import { supabase } from '../utils/supabase'
 import { useDictOptions } from '../hooks/useDictOptions'
 import { apiExecute, handleApiError } from '../utils/apiClient'
 import { DEFAULT_USER_FORM_VALUES } from '../constants'
+import common from '../styles/common.module.css'
 
 interface UserFormModalProps {
   open: boolean
@@ -296,7 +297,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           label="生日"
         >
           <DatePicker
-            style={{ width: '100%' }}
+            className={common.fullWidth}
             placeholder="选择生日"
             format="YYYY-MM-DD"
           />
@@ -306,7 +307,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           name="height"
           label="身高(cm)"
         >
-          <InputNumber placeholder="请输入身高" min={50} max={250} step={0.1} style={{ width: '100%' }} />
+          <InputNumber placeholder="请输入身高" min={50} max={250} step={0.1} className={common.fullWidth} />
         </Form.Item>
 
         <Form.Item
@@ -371,7 +372,7 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
         >
           <InputNumber
             min={0}
-            style={{ width: '100%' }}
+            className={common.fullWidth}
             placeholder="请输入可用积分（当前余额）"
           />
         </Form.Item>
