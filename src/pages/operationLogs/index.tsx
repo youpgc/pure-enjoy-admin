@@ -12,6 +12,8 @@ import { SearchOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icon
 import { ACTION_OPTIONS, MODULE_OPTIONS } from '../../constants'
 import { buildOperationLogColumns } from './columns'
 import { useOperationLogs } from './useOperationLogs'
+import common from '../../styles/common.module.css'
+import styles from './index.module.css'
 
 const { RangePicker } = DatePicker
 
@@ -36,9 +38,9 @@ const OperationLogs: React.FC = () => {
   const columns = buildOperationLogColumns({ hasPermission, userMap, handleDelete })
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Input
             placeholder="搜索操作/详情"
@@ -46,14 +48,14 @@ const OperationLogs: React.FC = () => {
             onChange={(e) => setFilters((prev) => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 220 }}
+            className={styles.searchInput}
             allowClear
           />
           <Select
             placeholder="操作类型"
             value={filters.action}
             onChange={(value) => setFilters((prev) => ({ ...prev, action: value }))}
-            style={{ width: 120 }}
+            className={styles.filterSelect}
             allowClear
             options={ACTION_OPTIONS}
           />
@@ -61,7 +63,7 @@ const OperationLogs: React.FC = () => {
             placeholder="模块"
             value={filters.module}
             onChange={(value) => setFilters((prev) => ({ ...prev, module: value }))}
-            style={{ width: 120 }}
+            className={styles.filterSelect}
             allowClear
             options={MODULE_OPTIONS}
           />
@@ -79,7 +81,7 @@ const OperationLogs: React.FC = () => {
       </Card>
 
       {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div className={`${common.flexBetween} ${common.mb16}`}>
         <Space>
           {selectedRowKeys.length > 0 && (
             <Button danger icon={<DeleteOutlined />} onClick={handleBatchDelete}>
