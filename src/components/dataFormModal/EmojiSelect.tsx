@@ -3,6 +3,8 @@ import { Button } from 'antd'
 import { getMoodTypeOptions } from '../../utils/dictService'
 import { MOOD_EMOJI_MAP, FALLBACK_MOOD_OPTIONS } from './constants'
 import type { MoodOption } from './types'
+import styles from './EmojiSelect.module.css'
+import common from '../../styles/common.module.css'
 
 interface EmojiSelectProps {
   value?: string
@@ -21,7 +23,7 @@ const EmojiSelect: React.FC<EmojiSelectProps> = ({ value, onChange }) => {
   }, [])
 
   return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div className={`${common.flex} ${common.flexWrap} ${common.gap8}`}>
       {moodOptions.map((option) => {
         const emoji = MOOD_EMOJI_MAP[option.value] || '😐'
         return (
@@ -29,7 +31,7 @@ const EmojiSelect: React.FC<EmojiSelectProps> = ({ value, onChange }) => {
             key={option.value}
             type={value === option.value ? 'primary' : 'default'}
             onClick={() => onChange?.(option.value as string)}
-            style={{ fontSize: 18, padding: '4px 12px' }}
+            className={styles.emojiBtn}
           >
             {emoji} {option.label}
           </Button>
