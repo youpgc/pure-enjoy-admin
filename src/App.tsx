@@ -377,63 +377,105 @@ const MainLayout: React.FC = () => {
 
       {/* 主内容区域 */}
       <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
-        {/* 固定顶部信息栏 */}
-        <Header
-          style={{
-            padding: '0 24px',
-            background: colorBgContainer,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            position: 'fixed',
-            top: 0,
-            left: collapsed ? 80 : 200,
-            right: 0,
-            zIndex: 99,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-            transition: 'left 0.2s',
-          }}
+        {/* 固定顶部区域：信息栏 + 页签栏（与 header 同级固定置顶，滚动时不再被 header 遮挡）。
+            left 与背景（colorBgContainer 主题 token）为动态值，保留 inline。 */}
+        <div
+          className={styles.topRegion}
+          style={{ left: collapsed ? 80 : 200, background: colorBgContainer }}
         >
-          <div className={styles.headerLeft}>
-            {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
-              className: styles.collapseIcon,
-              onClick: () => setCollapsed(!collapsed),
-            })}
-            <h1 className={styles.pageTitle}>
-              {getPageTitle()}
-            </h1>
-          </div>
-          <Dropdown
-            menu={{
-              items: [
-                { key: 'profile', icon: <UserOutlined />, label: '个人中心' },
-                { type: 'divider', key: 'divider-1' },
-                { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', danger: true },
-              ],
-              onClick: ({ key }) => {
-                if (key === 'profile') openPage('profile')
-                else if (key === 'logout') handleLogout()
-              },
-            }}
-            placement="bottomRight"
-          >
-            <div className={styles.userBox}>
-              <Avatar
-                size={32}
-                src={user?.avatar_url && !headerAvatarError ? user.avatar_url : undefined}
-                icon={<UserOutlined />}
-                onError={() => { setHeaderAvatarError(true); return false }}
-                style={{ backgroundColor: (!user?.avatar_url || headerAvatarError) ? '#6C63FF' : 'transparent' }}
-              />
-              <span className={styles.userText}>
-                {user?.nickname || user?.email}
-              </span>
-              <DownOutlined className={styles.downIcon} />
+          <Header className={styles.appHeader}>
+            <div className={styles.headerLeft}>
+              {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
+                className: styles.collapseIcon,
+                onClick: () => setCollapsed(!collapsed),
+              })}
+              <h1 className={styles.pageTitle}>
+                {getPageTitle()}
+              </h1>
             </div>
-          </Dropdown>
-        </Header>
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'profile', icon: <UserOutlined />, label: '个人中心' },
+                  { type: 'divider', key: 'divider-1' },
+                  { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', danger: true },
+                ],
+                onClick: ({ key }) => {
+                  if (key === 'profile') openPage('profile')
+                  else if (key === 'logout') handleLogout()
+                },
+              }}
+              placement="bottomRight"
+            >
+              <div className={styles.userBox}>
+                <Avatar
+                  size={32}
+                  src={user?.avatar_url && !headerAvatarError ? user.avatar_url : undefined}
+                  icon={<UserOutlined />}
+                  onError={() => { setHeaderAvatarError(true); return false }}
+                  style={{ backgroundColor: (!user?.avatar_url || headerAvatarError) ? '#6C63FF' : 'transparent' }}
+                />
+                <span className={styles.userText}>
+                  {user?.nickname || user?.email}
+                </span>
+                <DownOutlined className={styles.downIcon} />
+              </div>
+            </Dropdown>
+          </Header>
 
-        {/* 内容区域 - 带顶部偏移 + keepalive 页签 */}
+          {/* 页签栏：盒式页签 + 圆角 + 间距，与 header 同级固定置顶（不随内容滚动） */}
+          <div className={styles.tabBar}>
+            <div className={styles.tabList}>
+              {openTabs.map((k) => {
+                const active = k === currentPage
+                const isHome = k === 'dashboard'
+                return (
+                  <div
+                    key={k}
+                    data-tab-key={k}
+                    onClick={() => setCurrentPage(k)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      setCtxMenu({ x: e.clientX, y: e.clientY, tab: k })
+                    }}
+                    onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = '#f5f5f5' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+                    style={{
+                      flex: '0 0 auto',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      height: 32,
+                      padding: '0 12px',
+                      marginRight: 6,
+                      marginBottom: -1,
+                      cursor: 'pointer',
+                      userSelect: 'none',
+                      fontSize: 13,
+                      color: '#555',
+                      fontWeight: active ? 600 : 400,
+                      // 盒式圆角页签：选中页签底部线为空，覆盖贯穿线以联动内容区
+                      border: '1px solid #e8e8e8',
+                      borderBottomColor: active ? colorBgContainer : '#e8e8e8',
+                      borderRadius: '6px 6px 0 0',
+                      background: active ? colorBgContainer : 'transparent',
+                    }}
+                  >
+                    <span>{PAGE_TITLES[k] || '未命名'}</span>
+                    {!isHome && (
+                      <CloseOutlined
+                        style={{ fontSize: 10, opacity: 0.55 }}
+                        onClick={(e) => { e.stopPropagation(); closeTab(k) }}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* 内容区域 - 顶部偏移避开固定区域 + keepalive 页签内容 */}
         <Content
           className={styles.content}
         >
@@ -442,59 +484,6 @@ const MainLayout: React.FC = () => {
               currentPage,
               setCurrentPage: openPage,
             }}>
-              {/* 页签栏：盒式页签 + 圆角 + 间距，选中页签底部线为空以联动内容区（无左右滚动） */}
-              <div className={styles.tabBar}>
-                <div
-                  className={styles.tabList}
-                >
-                  {openTabs.map((k) => {
-                    const active = k === currentPage
-                    const isHome = k === 'dashboard'
-                    return (
-                      <div
-                        key={k}
-                        data-tab-key={k}
-                        onClick={() => setCurrentPage(k)}
-                        onContextMenu={(e) => {
-                          e.preventDefault()
-                          setCtxMenu({ x: e.clientX, y: e.clientY, tab: k })
-                        }}
-                        onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = '#f5f5f5' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-                        style={{
-                          flex: '0 0 auto',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          height: 32,
-                          padding: '0 12px',
-                          marginRight: 6,
-                          marginBottom: -1,
-                          cursor: 'pointer',
-                          userSelect: 'none',
-                          fontSize: 13,
-                          color: '#555',
-                          fontWeight: active ? 600 : 400,
-                          // 盒式圆角页签：选中页签底部线为空，覆盖贯穿线以联动内容区
-                          border: '1px solid #e8e8e8',
-                          borderBottomColor: active ? colorBgContainer : '#e8e8e8',
-                          borderRadius: '6px 6px 0 0',
-                          background: active ? colorBgContainer : 'transparent',
-                        }}
-                      >
-                        <span>{PAGE_TITLES[k] || '未命名'}</span>
-                        {!isHome && (
-                          <CloseOutlined
-                            style={{ fontSize: 10, opacity: 0.55 }}
-                            onClick={(e) => { e.stopPropagation(); closeTab(k) }}
-                          />
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
               {/* 页签内容（keepalive：非活动页签仅 display:none 隐藏，组件实例保留不重挂载） */}
               <div className={common.mt8}>
                 {openTabs.map((k) => (

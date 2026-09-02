@@ -77,10 +77,33 @@
   color: #999;
 }
 
+/* 固定顶部区域：Header + 页签栏 同级固定置顶，滚动时不被 header 遮挡。
+   left 与背景（colorBgContainer 主题 token）为动态值，保留 inline。 */
+.topRegion {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 99;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: left 0.2s;
+  box-sizing: border-box;
+}
+
+/* Header 置于固定区域内，不再自身 fixed（背景由 topRegion 统一提供） */
+.appHeader {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  line-height: normal;
+}
+
 .content {
-  margin-top: 80px;
+  /* 105px = Header(64) + 页签栏(41)，精确避开固定顶部区域，避免内容被遮挡 */
+  margin-top: 105px;
   padding: 16px 24px;
-  min-height: calc(100vh - 104px);
+  min-height: calc(100vh - 105px);
   overflow: auto;
 }
 
@@ -89,13 +112,16 @@
 .contentInner {
   border-radius: 8px;
   padding: 8px 16px 16px;
-  min-height: calc(100vh - 104px - 32px);
+  min-height: calc(100vh - 105px - 32px);
 }
 
 .tabBar {
   display: flex;
   align-items: flex-end;
+  height: 41px;
+  padding: 0 24px;
   border-bottom: 1px solid #e8e8e8;
+  box-sizing: border-box;
 }
 
 .tabList {
