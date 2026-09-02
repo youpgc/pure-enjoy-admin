@@ -18,6 +18,8 @@ import {
 } from '@ant-design/icons'
 import { useNotifications } from './useNotifications'
 import { NOTIFICATION_TYPE_OPTIONS } from '../../constants'
+import common from '../../styles/common.module.css'
+import styles from './index.module.css'
 
 const Notifications: React.FC = () => {
   const {
@@ -44,9 +46,9 @@ const Notifications: React.FC = () => {
   } = useNotifications()
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Input
             placeholder='搜索标题/内容'
@@ -54,14 +56,14 @@ const Notifications: React.FC = () => {
             onChange={(e) => setFilters((prev) => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 220 }}
+            className={styles.searchInput}
             allowClear
           />
           <Select
             placeholder='类型'
             value={filters.type}
             onChange={(value) => setFilters((prev) => ({ ...prev, type: value }))}
-            style={{ width: 120 }}
+            className={styles.filterSelect}
             allowClear
             options={NOTIFICATION_TYPE_OPTIONS}
           />
@@ -75,7 +77,7 @@ const Notifications: React.FC = () => {
       </Card>
 
       {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div className={`${common.flexBetween} ${common.mb16}`}>
         <Space>
           <Button type='primary' icon={<PlusOutlined />} onClick={handleAdd}>
             新增通知

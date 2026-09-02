@@ -8,6 +8,7 @@ import { getActionColumn, type ActionButton } from '../../components/ActionColum
 import EllipsisText from '../../components/EllipsisText'
 import { NOTIFICATION_TYPE_MAP, NOTIFICATION_TYPE_TAG_MAP } from '../../constants'
 import type { Notification } from './types'
+import styles from './columns.module.css'
 
 export const buildNotificationColumns = (params: {
   hasPermission: (code: string) => boolean
@@ -22,7 +23,7 @@ export const buildNotificationColumns = (params: {
       width: 300,
       render: (_, record) => (
         <div>
-          <div style={{ fontWeight: 500 }}>{record.title}</div>
+          <div className={styles.titleText}>{record.title}</div>
           <EllipsisText text={record.body} maxWidth={240} />
           <div>
             <Tag color={NOTIFICATION_TYPE_MAP[record.type]?.color || 'default'}>
