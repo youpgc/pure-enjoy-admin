@@ -28,6 +28,8 @@ import { BaseService, handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { ANNOUNCEMENT_TYPE_MAP, ANNOUNCEMENT_TYPE_OPTIONS, PRIORITY_MAP, PRIORITY_OPTIONS } from '../../constants'
+import common from '../../styles/common.module.css'
+import styles from './index.module.css'
 
 // ==================== 类型定义 ====================
 
@@ -264,9 +266,9 @@ const Announcements: React.FC = () => {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Input
             placeholder="搜索标题/内容"
@@ -274,7 +276,7 @@ const Announcements: React.FC = () => {
             onChange={(e) => setSearchKeyword(e.target.value)}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 300 }}
+            className={styles.searchInput}
             allowClear
           />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch}>
@@ -284,7 +286,7 @@ const Announcements: React.FC = () => {
       </Card>
 
       {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div className={`${common.flexBetween} ${common.mb16}`}>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
           新增公告
         </Button>
@@ -358,7 +360,7 @@ const Announcements: React.FC = () => {
             <DatePicker
               showTime
               placeholder="请选择过期时间（可选）"
-              style={{ width: '100%' }}
+              className={common.fullWidth}
             />
           </Form.Item>
           <Form.Item
