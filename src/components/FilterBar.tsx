@@ -18,6 +18,8 @@ import {
   FilterOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import styles from './FilterBar.module.css'
+import common from '../styles/common.module.css'
 
 const { RangePicker } = DatePicker
 
@@ -144,14 +146,14 @@ const FilterBar: React.FC<FilterBarProps> = ({
             onChange={(val) => handleFieldChange(field.name, val)}
             options={field.options}
             allowClear
-            style={{ width: '100%' }}
+            className={common.fullWidth}
           />
         )
 
       case 'dateRange':
         return (
           <RangePicker
-            style={{ width: '100%' }}
+            className={common.fullWidth}
             value={
               value && Array.isArray(value) && value[0] && value[1]
                 ? [dayjs(value[0] as string), dayjs(value[1] as string)]
@@ -166,16 +168,16 @@ const FilterBar: React.FC<FilterBarProps> = ({
       case 'numberRange':
         const rangeValue = (value as [number | null, number | null]) || [null, null]
         return (
-          <Space.Compact style={{ width: '100%' }}>
+          <Space.Compact className={common.fullWidth}>
             <InputNumber
               placeholder="最小值"
               value={rangeValue[0]}
               onChange={(val) => handleNumberRangeChange(field.name, 'min', val)}
-              style={{ width: '50%' }}
+              className={styles.halfWidth}
               min={0}
             />
             <Input
-              style={{ width: 30, textAlign: 'center', pointerEvents: 'none' }}
+              className={styles.sepInput}
               placeholder="~"
               readOnly
             />
@@ -183,7 +185,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
               placeholder="最大值"
               value={rangeValue[1]}
               onChange={(val) => handleNumberRangeChange(field.name, 'max', val)}
-              style={{ width: '50%' }}
+              className={styles.halfWidth}
               min={0}
             />
           </Space.Compact>
@@ -199,7 +201,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
   const hasMoreFields = fields.length > 3
 
   return (
-    <div style={{ marginBottom: 16 }}>
+    <div className={common.mb16}>
       <Row gutter={[16, 16]} align="middle">
         {/* 搜索框 */}
         {showSearch && (
@@ -247,7 +249,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
                   <>
                     <FilterOutlined />
                     {activeFilterCount > 0 && (
-                      <Tag color="blue" style={{ marginLeft: 4 }}>
+                      <Tag color="blue" className={common.ml4}>
                         {activeFilterCount}
                       </Tag>
                     )}
