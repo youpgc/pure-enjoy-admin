@@ -13,6 +13,7 @@ import {
 import dayjs from 'dayjs'
 import { handleApiError } from '../utils/apiClient'
 import { fetchGenericRecord, updateGenericRecord } from '../services/genericRecordService'
+import common from '../styles/common.module.css'
 
 interface EditRecordModalProps {
   open: boolean
@@ -122,9 +123,9 @@ const EditRecordModal: React.FC<EditRecordModalProps> = ({
       case 'textarea':
         return <Input.TextArea rows={4} placeholder={`请输入${column.label}`} />
       case 'number':
-        return <InputNumber style={{ width: '100%' }} placeholder={`请输入${column.label}`} />
+        return <InputNumber className={common.fullWidth} placeholder={`请输入${column.label}`} />
       case 'date':
-        return <DatePicker style={{ width: '100%' }} placeholder={`请选择${column.label}`} />
+        return <DatePicker className={common.fullWidth} placeholder={`请选择${column.label}`} />
       case 'select':
         return (
           <Select placeholder={`请选择${column.label}`} options={column.options} />
