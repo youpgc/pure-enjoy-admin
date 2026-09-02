@@ -1,0 +1,119 @@
+/* App 根布局专属样式（页面级，CSS Modules 局部作用域） */
+
+.layoutMinH {
+  min-height: 100vh;
+}
+
+.sider {
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.logoBox {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.logoImg {
+  width: 32px;
+  height: 32px;
+}
+
+.brandTitle {
+  margin: 0;
+  color: #6c63ff;
+  font-size: 20px;
+}
+
+.menuScroll {
+  height: calc(100vh - 64px);
+  overflow: auto;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.collapseIcon {
+  font-size: 18px;
+  cursor: pointer;
+  color: #999;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 18px;
+}
+
+.userBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 0 8px;
+}
+
+.userText {
+  color: #333;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.downIcon {
+  font-size: 12px;
+  color: #999;
+}
+
+.content {
+  margin-top: 80px;
+  padding: 16px 24px;
+  min-height: calc(100vh - 104px);
+  overflow: auto;
+}
+
+/* 内容容器内卡片：背景随主题 token（colorBgContainer）运行时取值，故背景留 inline，
+   其余静态外观抽到此处 */
+.contentInner {
+  border-radius: 8px;
+  padding: 8px 16px 16px;
+  min-height: calc(100vh - 104px - 32px);
+}
+
+.tabBar {
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.tabList {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+
+.loadingBox {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 50vh;
+}
+
+.ctxDivider {
+  height: 1px;
+  background: #f0f0f0;
+  margin: 4px 0;
+}

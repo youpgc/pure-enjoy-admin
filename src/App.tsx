@@ -17,6 +17,8 @@ import AuthGuard from './components/AuthGuard'
 import ErrorBoundary from './components/ErrorBoundary'
 import { usePermission } from './hooks/usePermission'
 import Login from './pages/Login'
+import styles from './App.module.css'
+import common from './styles/common.module.css'
 
 // 页面级组件按需懒加载（审查 P1-4a）：首屏仅打包 Login，进入对应菜单时才加载对应 chunk，
 // 避免全部 30+ 页面同步打进主 bundle（用户"按需加载"纪律 + 规范 §10）。
@@ -345,30 +347,21 @@ const MainLayout: React.FC = () => {
   }
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout className={styles.layoutMinH}>
       {/* 固定左侧菜单栏 */}
       <Sider
         trigger={null}
         collapsible
         collapsed={collapsed}
         theme="light"
-        style={{
-          boxShadow: '2px 0 8px rgba(0,0,0,0.05)',
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          zIndex: 100,
-          height: '100vh',
-          overflow: 'hidden',
-        }}
+        className={styles.sider}
       >
-        <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="logo" style={{ width: 32, height: 32 }} />
-          {!collapsed && <h2 style={{ margin: 0, color: '#6C63FF', fontSize: 20 }}>纯享管理</h2>}
+        <div className={styles.logoBox}>
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="logo" className={styles.logoImg} />
+          {!collapsed && <h2 className={styles.brandTitle}>纯享管理</h2>}
         </div>
         {/* 菜单区域 - 可滚动 */}
-        <div style={{ height: 'calc(100vh - 64px)', overflow: 'auto' }}>
+        <div className={styles.menuScroll}>
           <Menu
             mode="inline"
             selectedKeys={[currentPage]}
@@ -401,12 +394,12 @@ const MainLayout: React.FC = () => {
             transition: 'left 0.2s',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div className={styles.headerLeft}>
             {React.createElement(collapsed ? MenuUnfoldOutlined : MenuFoldOutlined, {
-              style: { fontSize: 18, cursor: 'pointer', color: '#999' },
+              className: styles.collapseIcon,
               onClick: () => setCollapsed(!collapsed),
             })}
-            <h1 style={{ margin: 0, fontSize: 18 }}>
+            <h1 className={styles.pageTitle}>
               {getPageTitle()}
             </h1>
           </div>
@@ -424,7 +417,7 @@ const MainLayout: React.FC = () => {
             }}
             placement="bottomRight"
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '0 8px' }}>
+            <div className={styles.userBox}>
               <Avatar
                 size={32}
                 src={user?.avatar_url && !headerAvatarError ? user.avatar_url : undefined}
@@ -432,32 +425,27 @@ const MainLayout: React.FC = () => {
                 onError={() => { setHeaderAvatarError(true); return false }}
                 style={{ backgroundColor: (!user?.avatar_url || headerAvatarError) ? '#6C63FF' : 'transparent' }}
               />
-              <span style={{ color: '#333', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span className={styles.userText}>
                 {user?.nickname || user?.email}
               </span>
-              <DownOutlined style={{ fontSize: 12, color: '#999' }} />
+              <DownOutlined className={styles.downIcon} />
             </div>
           </Dropdown>
         </Header>
 
         {/* 内容区域 - 带顶部偏移 + keepalive 页签 */}
         <Content
-          style={{
-            marginTop: 80,
-            padding: '16px 24px',
-            minHeight: 'calc(100vh - 104px)',
-            overflow: 'auto',
-          }}
+          className={styles.content}
         >
-          <div style={{ background: colorBgContainer, borderRadius: 8, padding: '8px 16px 16px', minHeight: 'calc(100vh - 104px - 32px)' }}>
+          <div className={styles.contentInner} style={{ background: colorBgContainer }}>
             <NavigationContext.Provider value={{
               currentPage,
               setCurrentPage: openPage,
             }}>
               {/* 页签栏：盒式页签 + 圆角 + 间距，选中页签底部线为空以联动内容区（无左右滚动） */}
-              <div style={{ display: 'flex', alignItems: 'flex-end', borderBottom: '1px solid #e8e8e8' }}>
+              <div className={styles.tabBar}>
                 <div
-                  style={{ flex: 1, display: 'flex', alignItems: 'flex-end', whiteSpace: 'nowrap' }}
+                  className={styles.tabList}
                 >
                   {openTabs.map((k) => {
                     const active = k === currentPage
@@ -508,14 +496,14 @@ const MainLayout: React.FC = () => {
               </div>
 
               {/* 页签内容（keepalive：非活动页签仅 display:none 隐藏，组件实例保留不重挂载） */}
-              <div style={{ marginTop: 8 }}>
+              <div className={common.mt8}>
                 {openTabs.map((k) => (
                   <div
                     key={`${k}:${refreshKeys[k] ?? 0}`}
                     style={{ display: k === currentPage ? 'block' : 'none' }}
                   >
                     <ErrorBoundary>
-                      <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}><Spin size="large" /></div>}>
+                      <Suspense fallback={<div className={styles.loadingBox}><Spin size="large" /></div>}>
                         {React.createElement(PAGE_COMPONENTS[k])}
                       </Suspense>
                     </ErrorBoundary>
@@ -534,7 +522,7 @@ const MainLayout: React.FC = () => {
                     onContextMenu={(e) => e.preventDefault()}
                   >
                     {renderCtxItem(<ReloadOutlined />, '刷新页面', false, () => { setCurrentPage(ctxMenu.tab); refreshTab(ctxMenu.tab); setCtxMenu(null) })}
-                    <div style={{ height: 1, background: '#f0f0f0', margin: '4px 0' }} />
+                    <div className={styles.ctxDivider} />
                     {renderCtxItem(<CloseOutlined />, '关闭当前', ctxMenu.tab === 'dashboard', () => { closeTab(ctxMenu.tab); setCtxMenu(null) })}
                     {renderCtxItem(<CloseOutlined />, '关闭其他', othersCount === 0, () => { closeOthers(ctxMenu.tab); setCtxMenu(null) })}
                     {renderCtxItem(<CloseOutlined />, '关闭右侧页签', rightIdx >= openTabs.length - 1, () => { closeRight(ctxMenu.tab); setCtxMenu(null) })}
