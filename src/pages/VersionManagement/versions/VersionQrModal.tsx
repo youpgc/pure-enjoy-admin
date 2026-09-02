@@ -3,6 +3,8 @@ import { Modal, Button, Typography } from 'antd'
 import { DownloadOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 import type { AppVersion } from './types'
+import styles from './VersionQrModal.module.css'
+import common from '../../../styles/common.module.css'
 
 interface VersionQrModalProps {
   version: AppVersion | null
@@ -22,30 +24,18 @@ export function VersionQrModal({ version, onClose }: VersionQrModalProps) {
       centered
     >
       {version && (
-        <div style={{ textAlign: 'center', padding: '16px 0' }}>
-          <div
-            style={{
-              width: 200,
-              height: 200,
-              margin: '0 auto 16px',
-              background: '#fff',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid #d9d9d9',
-            }}
-          >
+        <div className={styles.qrWrap}>
+          <div className={styles.qrBox}>
             <QRCodeSVG
               value={getDownloadUrl(version) || 'https://example.com'}
               size={180}
               level="M"
             />
           </div>
-          <div style={{ marginBottom: 8 }}>
+          <div className={common.mb8}>
             <Typography.Text strong>v{version.version}+{version.build_number}</Typography.Text>
           </div>
-          <div style={{ marginBottom: 12 }}>
+          <div className={common.mb12}>
             <Typography.Text type="secondary">
               {getDownloadUrl(version) || '暂无下载地址'}
             </Typography.Text>
