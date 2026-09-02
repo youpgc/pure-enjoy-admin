@@ -33,6 +33,8 @@ import {
 import { useAnalytics } from './useAnalytics'
 import { buildTopNovelColumns } from './columns'
 import { COLORS } from './types'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const { RangePicker } = DatePicker
 
@@ -51,8 +53,8 @@ const Analytics: React.FC = () => {
   const topNovelColumns = buildTopNovelColumns()
 
   return (
-    <div style={{ padding: 24 }}>
-      <Card style={{ marginBottom: 16 }}>
+    <div className={styles.pageWrap}>
+      <Card className={common.mb16}>
         <Row gutter={16} align='middle'>
           <Col>
             <RangePicker
@@ -72,7 +74,7 @@ const Analytics: React.FC = () => {
         </Row>
       </Card>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} className={common.mb16}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic title='新增用户' value={summary.totalUsers} prefix={<UserOutlined />} />
@@ -96,12 +98,12 @@ const Analytics: React.FC = () => {
       </Row>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 100 }}>
+        <div className={styles.loadingBox}>
           <Spin size='large' />
         </div>
       ) : (
         <>
-          <Card title='每日数据统计' style={{ marginBottom: 16 }}>
+          <Card title='每日数据统计' className={common.mb16}>
             {dailyStats.length > 0 ? (
               <ResponsiveContainer width='100%' height={400}>
                 <LineChart data={dailyStats}>
