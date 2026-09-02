@@ -13,6 +13,7 @@ import dayjs from 'dayjs'
 import type { DataFormModalProps, FormField } from './dataFormModal/types'
 import EmojiSelect from './dataFormModal/EmojiSelect'
 import TagsInput from './dataFormModal/TagsInput'
+import common from '../styles/common.module.css'
 
 // 保留对外类型导出（拆分前由本文件直接 export，避免破坏任何潜在调用方）
 export type { FieldType, FormField, DataFormModalProps } from './dataFormModal/types'
@@ -131,7 +132,7 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
             max={field.max}
             precision={field.precision ?? 2}
             disabled={field.disabled}
-            style={{ width: '100%' }}
+            className={common.fullWidth}
           />
         )
 
@@ -160,7 +161,7 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
           <DatePicker
             placeholder={field.placeholder || `请选择${field.label}`}
             disabled={field.disabled}
-            style={{ width: '100%' }}
+            className={common.fullWidth}
             format="YYYY-MM-DD"
           />
         )
@@ -170,7 +171,7 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
           <RangePicker
             placeholder={field.placeholder ? [field.placeholder, field.placeholder] : ['开始日期', '结束日期']}
             disabled={field.disabled}
-            style={{ width: '100%' }}
+            className={common.fullWidth}
             format="YYYY-MM-DD"
           />
         )
@@ -232,7 +233,7 @@ const DataFormModal: React.FC<DataFormModalProps> = ({
         layout={layout}
         labelCol={labelCol}
         wrapperCol={wrapperCol}
-        style={{ marginTop: 24 }}
+        className={common.mt24}
       >
         {fields.map((field) => (
           <Form.Item
