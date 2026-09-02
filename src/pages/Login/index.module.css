@@ -1,0 +1,17 @@
+/* 登录页（Login）局部样式。
+ * 经 CSS Modules 编译后类名局部作用域，不会与项目其他页面冲突。
+ * 仅放本页使用的样式；跨页通用样式见 src/styles/common.module.css。
+ */
+
+/* 登录 Logo 尺寸 */
+.logoImg {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 12px;
+}
+
+/* 登录标题颜色 */
+.logoTitle {
+  color: #6c63ff;
+  margin-bottom: 8px;
+}

@@ -3,6 +3,7 @@ import { Card, Form, Input, Button, message, Typography } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { supabase } from '../../utils/supabase'
 import { LOGIN_SOURCE_ADMIN } from '../../constants/roles'
+import styles from './index.module.css'
 
 const { Title, Text } = Typography
 
@@ -113,8 +114,8 @@ const Login: React.FC = () => {
     <div className="login-container">
       <Card className="login-card">
         <div className="login-logo">
-          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="logo" style={{ width: 64, height: 64, marginBottom: 12 }} />
-          <Title level={2} style={{ color: '#6C63FF', marginBottom: 8 }}>
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="logo" className={styles.logoImg} />
+          <Title level={2} className={styles.logoTitle}>
             纯享管理后台
           </Title>
           <Text type="secondary">Pure Enjoy Admin Dashboard</Text>
