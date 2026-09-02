@@ -11,6 +11,7 @@ import {
   SENSITIVE_MATCH_MODE_MAP,
 } from '../../../constants'
 import type { SensitiveWord } from './types'
+import styles from './columns.module.css'
 
 const { Text } = Typography
 
@@ -28,7 +29,7 @@ export function buildSensitiveWordsColumns({ onEdit, onDelete, onToggleActive, c
       title: '敏感词',
       dataIndex: 'word',
       key: 'word',
-      render: (word: string) => <Text strong style={{ color: '#ff4d4f' }}>{word}</Text>,
+      render: (word: string) => <Text strong className={styles.hitWord}>{word}</Text>,
     },
     {
       title: '分类',
