@@ -1,12 +1,16 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Layout, Menu, theme, Tabs, Avatar, Dropdown } from 'antd'
+import { Layout, Menu, theme, Avatar, Dropdown, Button } from 'antd'
 import {
   LogoutOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   UserOutlined,
   DownOutlined,
+  ReloadOutlined,
+  CloseOutlined,
+  LeftOutlined,
+  RightOutlined,
 } from '@ant-design/icons'
 import type { AdminUser } from './types/auth'
 import { lazy, Suspense } from 'react'
@@ -197,6 +201,108 @@ const MainLayout: React.FC = () => {
     setCurrentPage(page)
     setOpenTabs((prev) => (prev.includes(page) ? prev : [...prev, page]))
   }, [])
+
+  // ========== 页签增强：刷新 / 关闭 / 右键菜单 / 滚动 ==========
+  const [refreshKeys, setRefreshKeys] = useState<Record<string, number>>({})
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; tab: PageKey } | null>(null)
+  const tabListRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  // 刷新：递增对应页签 key，强制组件重挂载（重新拉取数据）
+  const refreshTab = useCallback((target: PageKey) => {
+    setRefreshKeys((prev) => ({ ...prev, [target]: (prev[target] ?? 0) + 1 }))
+  }, [])
+  // 关闭单个（首页 dashboard 不可关闭）
+  const closeTab = useCallback((target: PageKey) => {
+    if (target === 'dashboard') return
+    setOpenTabs((prev) => prev.filter((t) => t !== target))
+  }, [])
+  // 关闭其他：保留首页 + 当前右键页签（dashboard 永不被关）
+  const closeOthers = useCallback((target: PageKey) => {
+    setOpenTabs(Array.from(new Set(['dashboard', target])))
+    setCurrentPage(target)
+  }, [])
+  // 关闭右侧：保留到当前右键页签（含）之前
+  const closeRight = useCallback((target: PageKey) => {
+    setOpenTabs((prev) => prev.slice(0, prev.indexOf(target) + 1))
+  }, [])
+  // 全部关闭：仅留首页
+  const closeAll = useCallback(() => {
+    setOpenTabs(['dashboard'])
+    setCurrentPage('dashboard')
+  }, [])
+
+  // 当前页被关闭后回退首页，保证 currentPage 始终在 openTabs 内
+  useEffect(() => {
+    if (!openTabs.includes(currentPage)) setCurrentPage('dashboard')
+  }, [openTabs, currentPage])
+
+  // 滚动条状态（页签溢出时左右按钮可用）
+  const updateScrollState = useCallback(() => {
+    const el = tabListRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 1)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+  }, [])
+  useEffect(() => {
+    updateScrollState()
+    const el = tabListRef.current
+    if (!el) return
+    const ro = new ResizeObserver(updateScrollState)
+    ro.observe(el)
+    window.addEventListener('resize', updateScrollState)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', updateScrollState)
+    }
+  }, [openTabs, updateScrollState])
+  // 激活页签滚动到可视区
+  useEffect(() => {
+    const el = tabListRef.current
+    if (!el) return
+    const active = el.querySelector(`[data-tab-key="${currentPage}"]`) as HTMLElement | null
+    active?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
+  }, [currentPage, openTabs])
+  const scrollTabs = (dir: number) => {
+    tabListRef.current?.scrollBy({ left: dir * 200, behavior: 'smooth' })
+  }
+  // 右键菜单：点击外部 / 右键非页签区域关闭
+  useEffect(() => {
+    if (!ctxMenu) return
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && menuRef.current.contains(e.target as Node)) return
+      setCtxMenu(null)
+    }
+    const onCtx = (e: MouseEvent) => {
+      const t = e.target as Element
+      if (!t.closest('[data-tab-key]')) setCtxMenu(null)
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('contextmenu', onCtx)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('contextmenu', onCtx)
+    }
+  }, [ctxMenu])
+
+  // 右键菜单项渲染
+  const renderCtxItem = (icon: React.ReactNode, label: string, disabled: boolean, onClick: () => void) => (
+    <div
+      onClick={disabled ? undefined : onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', fontSize: 13,
+        cursor: disabled ? 'not-allowed' : 'pointer', color: disabled ? '#bbb' : '#333', borderRadius: 4,
+      }}
+      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = '#f5f5f5' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+    >
+      {icon}
+      <span>{label}</span>
+    </div>
+  )
+
   const { user, logout } = useAuth()
   const { hasMenuPermission, isAdmin } = usePermission()
   const {
@@ -374,37 +480,97 @@ const MainLayout: React.FC = () => {
               currentPage,
               setCurrentPage: openPage,
             }}>
-              <Tabs
-                type="editable-card"
-                hideAdd
-                size="small"
-                activeKey={currentPage}
-                destroyOnHidden={false}
-                onChange={(key) => setCurrentPage(key as PageKey)}
-                onEdit={(targetKey, action) => {
-                  if (action === 'remove') {
-                    const target = targetKey as PageKey
-                    if (target === 'dashboard') return
-                    const next = openTabs.filter((t) => t !== target)
-                    setOpenTabs(next)
-                    if (target === currentPage) {
-                      setCurrentPage(next[next.length - 1] ?? 'dashboard')
-                    }
-                  }
-                }}
-                items={openTabs.map((k) => ({
-                  key: k,
-                  label: PAGE_TITLES[k] || '未命名',
-                  closable: k !== 'dashboard',
-                  children: (
+              {/* 页签栏：左滚动 / 页签列表 / 右滚动 */}
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                {canScrollLeft && (
+                  <Button type="text" size="small" icon={<LeftOutlined />} onClick={() => scrollTabs(-1)} style={{ flex: '0 0 auto' }} />
+                )}
+                <div
+                  ref={tabListRef}
+                  onScroll={updateScrollState}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', overflowX: 'auto', whiteSpace: 'nowrap' }}
+                >
+                  {openTabs.map((k) => {
+                    const active = k === currentPage
+                    const isHome = k === 'dashboard'
+                    return (
+                      <div
+                        key={k}
+                        data-tab-key={k}
+                        onClick={() => setCurrentPage(k)}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          setCtxMenu({ x: e.clientX, y: e.clientY, tab: k })
+                        }}
+                        style={{
+                          flex: '0 0 auto',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          height: 30,
+                          padding: '0 10px',
+                          marginRight: 4,
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          border: `1px solid ${active ? '#6C63FF' : '#e8e8e8'}`,
+                          borderBottom: `2px solid ${active ? '#6C63FF' : 'transparent'}`,
+                          borderRadius: '6px 6px 0 0',
+                          background: active ? '#f5f3ff' : 'transparent',
+                          color: active ? '#6C63FF' : '#555',
+                          fontSize: 13,
+                        }}
+                      >
+                        <span>{PAGE_TITLES[k] || '未命名'}</span>
+                        {!isHome && (
+                          <CloseOutlined
+                            style={{ fontSize: 10, opacity: 0.55 }}
+                            onClick={(e) => { e.stopPropagation(); closeTab(k) }}
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+                {canScrollRight && (
+                  <Button type="text" size="small" icon={<RightOutlined />} onClick={() => scrollTabs(1)} style={{ flex: '0 0 auto' }} />
+                )}
+              </div>
+
+              {/* 页签内容（keepalive：非活动页签仅 display:none 隐藏，组件实例保留不重挂载） */}
+              <div style={{ marginTop: 8 }}>
+                {openTabs.map((k) => (
+                  <div
+                    key={`${k}:${refreshKeys[k] ?? 0}`}
+                    style={{ display: k === currentPage ? 'block' : 'none' }}
+                  >
                     <ErrorBoundary>
                       <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}><Spin size="large" /></div>}>
                         {React.createElement(PAGE_COMPONENTS[k])}
                       </Suspense>
                     </ErrorBoundary>
-                  ),
-                }))}
-              />
+                  </div>
+                ))}
+              </div>
+
+              {/* 右键上下文菜单（首页 dashboard 排除在关闭操作之外） */}
+              {ctxMenu && (() => {
+                const othersCount = openTabs.filter((t) => t !== 'dashboard' && t !== ctxMenu.tab).length
+                const rightIdx = openTabs.indexOf(ctxMenu.tab)
+                return (
+                  <div
+                    ref={menuRef}
+                    style={{ position: 'fixed', top: ctxMenu.y, left: ctxMenu.x, zIndex: 1100, minWidth: 150, background: '#fff', border: '1px solid #f0f0f0', borderRadius: 6, boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: 4 }}
+                    onContextMenu={(e) => e.preventDefault()}
+                  >
+                    {renderCtxItem(<ReloadOutlined />, '刷新页面', false, () => { refreshTab(ctxMenu.tab); setCtxMenu(null) })}
+                    <div style={{ height: 1, background: '#f0f0f0', margin: '4px 0' }} />
+                    {renderCtxItem(<CloseOutlined />, '关闭当前', ctxMenu.tab === 'dashboard', () => { closeTab(ctxMenu.tab); setCtxMenu(null) })}
+                    {renderCtxItem(<CloseOutlined />, '关闭其他', othersCount === 0, () => { closeOthers(ctxMenu.tab); setCtxMenu(null) })}
+                    {renderCtxItem(<CloseOutlined />, '关闭右侧页签', rightIdx >= openTabs.length - 1, () => { closeRight(ctxMenu.tab); setCtxMenu(null) })}
+                    {renderCtxItem(<CloseOutlined />, '全部关闭', openTabs.length <= 1, () => { closeAll(); setCtxMenu(null) })}
+                  </div>
+                )
+              })()}
             </NavigationContext.Provider>
           </div>
         </Content>
