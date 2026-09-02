@@ -29,6 +29,8 @@ import { buildVersionColumns } from './versions/columns'
 import { VersionFormModal } from './versions/VersionFormModal'
 import { VersionQrModal } from './versions/VersionQrModal'
 import type { AppVersion } from './versions/types'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const { Text } = Typography
 
@@ -69,30 +71,19 @@ const VersionManagement: React.FC = () => {
   })
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       {/* 当前版本信息 */}
       {currentVersion && (
         <Card
           title="当前发布版本"
-          style={{ marginBottom: 16 }}
+          className={common.mb16}
           extra={
             <Tag color="green">已激活</Tag>
           }
         >
           <Row gutter={24} align="middle">
             <Col flex="none">
-              <div
-                style={{
-                  width: 160,
-                  height: 160,
-                  background: '#fff',
-                  borderRadius: 8,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '1px solid #d9d9d9',
-                }}
-              >
+              <div className={styles.qrBox}>
                 <QRCodeSVG
                   value={v.getDownloadUrl(currentVersion) || 'https://example.com'}
                   size={140}
@@ -103,7 +94,7 @@ const VersionManagement: React.FC = () => {
             <Col flex="auto">
               <Descriptions size="small" column={2} bordered>
                 <Descriptions.Item label="版本号">
-                  <Text strong style={{ fontSize: 16, color: '#1890ff' }}>
+                  <Text strong className={styles.versionNum}>
                     v{currentVersion.version}
                   </Text>
                 </Descriptions.Item>
@@ -144,7 +135,7 @@ const VersionManagement: React.FC = () => {
       )}
 
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Input
             placeholder="搜索版本号/更新说明"
@@ -152,14 +143,14 @@ const VersionManagement: React.FC = () => {
             onChange={(e) => v.setFilters(prev => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={v.handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 220 }}
+            className={styles.w220}
             allowClear
           />
           <Select
             placeholder="平台"
             value={v.filters.platform}
             onChange={(value) => v.setFilters(prev => ({ ...prev, platform: value }))}
-            style={{ width: 120 }}
+            className={styles.w120}
             allowClear
             options={VERSION_PLATFORM_OPTIONS}
           />
@@ -167,7 +158,7 @@ const VersionManagement: React.FC = () => {
             placeholder="状态"
             value={v.filters.status}
             onChange={(value) => v.setFilters(prev => ({ ...prev, status: value }))}
-            style={{ width: 120 }}
+            className={styles.w120}
             allowClear
             options={VERSION_STATUS_OPTIONS}
           />
@@ -181,7 +172,7 @@ const VersionManagement: React.FC = () => {
       </Card>
 
       {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div className={styles.toolbar}>
         <Space>
           <Button type="primary" icon={<PlusOutlined />} disabled={!v.canWrite} onClick={v.handleAdd}>
             新增版本
