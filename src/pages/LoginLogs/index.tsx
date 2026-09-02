@@ -26,6 +26,8 @@ import { usePagination } from '../../hooks/usePagination'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
 import { ROLE_USER, ROLE_SUPER_ADMIN } from '../../constants'
+import common from '../../styles/common.module.css'
+import styles from './index.module.css'
 
 const { RangePicker } = DatePicker
 
@@ -276,9 +278,9 @@ const LoginLogs: React.FC = () => {
     ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Input
             placeholder="搜索用户名/IP/地点"
@@ -286,14 +288,14 @@ const LoginLogs: React.FC = () => {
             onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 220 }}
+            className={styles.searchInput}
             allowClear
           />
           <Select
             placeholder="状态"
             value={filters.status}
             onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
-            style={{ width: 120 }}
+            className={styles.filterSelect}
             allowClear
             options={[
               { value: 'success', label: '成功' },
@@ -304,7 +306,7 @@ const LoginLogs: React.FC = () => {
             placeholder="来源"
             value={filters.userType}
             onChange={(value) => setFilters(prev => ({ ...prev, userType: value }))}
-            style={{ width: 120 }}
+            className={styles.filterSelect}
             allowClear
             options={[
               { value: LOGIN_SOURCE_APP, label: 'App端' },
@@ -325,7 +327,7 @@ const LoginLogs: React.FC = () => {
       </Card>
 
       {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
+      <div className={styles.toolbarRight}>
         <Button icon={<ReloadOutlined />} onClick={loadLogs} loading={loading}>
           刷新
         </Button>
