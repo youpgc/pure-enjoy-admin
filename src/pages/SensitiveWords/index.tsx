@@ -27,6 +27,8 @@ import {
 import type { SensitiveWord, SensitiveWordFilters } from './sensitive-words/types'
 import { buildSensitiveWordsColumns } from './sensitive-words/columns'
 import { SensitiveWordsFormModal } from './sensitive-words/SensitiveWordsFormModal'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 // ==================== 组件 ====================
 
@@ -217,9 +219,9 @@ const SensitiveWords: React.FC = () => {
   })
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Input
             placeholder="搜索敏感词"
@@ -227,14 +229,14 @@ const SensitiveWords: React.FC = () => {
             onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 220 }}
+            className={styles.w220}
             allowClear
           />
           <Select
             placeholder="分类"
             value={filters.category}
             onChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
-            style={{ width: 120 }}
+            className={styles.w120}
             allowClear
             options={SENSITIVE_CATEGORY_OPTIONS}
           />
@@ -242,7 +244,7 @@ const SensitiveWords: React.FC = () => {
             placeholder="等级"
             value={filters.level}
             onChange={(value) => setFilters(prev => ({ ...prev, level: value }))}
-            style={{ width: 120 }}
+            className={styles.w120}
             allowClear
             options={SENSITIVE_LEVEL_OPTIONS}
           />
@@ -256,7 +258,7 @@ const SensitiveWords: React.FC = () => {
       </Card>
 
       {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div className={styles.toolbar}>
         <Space>
           <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={handleAdd}>
             新增敏感词
