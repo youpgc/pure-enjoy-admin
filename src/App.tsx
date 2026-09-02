@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Layout, Menu, theme, Avatar, Dropdown, Button } from 'antd'
+import { Layout, Menu, theme, Avatar, Dropdown } from 'antd'
 import {
   LogoutOutlined,
   MenuUnfoldOutlined,
@@ -9,8 +9,6 @@ import {
   DownOutlined,
   ReloadOutlined,
   CloseOutlined,
-  LeftOutlined,
-  RightOutlined,
 } from '@ant-design/icons'
 import type { AdminUser } from './types/auth'
 import { lazy, Suspense } from 'react'
@@ -202,13 +200,10 @@ const MainLayout: React.FC = () => {
     setOpenTabs((prev) => (prev.includes(page) ? prev : [...prev, page]))
   }, [])
 
-  // ========== 页签增强：刷新 / 关闭 / 右键菜单 / 滚动 ==========
+  // ========== 页签增强：刷新 / 关闭 / 右键菜单 ==========
   const [refreshKeys, setRefreshKeys] = useState<Record<string, number>>({})
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; tab: PageKey } | null>(null)
-  const tabListRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
-  const [canScrollLeft, setCanScrollLeft] = useState(false)
-  const [canScrollRight, setCanScrollRight] = useState(false)
 
   // 刷新：递增对应页签 key，强制组件重挂载（重新拉取数据）
   const refreshTab = useCallback((target: PageKey) => {
@@ -239,35 +234,6 @@ const MainLayout: React.FC = () => {
     if (!openTabs.includes(currentPage)) setCurrentPage('dashboard')
   }, [openTabs, currentPage])
 
-  // 滚动条状态（页签溢出时左右按钮可用）
-  const updateScrollState = useCallback(() => {
-    const el = tabListRef.current
-    if (!el) return
-    setCanScrollLeft(el.scrollLeft > 1)
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
-  }, [])
-  useEffect(() => {
-    updateScrollState()
-    const el = tabListRef.current
-    if (!el) return
-    const ro = new ResizeObserver(updateScrollState)
-    ro.observe(el)
-    window.addEventListener('resize', updateScrollState)
-    return () => {
-      ro.disconnect()
-      window.removeEventListener('resize', updateScrollState)
-    }
-  }, [openTabs, updateScrollState])
-  // 激活页签滚动到可视区
-  useEffect(() => {
-    const el = tabListRef.current
-    if (!el) return
-    const active = el.querySelector(`[data-tab-key="${currentPage}"]`) as HTMLElement | null
-    active?.scrollIntoView({ inline: 'nearest', block: 'nearest' })
-  }, [currentPage, openTabs])
-  const scrollTabs = (dir: number) => {
-    tabListRef.current?.scrollBy({ left: dir * 200, behavior: 'smooth' })
-  }
   // 右键菜单：点击外部 / 右键非页签区域关闭
   useEffect(() => {
     if (!ctxMenu) return
@@ -480,15 +446,10 @@ const MainLayout: React.FC = () => {
               currentPage,
               setCurrentPage: openPage,
             }}>
-              {/* 页签栏：左滚动 / 页签列表 / 右滚动 */}
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                {canScrollLeft && (
-                  <Button type="text" size="small" icon={<LeftOutlined />} onClick={() => scrollTabs(-1)} style={{ flex: '0 0 auto' }} />
-                )}
+              {/* 页签栏：盒式页签 + 圆角 + 间距，选中页签底部线为空以联动内容区（无左右滚动） */}
+              <div style={{ display: 'flex', alignItems: 'flex-end', borderBottom: '1px solid #e8e8e8' }}>
                 <div
-                  ref={tabListRef}
-                  onScroll={updateScrollState}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', overflowX: 'auto', whiteSpace: 'nowrap' }}
+                  style={{ flex: 1, display: 'flex', alignItems: 'flex-end', whiteSpace: 'nowrap' }}
                 >
                   {openTabs.map((k) => {
                     const active = k === currentPage
@@ -502,22 +463,27 @@ const MainLayout: React.FC = () => {
                           e.preventDefault()
                           setCtxMenu({ x: e.clientX, y: e.clientY, tab: k })
                         }}
+                        onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = '#f5f5f5' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
                         style={{
                           flex: '0 0 auto',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 6,
-                          height: 30,
-                          padding: '0 10px',
-                          marginRight: 4,
+                          height: 32,
+                          padding: '0 12px',
+                          marginRight: 6,
+                          marginBottom: -1,
                           cursor: 'pointer',
                           userSelect: 'none',
-                          border: `1px solid ${active ? '#6C63FF' : '#e8e8e8'}`,
-                          borderBottom: `2px solid ${active ? '#6C63FF' : 'transparent'}`,
-                          borderRadius: '6px 6px 0 0',
-                          background: active ? '#f5f3ff' : 'transparent',
-                          color: active ? '#6C63FF' : '#555',
                           fontSize: 13,
+                          color: '#555',
+                          fontWeight: active ? 600 : 400,
+                          // 盒式圆角页签：选中页签底部线为空，覆盖贯穿线以联动内容区
+                          border: '1px solid #e8e8e8',
+                          borderBottomColor: active ? colorBgContainer : '#e8e8e8',
+                          borderRadius: '6px 6px 0 0',
+                          background: active ? colorBgContainer : 'transparent',
                         }}
                       >
                         <span>{PAGE_TITLES[k] || '未命名'}</span>
@@ -531,9 +497,6 @@ const MainLayout: React.FC = () => {
                     )
                   })}
                 </div>
-                {canScrollRight && (
-                  <Button type="text" size="small" icon={<RightOutlined />} onClick={() => scrollTabs(1)} style={{ flex: '0 0 auto' }} />
-                )}
               </div>
 
               {/* 页签内容（keepalive：非活动页签仅 display:none 隐藏，组件实例保留不重挂载） */}
@@ -562,7 +525,7 @@ const MainLayout: React.FC = () => {
                     style={{ position: 'fixed', top: ctxMenu.y, left: ctxMenu.x, zIndex: 1100, minWidth: 150, background: '#fff', border: '1px solid #f0f0f0', borderRadius: 6, boxShadow: '0 6px 16px rgba(0,0,0,0.12)', padding: 4 }}
                     onContextMenu={(e) => e.preventDefault()}
                   >
-                    {renderCtxItem(<ReloadOutlined />, '刷新页面', false, () => { refreshTab(ctxMenu.tab); setCtxMenu(null) })}
+                    {renderCtxItem(<ReloadOutlined />, '刷新页面', false, () => { setCurrentPage(ctxMenu.tab); refreshTab(ctxMenu.tab); setCtxMenu(null) })}
                     <div style={{ height: 1, background: '#f0f0f0', margin: '4px 0' }} />
                     {renderCtxItem(<CloseOutlined />, '关闭当前', ctxMenu.tab === 'dashboard', () => { closeTab(ctxMenu.tab); setCtxMenu(null) })}
                     {renderCtxItem(<CloseOutlined />, '关闭其他', othersCount === 0, () => { closeOthers(ctxMenu.tab); setCtxMenu(null) })}
