@@ -10,6 +10,10 @@ export interface AdminUser {
   role: RoleCode
   nickname?: string
   avatar_url?: string
+  username?: string
+  phone?: string
+  gender?: string
+  height?: number
   created_at?: string
 }
 

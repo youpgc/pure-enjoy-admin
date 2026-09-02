@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Form, Input, Tabs, Avatar, Upload, Space, Button, message, Spin } from 'antd'
+import { Card, Form, Input, Tabs, Avatar, Upload, Space, Button, message, Spin, Select, InputNumber } from 'antd'
 import { UploadOutlined, UserOutlined } from '@ant-design/icons'
 import { useAuth } from '../../App'
 import {
@@ -15,30 +15,65 @@ interface PwdFormValues {
   confirmPassword: string
 }
 
+interface ProfileFormValues {
+  nickname?: string
+  username?: string
+  phone?: string
+  email?: string
+  gender?: string
+  height?: number
+}
+
+const GENDER_OPTIONS = [
+  { value: 'male', label: '男' },
+  { value: 'female', label: '女' },
+  { value: 'unknown', label: '保密' },
+]
+
 const Profile: React.FC = () => {
   const { user } = useAuth()
-  const [profileForm] = Form.useForm<{ nickname?: string }>()
+  const [profileForm] = Form.useForm<ProfileFormValues>()
   const [pwdForm] = Form.useForm<PwdFormValues>()
-  const [emailForm] = Form.useForm<{ newEmail?: string }>()
 
   const [avatarUrl, setAvatarUrl] = useState<string>(user?.avatar_url || '')
+  const [avatarBroken, setAvatarBroken] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
   const [savingPwd, setSavingPwd] = useState(false)
-  const [savingEmail, setSavingEmail] = useState(false)
 
   useEffect(() => {
     if (user) {
-      profileForm.setFieldsValue({ nickname: user.nickname || '' })
+      profileForm.setFieldsValue({
+        nickname: user.nickname || '',
+        username: user.username || '',
+        phone: user.phone || '',
+        email: user.email || '',
+        gender: user.gender || '',
+        height: user.height,
+      })
       setAvatarUrl(user.avatar_url || '')
+      setAvatarBroken(false)
     }
   }, [user, profileForm])
+
+  // 头像地址为空或加载失败时回退默认图标（UserOutlined），避免出现破损图片
+  const effectiveAvatar = !avatarUrl || avatarBroken ? undefined : avatarUrl
+  const renderAvatar = (size: number) => (
+    <Avatar
+      size={size}
+      src={effectiveAvatar}
+      icon={<UserOutlined />}
+      onError={() => { setAvatarBroken(true); return false }}
+      style={{ backgroundColor: (!avatarUrl || avatarBroken) ? '#6C63FF' : 'transparent' }}
+    />
+  )
 
   const handleUpload = async (file: File) => {
     try {
       setUploading(true)
       const url = await uploadAvatar(file)
       setAvatarUrl(url)
+      setAvatarBroken(false)
       message.success('头像上传成功')
     } catch (e: any) {
       message.error(e?.message || '头像上传失败')
@@ -52,8 +87,23 @@ const Profile: React.FC = () => {
     try {
       const v = await profileForm.validateFields()
       setSavingProfile(true)
-      await updateProfile({ nickname: v.nickname || '', avatar_url: avatarUrl })
-      message.success('资料已更新')
+      // 资料字段双写 public.users（用户管理可见）+ auth.user_metadata（后台回显）
+      await updateProfile({
+        nickname: v.nickname || '',
+        username: v.username || '',
+        phone: v.phone || '',
+        gender: v.gender || '',
+        height: v.height,
+        avatar_url: avatarUrl,
+        email: v.email,
+      })
+      // 邮箱合并到同一栏维护：若发生变更，触发验证邮件流程
+      if (v.email && v.email !== user?.email) {
+        await changeEmail(v.email)
+        message.success('资料已更新，新邮箱验证邮件已发送，请查收确认')
+      } else {
+        message.success('资料已更新')
+      }
     } catch (e: any) {
       if (e?.message) message.error(e.message)
     } finally {
@@ -79,20 +129,6 @@ const Profile: React.FC = () => {
     }
   }
 
-  const onSaveEmail = async () => {
-    try {
-      const v = await emailForm.validateFields()
-      setSavingEmail(true)
-      await changeEmail(v.newEmail || '')
-      message.success('验证邮件已发送至新邮箱，请查收确认')
-      emailForm.resetFields()
-    } catch (e: any) {
-      if (e?.message) message.error(e.message)
-    } finally {
-      setSavingEmail(false)
-    }
-  }
-
   if (!user) {
     return (
       <div style={{ padding: 24, display: 'flex', justifyContent: 'center' }}>
@@ -105,12 +141,7 @@ const Profile: React.FC = () => {
     <div style={{ maxWidth: 720 }}>
       <Card style={{ marginBottom: 16 }}>
         <Space align="center">
-          <Avatar
-            size={72}
-            src={avatarUrl}
-            icon={!avatarUrl && <UserOutlined />}
-            style={{ backgroundColor: avatarUrl ? 'transparent' : '#6C63FF' }}
-          />
+          {renderAvatar(72)}
           <div>
             <div style={{ fontSize: 16, fontWeight: 600 }}>{user.nickname || user.email}</div>
             <div style={{ color: '#999' }}>{user.email}</div>
@@ -130,24 +161,48 @@ const Profile: React.FC = () => {
                   <Form.Item name="nickname" label="昵称" rules={[{ max: 30, message: '昵称不超过30字' }]}>
                     <Input placeholder="请输入昵称" />
                   </Form.Item>
+                  <Form.Item name="username" label="用户名" rules={[{ max: 30, message: '用户名不超过30字' }]}>
+                    <Input placeholder="请输入用户名" />
+                  </Form.Item>
+                  <Form.Item
+                    name="phone"
+                    label="手机号"
+                    rules={[{ pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号', validateTrigger: 'onBlur' }]}
+                  >
+                    <Input placeholder="请输入手机号" maxLength={20} />
+                  </Form.Item>
+                  <Form.Item
+                    name="email"
+                    label="邮箱"
+                    rules={[
+                      { required: true, message: '请输入邮箱' },
+                      { type: 'email', message: '请输入有效的邮箱地址' },
+                    ]}
+                  >
+                    <Input placeholder="请输入邮箱" />
+                  </Form.Item>
+                  <Form.Item name="gender" label="性别">
+                    <Select placeholder="请选择性别" options={GENDER_OPTIONS} allowClear style={{ maxWidth: 240 }} />
+                  </Form.Item>
+                  <Form.Item name="height" label="身高 (cm)">
+                    <InputNumber min={50} max={250} style={{ width: 240 }} placeholder="请输入身高" />
+                  </Form.Item>
                   <Form.Item label="头像">
                     <Space direction="vertical" align="center">
-                      <Avatar
-                        size={100}
-                        src={avatarUrl}
-                        icon={!avatarUrl && <UserOutlined />}
-                        style={{ backgroundColor: avatarUrl ? 'transparent' : '#6C63FF' }}
-                      />
+                      {renderAvatar(100)}
                       <Upload beforeUpload={handleUpload} showUploadList={false} accept="image/*">
                         <Button icon={<UploadOutlined />} loading={uploading}>
                           {avatarUrl ? '更换头像' : '上传头像'}
                         </Button>
                       </Upload>
                       <Input
-                        placeholder="或直接填写头像 URL"
+                        placeholder="或直接填写头像 URL（留空则显示默认头像）"
                         value={avatarUrl}
-                        onChange={(e) => setAvatarUrl(e.target.value)}
-                        style={{ width: 280 }}
+                        onChange={(e) => {
+                          setAvatarUrl(e.target.value)
+                          setAvatarBroken(false)
+                        }}
+                        style={{ width: 300 }}
                       />
                     </Space>
                   </Form.Item>
@@ -202,37 +257,6 @@ const Profile: React.FC = () => {
                     </Button>
                   </Form.Item>
                 </Form>
-              </Card>
-            ),
-          },
-          {
-            key: 'email',
-            label: '修改邮箱',
-            children: (
-              <Card>
-                <Form form={emailForm} layout="vertical">
-                  <Form.Item label="当前邮箱">
-                    <Input value={user.email} disabled />
-                  </Form.Item>
-                  <Form.Item
-                    name="newEmail"
-                    label="新邮箱"
-                    rules={[
-                      { required: true, message: '请输入新邮箱' },
-                      { type: 'email', message: '请输入有效的邮箱地址' },
-                    ]}
-                  >
-                    <Input placeholder="请输入新邮箱" />
-                  </Form.Item>
-                  <Form.Item>
-                    <Button type="primary" loading={savingEmail} onClick={onSaveEmail}>
-                      发送验证邮件
-                    </Button>
-                  </Form.Item>
-                </Form>
-                <div style={{ color: '#999', fontSize: 12 }}>
-                  修改邮箱后，系统会向新邮箱发送确认邮件，确认后生效。
-                </div>
               </Card>
             ),
           },

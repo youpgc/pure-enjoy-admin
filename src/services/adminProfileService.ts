@@ -1,19 +1,84 @@
-import { supabase, handleSupabaseError } from '../utils/supabase'
+import { supabase, handleSupabaseError, getCurrentBusinessUserId } from '../utils/supabase'
 
 export interface ProfileData {
   nickname: string
   avatar_url: string
+  username?: string
+  phone?: string
+  gender?: string
+  height?: number
+  email?: string
 }
 
 /**
- * 更新当前管理员自身资料（昵称 / 头像），写入 auth.users.user_metadata。
- * ⚠️ 仅存 auth.user_metadata（展示用），不应作为业务权限 / 角色判定依据（详见 App.tsx InlineAuthProvider 注释）。
+ * 更新当前管理员自身资料：同时写入业务表 public.users（管理员自己的行，用户管理即时可见、App 端一致）
+ * 与 auth.users.user_metadata（镜像，供后台即时回显）。
+ * - 资料字段（昵称 / 用户名 / 手机号 / 性别 / 身高 / 头像）双写 public.users + user_metadata。
+ * - 邮箱：若发生变更，public.users.email 立即同步（用户管理可见），同时由调用方走 changeEmail 触发验证邮件改登录邮箱。
+ * ⚠️ 权限 / 角色判定仍以 public.users.role + is_admin RPC 为准，本函数不改 role；邮箱/密码登录逻辑不变。
  */
 export async function updateProfile(data: ProfileData): Promise<void> {
+  // 1) 业务表 public.users：更新管理员自己的行（RLS：auth_id = auth.uid() 放行，见 diag_users_update_404_v4）
+  const businessId = await getCurrentBusinessUserId()
+
+  // 规整：空字符串视为「未填写」写入 NULL，避免 '' 污染 username 唯一索引
+  // （PostgreSQL 把 '' 当成一个真实值纳入唯一索引，会与其他空用户名行冲突触发 23505）
+  const username = data.username && data.username.trim() ? data.username.trim() : null
+  const phone = data.phone && data.phone.trim() ? data.phone.trim() : null
+
+  // 读取自身当前值，用于「排除自己」的唯一性校验（自更新同值不会冲突，仅被其它行占用才冲突）
+  const { data: cur } = await (supabase.from('users') as any)
+    .select('username, phone')
+    .eq('id', businessId)
+    .maybeSingle()
+
+  // 唯一性预校验：仅当值非空且与自身当前值不同，避免直接触发 23505，给出可读提示
+  if (businessId && username && username !== cur?.username) {
+    const { count } = await (supabase.from('users') as any)
+      .select('*', { count: 'exact', head: true })
+      .eq('username', username)
+      .or('is_deleted.eq.false,is_deleted.is.null')
+      .neq('id', businessId)
+    if (count && count > 0) throw new Error('用户名已存在，请更换其他用户名')
+  }
+  if (businessId && phone && phone !== cur?.phone) {
+    const { count } = await (supabase.from('users') as any)
+      .select('*', { count: 'exact', head: true })
+      .eq('phone', phone)
+      .or('is_deleted.eq.false,is_deleted.is.null')
+      .neq('id', businessId)
+    if (count && count > 0) throw new Error('手机号已存在，请更换其他手机号')
+  }
+
+  if (businessId) {
+    const usersUpdate: Record<string, unknown> = {
+      nickname: data.nickname,
+      avatar_url: data.avatar_url,
+      username,
+      phone,
+      gender: data.gender ?? null,
+      height: data.height ?? null,
+      updated_at: new Date().toISOString(),
+    }
+    if (data.email) usersUpdate.email = data.email
+    const { error: ue } = await (supabase.from('users') as any).update(usersUpdate).eq('id', businessId)
+    if (ue) {
+      if (ue.code === '23505') throw new Error('用户名或手机号已被占用，请更换后重试')
+      throw new Error(handleSupabaseError(ue, 'updateProfile(users)'))
+    }
+  }
+  // 2) 镜像到 auth.user_metadata（供后台即时回显，不改登录邮箱 / 密码）
   const { error } = await supabase.auth.updateUser({
-    data: { nickname: data.nickname, avatar_url: data.avatar_url },
+    data: {
+      nickname: data.nickname,
+      avatar_url: data.avatar_url,
+      username: data.username ?? '',
+      phone: data.phone ?? '',
+      gender: data.gender ?? '',
+      height: data.height,
+    },
   })
-  if (error) throw new Error(handleSupabaseError(error, 'updateProfile'))
+  if (error) throw new Error(handleSupabaseError(error, 'updateProfile(metadata)'))
 }
 
 /**

@@ -108,6 +108,10 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       role: role,
       nickname: metadata.nickname || metadata.name || '',
       avatar_url: metadata.avatar_url,
+      username: metadata.username || '',
+      phone: metadata.phone || '',
+      gender: metadata.gender || '',
+      height: typeof metadata.height === 'number' ? metadata.height : undefined,
       created_at: authUser.created_at,
     }
   }, [])
@@ -270,6 +274,9 @@ const MainLayout: React.FC = () => {
   )
 
   const { user, logout } = useAuth()
+  // 头像加载失败时回退默认图标（避免破损图片）；用户切换时重置
+  const [headerAvatarError, setHeaderAvatarError] = useState(false)
+  useEffect(() => { setHeaderAvatarError(false) }, [user])
   const { hasMenuPermission, isAdmin } = usePermission()
   const {
     token: { colorBgContainer },
@@ -420,9 +427,10 @@ const MainLayout: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '0 8px' }}>
               <Avatar
                 size={32}
-                src={user?.avatar_url}
-                icon={!user?.avatar_url && <UserOutlined />}
-                style={{ backgroundColor: user?.avatar_url ? 'transparent' : '#6C63FF' }}
+                src={user?.avatar_url && !headerAvatarError ? user.avatar_url : undefined}
+                icon={<UserOutlined />}
+                onError={() => { setHeaderAvatarError(true); return false }}
+                style={{ backgroundColor: (!user?.avatar_url || headerAvatarError) ? '#6C63FF' : 'transparent' }}
               />
               <span style={{ color: '#333', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user?.nickname || user?.email}
