@@ -26,6 +26,8 @@ import {
   ACHIEVEMENT_SHARED_ICON_BASE,
   ACHIEVEMENT_ICON_OPTIONS,
 } from '../../constants/game'
+import common from '../../styles/common.module.css'
+import styles from './GameAchievements.module.css'
 
 type DbGameAchievement = Database['public']['Tables']['game_achievements']['Row']
 
@@ -252,7 +254,7 @@ const GameAchievements: React.FC = () => {
             width={30}
             height={30}
             alt={v}
-            style={{ borderRadius: 6 }}
+            className={styles.iconImg}
           />
         ) : (
           '-'
@@ -304,39 +306,33 @@ const GameAchievements: React.FC = () => {
       <Alert
         type="info"
         showIcon
-        style={{ marginBottom: 16 }}
+        className={common.mb16}
         message="游戏成就配置说明"
         description={
-          <div style={{ lineHeight: 1.8 }}>
-            <p style={{ margin: '4px 0' }}>
+          <div className={styles.alertDesc}>
+            <p className={styles.para}>
               <b>与「积分奖励配置」的关系：</b>成就是独立于积分奖励规则的独立体系——独立建表、独立判定、独立维护。
               App 端通关结算时按下方条件自动评估是否达成；同一成就<b>终身只发一次</b>（用户解锁记录唯一索引兜底）；
               奖励积分走 game_earn 流水，仍受「积分奖励配置」里的<b>单日上限</b>约束。
               积分奖励配置中的「成就达成」枚举仅兼容旧数据，请勿在其中新增。
             </p>
-            <div style={{ margin: '4px 0' }}>
+            <div className={styles.para}>
               <b>如何配置：</b>选择所属游戏 → 填写成就编码（唯一，如 first_win）与名称 → 选择达成条件类型 →
               填写奖励积分 → 启用即生效，无需重启 App。
-              <ul style={{ margin: '4px 0', paddingLeft: 18 }}>
+              <ul className={styles.bulletList}>
                 <li><b>任意通关</b>：通关任意一关即达成；适合「首胜」类成就。</li>
                 <li><b>维度分数达到</b>：选择维度（来自「游戏与维度配置」的维度编码，如 score）与阈值，通关时该维度值 ≥ 阈值即达成；适合「单局得分 2048」类成就。</li>
                 <li><b>通关关卡号达到</b>：通关的关卡号 ≥ N 即达成；适合「通过第 5 关」类进阶成就。</li>
               </ul>
             </div>
-            <p style={{ margin: '4px 0' }}>
+            <p className={styles.para}>
               <b>奖励积分：</b>达成时发放的积分；填 0 表示仅解锁成就、不发积分。
             </p>
           </div>
         }
       />
       <div
-        style={{
-          marginBottom: 12,
-          display: 'flex',
-          justifyContent: 'space-between',
-          gap: 12,
-          flexWrap: 'wrap',
-        }}
+        className={styles.toolbar}
       >
         <Space wrap>
           <Input.Search
@@ -347,7 +343,7 @@ const GameAchievements: React.FC = () => {
               setNameFilter(e.target.value)
               setPage(1)
             }}
-            style={{ width: 240 }}
+            className={styles.searchInput}
           />
           <Select
             placeholder="按游戏筛选"
@@ -358,7 +354,7 @@ const GameAchievements: React.FC = () => {
               setPage(1)
             }}
             options={[{ value: 'global', label: '全局（无所属游戏）' }, ...gameOptions]}
-            style={{ width: 220 }}
+            className={styles.gameSelect}
             showSearch
             optionFilterProp="label"
           />
@@ -492,7 +488,7 @@ const GameAchievements: React.FC = () => {
                       label="达到阈值"
                       rules={[{ required: true, message: '请输入阈值' }]}
                     >
-                      <InputNumber min={0} style={{ width: '100%' }} placeholder="如 2048" />
+                      <InputNumber min={0} className={common.fullWidth} placeholder="如 2048" />
                     </Form.Item>
                   </>
                 )
@@ -504,7 +500,7 @@ const GameAchievements: React.FC = () => {
                     label="达到关卡号"
                     rules={[{ required: true, message: '请输入关卡号' }]}
                   >
-                    <InputNumber min={1} style={{ width: '100%' }} placeholder="如 5" />
+                    <InputNumber min={1} className={common.fullWidth} placeholder="如 5" />
                   </Form.Item>
                 )
               }
@@ -517,10 +513,10 @@ const GameAchievements: React.FC = () => {
             tooltip="达成时发放；0 表示仅解锁不发分"
             rules={[{ required: true, message: '请输入奖励积分' }]}
           >
-            <InputNumber min={0} style={{ width: '100%' }} addonAfter="分" />
+            <InputNumber min={0} className={common.fullWidth} addonAfter="分" />
           </Form.Item>
           <Form.Item name="sort_order" label="排序号">
-            <InputNumber min={0} style={{ width: '100%' }} />
+            <InputNumber min={0} className={common.fullWidth} />
           </Form.Item>
           <Form.Item name="enabled" label="启用" valuePropName="checked">
             <Switch checkedChildren="启用" unCheckedChildren="停用" />

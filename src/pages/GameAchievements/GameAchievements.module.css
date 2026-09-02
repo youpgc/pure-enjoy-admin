@@ -1,0 +1,44 @@
+/* 游戏成就配置页（GameAchievements）局部样式。
+ * 经 CSS Modules 编译后类名局部作用域，不会与项目其他页面冲突。
+ * 仅放本页使用的样式；跨页通用样式见 src/styles/common.module.css。
+ */
+
+/* 说明区描述排版 */
+.alertDesc {
+  line-height: 1.8;
+}
+
+/* 说明区段落间距 */
+.para {
+  margin: 4px 0;
+}
+
+/* 说明区要点列表 */
+.bulletList {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+/* 成就图标圆角 */
+.iconImg {
+  border-radius: 6px;
+}
+
+/* 列表上方工具条：左侧筛选 + 右侧新增 */
+.toolbar {
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 名称搜索框固定宽 */
+.searchInput {
+  width: 240px;
+}
+
+/* 游戏筛选下拉固定宽 */
+.gameSelect {
+  width: 220px;
+}
