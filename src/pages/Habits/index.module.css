@@ -1,0 +1,20 @@
+.statTotal :global(.ant-statistic-content) {
+  color: #1890ff;
+}
+
+.statCurrent :global(.ant-statistic-content) {
+  color: #f5222d;
+}
+
+.statLongest :global(.ant-statistic-content) {
+  color: #faad14;
+}
+
+.statMonth :global(.ant-statistic-content) {
+  color: #52c41a;
+}
+
+.timelineWrap {
+  max-height: 400px;
+  overflow: auto;
+}

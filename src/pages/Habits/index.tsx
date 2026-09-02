@@ -8,6 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import EllipsisText from '../../components/EllipsisText'
 import { BaseService, handleApiError } from '../../utils/apiClient'
 import { useMounted } from '../../hooks/useMounted'
+import styles from './index.module.css'
 
 // ==================== 打卡记录弹窗 ====================
 
@@ -154,22 +155,22 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
             <Row gutter={16} className="mb-4">
               <Col span={6}>
                 <Card size="small">
-                  <Statistic title="总打卡" value={stats.total} prefix={<CheckCircleOutlined />} valueStyle={{ color: '#1890ff' }} />
+                  <Statistic className={styles.statTotal} title="总打卡" value={stats.total} prefix={<CheckCircleOutlined />} />
                 </Card>
               </Col>
               <Col span={6}>
                 <Card size="small">
-                  <Statistic title="连续打卡" value={stats.currentStreak} suffix="天" prefix={<FireOutlined />} valueStyle={{ color: '#f5222d' }} />
+                  <Statistic className={styles.statCurrent} title="连续打卡" value={stats.currentStreak} suffix="天" prefix={<FireOutlined />} />
                 </Card>
               </Col>
               <Col span={6}>
                 <Card size="small">
-                  <Statistic title="最长连续" value={stats.longestStreak} suffix="天" prefix={<TrophyOutlined />} valueStyle={{ color: '#faad14' }} />
+                  <Statistic className={styles.statLongest} title="最长连续" value={stats.longestStreak} suffix="天" prefix={<TrophyOutlined />} />
                 </Card>
               </Col>
               <Col span={6}>
                 <Card size="small">
-                  <Statistic title="本月打卡" value={stats.thisMonth} prefix={<CalendarOutlined />} valueStyle={{ color: '#52c41a' }} />
+                  <Statistic className={styles.statMonth} title="本月打卡" value={stats.thisMonth} prefix={<CalendarOutlined />} />
                 </Card>
               </Col>
             </Row>
@@ -217,7 +218,7 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
               )}
 
               {activeTab === 'timeline' && (
-                <div style={{ maxHeight: 400, overflow: 'auto' }}>
+                <div className={styles.timelineWrap}>
                   <Timeline
                     items={checkins.slice(0, 50).map(c => ({
                       color: 'green',
