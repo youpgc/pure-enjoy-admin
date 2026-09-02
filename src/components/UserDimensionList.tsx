@@ -7,6 +7,7 @@ import { buildUserDimensionColumns } from './user-dimension/columns'
 import { UserDimensionDetailModal } from './user-dimension/UserDimensionDetailModal'
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from './user-dimension/constants'
 import type { ModuleConfig, RecordItem, UserSummary } from './user-dimension/types'
+import common from '../styles/common.module.css'
 
 // 保持对外公开类型（供各页面 moduleConfig 复用），避免消费者改动
 export type { ModuleConfig, RecordItem, UserSummary }
@@ -67,8 +68,8 @@ const UserDimensionList: React.FC<{
   return (
     <div>
       {/* 页面标题 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={4} style={{ margin: 0 }}>
+      <div className={`${common.mb16} ${common.flexBetween}`}>
+        <Title level={4} className={common.noMargin}>
           {title}
         </Title>
         <Space>
@@ -83,7 +84,7 @@ const UserDimensionList: React.FC<{
       </div>
 
       {/* 统计卡片 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space size="large">
           <Text type="secondary">用户总数：</Text>
           <Text strong>{total}</Text>
@@ -92,7 +93,7 @@ const UserDimensionList: React.FC<{
           <Text strong>{totalRecords}</Text>
         </Space>
         {dataLimitWarning && (
-          <div style={{ marginTop: 8 }}>
+          <div className={common.mt8}>
             <Text type="warning">{dataLimitWarning}</Text>
           </div>
         )}
