@@ -1,0 +1,29 @@
+.centerFlex {
+  display: flex;
+  justify-content: center;
+}
+
+.pageWrap {
+  max-width: 720px;
+}
+
+.nameText {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.emailText {
+  color: #999;
+}
+
+.selectMax240 {
+  max-width: 240px;
+}
+
+.inputWidth240 {
+  width: 240px;
+}
+
+.inputWidth300 {
+  width: 300px;
+}

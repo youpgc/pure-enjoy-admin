@@ -8,6 +8,8 @@ import {
   changeEmail,
   uploadAvatar,
 } from '../../services/adminProfileService'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 interface PwdFormValues {
   currentPassword: string
@@ -131,20 +133,20 @@ const Profile: React.FC = () => {
 
   if (!user) {
     return (
-      <div style={{ padding: 24, display: 'flex', justifyContent: 'center' }}>
+      <div className={`${common.p24} ${styles.centerFlex}`}>
         <Spin />
       </div>
     )
   }
 
   return (
-    <div style={{ maxWidth: 720 }}>
-      <Card style={{ marginBottom: 16 }}>
+    <div className={styles.pageWrap}>
+      <Card className={common.mb16}>
         <Space align="center">
           {renderAvatar(72)}
           <div>
-            <div style={{ fontSize: 16, fontWeight: 600 }}>{user.nickname || user.email}</div>
-            <div style={{ color: '#999' }}>{user.email}</div>
+            <div className={styles.nameText}>{user.nickname || user.email}</div>
+            <div className={styles.emailText}>{user.email}</div>
           </div>
         </Space>
       </Card>
@@ -182,10 +184,10 @@ const Profile: React.FC = () => {
                     <Input placeholder="请输入邮箱" />
                   </Form.Item>
                   <Form.Item name="gender" label="性别">
-                    <Select placeholder="请选择性别" options={GENDER_OPTIONS} allowClear style={{ maxWidth: 240 }} />
+                    <Select placeholder="请选择性别" options={GENDER_OPTIONS} allowClear className={styles.selectMax240} />
                   </Form.Item>
                   <Form.Item name="height" label="身高 (cm)">
-                    <InputNumber min={50} max={250} style={{ width: 240 }} placeholder="请输入身高" />
+                    <InputNumber min={50} max={250} className={styles.inputWidth240} placeholder="请输入身高" />
                   </Form.Item>
                   <Form.Item label="头像">
                     <Space direction="vertical" align="center">
@@ -202,7 +204,7 @@ const Profile: React.FC = () => {
                           setAvatarUrl(e.target.value)
                           setAvatarBroken(false)
                         }}
-                        style={{ width: 300 }}
+                        className={styles.inputWidth300}
                       />
                     </Space>
                   </Form.Item>
