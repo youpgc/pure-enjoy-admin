@@ -41,6 +41,8 @@ import {
   gameAchievementService,
 } from '../../services/gameService'
 import type { DbGame, DbGameScore, DbGameRewardClaim, DbUserGameAchievement, DbGameAchievement, DbGameRewardRule } from '../../types/database'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const { Title } = Typography
 const { RangePicker } = DatePicker
@@ -212,9 +214,9 @@ const GameAnalytics: React.FC = () => {
   }, [loadAll])
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={4} style={{ margin: 0 }}>
+    <div className={common.p24}>
+      <div className={styles.header}>
+        <Title level={4} className={common.noMargin}>
           游戏数据分析
         </Title>
         <Space>
@@ -228,13 +230,13 @@ const GameAnalytics: React.FC = () => {
       </div>
 
       {loading && !loadedOnce ? (
-        <div style={{ textAlign: 'center', padding: 100 }}>
+        <div className={styles.centerSpin}>
           <Spin size="large" />
         </div>
       ) : (
         <>
           {/* 指标卡 */}
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} className={common.mb16}>
             <Col xs={12} lg={6}>
               <Card>
                 <Statistic title="参与用户数" value={totalUsers} suffix="人" />
@@ -257,7 +259,7 @@ const GameAnalytics: React.FC = () => {
             </Col>
           </Row>
 
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} className={common.mb16}>
             <Col xs={24} lg={12}>
               <Card title="各游戏对局数对比">
                 {perGameData.length > 0 ? (
@@ -294,7 +296,7 @@ const GameAnalytics: React.FC = () => {
             </Col>
           </Row>
 
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <Row gutter={[16, 16]} className={common.mb16}>
             <Col xs={24} lg={12}>
               <Card title="各游戏通关率">
                 {clearRateData.length > 0 ? (
