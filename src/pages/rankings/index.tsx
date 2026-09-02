@@ -11,6 +11,8 @@ import {
 import { useRankings } from './useRankings'
 import { buildRankingColumns } from './columns'
 import { RANKING_OPTIONS, DEFAULT_RULES } from './types'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const Rankings: React.FC = () => {
   const {
@@ -43,7 +45,7 @@ const Rankings: React.FC = () => {
   return (
     <div>
       {/* 统计卡片 */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} className={common.mb16}>
         <Col xs={24} sm={12} lg={6}>
           <Card><Statistic title='总小说数' value={data.length} prefix={<TrophyOutlined />} /></Card>
         </Col>
@@ -59,13 +61,13 @@ const Rankings: React.FC = () => {
       </Row>
 
       {/* 工具栏 */}
-      <Card style={{ marginBottom: 16 }}>
-        <Space wrap style={{ justifyContent: 'space-between', width: '100%' }}>
+      <Card className={common.mb16}>
+        <Space wrap className={styles.toolbar}>
           <Space>
             <Select
               value={rankingType}
               options={RANKING_OPTIONS}
-              style={{ width: 140 }}
+              className={styles.selectWidth}
               onChange={setRankingType}
             />
             <Button type='primary' onClick={fetchRankings} loading={loading}>查询</Button>
@@ -84,15 +86,15 @@ const Rankings: React.FC = () => {
             </Button>
           </Space>
         </Space>
-        <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+        <div className={styles.refreshHint}>
           上次刷新：{lastRefresh}
           {rankingType === 'avg_rating' && (
-            <Tag style={{ marginLeft: 8, fontSize: 12 }} color='blue'>
+            <Tag className={`${styles.tagHint} ${common.ml8}`} color='blue'>
               评分门槛 ≥ {rules.rating_min_count} 人
             </Tag>
           )}
           {rankingType === 'new_books' && (
-            <Tag style={{ marginLeft: 8, fontSize: 12 }} color='green'>
+            <Tag className={`${styles.tagHint} ${common.ml8}`} color='green'>
               近 {rules.new_book_days_threshold} 天上架
             </Tag>
           )}
@@ -102,7 +104,7 @@ const Rankings: React.FC = () => {
       {/* 数据表格 */}
       <Card>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 80 }}><Spin size='large' /></div>
+          <div className={styles.centerBox}><Spin size='large' /></div>
         ) : data.length === 0 ? (
           <Empty description='暂无榜单数据' />
         ) : (
@@ -161,7 +163,7 @@ const Rankings: React.FC = () => {
             <InputNumber
               min={1}
               max={1000}
-              style={{ width: '100%' }}
+              className={common.fullWidth}
               placeholder='默认 10 人'
               onChange={(v) => setRules((prev) => ({ ...prev, rating_min_count: v ?? DEFAULT_RULES.rating_min_count }))}
             />
@@ -170,7 +172,7 @@ const Rankings: React.FC = () => {
             <InputNumber
               min={1}
               max={365}
-              style={{ width: '100%' }}
+              className={common.fullWidth}
               placeholder='默认 30 天'
               onChange={(v) => setRules((prev) => ({ ...prev, new_book_days_threshold: v ?? DEFAULT_RULES.new_book_days_threshold }))}
             />
@@ -205,7 +207,7 @@ const Rankings: React.FC = () => {
             />
           </Form.Item>
 
-          <Space style={{ marginTop: 16 }}>
+          <Space className={common.mt16}>
             <Button type='primary' onClick={() => { saveRules(rules); setRulesModalOpen(false) }}>
               保存并应用
             </Button>

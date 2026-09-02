@@ -1,0 +1,20 @@
+.toolbar {
+  justify-content: space-between;
+  width: 100%;
+}
+.refreshHint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #999;
+}
+.tagHint {
+  margin-left: 8px;
+  font-size: 12px;
+}
+.centerBox {
+  text-align: center;
+  padding: 80px;
+}
+.selectWidth {
+  width: 140px;
+}
