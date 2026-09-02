@@ -27,6 +27,8 @@ import {
   gameScoreValueService,
 } from '../../services/gameService'
 import type { DbGameScore, DbGameScoreValue } from '../../types/database'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const { Text } = Typography
 const { RangePicker } = DatePicker
@@ -243,11 +245,11 @@ const GameScores: React.FC = () => {
   ]
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={common.p24}>
       {/* 最佳成绩概览 */}
       <Card
         title="最佳成绩概览（各游戏主维度全局最佳）"
-        style={{ marginBottom: 16 }}
+        className={common.mb16}
         extra={
           <Button size="small" icon={<ReloadOutlined />} onClick={loadBestOverview} loading={overviewLoading}>
             刷新
@@ -255,7 +257,7 @@ const GameScores: React.FC = () => {
         }
       >
         {overviewLoading ? (
-          <div style={{ textAlign: 'center', padding: 40 }}>
+          <div className={styles.centerSpin}>
             <Spin />
           </div>
         ) : bestRows.length > 0 ? (
@@ -300,11 +302,11 @@ const GameScores: React.FC = () => {
       </Card>
 
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Text>游戏：</Text>
           <Select
-            style={{ width: 200 }}
+            className={styles.selW200}
             value={gameFilter}
             onChange={(v) => {
               setGameFilter(v)
@@ -314,7 +316,7 @@ const GameScores: React.FC = () => {
           />
           <Text>状态：</Text>
           <Select
-            style={{ width: 140 }}
+            className={styles.selW140}
             value={statusFilter}
             onChange={(v) => {
               setStatusFilter(v)
