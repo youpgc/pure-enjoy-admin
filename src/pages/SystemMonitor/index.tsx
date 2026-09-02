@@ -38,6 +38,8 @@ import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { systemMonitorService, type TableStat, type DbHealth, type RlsCoverage, type SeqScanHotspot, type LogTrendPoint } from '../../services/systemMonitorService'
 import { TABLE_NAME_MAP } from '../../constants/operationLog'
+import common from '../../styles/common.module.css'
+import styles from './SystemMonitor.module.css'
 
 const { Text } = Typography
 
@@ -64,19 +66,19 @@ function formatDate(iso: string | null): string {
 /** 分区1：健康概览 */
 const HealthOverview: React.FC<{ health: DbHealth | null; latencyMs: number | null; loading: boolean }> = ({ health, latencyMs, loading }) => {
   const utilPct = health?.conn_util_pct ?? 0
-  const connColor = utilPct >= 80 ? '#ff4d4f' : utilPct >= 60 ? '#faad14' : '#52c41a'
+  const connColorClass = utilPct >= 80 ? styles.statRed : utilPct >= 60 ? styles.statAmber : styles.statGreen
   const errUp = (health?.err_last_24h ?? 0) > (health?.err_prev_24h ?? 0)
   return (
-    <Card title="健康概览" style={{ marginBottom: 16 }}>
+    <Card title="健康概览" className={common.mb16}>
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
           <Statistic
             title="数据库状态"
             value={health ? '已连接' : '—'}
-            prefix={health ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> : <ExclamationCircleOutlined style={{ color: '#ff4d4f' }} />}
-            valueStyle={{ color: health ? '#52c41a' : '#999' }}
+            prefix={health ? <CheckCircleOutlined className={styles.iconGreen} /> : <ExclamationCircleOutlined className={styles.iconRed} />}
+            className={health ? styles.statGreen : styles.statGray}
           />
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" className={common.smallText}>
             查询延迟 {latencyMs != null ? `${latencyMs} ms` : '—'}
           </Text>
         </Col>
@@ -87,19 +89,19 @@ const HealthOverview: React.FC<{ health: DbHealth | null; latencyMs: number | nu
           <Statistic
             title="连接数水位"
             value={health ? `${health.active_conns} / ${health.max_conns}` : '—'}
-            valueStyle={{ color: connColor }}
+            className={connColorClass}
             prefix={<ApiOutlined />}
           />
-          <Text type="secondary" style={{ fontSize: 12 }}>利用率 {utilPct}%</Text>
+          <Text type="secondary" className={common.smallText}>利用率 {utilPct}%</Text>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Statistic
             title="近24h错误数"
             value={health ? formatNumber(health.err_last_24h) : '—'}
-            valueStyle={{ color: errUp ? '#ff4d4f' : '#52c41a' }}
-            prefix={errUp ? <WarningOutlined style={{ color: '#ff4d4f' }} /> : <CheckCircleOutlined style={{ color: '#52c41a' }} />}
+            className={errUp ? styles.statRed : styles.statGreen}
+            prefix={errUp ? <WarningOutlined className={styles.iconRed} /> : <CheckCircleOutlined className={styles.iconGreen} />}
           />
-          <Text type="secondary" style={{ fontSize: 12 }}>
+          <Text type="secondary" className={common.smallText}>
             前24h {formatNumber(health?.err_prev_24h)} {errUp ? '（↑ 环比上升）' : '（持平/下降）'}
           </Text>
         </Col>
@@ -115,7 +117,7 @@ const TableScaleTable: React.FC<{ data: TableStat[]; loading: boolean }> = ({ da
     { title: '表名', dataIndex: 'table_name', key: 'table_name', render: (v: string) => {
         const cn = TABLE_NAME_MAP[v]
         return cn ? (
-          <span><Tag color="blue">{cn}</Tag> <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text></span>
+          <span><Tag color="blue">{cn}</Tag> <Text type="secondary" className={common.smallText}>{v}</Text></span>
         ) : <Text type="secondary" strong>{v}</Text>
       }, sorter: (a: TableStat, b: TableStat) => (TABLE_NAME_MAP[a.table_name] ?? a.table_name).localeCompare(TABLE_NAME_MAP[b.table_name] ?? b.table_name) },
     { title: '行数(估计)', dataIndex: 'row_estimate', key: 'row_estimate', align: 'right' as const, render: (v: number) => formatNumber(v), sorter: (a: TableStat, b: TableStat) => a.row_estimate - b.row_estimate, defaultSortOrder: 'descend' as const },
@@ -125,7 +127,7 @@ const TableScaleTable: React.FC<{ data: TableStat[]; loading: boolean }> = ({ da
     { title: '最后 Vacuum', dataIndex: 'last_vacuum', key: 'last_vacuum', render: (v: string | null) => <Text type="secondary">{formatDate(v)}</Text> },
   ]
   return (
-    <Card title="数据规模（public 各表，自动发现）" style={{ marginBottom: 16 }}>
+    <Card title="数据规模（public 各表，自动发现）" className={common.mb16}>
       <Table
         dataSource={data}
         columns={columns}
@@ -145,7 +147,7 @@ const LogTrendChart: React.FC<{ data: LogTrendPoint[]; loading: boolean; days: n
   return (
     <Card
       title="操作与错误趋势"
-      style={{ marginBottom: 16 }}
+      className={common.mb16}
       extra={
         <Segmented
           value={days}
@@ -180,7 +182,7 @@ const SecurityPosture: React.FC<{ rls: RlsCoverage | null; hotspots: SeqScanHots
     { title: '表名', dataIndex: 'table_name', key: 'table_name', render: (v: string) => {
         const cn = TABLE_NAME_MAP[v]
         return cn ? (
-          <span><Tag color="blue">{cn}</Tag> <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text></span>
+          <span><Tag color="blue">{cn}</Tag> <Text type="secondary" className={common.smallText}>{v}</Text></span>
         ) : <Text type="secondary" strong>{v}</Text>
       } },
     { title: '行数(估计)', dataIndex: 'row_estimate', key: 'row_estimate', align: 'right' as const, render: (v: number) => formatNumber(v), sorter: (a: SeqScanHotspot, b: SeqScanHotspot) => a.row_estimate - b.row_estimate },
@@ -188,10 +190,10 @@ const SecurityPosture: React.FC<{ rls: RlsCoverage | null; hotspots: SeqScanHots
     { title: '索引扫描', dataIndex: 'idx_scan', key: 'idx_scan', align: 'right' as const, render: (v: number) => formatNumber(v), sorter: (a: SeqScanHotspot, b: SeqScanHotspot) => a.idx_scan - b.idx_scan },
   ]
   return (
-    <Card title="安全与性能姿态" style={{ marginBottom: 16 }} loading={loading}>
+    <Card title="安全与性能姿态" className={common.mb16} loading={loading}>
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={10}>
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
+          <Space direction="vertical" className={common.fullWidth} size="middle">
             <Text strong><SafetyOutlined /> RLS 覆盖率（public 表启用行级安全的比例）</Text>
             <Progress
               percent={rlsPct}
@@ -204,9 +206,9 @@ const SecurityPosture: React.FC<{ rls: RlsCoverage | null; hotspots: SeqScanHots
             {rls && rls.unprotected.length > 0 && (
               <div>
                 <Text type="danger">未开启 RLS 的表（安全红线）：</Text>
-                <div style={{ marginTop: 8 }}>
+                <div className={common.mt8}>
                   {rls.unprotected.map(t => (
-                    <Tag key={t} color="error" style={{ marginBottom: 4 }}>{t}</Tag>
+                    <Tag key={t} color="error" className={common.mb4}>{t}</Tag>
                   ))}
                 </div>
               </div>
@@ -217,7 +219,7 @@ const SecurityPosture: React.FC<{ rls: RlsCoverage | null; hotspots: SeqScanHots
           </Space>
         </Col>
         <Col xs={24} lg={14}>
-          <Space direction="vertical" style={{ width: '100%' }} size="small">
+          <Space direction="vertical" className={common.fullWidth} size="small">
             <Text strong><ThunderboltOutlined /> 全表扫描热点（seq_scan &gt; idx_scan，提示缺索引）</Text>
             {hotspots.length === 0 ? (
               <Text type="success">未发现明显全表扫描热点 ✓</Text>
@@ -316,15 +318,15 @@ const SystemMonitor: React.FC = () => {
 
   if (!isAdmin()) {
     return (
-      <div style={{ padding: 24 }}>
+      <div className={styles.pagePad}>
         <Alert type="warning" message="需要管理员权限" description="系统监控页仅对管理员/超级管理员开放。" showIcon />
       </div>
     )
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className={styles.pagePad}>
+      <div className={styles.pageHeader}>
         <h2>系统监控</h2>
         <Button icon={<ReloadOutlined />} onClick={loadAll} loading={refreshing}>刷新全部</Button>
       </div>

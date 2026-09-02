@@ -1,0 +1,36 @@
+/* 系统监控页：页面级样式（不污染其他页面） */
+
+/* 页面整体内边距 */
+.pagePad {
+  padding: 24px;
+}
+
+/* 页头：标题 + 刷新按钮两端对齐 */
+.pageHeader {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 状态图标配色（仅本页语义图标用） */
+.iconGreen {
+  color: #52c41a;
+}
+.iconRed {
+  color: #ff4d4f;
+}
+
+/* Statistic 数值配色（覆盖 antd 默认色，动态色通过条件 className 选择） */
+.statGreen :global(.ant-statistic-content) {
+  color: #52c41a;
+}
+.statGray :global(.ant-statistic-content) {
+  color: #999;
+}
+.statRed :global(.ant-statistic-content) {
+  color: #ff4d4f;
+}
+.statAmber :global(.ant-statistic-content) {
+  color: #faad14;
+}
