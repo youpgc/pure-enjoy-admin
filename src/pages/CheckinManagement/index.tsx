@@ -4,6 +4,8 @@ import { ReloadOutlined, CalendarOutlined, LeftOutlined, RightOutlined } from '@
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { supabase } from '../../utils/supabase'
+import common from '../../styles/common.module.css'
+import styles from './CheckinManagement.module.css'
 
 // ==================== 类型 ====================
 
@@ -124,21 +126,15 @@ const CheckinCalendarDrawer: React.FC<{
     const isMakeup = makeupDates.has(key)
     const dotColor = isMakeup ? CHECKIN_ACCENT_MAKEUP : CHECKIN_ACCENT
     cells.push(
-      <div key={key} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 4 }}>
+      <div key={key} className={styles.calCell}>
         <div
+          className={styles.calDot}
           style={{
-            width: 34,
-            height: 34,
-            borderRadius: '50%',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            fontSize: 13,
-            fontWeight: checked ? 600 : 400,
-            color: checked ? '#fff' : isToday ? CHECKIN_ACCENT : token.colorText,
-            background: checked ? dotColor : isToday ? CHECKIN_ACCENT_SOFT : 'transparent',
-            border: !checked && isToday ? `1px solid ${CHECKIN_ACCENT}` : 'none',
-          }}
+            '--dot-text': checked ? '#fff' : isToday ? CHECKIN_ACCENT : token.colorText,
+            '--dot-bg': checked ? dotColor : isToday ? CHECKIN_ACCENT_SOFT : 'transparent',
+            '--dot-border': !checked && isToday ? `1px solid ${CHECKIN_ACCENT}` : 'none',
+            '--dot-weight': checked ? 600 : 400,
+          } as React.CSSProperties}
           title={checked ? (isMakeup ? '补签' : '正常签到') : undefined}
         >
           {day}
@@ -157,33 +153,33 @@ const CheckinCalendarDrawer: React.FC<{
       onClose={onClose}
     >
       {user && (
-        <Space style={{ marginBottom: 16 }} size="large">
+        <Space className={common.mb16} size="large">
           <span>当前连续签到：<Tag color="purple">{user.current_streak} 天</Tag></span>
           <span>累计签到：<b>{user.total_checkin_days}</b> 天</span>
         </Space>
       )}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+      <div className={styles.calHeader}>
         <Button type="text" icon={<LeftOutlined />} onClick={goPrev} disabled={!canGoPrev} />
         <Typography.Text strong>{displayMonth.format('YYYY 年 M 月')}</Typography.Text>
         <Button type="text" icon={<RightOutlined />} onClick={goNext} disabled={!canGoNext} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 8 }}>
+      <div className={styles.calGrid}>
         {weekdays.map((w) => (
-          <div key={w} style={{ textAlign: 'center', fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>{w}</div>
+          <div key={w} className={styles.weekday}>{w}</div>
         ))}
       </div>
       {loadingDates ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spin /></div>
+        <div className={styles.calLoading}><Spin /></div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', rowGap: 4 }}>
+        <div className={styles.calGridBody}>
           {cells}
         </div>
       )}
-      <div style={{ marginTop: 16, fontSize: 12, color: token.colorTextTertiary }}>
-        <span style={{ color: CHECKIN_ACCENT, fontWeight: 700 }}>●</span> 正常签到
-        <span style={{ margin: '0 12px', color: CHECKIN_ACCENT_MAKEUP, fontWeight: 700 }}>●</span> 补签（本月 {makeupDates.size} 天）
+      <div className={`${styles.legendText} ${common.mt16}`} style={{ color: token.colorTextTertiary }}>
+        <span className={styles.legendDotNormal}>●</span> 正常签到
+        <span className={styles.legendDotMakeup}>●</span> 补签（本月 {makeupDates.size} 天）
       </div>
-      <div style={{ marginTop: 8, fontSize: 12, color: token.colorTextTertiary }}>
+      <div className={`${styles.legendText} ${common.mt8}`} style={{ color: token.colorTextTertiary }}>
         补签仅支持近 3 个自然月内的漏签日期。
       </div>
     </Drawer>
@@ -230,8 +226,8 @@ const CheckinManagement: React.FC = () => {
       key: 'user',
       render: (_: string, r: CheckinSummary) => (
         <Space direction="vertical" size={0}>
-          <span style={{ fontWeight: 500 }}>{r.nickname || r.username || '未知用户'}</span>
-          <span style={{ fontSize: 12, color: 'rgba(0,0,0,0.45)' }}>{r.user_id}</span>
+          <span className={common.bold500}>{r.nickname || r.username || '未知用户'}</span>
+          <span className={styles.subId}>{r.user_id}</span>
         </Space>
       ),
     },
@@ -268,8 +264,8 @@ const CheckinManagement: React.FC = () => {
 
   return (
     <div>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>签到管理</Typography.Title>
+      <div className={styles.pageHeader}>
+        <Typography.Title level={4} className={common.noMargin}>签到管理</Typography.Title>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={fetchData} loading={loading}>刷新</Button>
         </Space>

@@ -1,0 +1,84 @@
+/* 签到管理页：页面级样式（不污染其他页面） */
+
+/* 页头：标题 + 刷新按钮两端对齐 */
+.pageHeader {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 日历单元格外层：居中 + 内边距 */
+.calCell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px;
+}
+
+/* 日历圆点：静态外观进类，动态色/背景/边框/字重由内联 CSS 变量注入 */
+.calDot {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 13px;
+  color: var(--dot-text, inherit);
+  background: var(--dot-bg, transparent);
+  border: var(--dot-border, none);
+  font-weight: var(--dot-weight, 400);
+}
+
+/* 日历月份切换头部 */
+.calHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+/* 星期行 / 日期网格（7 列） */
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 8px;
+}
+.calGridBody {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 4px;
+}
+.weekday {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+/* 日历加载态 */
+.calLoading {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+}
+
+/* 图例文字（颜色用主题 token，保留内联；其余进类） */
+.legendText {
+  font-size: 12px;
+}
+.legendDotNormal {
+  color: #6c63ff;
+  font-weight: 700;
+}
+.legendDotMakeup {
+  margin: 0 12px;
+  color: #ff9800;
+  font-weight: 700;
+}
+
+/* 表格内用户 ID 次要文字 */
+.subId {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
