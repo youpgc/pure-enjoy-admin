@@ -1,0 +1,20 @@
+/* 听书播放管理页（TtsManagement/index）局部样式。
+ * 经 CSS Modules 编译后类名局部作用域，不会与项目其他页面冲突。
+ * 仅放本页使用的样式；跨页通用样式见 src/styles/common.module.css。
+ */
+
+/* 查询条件输入固定宽 */
+.filterInput {
+  width: 160px;
+}
+
+/* 加载占位区 */
+.loadingWrap {
+  text-align: center;
+  padding: 80px;
+}
+
+/* 热门小说图标颜色 */
+.hotIcon {
+  color: #ff4d4f;
+}

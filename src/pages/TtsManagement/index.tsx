@@ -15,6 +15,8 @@ import { BaseService, handleApiError } from '../../utils/apiClient'
 import { supabase } from '../../utils/supabase'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/UserName'
+import common from '../../styles/common.module.css'
+import styles from './index.module.css'
 
 // ==================== 类型定义 ====================
 
@@ -204,7 +206,7 @@ const TtsManagement: React.FC = () => {
 
   return (
     <div>
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      <Row gutter={[16, 16]} className={common.mb16}>
         <Col xs={24} sm={12} lg={6}>
           <Card><Statistic title='播放次数' value={totalPlays} prefix={<AudioOutlined />} /></Card>
         </Col>
@@ -239,13 +241,13 @@ const TtsManagement: React.FC = () => {
             </Space>
           }
         >
-          <div style={{ marginBottom: 16 }}>
+          <div className={common.mb16}>
             <Space wrap>
               <Input
                 placeholder='用户ID'
                 value={searchUser}
                 onChange={e => setSearchUser(e.target.value)}
-                style={{ width: 160 }}
+                className={styles.filterInput}
                 prefix={<SearchOutlined />}
                 allowClear
               />
@@ -253,14 +255,14 @@ const TtsManagement: React.FC = () => {
                 placeholder='最短时长(秒)'
                 value={minDuration}
                 min={0}
-                style={{ width: 160 }}
+                className={styles.filterInput}
                 onChange={v => setMinDuration(v || null)}
               />
               <Button type='primary' icon={<SearchOutlined />} onClick={() => { resetPage(); fetchLogs() }}>查询</Button>
             </Space>
           </div>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: 80 }}><Spin size='large' /></div>
+            <div className={styles.loadingWrap}><Spin size='large' /></div>
           ) : (
             <Table
               columns={columns}
@@ -278,7 +280,7 @@ const TtsManagement: React.FC = () => {
       {activeTab === 'hot' && (
         <Row gutter={[16, 16]}>
           <Col xs={24} lg={12}>
-            <Card title='热门小说 Top20' extra={<FireOutlined style={{ color: '#ff4d4f' }} />}>
+            <Card title='热门小说 Top20' extra={<FireOutlined className={styles.hotIcon} />}>
               {novelStats.length === 0 ? (
                 <Empty description='暂无数据，点击统计报表加载' />
               ) : (
