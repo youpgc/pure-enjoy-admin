@@ -29,6 +29,8 @@ import { buildUserColumns } from './columns'
 import { exportUsers } from './export'
 import UserFormModal from '../../components/UserFormModal'
 import UserDetailDrawer from '../../components/UserDetailDrawer'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const { RangePicker } = DatePicker
 
@@ -68,7 +70,7 @@ const Users: React.FC = () => {
   return (
     <div>
       {/* 顶部工具栏 */}
-      <Card size="small" style={{ marginBottom: 16 }}>
+      <Card size="small" className={common.mb16}>
         <Row gutter={[16, 16]} align="middle">
           <Col flex="auto">
             <Space size="middle" wrap>
@@ -81,7 +83,7 @@ const Users: React.FC = () => {
                   u.resetPage()
                 }}
                 allowClear
-                style={{ width: 280 }}
+                className={styles.searchInput}
               />
               <Button
                 icon={<FilterOutlined />}
@@ -90,7 +92,7 @@ const Users: React.FC = () => {
               >
                 高级筛选
                 {u.showFilters && (
-                  <Tag color="blue" style={{ marginLeft: 4 }}>
+                  <Tag color="blue" className={common.ml4}>
                     {Object.values(u.filterValues).filter(v => v !== undefined && v !== null).length}
                   </Tag>
                 )}
@@ -146,10 +148,10 @@ const Users: React.FC = () => {
 
         {/* 高级筛选区域 */}
         {u.showFilters && (
-          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          <Row gutter={[16, 16]} className={common.mt16}>
             <Col xs={24} sm={12} md={6}>
               <Select
-                style={{ width: '100%' }}
+                className={common.fullWidth}
                 placeholder="选择角色"
                 allowClear
                 value={u.filterValues.role}
@@ -159,7 +161,7 @@ const Users: React.FC = () => {
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Select
-                style={{ width: '100%' }}
+                className={common.fullWidth}
                 placeholder="选择状态"
                 allowClear
                 value={u.filterValues.status}
@@ -169,7 +171,7 @@ const Users: React.FC = () => {
             </Col>
             <Col xs={24} sm={12} md={6}>
               <Select
-                style={{ width: '100%' }}
+                className={common.fullWidth}
                 placeholder="选择会员等级"
                 allowClear
                 value={u.filterValues.member_level}
@@ -179,7 +181,7 @@ const Users: React.FC = () => {
             </Col>
             <Col xs={24} sm={12} md={6}>
               <RangePicker
-                style={{ width: '100%' }}
+                className={common.fullWidth}
                 placeholder={['注册开始日期', '注册结束日期']}
                 onChange={(_, dateStrings) => {
                   u.setFilterValues(prev => ({
