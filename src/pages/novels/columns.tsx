@@ -18,6 +18,8 @@ import {
   NOVEL_AGGREGATED_SOURCES,
 } from '../../constants'
 import type { DbNovel } from '../../types/database'
+import styles from './columns.module.css'
+import common from '../../styles/common.module.css'
 
 // 使用数据库生成的类型，确保与管理后台、App 端字段一致
 type Novel = DbNovel
@@ -48,10 +50,10 @@ export function buildNovelColumns(cb: NovelColumnCallbacks): ColumnsType<Novel> 
             borderRadius={4}
           />
           <div>
-            <div style={{ fontWeight: 500 }}>
+            <div className={common.bold500}>
               <EllipsisText text={record.title} maxWidth={200} />
             </div>
-            <Text type="secondary" style={{ fontSize: 12 }}>
+            <Text type="secondary" className={styles.authorText}>
               {record.author || '-'}
             </Text>
           </div>
@@ -90,7 +92,7 @@ export function buildNovelColumns(cb: NovelColumnCallbacks): ColumnsType<Novel> 
         if (isAggregated && record.source_url) {
           return (
             <a href={record.source_url} target="_blank" rel="noreferrer">
-              <LinkOutlined style={{ marginRight: 4 }} />
+              <LinkOutlined className={styles.linkIcon} />
               {label}
             </a>
           )
