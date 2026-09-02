@@ -14,6 +14,7 @@ import { formatDateTime } from '../../utils/format'
 import { USER_STATUS_ACTIVE } from '../../constants/roles'
 import type { DictOption } from '../../hooks/useDictOptions'
 import type { User, UserRole, MemberLevel, UserStatus } from '../../types/user'
+import styles from './columns.module.css'
 
 const { Text } = Typography
 
@@ -56,7 +57,7 @@ export function buildUserColumns(params: BuildUserColumnsParams): ColumnsType<Us
       render: (id: string, record: User) => (
         <Tooltip title="点击查看详情">
           <a onClick={() => onViewUser(record)}>
-            <Text style={{ fontSize: 12 }}>{id}</Text>
+            <Text className={styles.idText}>{id}</Text>
           </a>
         </Tooltip>
       ),
