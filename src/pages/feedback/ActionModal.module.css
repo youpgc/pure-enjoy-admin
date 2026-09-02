@@ -1,0 +1,19 @@
+.arrow {
+  color: #999;
+}
+.recordTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.recordDesc {
+  color: #666;
+  font-size: 13px;
+}
+.label {
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.warnIcon {
+  margin-right: 4px;
+  color: #faad14;
+}

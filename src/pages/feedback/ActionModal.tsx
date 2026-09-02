@@ -6,6 +6,8 @@ import { useDictOptions, useDictColors } from '../../hooks/useDictOptions'
 import { FEEDBACK_STATUS_MAP, FEEDBACK_ACTION_DELETED } from '../../constants'
 import { ACTION_TAG_MAP } from './actionMeta'
 import type { FeedbackRecord } from './types'
+import styles from './ActionModal.module.css'
+import common from '../../styles/common.module.css'
 
 interface ActionModalProps {
   open: boolean
@@ -59,7 +61,7 @@ export function ActionModal({ open, record, action, onClose, onConfirm, loading 
           <Tag color={getStatusColorValue(record.status)}>
             {getStatusLabel(record.status)}
           </Tag>
-          <span style={{ color: '#999' }}>→</span>
+          <span className={styles.arrow}>→</span>
           <Tag color={action === FEEDBACK_ACTION_DELETED ? getStatusColorValue(record.status) : getStatusColorValue(action)}>
             {action === FEEDBACK_ACTION_DELETED ? '删除' : getStatusLabel(action)}
           </Tag>
@@ -73,14 +75,14 @@ export function ActionModal({ open, record, action, onClose, onConfirm, loading 
       cancelText="取消"
       width={480}
     >
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>{record.title}</div>
+      <div className={common.mb16}>
+        <div className={styles.recordTitle}>{record.title}</div>
         {record.description && (
-          <div style={{ color: '#666', fontSize: 13 }}>{record.description}</div>
+          <div className={styles.recordDesc}>{record.description}</div>
         )}
       </div>
-      <div style={{ marginBottom: 8, fontWeight: 500 }}>
-        <ExclamationCircleOutlined style={{ marginRight: 4, color: '#faad14' }} />
+      <div className={styles.label}>
+        <ExclamationCircleOutlined className={styles.warnIcon} />
         备注说明（必填）
       </div>
       <Input.TextArea
