@@ -1,0 +1,9 @@
+/* 操作日志表格列（operationLogs/columns）局部样式。
+ * 经 CSS Modules 编译后类名局部作用域，不会与项目其他页面冲突。
+ * 仅放本页使用的样式；跨页通用样式见 src/styles/common.module.css。
+ */
+
+/* 空值占位符颜色 */
+.mutedDash {
+  color: #bbb;
+}

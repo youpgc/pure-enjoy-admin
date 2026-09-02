@@ -9,6 +9,7 @@ import dayjs from 'dayjs'
 import { getModuleInfo } from './constants'
 import { formatDetails } from './helpers'
 import type { OperationLog, UserMap } from './types'
+import styles from './columns.module.css'
 
 interface BuildColumnsArgs {
   hasPermission: (perm: string) => boolean
@@ -80,7 +81,7 @@ export function buildOperationLogColumns({
         return text ? (
           <EllipsisText text={text} maxWidth={320} stripHtml={false} />
         ) : (
-          <span style={{ color: '#bbb' }}>—</span>
+          <span className={styles.mutedDash}>—</span>
         )
       },
     },
