@@ -1,0 +1,14 @@
+.page {
+  padding: 24px;
+}
+.inputWidthLg {
+  width: 220px;
+}
+.inputWidthMd {
+  width: 120px;
+}
+.toolbar {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+}

@@ -15,6 +15,8 @@ import {
 } from '../../constants'
 import { buildNovelColumns } from './columns'
 import { useNovels } from './useNovels'
+import styles from './index.module.css'
+import common from '../../styles/common.module.css'
 
 const Novels: React.FC = () => {
   const { hasPermission } = usePermission()
@@ -56,9 +58,9 @@ const Novels: React.FC = () => {
   })
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className={styles.page}>
       {/* 筛选栏 */}
-      <Card style={{ marginBottom: 16 }}>
+      <Card className={common.mb16}>
         <Space wrap>
           <Input
             placeholder="搜索书名/作者"
@@ -66,14 +68,14 @@ const Novels: React.FC = () => {
             onChange={(e) => setFilters(prev => ({ ...prev, keyword: e.target.value }))}
             onPressEnter={handleSearch}
             prefix={<SearchOutlined />}
-            style={{ width: 220 }}
+            className={styles.inputWidthLg}
             allowClear
           />
           <Select
             placeholder="分类"
             value={filters.category}
             onChange={(value) => setFilters(prev => ({ ...prev, category: value }))}
-            style={{ width: 120 }}
+            className={styles.inputWidthMd}
             allowClear
             options={NOVEL_CATEGORY_OPTIONS}
           />
@@ -81,7 +83,7 @@ const Novels: React.FC = () => {
             placeholder="状态"
             value={filters.status}
             onChange={(value) => setFilters(prev => ({ ...prev, status: value }))}
-            style={{ width: 120 }}
+            className={styles.inputWidthMd}
             allowClear
             options={NOVEL_STATUS_OPTIONS}
           />
@@ -89,7 +91,7 @@ const Novels: React.FC = () => {
             placeholder="聚合来源"
             value={filters.source}
             onChange={(value) => setFilters(prev => ({ ...prev, source: value }))}
-            style={{ width: 120 }}
+            className={styles.inputWidthMd}
             allowClear
             options={NOVEL_SOURCE_OPTIONS}
           />
@@ -103,7 +105,7 @@ const Novels: React.FC = () => {
       </Card>
 
       {/* 操作栏 */}
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div className={styles.toolbar}>
         <Space>
           <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={handleAdd}>
             新增小说
