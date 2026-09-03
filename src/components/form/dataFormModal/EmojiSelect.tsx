@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { Button } from 'antd'
-import { getMoodTypeOptions } from '../../utils/dictService'
+import { getMoodTypeOptions } from '../../../utils/dictService'
 import { MOOD_EMOJI_MAP, FALLBACK_MOOD_OPTIONS } from './constants'
 import type { MoodOption } from './types'
 import styles from './EmojiSelect.module.css'
-import common from '../../styles/common.module.css'
+import common from '../../../styles/common.module.css'
 
 interface EmojiSelectProps {
   value?: string

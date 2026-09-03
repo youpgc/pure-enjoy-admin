@@ -3,7 +3,7 @@ import { Tag, Typography, Button, Space, Popconfirm } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { DictType, DictItem } from './types'
-import EllipsisText from '../../../components/EllipsisText'
+import EllipsisText from '../../../components/common/EllipsisText'
 
 const { Text } = Typography
 

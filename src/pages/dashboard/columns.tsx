@@ -1,6 +1,6 @@
 // Dashboard 表格列定义（从 Dashboard.tsx 抽取，行为保持）
 import { Space, Avatar, Typography } from 'antd'
-import EllipsisText from '../../components/EllipsisText'
+import EllipsisText from '../../components/common/EllipsisText'
 import type { ColumnsType } from 'antd/es/table'
 import { UserOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'

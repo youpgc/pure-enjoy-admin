@@ -90,6 +90,8 @@ export const RESOURCE_PAGE_MAP: Record<string, PermissionPageInfo> = {
   dict_management: { group: '系统设置', page: '字典管理', icon: <BookOutlined /> },
   file_management: { group: '系统设置', page: '文件管理', icon: <FolderOutlined /> },
   error_logs: { group: '系统设置', page: '错误日志', icon: <AlertOutlined /> },
+  // 游戏中心（games 模块：games:read/write/delete 统管 8 个游戏子页面，无独立子权限）
+  games: { group: '游戏中心', page: '游戏管理', icon: <TrophyOutlined /> },
 }
 
 /** 菜单分组展示顺序（与侧边栏一致）；未分类放到最后 */
@@ -98,6 +100,7 @@ export const GROUP_ORDER = [
   '用户中心',
   '内容管理',
   '生活服务',
+  '游戏中心',
   '运营管理',
   '系统设置',
   '未分类',

@@ -2,9 +2,9 @@
 // 组件只负责渲染两个 Modal，所有状态/数据/处理器/表单集中此处。
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { message, Form } from 'antd'
-import { BaseService, handleApiError } from '../../utils/apiClient'
-import { swapChapterNumbers, findAdjacentChapter, findMaxChapterNum } from '../../services/novelChapterService'
-import { usePagination } from '../../hooks/usePagination'
+import { BaseService, handleApiError } from '../../../utils/apiClient'
+import { swapChapterNumbers, findAdjacentChapter, findMaxChapterNum } from '../../../services/novelChapterService'
+import { usePagination } from '../../../hooks/usePagination'
 import { buildChapterColumns } from './columns'
 import type { NovelChapter } from './helpers'
 

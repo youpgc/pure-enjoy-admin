@@ -6,7 +6,7 @@ import { DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { RecordItem, UserSummary } from './types'
 import styles from './UserDimensionDetailModal.module.css'
-import common from '../../styles/common.module.css'
+import common from '../../../styles/common.module.css'
 
 interface UserDimensionDetailModalProps {
   open: boolean

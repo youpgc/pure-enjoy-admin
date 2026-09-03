@@ -16,7 +16,7 @@ import { useMounted } from '../../hooks/useMounted'
 import { fetchRecommendConfig, saveRecommendConfig } from '../../services/recommendConfigService'
 import { RECOMMENDATION_FEEDBACK_TYPE_MAP } from '../../constants'
 import { useUsernames } from '../../hooks/useUsernames'
-import { UserName } from '../../components/UserName'
+import { UserName } from '../../components/common/UserName'
 import common from '../../styles/common.module.css'
 import styles from './Recommendations.module.css'
 

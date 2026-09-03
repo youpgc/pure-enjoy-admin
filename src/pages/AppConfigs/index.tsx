@@ -29,7 +29,7 @@ import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { CONFIG_TYPE_MAP } from '../../constants'
-import EllipsisText from '../../components/EllipsisText'
+import EllipsisText from '../../components/common/EllipsisText'
 import common from '../../styles/common.module.css'
 import styles from './index.module.css'
 

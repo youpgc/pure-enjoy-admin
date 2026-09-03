@@ -8,8 +8,8 @@ import {
   CheckCircleOutlined,
   DeleteOutlined,
 } from '@ant-design/icons'
-import { getActionColumn } from '../../components/ActionColumn'
-import type { ActionButton } from '../../components/ActionColumn'
+import { getActionColumn } from '../../components/common/ActionColumn'
+import type { ActionButton } from '../../components/common/ActionColumn'
 import { formatDateTime } from '../../utils/format'
 import { USER_STATUS_ACTIVE } from '../../constants/roles'
 import type { DictOption } from '../../hooks/useDictOptions'

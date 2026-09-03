@@ -7,9 +7,9 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { getActionColumn, type ActionButton } from '../../components/ActionColumn'
-import NovelCover from '../../components/NovelCover'
-import EllipsisText from '../../components/EllipsisText'
+import { getActionColumn, type ActionButton } from '../../components/common/ActionColumn'
+import NovelCover from '../../components/novel/NovelCover'
+import EllipsisText from '../../components/common/EllipsisText'
 import {
   NOVEL_CATEGORY_MAP,
   NOVEL_STATUS_MAP,

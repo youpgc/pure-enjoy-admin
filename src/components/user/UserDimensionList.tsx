@@ -7,7 +7,7 @@ import { buildUserDimensionColumns } from './user-dimension/columns'
 import { UserDimensionDetailModal } from './user-dimension/UserDimensionDetailModal'
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from './user-dimension/constants'
 import type { ModuleConfig, RecordItem, UserSummary } from './user-dimension/types'
-import common from '../styles/common.module.css'
+import common from '../../styles/common.module.css'
 
 // 保持对外公开类型（供各页面 moduleConfig 复用），避免消费者改动
 export type { ModuleConfig, RecordItem, UserSummary }

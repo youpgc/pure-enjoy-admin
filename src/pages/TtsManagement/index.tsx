@@ -14,7 +14,7 @@ import { usePagination } from '../../hooks/usePagination'
 import { BaseService, handleApiError } from '../../utils/apiClient'
 import { supabase } from '../../utils/supabase'
 import { useUsernames } from '../../hooks/useUsernames'
-import { UserName } from '../../components/UserName'
+import { UserName } from '../../components/common/UserName'
 import common from '../../styles/common.module.css'
 import styles from './index.module.css'
 

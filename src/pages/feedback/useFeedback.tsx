@@ -14,7 +14,7 @@ import {
   FEEDBACK_ACTION_DELETED,
   FEEDBACK_STATUS_ACTIONS,
 } from '../../constants'
-import type { ActionButton } from '../../components/ActionColumn'
+import type { ActionButton } from '../../components/common/ActionColumn'
 import type { FeedbackRecord } from './types'
 
 export function useFeedback() {

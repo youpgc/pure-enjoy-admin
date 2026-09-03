@@ -10,7 +10,7 @@ import { rankingService } from '../../services/rankingService'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { PushpinOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
-import { type ActionButton } from '../../components/ActionColumn'
+import { type ActionButton } from '../../components/common/ActionColumn'
 import type { RankingItem, RankingType, Intervention, RankingRules } from './types'
 import { DEFAULT_RULES } from './types'
 

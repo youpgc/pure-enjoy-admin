@@ -12,9 +12,9 @@ import {
 import dayjs from 'dayjs'
 import { usePagination } from '../../hooks/usePagination'
 import { BaseService, apiQuery, handleApiError } from '../../utils/apiClient'
-import EllipsisText from '../../components/EllipsisText'
+import EllipsisText from '../../components/common/EllipsisText'
 import { useUsernames } from '../../hooks/useUsernames'
-import { UserName } from '../../components/UserName'
+import { UserName } from '../../components/common/UserName'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
 

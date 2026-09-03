@@ -1,9 +1,9 @@
 import React from 'react'
 import type { ColumnsType } from 'antd/es/table'
-import EllipsisText from '../../components/EllipsisText'
+import EllipsisText from '../../components/common/EllipsisText'
 import dayjs from 'dayjs'
-import UserDimensionList from '../../components/UserDimensionList'
-import type { ModuleConfig, RecordItem } from '../../components/UserDimensionList'
+import UserDimensionList from '../../components/user/UserDimensionList'
+import type { ModuleConfig, RecordItem } from '../../components/user/UserDimensionList'
 
 // ==================== 详情弹窗列定义 ====================
 

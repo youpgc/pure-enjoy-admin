@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Spin } from 'antd'
-import { supabase } from '../utils/supabase'
-import { getSessionCache, setSessionCache, removeSessionCache } from '../utils/sessionCache'
-import { USER_STATUS_ACTIVE } from '../constants/roles'
+import { supabase } from '../../utils/supabase'
+import { getSessionCache, setSessionCache, removeSessionCache } from '../../utils/sessionCache'
+import { USER_STATUS_ACTIVE } from '../../constants/roles'
 import styles from './AuthGuard.module.css'
 
 // 标签页级鉴权缓存 key：跨「整页重载」复用 is_admin + users.status 校验结果，

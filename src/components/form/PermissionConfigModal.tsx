@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Modal, Checkbox, Button, message, Divider, Tag } from 'antd'
 import type { CheckboxChangeEvent } from 'antd/es/checkbox'
-import type { Role, Permission } from '../types/permission'
-import { resolvePermissionPage, GROUP_ORDER, GROUP_COLORS } from '../constants/permissionMenuMap'
-import common from '../styles/common.module.css'
+import type { Role, Permission } from '../../types/permission'
+import { resolvePermissionPage, GROUP_ORDER, GROUP_COLORS } from '../../constants/permissionMenuMap'
+import common from '../../styles/common.module.css'
 import styles from './PermissionConfigModal.module.css'
 
 /** 勾选面板中跳过的前缀（menu:* 是侧边栏门控元权限） */

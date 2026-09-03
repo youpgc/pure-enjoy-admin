@@ -1,7 +1,7 @@
 import React from 'react'
 import { Tag } from 'antd'
 import styles from './NoPermission.module.css'
-import common from '../styles/common.module.css'
+import common from '../../styles/common.module.css'
 
 const NoPermission: React.FC<{ module: string }> = ({ module }) => (
   <div className={`${common.textCenter} ${styles.wrap}`}>

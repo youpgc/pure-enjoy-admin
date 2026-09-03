@@ -80,9 +80,12 @@ export const GAME_DIMENSION_VALUE_TYPE_OPTIONS = Object.entries(GAME_DIMENSION_V
 export const GAME_DIMENSION_AGGREGATE_OPTIONS = Object.entries(GAME_DIMENSION_AGGREGATE_MAP).map(
   ([value, v]) => ({ value, label: v.label })
 )
-export const GAME_REWARD_RULE_TYPE_OPTIONS = Object.entries(GAME_REWARD_RULE_TYPE_MAP).map(
-  ([value, v]) => ({ value, label: v.label })
-)
+// 下拉选项（供 Form.Select 使用）。
+// ⚠️ 已移除 `achievement`（成就达成）：成就走 game_achievements 表、由「游戏成就配置」页独立维护，
+//   与积分奖励规则解耦；此处仅保留 MAP 中的 achievement 用于兼容展示历史数据，禁止在表单中新增。
+export const GAME_REWARD_RULE_TYPE_OPTIONS = Object.entries(GAME_REWARD_RULE_TYPE_MAP)
+  .filter(([value]) => value !== 'achievement')
+  .map(([value, v]) => ({ value, label: v.label }))
 
 // 共享图标资产（App 端 assets/games/icons 与管理后台 public/game-icons 同一套文件）
 // 风格：100×100 viewBox、#5D4037 粗描边、白色高光、圆角卡通。

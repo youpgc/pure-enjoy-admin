@@ -11,9 +11,9 @@ import {
   Spin,
 } from 'antd'
 import dayjs from 'dayjs'
-import { handleApiError } from '../utils/apiClient'
-import { fetchGenericRecord, updateGenericRecord } from '../services/genericRecordService'
-import common from '../styles/common.module.css'
+import { handleApiError } from '../../utils/apiClient'
+import { fetchGenericRecord, updateGenericRecord } from '../../services/genericRecordService'
+import common from '../../styles/common.module.css'
 
 interface EditRecordModalProps {
   open: boolean

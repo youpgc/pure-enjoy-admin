@@ -13,7 +13,7 @@ import dayjs from 'dayjs'
 import type { DataFormModalProps, FormField } from './dataFormModal/types'
 import EmojiSelect from './dataFormModal/EmojiSelect'
 import TagsInput from './dataFormModal/TagsInput'
-import common from '../styles/common.module.css'
+import common from '../../styles/common.module.css'
 
 // 保留对外类型导出（拆分前由本文件直接 export，避免破坏任何潜在调用方）
 export type { FieldType, FormField, DataFormModalProps } from './dataFormModal/types'

@@ -3,7 +3,7 @@ import { Modal, Table, Button, Input, InputNumber, Form } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useChapterManager } from './novelChapterModal/useChapterManager'
 import styles from './NovelChapterModal.module.css'
-import common from '../styles/common.module.css'
+import common from '../../styles/common.module.css'
 
 const NovelChapterModal: React.FC<{
   open: boolean

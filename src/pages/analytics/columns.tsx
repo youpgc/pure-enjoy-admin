@@ -1,7 +1,7 @@
 // 数据分析表格列定义（从 Analytics.tsx 抽离，审查 P1 膨胀）
 import type { ColumnsType } from 'antd/es/table'
 import { Tag } from 'antd'
-import EllipsisText from '../../components/EllipsisText'
+import EllipsisText from '../../components/common/EllipsisText'
 import type { TopNovel } from './types'
 
 export const buildTopNovelColumns = (): ColumnsType<TopNovel> => [

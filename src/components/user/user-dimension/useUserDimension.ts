@@ -2,9 +2,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { TablePaginationConfig } from 'antd/es/table'
 import { message } from 'antd'
-import { supabase } from '../../utils/supabase'
-import { BaseService, handleApiError, apiQuery, logApiError } from '../../utils/apiClient'
-import { buildUserLookupOr } from '../../utils/userId'
+import { supabase } from '../../../utils/supabase'
+import { BaseService, handleApiError, apiQuery, logApiError } from '../../../utils/apiClient'
+import { buildUserLookupOr } from '../../../utils/userId'
 import type { RecordItem, UserSummary } from './types'
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from './constants'
 

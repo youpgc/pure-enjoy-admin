@@ -8,8 +8,8 @@ import {
   EditOutlined,
   DeleteOutlined,
 } from '@ant-design/icons'
-import { getActionColumn, type ActionButton } from '../ActionColumn'
-import EllipsisText from '../EllipsisText'
+import { getActionColumn, type ActionButton } from '../../common/ActionColumn'
+import EllipsisText from '../../common/EllipsisText'
 import { toChineseNumber, type NovelChapter } from './helpers'
 
 export const buildChapterColumns = (params: {

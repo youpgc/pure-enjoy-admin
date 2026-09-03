@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Table, Card, Button, Input, Space, Tag, Popconfirm, message } from 'antd'
-import EllipsisText from '../../components/EllipsisText'
+import EllipsisText from '../../components/common/EllipsisText'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import { BaseService, handleApiError } from '../../utils/apiClient'

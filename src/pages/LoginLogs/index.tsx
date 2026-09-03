@@ -11,7 +11,7 @@ import {
   DatePicker,
   Popconfirm,
 } from 'antd'
-import EllipsisText from '../../components/EllipsisText'
+import EllipsisText from '../../components/common/EllipsisText'
 import {
   SearchOutlined,
   ReloadOutlined,

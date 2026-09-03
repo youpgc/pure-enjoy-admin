@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react'
 import { Table, Tag, Space, Badge } from 'antd'
 import { usePermission } from '../../hooks/usePermission'
-import NoPermission from '../../components/NoPermission'
+import NoPermission from '../../components/common/NoPermission'
 import { FEEDBACK_STATUS_PENDING } from '../../constants'
 import { useFeedback } from './useFeedback'
 import { buildFeedbackColumns } from './columns'

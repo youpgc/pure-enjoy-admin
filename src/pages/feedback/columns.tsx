@@ -1,10 +1,10 @@
 // Feedback 表格列定义（从 Feedback.tsx 抽取，行为保持）
 import { Tag } from 'antd'
-import EllipsisText from '../../components/EllipsisText'
+import EllipsisText from '../../components/common/EllipsisText'
 import type { ColumnsType } from 'antd/es/table'
 import { formatDateTime } from '../../utils/format'
-import { getActionColumn } from '../../components/ActionColumn'
-import type { ActionButton } from '../../components/ActionColumn'
+import { getActionColumn } from '../../components/common/ActionColumn'
+import type { ActionButton } from '../../components/common/ActionColumn'
 import {
   FEEDBACK_STATUS_MAP,
   FEEDBACK_CATEGORY_MAP,

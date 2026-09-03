@@ -3,7 +3,7 @@ import { Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { EyeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { getActionColumn } from '../../components/ActionColumn'
+import { getActionColumn } from '../../../components/common/ActionColumn'
 import type { UserSummary } from './types'
 
 interface UserDimensionColumnParams {

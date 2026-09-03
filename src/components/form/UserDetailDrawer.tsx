@@ -27,11 +27,11 @@ import {
   SolutionOutlined,
   GlobalOutlined,
 } from '@ant-design/icons'
-import type { User, UserStats, OperationLog } from '../types/user'
+import type { User, UserStats, OperationLog } from '../../types/user'
 import dayjs from 'dayjs'
-import { ACTION_LABEL_MAP, getModuleLabel, getModuleColor } from '../constants'
-import { useDictOptions, useDictColors } from '../hooks/useDictOptions'
-import common from '../styles/common.module.css'
+import { ACTION_LABEL_MAP, getModuleLabel, getModuleColor } from '../../constants'
+import { useDictOptions, useDictColors } from '../../hooks/useDictOptions'
+import common from '../../styles/common.module.css'
 import styles from './UserDetailDrawer.module.css'
 
 const { Text, Title } = Typography

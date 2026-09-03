@@ -39,7 +39,7 @@ const { RangePicker } = DatePicker
 const COLORS = ['#ff4d4f', '#faad14', '#52c41a', '#1890ff', '#722ed1']
 
 import { useUsernames } from '../../hooks/useUsernames'
-import { UserName } from '../../components/UserName'
+import { UserName } from '../../components/common/UserName'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
 

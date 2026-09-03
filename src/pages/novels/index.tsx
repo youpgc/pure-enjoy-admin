@@ -7,7 +7,7 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
-import NovelChapterModal from '../../components/NovelChapterModal'
+import NovelChapterModal from '../../components/novel/NovelChapterModal'
 import {
   NOVEL_CATEGORY_OPTIONS,
   NOVEL_STATUS_OPTIONS,

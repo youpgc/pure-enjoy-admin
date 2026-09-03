@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Input, Button, Space } from 'antd'
 import styles from './TagsInput.module.css'
-import common from '../../styles/common.module.css'
+import common from '../../../styles/common.module.css'
 
 interface TagsInputProps {
   value?: string[]

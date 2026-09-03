@@ -1,5 +1,5 @@
 import { Tooltip, Typography } from 'antd'
-import type { UserInfo } from '../hooks/useUsernames'
+import type { UserInfo } from '../../hooks/useUsernames'
 
 interface UserNameProps {
   userId: string | null | undefined

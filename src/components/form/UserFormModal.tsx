@@ -16,12 +16,12 @@ import {
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import { UploadOutlined, UserOutlined } from '@ant-design/icons'
-import type { User, UserFormData } from '../types/user'
-import { supabase } from '../utils/supabase'
-import { useDictOptions } from '../hooks/useDictOptions'
-import { apiExecute, handleApiError } from '../utils/apiClient'
-import { DEFAULT_USER_FORM_VALUES } from '../constants'
-import common from '../styles/common.module.css'
+import type { User, UserFormData } from '../../types/user'
+import { supabase } from '../../utils/supabase'
+import { useDictOptions } from '../../hooks/useDictOptions'
+import { apiExecute, handleApiError } from '../../utils/apiClient'
+import { DEFAULT_USER_FORM_VALUES } from '../../constants'
+import common from '../../styles/common.module.css'
 
 interface UserFormModalProps {
   open: boolean
