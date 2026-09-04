@@ -2,12 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   Table,
   Button,
-  Modal,
-  Form,
   Input,
-  InputNumber,
   Select,
-  Switch,
   Popconfirm,
   message,
   Space,
@@ -17,93 +13,30 @@ import {
 } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import type { Database } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
 import { gameAchievementService, gameDimensionService, gameService } from '../../services/gameService'
-import type { DbGameDimension } from '../../types/database'
-import {
-  ACHIEVEMENT_SHARED_ICON_BASE,
-  ACHIEVEMENT_ICON_OPTIONS,
-} from '../../constants/game'
+import type { Database, DbGameDimension } from '../../types/database'
 import common from '../../styles/common.module.css'
-import styles from './GameAchievements.module.css'
+import styles from './index.module.css'
+import AchievementIcon from './AchievementIcon'
+import AchievementFormModal from './AchievementFormModal'
+import { condSummary, isV2ConditionOf } from './achievementMeta'
 
 type DbGameAchievement = Database['public']['Tables']['game_achievements']['Row']
 
 const { Text } = Typography
-
-// 成就图标：按 game_achievements.icon 令牌渲染（元素模板 + 进阶等级上色）
-const ACH_ADV_COLORS: Record<number, string> = {
-  1: '#90caf9', 2: '#4fc3f7', 3: '#4dd0e1', 4: '#81c784', 5: '#ffd54f', 6: '#ff8a65', 7: '#e57373',
-}
-const _svgCache = new Map<string, string>()
-async function _loadSvg(url: string): Promise<string> {
-  if (_svgCache.has(url)) return _svgCache.get(url)!
-  const res = await fetch(url)
-  const text = await res.text()
-  _svgCache.set(url, text)
-  return text
-}
-function AchievementIcon({ icon, size = 36 }: { icon?: string | null; size?: number }) {
-  const [src, setSrc] = useState<string | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    if (!icon) { setSrc(null); return }
-    let file = ''
-    let color: string | null = null
-    if (icon.startsWith('badge_') || icon.startsWith('ach_global_')) {
-      file = `${icon}.svg`
-    } else {
-      const m = /^ach_([a-z0-9]+)_c(\d+)$/.exec(icon)
-      if (m) {
-        file = `ach_${m[1]}.svg`
-        const rank = parseInt(m[2] ?? '1', 10) || 1
-        color = ACH_ADV_COLORS[rank] ?? ACH_ADV_COLORS[1] ?? '#90caf9'
-      }
-    }
-    if (!file) { setSrc(null); return }
-    _loadSvg(`${ACHIEVEMENT_SHARED_ICON_BASE}/${file}`).then((raw) => {
-      if (cancelled) return
-      const svg = color ? raw.replace(/#ICON_MAIN/g, color) : raw
-      setSrc(`data:image/svg+xml;utf8,${encodeURIComponent(svg)}`)
-    })
-    return () => { cancelled = true }
-  }, [icon])
-  if (!src) return <span style={{ width: size, height: size, display: 'inline-block' }} />
-  return <img src={src} width={size} height={size} alt={icon ?? ''} />
-}
-
-// 条件类型（与 App 端 GameRewardService._meetsAchievement 的解析口径一致）
-const COND_OPTIONS = [
-  { value: 'first_clear', label: '任意通关（通关任意一关即达成）' },
-  { value: 'score', label: '维度分数达到（通关时某维度值 ≥ 阈值）' },
-  { value: 'level', label: '通关关卡号达到（通关第 N 关及以上）' },
-]
-
-// 成就图标改为独立 SVG 资产（与游戏图标分离）：文件即取值，后台经
-// /game-achievements/<name>.svg 引用，与 App 端 assets/games/achievements 同一套文件。
-// 选项来自 constants/game.ts 的 ACHIEVEMENT_ICON_OPTIONS。
-
-/// 把 condition JSON 渲染成中文摘要（与 App 端解析口径一致）
-function condSummary(cond: Record<string, any>): string {
-  const type = cond?.type ?? 'first_clear'
-  if (type === 'score') {
-    return `${cond?.dimension ?? '?'} ≥ ${cond?.gte ?? '?'}`
-  }
-  if (type === 'level') {
-    return `通关第 ${cond?.min_level_no ?? '?'} 关及以上`
-  }
-  return '任意通关'
-}
 
 /**
  * 游戏成就配置（game_achievements）。
  *
  * 成就是**独立于「积分奖励配置」的独立体系**：独立建表、独立判定
  * （App 端通关结算时按 condition 评估）、同一成就终身只发一次
- * （user_game_achievements 唯一索引兜底）；发放积分走 game_earn 流水，
- * 仍受单日上限（daily_limit）约束。积分奖励配置里的 achievement 枚举
- * 仅保留兼容旧数据，不再新增。
+ * （user_game_achievements 唯一索引兜底）。v2 徽章化（q-0）后成就 =
+ * 纯荣誉徽章，reward_points 全 0 仅解锁不发分；段位（mode_tier）由
+ * App 端 GameBadgeService 评估解锁，后台仅维护定义（v2 条件类型只读保护）。
+ *
+ * 文件结构（游戏组模板）：index.tsx 容器 + AchievementIcon（图标渲染）
+ * + AchievementFormModal（编辑弹窗）+ achievementMeta（条件常量/摘要）。
  */
 const GameAchievements: React.FC = () => {
   const { hasPermission } = usePermission()
@@ -118,7 +51,6 @@ const GameAchievements: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<DbGameAchievement | null>(null)
   const [saving, setSaving] = useState(false)
-  const [form] = Form.useForm()
 
   // 列表筛选与分页
   const [nameFilter, setNameFilter] = useState('')
@@ -161,6 +93,7 @@ const GameAchievements: React.FC = () => {
     loadItems()
     loadGames()
     loadDims()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const openCreate = () => {
@@ -173,50 +106,13 @@ const GameAchievements: React.FC = () => {
     setModalOpen(true)
   }
 
-  // condition JSON → 表单三个字段（类型 / 维度 / 阈值）
-  const initialCond = useMemo(() => {
-    const cond = (editing?.condition ?? {}) as Record<string, any>
-    const type = cond?.type ?? 'first_clear'
-    return {
-      condType: type as string,
-      condDimension: type === 'score' ? String(cond?.dimension ?? 'score') : undefined,
-      condValue: type === 'score' ? (cond?.gte as number) : type === 'level' ? (cond?.min_level_no as number) : undefined,
-    }
-  }, [editing])
-
-  // v2 徽章条件保护：mode_tier 等类型后台暂不支持编辑，保存时原样保留，
-  // 防止被重写为旧三类型（score/level/first_clear）而破坏 App 端徽章判定。
-  const isV2Condition = useMemo(() => {
-    const type = (editing?.condition as Record<string, any> | null | undefined)?.type
-    return !!type && !['score', 'level', 'first_clear'].includes(String(type))
-  }, [editing])
-
-  // 表单初始值（弹窗真正打开后由 afterOpenChange 回显，避免 Modal 惰性挂载导致 setFieldsValue 无效）
-  const formInitialValues = (): Record<string, any> => {
-    if (editing) {
-      return {
-        game_id: editing.game_id ?? undefined,
-        code: editing.code,
-        name: editing.name,
-        description: editing.description ?? '',
-        icon: editing.icon ?? undefined,
-        reward_points: editing.reward_points,
-        enabled: editing.enabled,
-        sort_order: editing.sort_order,
-        ...initialCond,
-      }
-    }
-    return { condType: 'first_clear', reward_points: 5, enabled: true, sort_order: 0 }
-  }
-
-  const handleSave = async () => {
-    const values = await form.validateFields()
+  // 按条件类型组装 condition（与 App 端解析口径一致）；
+  // v2 徽章条件（mode_tier 等）暂不支持编辑，原样保留防破坏。
+  const handleSave = async (values: Record<string, any>) => {
     setSaving(true)
     try {
-      // 按条件类型组装 condition（与 App 端解析口径一致）；
-      // v2 徽章条件（mode_tier 等）暂不支持编辑，原样保留防破坏。
       let condition: Record<string, any> = {}
-      if (isV2Condition && editing) {
+      if (isV2ConditionOf(editing?.condition) && editing) {
         condition = (editing.condition as Record<string, any>) ?? {}
       } else if (values.condType === 'score') {
         condition = { type: 'score', dimension: values.condDimension, gte: Number(values.condValue) }
@@ -357,9 +253,7 @@ const GameAchievements: React.FC = () => {
           <div className={styles.alertDesc}>
             <p className={styles.para}>
               <b>与「积分奖励配置」的关系：</b>成就是独立于积分奖励规则的独立体系——独立建表、独立判定、独立维护。
-              App 端通关结算时按下方条件自动评估是否达成；同一成就<b>终身只发一次</b>（用户解锁记录唯一索引兜底）；
-              奖励积分走 game_earn 流水，仍受「积分奖励配置」里的<b>单日上限</b>约束。
-              积分奖励配置中的「成就达成」枚举仅兼容旧数据，请勿在其中新增。
+              App 端通关结算时按下方条件自动评估是否达成；同一成就<b>终身只发一次</b>（用户解锁记录唯一索引兜底）。
             </p>
             <div className={styles.para}>
               <b>如何配置：</b>选择所属游戏 → 填写成就编码（唯一，如 first_win）与名称 → 选择达成条件类型 →
@@ -440,151 +334,15 @@ const GameAchievements: React.FC = () => {
         scroll={{ x: 'max-content' }}
       />
 
-      <Modal
-        title={editing ? '编辑成就' : '新增成就'}
+      <AchievementFormModal
         open={modalOpen}
+        editing={editing}
+        gameOptions={gameOptions}
+        dims={dims}
+        saving={saving}
         onOk={handleSave}
-        confirmLoading={saving}
-        afterOpenChange={(open) => {
-          // 修复编辑/新增弹窗表单串数据：Form.useForm 为单例，Modal 惰性挂载使 open 前
-          // setFieldsValue 无效；弹窗真正打开（子组件已挂载）后重置并回显最新值。
-          if (open) {
-            form.resetFields()
-            form.setFieldsValue(formInitialValues())
-          }
-        }}
         onCancel={() => setModalOpen(false)}
-        destroyOnHidden
-        width={600}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          preserve={false}
-          key={editing?.id ?? 'create'}
-          initialValues={
-            editing
-              ? {
-                  game_id: editing.game_id ?? undefined,
-                  code: editing.code,
-                  name: editing.name,
-                  description: editing.description ?? '',
-                  icon: editing.icon ?? undefined,
-                  reward_points: editing.reward_points,
-                  enabled: editing.enabled,
-                  sort_order: editing.sort_order,
-                  ...initialCond,
-                }
-              : { condType: 'first_clear', reward_points: 5, enabled: true, sort_order: 0 }
-          }
-        >
-          <Form.Item
-            name="game_id"
-            label="所属游戏"
-            rules={[{ required: true, message: '请选择游戏' }]}
-          >
-            <Select placeholder="选择游戏" options={gameOptions} showSearch optionFilterProp="label" />
-          </Form.Item>
-          <Form.Item
-            name="code"
-            label="成就编码"
-            rules={[{ required: true, message: '请输入编码' }]}
-            tooltip="唯一标识，如 first_win / score_2048 / level_5；创建后建议不再修改"
-          >
-            <Input placeholder="如 first_win" />
-          </Form.Item>
-          <Form.Item name="name" label="成就名称" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input placeholder="如 首次获胜" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} placeholder="成就说明，展示给玩家" />
-          </Form.Item>
-          <Form.Item name="icon" label="成就图标" tooltip="成就 SVG 文件名；与游戏图标分目录存放，未设置则展示默认图标">
-            <Select
-              placeholder="选择成就图标"
-              options={ACHIEVEMENT_ICON_OPTIONS}
-              allowClear
-              showSearch
-              optionFilterProp="label"
-            />
-          </Form.Item>
-          {isV2Condition && (
-            <Alert
-              style={{ marginBottom: 12 }}
-              type="warning"
-              showIcon
-              message={`v2 条件类型「${String((editing?.condition as Record<string, any>)?.type)}」后台暂不支持编辑`}
-              description="保存时该成就的条件将原样保留，不会被改写。"
-            />
-          )}
-          <Form.Item name="condType" label="达成条件类型" rules={[{ required: true, message: '请选择条件类型' }]}>
-            <Select options={COND_OPTIONS} disabled={isV2Condition} />
-          </Form.Item>
-          <Form.Item
-            noStyle
-            shouldUpdate={(prev, cur) =>
-              prev.condType !== cur.condType || prev.game_id !== cur.game_id
-            }
-          >
-            {({ getFieldValue }) => {
-              const type = getFieldValue('condType')
-              if (type === 'score') {
-                const gameId = getFieldValue('game_id')
-                const dimOptions = dims
-                  .filter((d) => !gameId || d.game_id === gameId)
-                  .map((d) => ({ value: d.code, label: `${d.name}（${d.code}）` }))
-                return (
-                  <>
-                    <Form.Item
-                      name="condDimension"
-                      label="达成维度"
-                      rules={[{ required: true, message: '请选择维度' }]}
-                    >
-                      <Select
-                        placeholder="选择维度"
-                        options={dimOptions.length > 0 ? dimOptions : [{ value: 'score', label: 'score' }]}
-                      />
-                    </Form.Item>
-                    <Form.Item
-                      name="condValue"
-                      label="达到阈值"
-                      rules={[{ required: true, message: '请输入阈值' }]}
-                    >
-                      <InputNumber min={0} className={common.fullWidth} placeholder="如 2048" />
-                    </Form.Item>
-                  </>
-                )
-              }
-              if (type === 'level') {
-                return (
-                  <Form.Item
-                    name="condValue"
-                    label="达到关卡号"
-                    rules={[{ required: true, message: '请输入关卡号' }]}
-                  >
-                    <InputNumber min={1} className={common.fullWidth} placeholder="如 5" />
-                  </Form.Item>
-                )
-              }
-              return null
-            }}
-          </Form.Item>
-          <Form.Item
-            name="reward_points"
-            label="奖励积分"
-            tooltip="达成时发放；0 表示仅解锁不发分"
-            rules={[{ required: true, message: '请输入奖励积分' }]}
-          >
-            <InputNumber min={0} className={common.fullWidth} addonAfter="分" />
-          </Form.Item>
-          <Form.Item name="sort_order" label="排序号">
-            <InputNumber min={0} className={common.fullWidth} />
-          </Form.Item>
-          <Form.Item name="enabled" label="启用" valuePropName="checked">
-            <Switch checkedChildren="启用" unCheckedChildren="停用" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      />
     </div>
   )
 }
