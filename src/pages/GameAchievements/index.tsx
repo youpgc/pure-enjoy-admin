@@ -155,6 +155,24 @@ const GameAchievements: React.FC = () => {
     }
   }, [editing])
 
+  // 表单初始值（弹窗真正打开后由 afterOpenChange 回显，避免 Modal 惰性挂载导致 setFieldsValue 无效）
+  const formInitialValues = (): Record<string, any> => {
+    if (editing) {
+      return {
+        game_id: editing.game_id ?? undefined,
+        code: editing.code,
+        name: editing.name,
+        description: editing.description ?? '',
+        icon: editing.icon ?? undefined,
+        reward_points: editing.reward_points,
+        enabled: editing.enabled,
+        sort_order: editing.sort_order,
+        ...initialCond,
+      }
+    }
+    return { condType: 'first_clear', reward_points: 5, enabled: true, sort_order: 0 }
+  }
+
   const handleSave = async () => {
     const values = await form.validateFields()
     setSaving(true)
@@ -247,13 +265,14 @@ const GameAchievements: React.FC = () => {
       title: '图标',
       dataIndex: 'icon',
       width: 90,
-      render: (v: string | null) =>
-        v ? (
+      // 图标按成就 code 派生（ach_<code>.svg），与 App 端一致；不依赖 icon 字段旧名。
+      render: (_: unknown, record: DbGameAchievement) =>
+        record.code ? (
           <img
-            src={`${ACHIEVEMENT_SHARED_ICON_BASE}/${v}`}
+            src={`${ACHIEVEMENT_SHARED_ICON_BASE}/ach_${record.code}.svg`}
             width={30}
             height={30}
-            alt={v}
+            alt={record.code}
             className={styles.iconImg}
           />
         ) : (
@@ -400,6 +419,14 @@ const GameAchievements: React.FC = () => {
         open={modalOpen}
         onOk={handleSave}
         confirmLoading={saving}
+        afterOpenChange={(open) => {
+          // 修复编辑/新增弹窗表单串数据：Form.useForm 为单例，Modal 惰性挂载使 open 前
+          // setFieldsValue 无效；弹窗真正打开（子组件已挂载）后重置并回显最新值。
+          if (open) {
+            form.resetFields()
+            form.setFieldsValue(formInitialValues())
+          }
+        }}
         onCancel={() => setModalOpen(false)}
         destroyOnHidden
         width={600}

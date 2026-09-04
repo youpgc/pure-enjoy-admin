@@ -46,6 +46,7 @@ export const PAGE_TITLES: Record<PageKey, string> = {
   game_analytics: '游戏数据分析',
   game_achievements: '游戏成就配置',
   game_reward_records: '游戏奖励记录',
+  game_modes: '模式管理',
   game_items: '道具管理',
   profile: '个人中心',
 }

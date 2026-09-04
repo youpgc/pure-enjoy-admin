@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Table,
   Button,
@@ -29,6 +29,7 @@ import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { gameService, gameLevelService } from '../../services/gameService'
+import { supabase } from '../../utils/supabase'
 import type { DbGame, DbGameLevel } from '../../types/database'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
@@ -45,6 +46,11 @@ const GameLevels: React.FC = () => {
 
   const [games, setGames] = useState<DbGame[]>([])
   const [selectedGameId, setSelectedGameId] = useState<string>('')
+  const [modes, setModes] = useState<{ id: string; code: string; name: string }[]>([])
+  const [selectedModeId, setSelectedModeId] = useState<string>('')
+  // 用 ref 持有最新模式筛选值，避免 loadLevels 因 selectedModeId 变化而重建身份、
+  // 进而触发「游戏切换」副作用把模式筛选重置为空。
+  const selectedModeIdRef = useRef<string>('')
   const [levels, setLevels] = useState<DbGameLevel[]>([])
   const [loading, setLoading] = useState(false)
   const pager = usePagination()
@@ -65,6 +71,25 @@ const GameLevels: React.FC = () => {
     }
   }, [mountedRef])
 
+  const loadModes = useCallback(async () => {
+    if (!selectedGameId) {
+      setModes([])
+      return
+    }
+    try {
+      const { data, error } = await supabase
+        .from('game_modes')
+        .select('id, code, name')
+        .eq('game_id', selectedGameId)
+        .order('sort_order', { ascending: true })
+      if (error) throw error
+      if (!mountedRef.current) return
+      setModes((data as { id: string; code: string; name: string }[]) || [])
+    } catch (error) {
+      handleApiError(error, 'GameLevels-加载模式')
+    }
+  }, [selectedGameId, mountedRef])
+
   const loadLevels = useCallback(async () => {
     if (!selectedGameId) {
       setLevels([])
@@ -75,7 +100,8 @@ const GameLevels: React.FC = () => {
       const result = await gameLevelService.paginateByGame(
         selectedGameId,
         pager.pagination.current,
-        pager.pagination.pageSize
+        pager.pagination.pageSize,
+        selectedModeIdRef.current || null
       )
       if (!result.success) {
         handleApiError(result.errorMessage, 'GameLevels-加载')
@@ -96,8 +122,14 @@ const GameLevels: React.FC = () => {
   }, [loadGames])
 
   useEffect(() => {
-    if (selectedGameId) loadLevels()
-  }, [selectedGameId, loadLevels])
+    if (selectedGameId) {
+      setSelectedModeId('')
+      selectedModeIdRef.current = ''
+      pager.resetPage()
+      loadModes()
+      loadLevels()
+    }
+  }, [selectedGameId, loadLevels, loadModes])
 
   // 弹窗回显走 key 强制重挂载 + initialValues（Modal 惰性挂载前 setFieldsValue 无效；
   // 且表单值无 id，旧写法解构 id 为 undefined 拼出 uuid:"undefined" 触发 22P02）
@@ -147,6 +179,8 @@ const GameLevels: React.FC = () => {
       setSaving(true)
       const values = await form.validateFields()
       const payload: Record<string, any> = { ...values }
+      // 模式为空（未选 / 清空）时存 NULL，避免写入空串触发 FK 类型问题
+      payload.mode_id = values.mode_id || null
       try {
         payload.config = values.config ? JSON.parse(values.config) : {}
         payload.target = values.target ? JSON.parse(values.target) : {}
@@ -262,9 +296,26 @@ const GameLevels: React.FC = () => {
             value={selectedGameId || undefined}
             onChange={(v) => {
               setSelectedGameId(v)
+              setSelectedModeId('')
+              selectedModeIdRef.current = ''
               pager.resetPage()
             }}
             options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
+          />
+          <Text>模式：</Text>
+          <Select
+            className={styles.sel240}
+            placeholder="全部模式"
+            allowClear
+            value={selectedModeId || undefined}
+            onChange={(v) => {
+              const next = v || ''
+              setSelectedModeId(next)
+              selectedModeIdRef.current = next
+              pager.resetPage()
+              loadLevels()
+            }}
+            options={modes.map((m) => ({ value: m.id, label: `${m.name}（${m.code}）` }))}
           />
           <Button icon={<ReloadOutlined />} onClick={loadLevels} loading={loading}>
             刷新
@@ -297,6 +348,14 @@ const GameLevels: React.FC = () => {
         open={modalVisible}
         onOk={handleSave}
         confirmLoading={saving}
+        afterOpenChange={(open) => {
+          // 修复编辑/新增弹窗表单串数据：Form.useForm 为单例，initialValues 仅首次挂载消费；
+          // Modal 惰性挂载，open 前 setFieldsValue 无效。弹窗真正打开（子组件已挂载）后重置并回显。
+          if (open) {
+            form.resetFields()
+            form.setFieldsValue(formInitialValues())
+          }
+        }}
         onCancel={() => {
           setModalVisible(false)
           setEditing(null)
@@ -314,6 +373,13 @@ const GameLevels: React.FC = () => {
             <Select
               placeholder="选择游戏"
               options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
+            />
+          </Form.Item>
+          <Form.Item name="mode_id" label="所属模式" tooltip="关卡归属的模式；与上方「模式」筛选联动">
+            <Select
+              placeholder="选择模式"
+              allowClear
+              options={modes.map((m) => ({ value: m.id, label: `${m.name}（${m.code}）` }))}
             />
           </Form.Item>
           <Form.Item name="level_no" label="关卡号" rules={[{ required: true, message: '请输入关卡号' }]}>

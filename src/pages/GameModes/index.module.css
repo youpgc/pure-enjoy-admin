@@ -1,0 +1,9 @@
+.page {
+  padding: 16px;
+}
+
+.iconOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}

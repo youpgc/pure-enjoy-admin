@@ -104,27 +104,32 @@ const GameRewardRules: React.FC = () => {
     loadRules()
   }, [loadRules])
 
-  const openAdd = () => {
-    setEditing(null)
-    form.resetFields()
-    form.setFieldsValue({
+  // 表单初始值（弹窗真正打开后由 afterOpenChange 回显，避免 Modal 惰性挂载导致 setFieldsValue 无效）
+  const formInitialValues = (): Record<string, any> => {
+    if (editing) {
+      return {
+        ...editing,
+        game_id: editing.game_id || GLOBAL_GAME,
+        condition: JSON.stringify(editing.condition ?? {}),
+      }
+    }
+    return {
       game_id: GLOBAL_GAME,
       rule_type: 'daily_limit',
       points: 0,
       enabled: true,
       sort_order: 0,
       condition: '{}',
-    })
+    }
+  }
+
+  const openAdd = () => {
+    setEditing(null)
     setModalVisible(true)
   }
 
   const openEdit = (record: DbGameRewardRule) => {
     setEditing(record)
-    form.setFieldsValue({
-      ...record,
-      game_id: record.game_id || GLOBAL_GAME,
-      condition: JSON.stringify(record.condition ?? {}),
-    })
     setModalVisible(true)
   }
 
@@ -315,6 +320,14 @@ const GameRewardRules: React.FC = () => {
         open={modalVisible}
         onOk={handleSave}
         confirmLoading={saving}
+        afterOpenChange={(open) => {
+          // 修复编辑/新增弹窗表单串数据：Form.useForm 为单例，Modal 惰性挂载使 open 前
+          // setFieldsValue 无效；弹窗真正打开（子组件已挂载）后重置并回显最新值。
+          if (open) {
+            form.resetFields()
+            form.setFieldsValue(formInitialValues())
+          }
+        }}
         onCancel={() => {
           setModalVisible(false)
           setEditing(null)

@@ -63,6 +63,7 @@ export const MATCH3_MODE_OPTIONS_WITH_ANY = [
 //   daily_limit       = 单日游戏奖励上限（全局唯一）
 export const GAME_REWARD_RULE_TYPE_MAP: Record<string, { color: string; label: string }> = {
   daily_first_clear: { color: 'green', label: '每日首次通关' },
+  first_clear: { color: 'cyan', label: '首次通关奖励' },
   achievement: { color: 'gold', label: '成就达成' },
   score_range: { color: 'blue', label: '成绩区间' },
   level_clear: { color: 'purple', label: '通关奖励' },
@@ -84,7 +85,7 @@ export const GAME_DIMENSION_AGGREGATE_OPTIONS = Object.entries(GAME_DIMENSION_AG
 // ⚠️ 已移除 `achievement`（成就达成）：成就走 game_achievements 表、由「游戏成就配置」页独立维护，
 //   与积分奖励规则解耦；此处仅保留 MAP 中的 achievement 用于兼容展示历史数据，禁止在表单中新增。
 export const GAME_REWARD_RULE_TYPE_OPTIONS = Object.entries(GAME_REWARD_RULE_TYPE_MAP)
-  .filter(([value]) => value !== 'achievement')
+  .filter(([value]) => value !== 'achievement' && value !== 'first_clear')
   .map(([value, v]) => ({ value, label: v.label }))
 
 // 共享图标资产（App 端 assets/games/icons 与管理后台 public/game-icons 同一套文件）
@@ -95,7 +96,21 @@ export const GAME_REWARD_RULE_TYPE_OPTIONS = Object.entries(GAME_REWARD_RULE_TYP
 //    硬编码根路径 /game-icons 在 dev 与构建产物下都会 404（public 文件实际挂在 base 路径下）。
 export const GAME_SHARED_ICON_BASE = import.meta.env.BASE_URL + 'game-icons'
 export const GAME_SHARED_ICON_OPTIONS: { label: string; value: string; group: string }[] = [
-  // 牧场主题（羊了个羊）
+  // 游戏封面（games.icon，与 App 端 assets/games/icons 同文件名）
+  { group: '游戏封面', label: '2048', value: 'g2048' },
+  { group: '游戏封面', label: '羊了个羊', value: 'sheep' },
+  { group: '游戏封面', label: '消消乐', value: 'match3' },
+  // 模式图标（game_modes.icon，与 App 端同文件名）
+  { group: '模式', label: '经典模式', value: 'mode_classic' },
+  { group: '模式', label: '限时模式', value: 'mode_timed' },
+  { group: '模式', label: '挑战模式', value: 'mode_challenge' },
+  { group: '模式', label: '无尽模式', value: 'mode_endless' },
+  { group: '模式', label: '消除模式', value: 'mode_match' },
+  { group: '模式', label: '果冻模式', value: 'mode_jelly' },
+  { group: '模式', label: '食材模式', value: 'mode_ingredient' },
+  { group: '模式', label: '订单模式', value: 'mode_order' },
+  { group: '模式', label: '混合模式', value: 'mode_blended' },
+  // 牧场主题（羊了个羊图块）
   { group: '牧场', label: '小羊', value: 'sheep_01_lamb' },
   { group: '牧场', label: '小鸡', value: 'sheep_02_chick' },
   { group: '牧场', label: '奶牛', value: 'sheep_03_cow' },
@@ -106,7 +121,7 @@ export const GAME_SHARED_ICON_OPTIONS: { label: string; value: string; group: st
   { group: '牧场', label: '玉米', value: 'sheep_08_corn' },
   { group: '牧场', label: '干草', value: 'sheep_09_hay' },
   { group: '牧场', label: '苹果', value: 'sheep_10_apple' },
-  // 糖果主题（消消乐）
+  // 糖果主题（消消乐图块）
   { group: '糖果', label: '樱桃', value: 'candy_01_cherry' },
   { group: '糖果', label: '橙子', value: 'candy_02_orange' },
   { group: '糖果', label: '柠檬', value: 'candy_03_lemon' },

@@ -270,7 +270,16 @@ const GameConfigs: React.FC = () => {
       title: '图标',
       dataIndex: 'icon',
       key: 'icon',
-      render: (v: string | null) => v || '-',
+      render: (v: string | null) =>
+        v ? (
+          <img
+            src={`${GAME_SHARED_ICON_BASE}/${v}.svg`}
+            alt={v}
+            style={{ width: 28, height: 28, objectFit: 'contain' }}
+          />
+        ) : (
+          '-'
+        ),
     },
     {
       title: '引擎',
@@ -504,6 +513,14 @@ const GameConfigs: React.FC = () => {
         open={modalVisible}
         onOk={handleSave}
         confirmLoading={saving}
+        afterOpenChange={(open) => {
+          // 修复编辑/新增弹窗表单串数据：Form.useForm 为单例，initialValues 仅首次挂载消费；
+          // Modal 惰性挂载，open 前 setFieldsValue 无效。弹窗真正打开（子组件已挂载）后重置并回显。
+          if (open) {
+            form.resetFields()
+            form.setFieldsValue(formInitialValues())
+          }
+        }}
         onCancel={() => {
           setModalVisible(false)
           setEditing(null)

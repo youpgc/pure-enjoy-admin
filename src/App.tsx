@@ -67,6 +67,7 @@ const GameAnalytics = lazy(() => import('./pages/GameAnalytics'))
 const GameItems = lazy(() => import('./pages/GameItems'))
 const GameAchievements = lazy(() => import('./pages/GameAchievements'))
 const GameRewardRecords = lazy(() => import('./pages/GameRewardRecords'))
+const GameModes = lazy(() => import('./pages/GameModes'))
 const Profile = lazy(() => import('./pages/Profile'))
 import { supabase } from './utils/supabase'
 import { buildMenuItems } from './config/menuConfig'
@@ -180,7 +181,7 @@ export type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'w
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
   | 'anniversaries' | 'points' | 'error_logs' | 'recommendations' | 'tts_management' | 'login_logs' | 'checkin'
-  | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics' | 'game_items' | 'game_achievements' | 'game_reward_records'
+  | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics' | 'game_items' | 'game_achievements' | 'game_reward_records' | 'game_modes'
   | 'profile'
 
 interface NavigationContextType {
@@ -378,6 +379,7 @@ const MainLayout: React.FC = () => {
     game_items: GameItems,
     game_achievements: GameAchievements,
     game_reward_records: GameRewardRecords,
+    game_modes: GameModes,
     profile: Profile,
   }
 

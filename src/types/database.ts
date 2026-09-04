@@ -1169,6 +1169,7 @@ export interface Database {
         Row: {
           id: string
           game_id: string
+          mode_id: string | null
           level_no: number
           name: string
           config: Json
@@ -1187,6 +1188,31 @@ export interface Database {
           updated_at?: string
         }
         Update: Partial<Database['public']['Tables']['game_levels']['Row']>
+      }
+
+      // 51b. game_modes（游戏模式，按游戏；图标存 SVG 文件名，与 App 端同名）
+      game_modes: {
+        Row: {
+          id: string
+          game_id: string
+          code: string
+          name: string
+          icon: string | null
+          description: string | null
+          play_kind: string
+          config: Json
+          sort_order: number
+          enabled: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['game_modes']['Row'], 'id' | 'created_at' | 'updated_at'> & {
+          id?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['game_modes']['Row']>
+        Relationships: []
       }
 
       // 52. game_achievements（成就定义，全局；game_id 为 null 表示跨游戏）

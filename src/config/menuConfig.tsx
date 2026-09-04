@@ -32,6 +32,7 @@ import {
   ToolOutlined,
   FolderOutlined,
   AlertOutlined,
+  TagsOutlined,
 } from '@ant-design/icons'
 
 type HasMenuPermission = (menu: string, perms: string[]) => boolean
@@ -168,6 +169,7 @@ export const buildMenuItems = (
       children: [
         { key: 'game_configs', icon: <SettingOutlined />, label: '游戏与维度配置' },
         { key: 'game_levels', icon: <AppstoreOutlined />, label: '关卡配置' },
+        { key: 'game_modes', icon: <TagsOutlined />, label: '模式管理' },
         { key: 'game_reward_rules', icon: <StarOutlined />, label: '积分奖励配置' },
         { key: 'game_achievements', icon: <CrownOutlined />, label: '游戏成就配置' },
         { key: 'game_scores', icon: <TrophyOutlined />, label: '成绩看板' },

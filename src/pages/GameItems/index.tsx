@@ -96,6 +96,25 @@ const GameItems: React.FC = () => {
     setModalOpen(true)
   }
 
+  // 表单初始值（弹窗真正打开后由 afterOpenChange 回显，避免 Modal 惰性挂载导致 setFieldsValue 无效）
+  const formInitialValues = (): Record<string, any> => {
+    if (editing) {
+      return {
+        game_code: editing.game_code,
+        mode: editing.mode,
+        item_type: editing.item_type,
+        name: editing.name,
+        description: editing.description ?? '',
+        point_cost: editing.point_cost,
+        per_game_limit: editing.per_game_limit,
+        free_per_game: editing.free_per_game,
+        enabled: editing.enabled,
+        sort_order: editing.sort_order,
+      }
+    }
+    return { enabled: true, point_cost: 20, per_game_limit: 1, free_per_game: 0, mode: '', sort_order: 0 }
+  }
+
   const handleSave = async () => {
     const values = await form.validateFields()
     setSaving(true)
@@ -259,6 +278,14 @@ const GameItems: React.FC = () => {
         open={modalOpen}
         onOk={handleSave}
         confirmLoading={saving}
+        afterOpenChange={(open) => {
+          // 修复编辑/新增弹窗表单串数据：Form.useForm 为单例，Modal 惰性挂载使 open 前
+          // setFieldsValue 无效；弹窗真正打开（子组件已挂载）后重置并回显最新值。
+          if (open) {
+            form.resetFields()
+            form.setFieldsValue(formInitialValues())
+          }
+        }}
         onCancel={() => setModalOpen(false)}
         destroyOnHidden
       >

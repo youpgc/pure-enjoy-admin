@@ -61,8 +61,12 @@ class GameLevelService extends BaseService<DbGameLevel> {
     return this.findAll((q) => q.eq('game_id', gameId))
   }
 
-  paginateByGame(gameId: string, page: number, pageSize: number) {
-    return this.paginate(page, pageSize, (q) => q.eq('game_id', gameId))
+  paginateByGame(gameId: string, page: number, pageSize: number, modeId?: string | null) {
+    return this.paginate(page, pageSize, (q) => {
+      q = q.eq('game_id', gameId)
+      if (modeId) q = q.eq('mode_id', modeId)
+      return q
+    })
   }
 }
 
