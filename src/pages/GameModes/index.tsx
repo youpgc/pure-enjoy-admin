@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Table,
+  Alert,
   Button,
   message,
   Space,
@@ -308,6 +309,13 @@ const GameModes: React.FC = () => {
 
   return (
     <div className={styles.page}>
+  <Alert
+    type="info"
+    showIcon
+    className={common.mb16}
+    message="游戏模式管理说明"
+    description="模式是选关与玩法的一级维度：名称以 App 玩法说明为标准；play_kind 决定引擎行为（跨游戏不可混用）；config 为模式级默认参数，关卡可覆盖；删除前会检查关卡/成绩引用防级联清空。"
+  />
       <div className={common.toolbar}>
         <Select
           className={common.sel240}

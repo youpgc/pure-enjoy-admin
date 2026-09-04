@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Card,
   Table,
@@ -208,12 +208,21 @@ const RolePermissionPage: React.FC = () => {
     interface PageNode { title: string; key: string; children: { title: string; key: string }[] }
     interface GroupNode { title: string; key: string; pages: Record<string, PageNode> }
 
+    // 游戏中心 9 个子页面（与侧边栏菜单一致）：games:read/write/delete 统管全模块，
+    // 权限树按页面维度展示（同一权限在每个页面节点下重复出现，key 带 @页序，
+    // 勾选/保存时按 @ 前缀解析回权限 id 去重，见下方 onCheck / treeCheckedKeys）
+    const GAME_PAGE_NAMES = [
+      '游戏与维度配置', '模式管理', '关卡配置', '积分奖励配置', '游戏成就配置',
+      '成绩看板', '游戏数据分析', '道具管理', '游戏奖励记录',
+    ]
+    const gamePerms = permissions.filter(p => p.name.startsWith('games:'))
+
     const groupMap: Record<string, GroupNode> = {}
 
     permissions.forEach(p => {
-      // 跳过侧边栏门控元权限（menu:*），它们不属于功能资源权限
+      // 跳过侧边栏门控元权限（menu:*）与 games:*（游戏中心单独按页面展开）
       const prefix = p.name.split(':')[0] || p.name
-      if (TREE_SKIP_PREFIXES.includes(prefix)) return
+      if (TREE_SKIP_PREFIXES.includes(prefix) || prefix === 'games') return
 
       const info = resolvePermissionPage(p.name, p.module)
       let g = groupMap[info.group]
@@ -232,6 +241,22 @@ const RolePermissionPage: React.FC = () => {
       })
     })
 
+    // 游戏中心：按 9 个子页面展开（每个页面节点挂 games:* 全部权限）
+    if (gamePerms.length > 0) {
+      const pages: Record<string, PageNode> = {}
+      GAME_PAGE_NAMES.forEach((pageName, idx) => {
+        pages[pageName] = {
+          title: pageName,
+          key: `page_游戏中心_${pageName}`,
+          children: gamePerms.map(p => ({
+            title: p.display_name || p.name,
+            key: `${p.id}@${idx}`,
+          })),
+        }
+      })
+      groupMap['游戏中心'] = { title: '游戏中心', key: 'group_游戏中心', pages }
+    }
+
     // 按侧边栏分组顺序输出
     const orderedGroups = Object.values(groupMap).sort((a, b) => {
       const ia = GROUP_ORDER.indexOf(a.title)
@@ -249,6 +274,24 @@ const RolePermissionPage: React.FC = () => {
       })),
     }))
   }, [permissions])
+
+  // Tree 的勾选 key：games:* 权限展开到 9 个页面节点（组合 key `${id}@${页序}`），
+  // 其余权限保持原始 id key；由 selectedPermissions（真实权限 id 集合）反向推导。
+  const GAME_PAGE_COUNT = 9
+  const treeCheckedKeys = useMemo(() => {
+    const gamePermIds = new Set(
+      permissions.filter(p => p.name.startsWith('games:')).map(p => p.id),
+    )
+    const keys: string[] = []
+    for (const id of selectedPermissions) {
+      if (gamePermIds.has(id)) {
+        for (let i = 0; i < GAME_PAGE_COUNT; i++) keys.push(`${id}@${i}`)
+      } else {
+        keys.push(String(id))
+      }
+    }
+    return keys
+  }, [selectedPermissions, permissions])
 
   // 表格列定义
   const columns = [
@@ -378,13 +421,16 @@ const RolePermissionPage: React.FC = () => {
             <Tree
               checkable
               treeData={permissionTreeData()}
-              checkedKeys={selectedPermissions.map(String)}
+              checkedKeys={treeCheckedKeys}
               onCheck={(checkedKeys) => {
-                setSelectedPermissions(
-                  (checkedKeys as string[])
-                    .filter(key => !key.startsWith('group_') && !key.startsWith('page_'))
-                    .map(Number)
-                )
+                // 组合 key（`${权限id}@${页序}`）解析回权限 id；与普通 key 合并去重
+                const ids = new Set<number>()
+                for (const key of checkedKeys as string[]) {
+                  if (key.startsWith('group_') || key.startsWith('page_')) continue
+                  const n = Number(key.includes('@') ? key.split('@')[0] : key)
+                  if (!Number.isNaN(n) && n > 0) ids.add(n)
+                }
+                setSelectedPermissions([...ids])
               }}
             />
           </Form.Item>

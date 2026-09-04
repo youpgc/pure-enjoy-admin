@@ -1,5 +1,5 @@
 import React from 'react'
-import { Modal, Form, Input, InputNumber, Select, Switch, Alert } from 'antd'
+import { Modal, Form, Input, InputNumber, Select, Switch } from 'antd'
 import type { Database } from '../../types/database'
 import { ACHIEVEMENT_ICON_OPTIONS } from '../../constants/game'
 import { COND_OPTIONS, isV2ConditionOf } from './achievementMeta'
@@ -137,16 +137,12 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
             optionFilterProp="label"
           />
         </Form.Item>
-        {isV2Condition && (
-          <Alert
-            style={{ marginBottom: 12 }}
-            type="warning"
-            showIcon
-            message={`v2 条件类型「${String((editing?.condition as Record<string, any>)?.type)}」后台暂不支持编辑`}
-            description="保存时该成就的条件将原样保留，不会被改写。"
-          />
-        )}
-        <Form.Item name="condType" label="达成条件类型" rules={[{ required: true, message: '请选择条件类型' }]}>
+        <Form.Item
+          name="condType"
+          label="达成条件类型"
+          tooltip="v2 徽章条件保存时原样保留"
+          rules={[{ required: true, message: '请选择条件类型' }]}
+        >
           <Select options={COND_OPTIONS} disabled={isV2Condition} />
         </Form.Item>
         <Form.Item

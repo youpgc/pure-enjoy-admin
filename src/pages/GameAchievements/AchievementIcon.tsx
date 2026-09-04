@@ -31,7 +31,7 @@ function AchievementIcon({ icon, size = 36 }: { icon?: string | null; size?: num
     if (icon.startsWith('badge_') || icon.startsWith('ach_global_')) {
       file = `${icon}.svg`
     } else {
-      const m = /^ach_([a-z0-9]+)_c(\d+)$/.exec(icon)
+      const m = /^ach_([a-z0-9_]+?)_c(\d+)$/.exec(icon)
       if (m) {
         file = `ach_${m[1]}.svg`
         const rank = parseInt(m[2] ?? '1', 10) || 1

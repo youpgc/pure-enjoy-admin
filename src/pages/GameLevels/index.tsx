@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Table,
+  Alert,
   Button,
   Input,
   InputNumber,
@@ -96,6 +97,7 @@ const GameLevels: React.FC = () => {
     }
   }, [selectedGameId, mountedRef])
 
+  // 依赖 selectedModeId state（而非 ref）：模式筛选/翻页变化都能触发重载
   const loadLevels = useCallback(async () => {
     if (!selectedGameId) {
       setLevels([])
@@ -107,7 +109,7 @@ const GameLevels: React.FC = () => {
         selectedGameId,
         pager.pagination.current,
         pager.pagination.pageSize,
-        selectedModeIdRef.current || null
+        selectedModeId || null
       )
       if (!result.success) {
         handleApiError(result.errorMessage, 'GameLevels-加载')
@@ -121,7 +123,7 @@ const GameLevels: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [selectedGameId, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
+  }, [selectedGameId, selectedModeId, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
 
   useEffect(() => {
     loadGames()
@@ -148,9 +150,10 @@ const GameLevels: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageParams])
 
+  // 游戏切换 / 深链进入：重置模式过滤与页码（列表加载由下方分页 effect 统一触发，
+  // 避免本 effect 内含 resetPage 造成「翻页 → loadLevels 重建 → effect 重跑 → 页码回弹」死循环）
   useEffect(() => {
     if (selectedGameId) {
-      // 深链进入：应用携带的模式过滤；常规切换：清空模式过滤
       const nav = pendingNavRef.current
       pendingNavRef.current = null
       const wantMode = nav && nav.gameId === selectedGameId ? nav.modeId ?? '' : ''
@@ -158,9 +161,13 @@ const GameLevels: React.FC = () => {
       selectedModeIdRef.current = wantMode
       pager.resetPage()
       loadModes()
-      loadLevels()
     }
-  }, [selectedGameId, loadLevels, loadModes])
+  }, [selectedGameId, loadModes])
+
+  // 列表加载：随 游戏 / 模式筛选 / 分页 变化触发
+  useEffect(() => {
+    if (selectedGameId) loadLevels()
+  }, [selectedGameId, selectedModeId, pager.pagination.current, pager.pagination.pageSize, loadLevels])
 
   // 弹窗回显走 key 强制重挂载 + initialValues（Modal 惰性挂载前 setFieldsValue 无效；
   // 且表单值无 id，旧写法解构 id 为 undefined 拼出 uuid:"undefined" 触发 22P02）
@@ -327,8 +334,6 @@ const GameLevels: React.FC = () => {
             value={selectedGameId || undefined}
             onChange={(v) => {
               setSelectedGameId(v)
-              setSelectedModeId('')
-              selectedModeIdRef.current = ''
               pager.resetPage()
             }}
             options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
@@ -344,7 +349,6 @@ const GameLevels: React.FC = () => {
               setSelectedModeId(next)
               selectedModeIdRef.current = next
               pager.resetPage()
-              loadLevels()
             }}
             options={modes.map((m) => ({ value: m.id, label: `${m.name}（${m.code}）` }))}
           />
@@ -356,6 +360,13 @@ const GameLevels: React.FC = () => {
 
       {selectedGameId ? (
         <>
+  <Alert
+    type="info"
+    showIcon
+    className={common.mb16}
+    message="关卡配置说明"
+    description="关卡按「游戏 → 模式 → 关卡」三级组织；config 键名须与 App 引擎读取键一致（参考各 play_kind 推荐模板）；reward_points 为通关奖励，count_for_daily_clear 决定是否计入每日首通。"
+  />
           <div className={styles.toolbar}>
             <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
               新增关卡
