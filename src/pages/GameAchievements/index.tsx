@@ -17,10 +17,9 @@ import {
 } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { supabase } from '../../utils/supabase'
 import type { Database } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
-import { gameDimensionService } from '../../services/gameService'
+import { gameAchievementService, gameDimensionService, gameService } from '../../services/gameService'
 import type { DbGameDimension } from '../../types/database'
 import {
   ACHIEVEMENT_SHARED_ICON_BASE,
@@ -130,37 +129,26 @@ const GameAchievements: React.FC = () => {
   const loadItems = async () => {
     setLoading(true)
     try {
-      // 显式列（列名以 /d/workspace/sql/feature_create_games.sql 的建表 DDL 为准）
-      const { data, error } = await supabase
-        .from('game_achievements')
-        .select(
-          'id,game_id,code,name,description,icon,condition,reward_points,enabled,sort_order,created_at,updated_at'
-        )
-        .order('sort_order', { ascending: true })
-      if (error) throw error
-      setItems((data as DbGameAchievement[]) ?? [])
-    } catch (e: any) {
-      message.error('加载成就失败：' + (e?.message ?? e))
+      // 经 BaseService（列清单在 service 构造器统一维护）
+      const res = await gameAchievementService.findAll()
+      if (!res.success) {
+        message.error('加载成就失败：' + (res.errorMessage ?? '未知错误'))
+        return
+      }
+      setItems(res.data ?? [])
     } finally {
       setLoading(false)
     }
   }
 
   const loadGames = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('games')
-        .select('id,code,name')
-        .eq('enabled', true)
-      if (!error && data) {
-        const list = data as { id: string; code: string; name: string }[]
-        setGames(list)
-        const map: Record<string, string> = {}
-        list.forEach((g) => (map[g.id] = `${g.name}（${g.code}）`))
-        setGameNameMap(map)
-      }
-    } catch {
-      // 忽略：下拉仅辅助
+    const res = await gameService.findAll((q) => q.eq('enabled', true))
+    if (res.success && res.data) {
+      const list = res.data.map((g) => ({ id: g.id, code: g.code, name: g.name }))
+      setGames(list)
+      const map: Record<string, string> = {}
+      list.forEach((g) => (map[g.id] = `${g.name}（${g.code}）`))
+      setGameNameMap(map)
     }
   }
 
@@ -248,20 +236,19 @@ const GameAchievements: React.FC = () => {
         enabled: !!values.enabled,
         sort_order: Number(values.sort_order) || 0,
       }
-      // 写操作 cast any：项目 Database 类型未生成 Relationships 键，
-      // supabase-js 会把 insert/update 参数推断为 never（与 utils/supabase.ts 同口径）。
-      if (editing) {
-        const { error } = await (supabase.from('game_achievements') as any)
-          .update({ ...payload, updated_at: new Date().toISOString() })
-          .eq('id', editing.id)
-        if (error) throw error
-        message.success('已更新')
-      } else {
-        const { error } = await (supabase.from('game_achievements') as any)
-          .insert({ ...payload, updated_at: new Date().toISOString() })
-        if (error) throw error
-        message.success('已新增')
-      }
+      // 写操作经 BaseService（统一审计/错误处理）；
+      // Database 类型未生成 Relationships 键，payload cast any（与 utils/supabase.ts 同口径）。
+      const res = editing
+        ? await gameAchievementService.update(editing.id, {
+            ...payload,
+            updated_at: new Date().toISOString(),
+          } as any)
+        : await gameAchievementService.create({
+            ...payload,
+            updated_at: new Date().toISOString(),
+          } as any)
+      if (!res.success) return // service 已统一弹窗 + 记日志
+      message.success(editing ? '已更新' : '已新增')
       setModalOpen(false)
       await loadItems()
     } catch (e: any) {
@@ -272,16 +259,10 @@ const GameAchievements: React.FC = () => {
   }
 
   const handleDelete = async (id: string) => {
-    try {
-      const { error } = await (supabase.from('game_achievements') as any)
-        .delete()
-        .eq('id', id)
-      if (error) throw error
-      message.success('已删除')
-      await loadItems()
-    } catch (e: any) {
-      message.error('删除失败：' + (e?.message ?? e))
-    }
+    const res = await gameAchievementService.delete(id)
+    if (!res.success) return // service 已统一弹窗 + 记日志
+    message.success('已删除')
+    await loadItems()
   }
 
   const gameOptions = useMemo(

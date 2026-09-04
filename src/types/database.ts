@@ -1545,3 +1545,6 @@ export type DbGameScoreValue = Database['public']['Tables']['game_score_values']
 export type DbUserGameAchievement = Database['public']['Tables']['user_game_achievements']['Row']
 export type DbGameRewardClaim = Database['public']['Tables']['game_reward_claims']['Row']
 export type DbGameBestScore = Database['public']['Functions']['get_game_best_scores']['Returns'][number]
+// 51c/58b 补充别名（2026-09-04 service 层统一：GameModes / GameItems 页）
+export type DbGameMode = Database['public']['Tables']['game_modes']['Row']
+export type DbGameItem = Database['public']['Tables']['game_items']['Row']

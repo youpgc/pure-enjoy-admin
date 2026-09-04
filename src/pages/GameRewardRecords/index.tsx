@@ -12,8 +12,15 @@ import {
 } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { supabase } from '../../utils/supabase'
 import { handleApiError } from '../../utils/apiClient'
+import {
+  gameAchievementService,
+  gamePointFlowService,
+  gameRewardClaimService,
+  gameRewardRuleService,
+  gameService,
+} from '../../services/gameService'
+import { userService } from '../../services/userService'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import dayjs from 'dayjs'
@@ -67,29 +74,30 @@ export default function GameRewardRecords() {
   const [spendTotal, setSpendTotal] = useState(0)
 
   const loadMaps = useCallback(async () => {
+    // 元数据映射经各 service（统一响应/错误处理）
     const [gRes, uRes, rRes, aRes] = await Promise.all([
-      supabase.from('games').select('id,name'),
-      supabase.from('users').select('id,nickname,phone') as any,
-      supabase.from('game_reward_rules').select('id,name,rule_type') as any,
-      supabase.from('game_achievements').select('code,name') as any,
+      gameService.findAll(),
+      userService.findAll(),
+      gameRewardRuleService.findAll(),
+      gameAchievementService.findAll(),
     ])
     if (!mountedRef.current) return
-    if (gRes.data) {
+    if (gRes.success && gRes.data) {
       const gm: Record<string, string> = {}
       gRes.data.forEach((g: DbGame) => (gm[g.id] = g.name))
       setGameMap(gm)
     }
-    if (uRes.data) {
+    if (uRes.success && uRes.data) {
       const um: Record<string, string> = {}
       uRes.data.forEach((u: DbUser) => (um[u.id] = u.nickname || u.phone || u.id.slice(0, 8)))
       setUserMap(um)
     }
-    if (rRes.data) {
+    if (rRes.success && rRes.data) {
       const rm: Record<string, string> = {}
       rRes.data.forEach((r: DbRewardRule) => (rm[r.id] = r.name || r.rule_type))
       setRuleMap(rm)
     }
-    if (aRes.data) {
+    if (aRes.success && aRes.data) {
       const am: Record<string, string> = {}
       aRes.data.forEach((a: DbAchievement) => (am[a.code] = a.name))
       setAchievementMap(am)
@@ -99,23 +107,18 @@ export default function GameRewardRecords() {
   const loadFlow = useCallback(async () => {
     setLoading(true)
     try {
-      const from = (pager.pagination.current - 1) * pager.pagination.pageSize
-      const to = from + pager.pagination.pageSize - 1
-      let q = supabase
-        .from('point_records')
-        .select('id,user_id,type,amount,remark,created_at', { count: 'exact' })
-        .in('type', ['game_earn', 'game_spend'])
-        .order('created_at', { ascending: false })
-        .range(from, to) as any
-      const { data, error, count } = await q
-      if (error) {
-        handleApiError(error, 'GameRewardRecords-积分流水')
+      const res = await gamePointFlowService.paginateGameFlow(
+        pager.pagination.current,
+        pager.pagination.pageSize,
+      )
+      if (!res.success) {
+        handleApiError(res.errorMessage, 'GameRewardRecords-积分流水')
         return
       }
       if (!mountedRef.current) return
-      const list = (data || []) as DbPointRecord[]
+      const list = (res.data?.data || []) as DbPointRecord[]
       setFlow(list)
-      if (count != null) pager.setTotal(count)
+      pager.setTotal(res.data?.total || 0)
       setEarnTotal(list.filter((r) => r.type === 'game_earn').reduce((s, r) => s + r.amount, 0))
       setSpendTotal(
         list.filter((r) => r.type === 'game_spend').reduce((s, r) => s + Math.abs(r.amount), 0)
@@ -129,21 +132,17 @@ export default function GameRewardRecords() {
   const loadClaims = useCallback(async () => {
     setLoading(true)
     try {
-      const from = (pager.pagination.current - 1) * pager.pagination.pageSize
-      const to = from + pager.pagination.pageSize - 1
-      let q = supabase
-        .from('game_reward_claims')
-        .select('id,user_id,game_id,rule_id,claim_key,points,claimed_at', { count: 'exact' })
-        .order('claimed_at', { ascending: false })
-        .range(from, to) as any
-      const { data, error, count } = await q
-      if (error) {
-        handleApiError(error, 'GameRewardRecords-奖励领取')
+      const res = await gameRewardClaimService.paginate(
+        pager.pagination.current,
+        pager.pagination.pageSize,
+      )
+      if (!res.success) {
+        handleApiError(res.errorMessage, 'GameRewardRecords-奖励领取')
         return
       }
       if (!mountedRef.current) return
-      setClaims((data || []) as DbRewardClaim[])
-      if (count != null) pager.setTotal(count)
+      setClaims((res.data?.data || []) as DbRewardClaim[])
+      pager.setTotal(res.data?.total || 0)
     } finally {
       setLoading(false)
     }

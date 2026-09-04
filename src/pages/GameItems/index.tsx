@@ -15,15 +15,13 @@ import {
 } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { supabase } from '../../utils/supabase'
-import type { Database } from '../../types/database'
+import type { DbGameItem } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
+import { gameItemService } from '../../services/gameService'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import { MATCH3_MODE_MAP, MATCH3_MODE_OPTIONS_WITH_ANY } from '../../constants/game'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
-
-type DbGameItem = Database['public']['Tables']['game_items']['Row']
 
 const ITEM_TYPE_LABEL: Record<string, string> = {
   remove: '移出',
@@ -65,16 +63,13 @@ const GameItems: React.FC = () => {
   const loadItems = async () => {
     setLoading(true)
     try {
-      // 显式列（列名以 /d/workspace/sql/feature_game_items_tables.sql 建表 DDL
-      // + feature_game_items_free_per_game.sql 的 free_per_game 为准）
-      const { data, error } = await supabase
-        .from('game_items')
-        .select(
-          'id,game_code,mode,item_type,name,description,point_cost,per_game_limit,free_per_game,enabled,sort_order,created_at,updated_at'
-        )
-        .order('sort_order', { ascending: true })
-      if (error) throw error
-      setItems((data as DbGameItem[]) ?? [])
+      // 列清单在 gameItemService 构造器统一维护（feature_game_items_tables.sql DDL + free_per_game）
+      const res = await gameItemService.findAll()
+      if (!res.success) {
+        message.error('加载道具失败：' + (res.errorMessage ?? '未知错误'))
+        return
+      }
+      setItems(res.data ?? [])
     } catch (e: any) {
       message.error('加载道具失败：' + (e?.message ?? e))
     } finally {
@@ -131,20 +126,12 @@ const GameItems: React.FC = () => {
         enabled: !!values.enabled,
         sort_order: Number(values.sort_order) || 0,
       }
-      // 写操作 cast any：项目 Database 类型未生成 Relationships 键，
-      // supabase-js 会把 insert/update 参数推断为 never（与 utils/supabase.ts 同口径）。
-      if (editing) {
-        const { error } = await (supabase.from('game_items') as any)
-          .update({ ...payload, updated_at: new Date().toISOString() })
-          .eq('id', editing.id)
-        if (error) throw error
-        message.success('已更新')
-      } else {
-        const { error } = await (supabase.from('game_items') as any)
-          .insert({ ...payload, updated_at: new Date().toISOString() })
-        if (error) throw error
-        message.success('已新增')
-      }
+      // 写操作经 BaseService（统一审计/错误处理）；payload cast any（与 utils/supabase.ts 同口径）。
+      const res = editing
+        ? await gameItemService.update(editing.id, { ...payload, updated_at: new Date().toISOString() } as any)
+        : await gameItemService.create({ ...payload, updated_at: new Date().toISOString() } as any)
+      if (!res.success) return // service 已统一弹窗 + 记日志
+      message.success(editing ? '已更新' : '已新增')
       setModalOpen(false)
       await loadItems()
     } catch (e: any) {
@@ -155,16 +142,10 @@ const GameItems: React.FC = () => {
   }
 
   const handleDelete = async (id: string) => {
-    try {
-      const { error } = await (supabase.from('game_items') as any)
-        .delete()
-        .eq('id', id)
-      if (error) throw error
-      message.success('已删除')
-      await loadItems()
-    } catch (e: any) {
-      message.error('删除失败：' + (e?.message ?? e))
-    }
+    const res = await gameItemService.delete(id)
+    if (!res.success) return // service 已统一弹窗 + 记日志
+    message.success('已删除')
+    await loadItems()
   }
 
   const gameOptions = useMemo(

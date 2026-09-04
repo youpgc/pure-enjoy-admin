@@ -1,5 +1,6 @@
-import { BaseService } from '../utils/apiClient'
+import { BaseService, apiQuery } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
+import { GAME_FLOW_TYPES } from '../constants/points'
 import type {
   DbGame,
   DbGameDimension,
@@ -11,6 +12,9 @@ import type {
   DbUserGameAchievement,
   DbGameRewardClaim,
   DbGameBestScore,
+  DbGameMode,
+  DbGameItem,
+  DbPointRecord,
 } from '../types/database'
 
 /// 游戏中心数据服务（9 表各继承 BaseService 八法，非标聚合走 RPC/专用方法）
@@ -75,6 +79,8 @@ class GameAchievementService extends BaseService<DbGameAchievement> {
   constructor() {
     super('game_achievements', {
       defaultOrder: { column: 'sort_order', ascending: true },
+      select:
+        'id,game_id,code,name,description,icon,condition,reward_points,enabled,sort_order,created_at,updated_at',
     })
   }
 }
@@ -98,6 +104,18 @@ class GameScoreService extends BaseService<DbGameScore> {
 
   paginateByGame(gameId: string, page: number, pageSize: number) {
     return this.paginate(page, pageSize, (q) => q.eq('game_id', gameId))
+  }
+
+  /// 某模式关联的成绩条数（删除模式前的级联保护检查）
+  countScoresByMode(modeId: string) {
+    return apiQuery<null>(
+      () =>
+        supabase
+          .from('game_scores')
+          .select('id', { count: 'exact', head: true })
+          .eq('mode_id', modeId),
+      'GameScoreService.countScoresByMode',
+    )
   }
 }
 
@@ -133,11 +151,93 @@ class GameRewardClaimService extends BaseService<DbGameRewardClaim> {
   }
 }
 
+// 51c. 游戏模式（模式 ↔ play_kind 唯一链接；GameModes 页）
+class GameModeService extends BaseService<DbGameMode> {
+  constructor() {
+    super('game_modes', {
+      defaultOrder: { column: 'sort_order', ascending: true },
+      select:
+        'id,game_id,code,name,icon,description,play_kind,config,sort_order,enabled,created_at,updated_at',
+    })
+  }
+
+  /// 全量或按游戏拉取（gameId 为空 = 全部，列表页全量视图用）
+  findAllModes(gameId?: string) {
+    return this.findAll((q) => (gameId ? q.eq('game_id', gameId) : q))
+  }
+
+  /// 行内启停（App 端配置快照 TTL 30s 同步）
+  updateEnabled(id: string, enabled: boolean) {
+    return this.update(id, {
+      enabled,
+      updated_at: new Date().toISOString(),
+    } as any)
+  }
+
+  /// 排序对调（上移/下移：两行 sort_order 互换；两次 update 非原子，
+  /// 与页面原行为一致，失败即中断并提示）
+  async swapSortOrder(
+    selfId: string,
+    selfSort: number,
+    neighborId: string,
+    neighborSort: number,
+  ) {
+    const r1 = await this.update(selfId, { sort_order: neighborSort } as any)
+    if (!r1.success) return r1
+    return this.update(neighborId, { sort_order: selfSort } as any)
+  }
+
+  /// 每模式关卡数（本地聚合，避免 N+1）。
+  /// range(0,1999) 破 PostgREST 默认 1000 行截断（game_levels 全量 1200 行）。
+  async countLevelsByMode(gameId?: string): Promise<Record<string, number>> {
+    const res = await apiQuery<{ mode_id: string | null }[]>(
+      () => {
+        const q = supabase.from('game_levels').select('mode_id').range(0, 1999)
+        return gameId ? q.eq('game_id', gameId) : q
+      },
+      'GameModeService.countLevelsByMode',
+    )
+    const counts: Record<string, number> = {}
+    for (const r of res.data ?? []) {
+      if (r.mode_id) counts[r.mode_id] = (counts[r.mode_id] ?? 0) + 1
+    }
+    return counts
+  }
+}
+
+// 58b. 游戏道具目录（game_items；GameItems 页）
+class GameItemService extends BaseService<DbGameItem> {
+  constructor() {
+    super('game_items', {
+      defaultOrder: { column: 'sort_order', ascending: true },
+      select:
+        'id,game_code,mode,item_type,name,description,point_cost,per_game_limit,free_per_game,enabled,sort_order,created_at,updated_at',
+    })
+  }
+}
+
+// 58c. 游戏积分流水（point_records 的 game_earn/game_spend 子集；GameRewardRecords 页）
+class GamePointFlowService extends BaseService<DbPointRecord> {
+  constructor() {
+    super('point_records', {
+      defaultOrder: { column: 'created_at', ascending: false },
+    })
+  }
+
+  /// 游戏相关流水分页（type ∈ GAME_FLOW_TYPES，与 App 端发放/消费口径一致）
+  paginateGameFlow(page: number, pageSize: number) {
+    return this.paginate(page, pageSize, (q) => q.in('type', [...GAME_FLOW_TYPES]))
+  }
+}
+
 export const gameService = new GameService()
 export const gameDimensionService = new GameDimensionService()
 export const gameLevelService = new GameLevelService()
+export const gameModeService = new GameModeService()
 export const gameAchievementService = new GameAchievementService()
 export const gameRewardRuleService = new GameRewardRuleService()
+export const gameItemService = new GameItemService()
+export const gamePointFlowService = new GamePointFlowService()
 export const gameScoreService = new GameScoreService()
 export const gameScoreValueService = new GameScoreValueService()
 export const userGameAchievementService = new UserGameAchievementService()

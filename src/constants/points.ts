@@ -15,6 +15,10 @@ export const POINT_TYPE_MAP: Record<string, { color: string; label: string }> = 
   game_spend:   { color: 'red',    label: '游戏消费' },
 }
 
+/// 游戏中心积分流水类型集合（GameRewardRecords 页过滤 point_records.type 用），
+/// 与 App 端 grant_game_reward(p_type='game_earn') / 游戏内消费口径一致。
+export const GAME_FLOW_TYPES = ['game_earn', 'game_spend'] as const
+
 // 状态展示映射（active/expired/used）。
 // 注意：status 取值仅后台使用；`used` 是后台内部"已抵扣"展示态，App 端不写也不消费 status，
 // 而是基于 expires_at 临近度展示 有效/即将过期/已过期（见 point_records_screen._getExpiryInfo）。

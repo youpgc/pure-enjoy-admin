@@ -20,11 +20,11 @@ import {
   ArrowDownOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { supabase } from '../../utils/supabase'
 import type { Database } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../App'
+import { gameModeService, gameScoreService } from '../../services/gameService'
 import { GAME_SHARED_ICON_BASE } from '../../constants/game'
 import ModeFormModal from './ModeFormModal'
 import styles from './index.module.css'
@@ -67,33 +67,16 @@ const GameModes: React.FC = () => {
   const loadModes = async () => {
     setLoading(true)
     try {
-      // 未选游戏 → 全部模式；已选 → 按游戏过滤
-      let q = supabase
-        .from('game_modes')
-        .select('id,game_id,code,name,icon,description,play_kind,config,sort_order,enabled,created_at,updated_at')
-      if (selectedGameId) q = q.eq('game_id', selectedGameId)
-      const { data, error } = await q
-        .order('game_id', { ascending: true })
-        .order('sort_order', { ascending: true })
-      if (error) throw error
-      setModes((data as DbGameMode[]) ?? [])
-      // 统计每个模式的关卡数（单次查询后本地聚合，避免 N+1）。
-      // range(0,1999) 破 PostgREST 默认 1000 行截断（game_levels 全量 1200 行）。
-      let lvq = supabase.from('game_levels').select('mode_id').range(0, 1999)
-      if (selectedGameId) lvq = lvq.eq('game_id', selectedGameId)
-      try {
-        const { data: lv, error: lvErr } = await lvq
-        if (lvErr) throw lvErr
-        const counts: Record<string, number> = {}
-        for (const r of (lv as { mode_id: string | null }[] | null) ?? []) {
-          if (r.mode_id) counts[r.mode_id] = (counts[r.mode_id] ?? 0) + 1
-        }
-        setLevelCounts(counts)
-      } catch {
-        setLevelCounts({})
+      // 未选游戏 → 全部模式；已选 → 按游戏过滤（service 统一响应/错误处理）
+      const res = await gameModeService.findAllModes(selectedGameId || undefined)
+      if (!res.success) {
+        message.error(res.errorMessage ?? '加载模式失败')
+        return
       }
-    } catch (e: any) {
-      message.error(`加载模式失败：${e?.message ?? e}`)
+      setModes(res.data ?? [])
+      // 每模式关卡数（service 内单查聚合 + range 破 1000 行截断）
+      const counts = await gameModeService.countLevelsByMode(selectedGameId || undefined)
+      setLevelCounts(counts)
     } finally {
       setLoading(false)
     }
@@ -126,18 +109,11 @@ const GameModes: React.FC = () => {
     const payload: Record<string, any> = { ...values, config }
     setSaving(true)
     try {
-      if (editing) {
-        // supabase-js 会把 insert/update 参数推断为 never（与 utils/supabase.ts 同口径）。
-        const { error } = await (supabase.from('game_modes') as any)
-          .update(payload)
-          .eq('id', editing.id)
-        if (error) throw error
-        message.success('已更新模式')
-      } else {
-        const { error } = await (supabase.from('game_modes') as any).insert(payload)
-        if (error) throw error
-        message.success('已新增模式')
-      }
+      const res = editing
+        ? await gameModeService.update(editing.id, payload as any)
+        : await gameModeService.create(payload as any)
+      if (!res.success) return // service 已统一弹窗 + 记日志
+      message.success(editing ? '已更新模式' : '已新增模式')
       setModalVisible(false)
       setEditing(null)
       loadModes()
@@ -155,16 +131,10 @@ const GameModes: React.FC = () => {
 
   // 行内启停：App 端配置快照 TTL 30s，停用后至多 30s 同步
   const handleToggleEnabled = async (record: DbGameMode, checked: boolean) => {
-    try {
-      const { error } = await (supabase.from('game_modes') as any)
-        .update({ enabled: checked, updated_at: new Date().toISOString() })
-        .eq('id', record.id)
-      if (error) throw error
-      message.success(checked ? '已启用模式' : '已停用模式（App 端至多 30s 后同步）')
-      loadModes()
-    } catch (e: any) {
-      message.error(`操作失败：${e?.message ?? e}`)
-    }
+    const res = await gameModeService.updateEnabled(record.id, checked)
+    if (!res.success) return // service 已统一弹窗 + 记日志
+    message.success(checked ? '已启用模式' : '已停用模式（App 端至多 30s 后同步）')
+    loadModes()
   }
 
   // 排序上移/下移：与相邻模式交换 sort_order（仅在按游戏过滤视图内提供，
@@ -174,58 +144,36 @@ const GameModes: React.FC = () => {
     const idx = modes.findIndex((m) => m.id === record.id)
     const neighbor = modes[idx + dir]
     if (!neighbor) return
-    try {
-      const a = record.sort_order ?? 0
-      const b = neighbor.sort_order ?? 0
-      const patchSelf = a === b ? a + dir : b
-      const patchNeighbor = a === b ? b : a
-      const { error: e1 } = await (supabase.from('game_modes') as any)
-        .update({ sort_order: patchSelf, updated_at: new Date().toISOString() })
-        .eq('id', record.id)
-      if (e1) throw e1
-      const { error: e2 } = await (supabase.from('game_modes') as any)
-        .update({ sort_order: patchNeighbor, updated_at: new Date().toISOString() })
-        .eq('id', neighbor.id)
-      if (e2) throw e2
-      loadModes()
-    } catch (e: any) {
-      message.error(`排序失败：${e?.message ?? e}`)
-    }
+    const a = record.sort_order ?? 0
+    const b = neighbor.sort_order ?? 0
+    const patchSelf = a === b ? a + dir : b
+    const patchNeighbor = a === b ? b : a
+    const res = await gameModeService.swapSortOrder(record.id, patchSelf, neighbor.id, patchNeighbor)
+    if (!res.success) return // service 已统一弹窗 + 记日志
+    loadModes()
   }
 
   const handleDelete = async (record: DbGameMode) => {
-    try {
-      // 防级联清关：game_levels.mode_id 为 on delete cascade，
-      // 直接删模式会静默清空该模式全部关卡；有关卡/成绩时阻止。
-      const { count: levelCount, error: lcErr } = await supabase
-        .from('game_levels')
-        .select('id', { count: 'exact', head: true })
-        .eq('mode_id', record.id)
-      if (lcErr) throw lcErr
-      if ((levelCount ?? 0) > 0) {
-        message.error(
-          `该模式仍关联 ${levelCount} 个关卡，删除会级联清空关卡数据，已阻止。请先下架/迁移这些关卡。`,
-        )
-        return
-      }
-      const { count: scoreCount, error: scErr } = await supabase
-        .from('game_scores')
-        .select('id', { count: 'exact', head: true })
-        .eq('mode_id', record.id)
-      if (scErr) throw scErr
-      if ((scoreCount ?? 0) > 0) {
-        message.error(
-          `该模式仍关联 ${scoreCount} 条成绩记录，删除会级联清空成绩，已阻止。`,
-        )
-        return
-      }
-      const { error } = await supabase.from('game_modes').delete().eq('id', record.id)
-      if (error) throw error
-      message.success('已删除模式')
-      loadModes()
-    } catch (e: any) {
-      message.error(`删除失败：${e?.message ?? e}`)
+    // 防级联清关①：关卡数用已聚合的 levelCounts（game_levels.mode_id 为
+    // on delete cascade，有关卡时删除会静默清空全部关卡）
+    const levelCount = levelCounts[record.id] ?? 0
+    if (levelCount > 0) {
+      message.error(
+        `该模式仍关联 ${levelCount} 个关卡，删除会级联清空关卡数据，已阻止。请先下架/迁移这些关卡。`,
+      )
+      return
     }
+    // 防级联清关②：成绩记录（game_scores.mode_id 为 on delete set null）
+    const scoreRes = await gameScoreService.countScoresByMode(record.id)
+    const scoreCount = scoreRes.count ?? 0
+    if (scoreCount > 0) {
+      message.error(`该模式仍关联 ${scoreCount} 条成绩记录，删除会影响成绩归属，已阻止。`)
+      return
+    }
+    const res = await gameModeService.delete(record.id)
+    if (!res.success) return // service 已统一弹窗 + 记日志
+    message.success('已删除模式')
+    loadModes()
   }
 
   const columns: ColumnsType<DbGameMode> = [
