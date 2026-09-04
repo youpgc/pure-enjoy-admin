@@ -11,13 +11,15 @@ import {
   Popconfirm,
   message,
   Space,
+  Tag,
 } from 'antd'
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { supabase } from '../../utils/supabase'
 import type { Database } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
 import { useGameMeta } from '../../utils/gameMetaCache'
+import { useNavigation } from '../../App'
 import { GAME_SHARED_ICON_BASE, GAME_SHARED_ICON_OPTIONS } from '../../constants/game'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
@@ -51,6 +53,7 @@ const playKindOptions = [
  */
 const GameModes: React.FC = () => {
   const { hasPermission } = usePermission()
+  const { setCurrentPage } = useNavigation()
   const canWrite = hasPermission('games:write')
   const canDelete = hasPermission('games:delete')
 
@@ -66,6 +69,7 @@ const GameModes: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editing, setEditing] = useState<DbGameMode | null>(null)
   const [saving, setSaving] = useState(false)
+  const [levelCounts, setLevelCounts] = useState<Record<string, number>>({})
   const [form] = Form.useForm()
 
   const loadModes = async () => {
@@ -82,6 +86,21 @@ const GameModes: React.FC = () => {
         .order('sort_order', { ascending: true })
       if (error) throw error
       setModes((data as DbGameMode[]) ?? [])
+      // 统计每个模式的关卡数（单次查询后本地聚合，避免 N+1），供列表「关卡数」列展示
+      try {
+        const { data: lv, error: lvErr } = await supabase
+          .from('game_levels')
+          .select('mode_id')
+          .eq('game_id', selectedGameId)
+        if (lvErr) throw lvErr
+        const counts: Record<string, number> = {}
+        for (const r of (lv as { mode_id: string | null }[] | null) ?? []) {
+          if (r.mode_id) counts[r.mode_id] = (counts[r.mode_id] ?? 0) + 1
+        }
+        setLevelCounts(counts)
+      } catch {
+        setLevelCounts({})
+      }
     } catch (e: any) {
       message.error(`加载模式失败：${e?.message ?? e}`)
     } finally {
@@ -101,6 +120,7 @@ const GameModes: React.FC = () => {
     icon: '',
     description: '',
     play_kind: '',
+    config: '{}',
     enabled: true,
     sort_order: 0,
   })
@@ -109,7 +129,12 @@ const GameModes: React.FC = () => {
   const afterOpenChange = (open: boolean) => {
     if (open) {
       form.resetFields()
-      form.setFieldsValue(editing ? { ...editing } : formInitialValues())
+      // 编辑时 config 为 DB 返回的 Json 对象，需序列化为字符串回填文本框；
+      // 新增时回落 formInitialValues（已含 config:'{}'）。否则保存会静默清空 config。
+      const initValues = editing
+        ? { ...editing, config: JSON.stringify((editing as any)?.config ?? {}) }
+        : formInitialValues()
+      form.setFieldsValue(initValues)
     }
   }
 
@@ -126,6 +151,13 @@ const GameModes: React.FC = () => {
   const handleSave = async () => {
     const values = await form.validateFields()
     const payload: Record<string, any> = { ...values }
+    // config 文本框 → JSON 对象（与 game_levels 页同口径）；非法 JSON 拦截保存
+    try {
+      payload.config = values.config ? JSON.parse(values.config) : {}
+    } catch {
+      message.error('config 不是合法 JSON，请检查后重试')
+      return
+    }
     setSaving(true)
     try {
       if (editing) {
@@ -223,6 +255,15 @@ const GameModes: React.FC = () => {
       render: (v: string | null) => v || '-',
     },
     {
+      title: '关卡数',
+      key: 'levelCount',
+      width: 90,
+      render: (_: unknown, record: DbGameMode) => {
+        const n = levelCounts[record.id] ?? 0
+        return n > 0 ? <Tag color="blue">{n}</Tag> : <span style={{ color: '#999' }}>0</span>
+      },
+    },
+    {
       title: '启用',
       dataIndex: 'enabled',
       key: 'enabled',
@@ -249,6 +290,13 @@ const GameModes: React.FC = () => {
             onClick={() => openEdit(record)}
           >
             编辑
+          </Button>
+          <Button
+            size="small"
+            icon={<AppstoreOutlined />}
+            onClick={() => setCurrentPage('game_levels')}
+          >
+            关卡
           </Button>
           <Popconfirm title="确认删除该模式？" onConfirm={() => handleDelete(record)}>
             <Button danger size="small" icon={<DeleteOutlined />} disabled={!canDelete}>
@@ -341,6 +389,13 @@ const GameModes: React.FC = () => {
           </Form.Item>
           <Form.Item name="description" label="描述">
             <Input.TextArea rows={2} placeholder="玩法简介" />
+          </Form.Item>
+          <Form.Item
+            name="config"
+            label="玩法参数(config, JSON)"
+            tooltip="模式级默认玩法参数（尺寸/限时/步数等），关卡可覆盖；留 {} 表示无默认"
+          >
+            <Input.TextArea rows={3} placeholder='如 {"size":4,"timeLimit":60}' />
           </Form.Item>
           <Form.Item name="sort_order" label="排序" initialValue={0}>
             <InputNumber className={common.fullWidth} min={0} />

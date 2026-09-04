@@ -32,10 +32,11 @@ export const GAME_DIMENSION_AGGREGATE_MAP: Record<string, { color: string; label
 
 // 消消乐玩法模式（game_levels.config.mode / game_items.mode）
 //   与 App 端 lib/features/games/models/match3_mode.dart 的 Match3Mode 枚举严格对齐。
-//   ⚠️ level_no 编码规则：模式序号 × 100 + 模式内关序(1~50)，即
-//      101~150=计分、201~250=消除、301~350=收集、401~450=破冰、501~550=限时、601~650=Boss，
-//      共 300 关（见 /d/workspace/sql/feature_reseed_match3_levels_300.sql）。
-//      新增关卡务必按此编码填 level_no，否则 App 端模式归类与成就关序判定都会错。
+//   ⚠️ v2 统一模型（配置驱动，非硬编码）：game_levels 以 mode_id + level_no(1..N) 存储，
+//      关卡数由后台 game_levels 实际行数决定（每模式默认 100 关，共 12 模式 / 1200 关，
+//      见 unify_game_module_modes.sql / feature_reseed_*）。App 端全局关序由
+//      game_reward_service._match3GlobalLevelIndex 按 modes/levels 实际关数累加推导，
+//      不再依赖「level_no = 模式序号×100 + 关序」旧编码。新增关卡只需填正确 mode_id + level_no。
 export const MATCH3_MODE_MAP: Record<string, { color: string; label: string; order: number }> = {
   score: { color: 'orange', label: '计分模式', order: 1 },
   clear: { color: 'purple', label: '消除模式', order: 2 },
@@ -47,8 +48,9 @@ export const MATCH3_MODE_MAP: Record<string, { color: string; label: string; ord
   boss: { color: 'volcano', label: 'Boss 模式', order: 6 },
 }
 
-// 每个 match3 模式的关卡容量（level_no 编码的个/十位段）
-export const MATCH3_LEVELS_PER_MODE = 50
+// 每个 match3 模式的默认关卡容量（v2 = 100，由后台 game_levels 实际行数驱动；
+// 仅作文档/兜底常量，代码不再硬编码此值）。
+export const MATCH3_LEVELS_PER_MODE = 100
 
 // 下拉选项：首项「通用」表示适用于该游戏全部模式（game_items.mode 留空）
 export const MATCH3_MODE_OPTIONS_WITH_ANY = [
