@@ -196,6 +196,13 @@ const GameAchievements: React.FC = () => {
     }
   }, [editing])
 
+  // v2 徽章条件保护：mode_tier 等类型后台暂不支持编辑，保存时原样保留，
+  // 防止被重写为旧三类型（score/level/first_clear）而破坏 App 端徽章判定。
+  const isV2Condition = useMemo(() => {
+    const type = (editing?.condition as Record<string, any> | null | undefined)?.type
+    return !!type && !['score', 'level', 'first_clear'].includes(String(type))
+  }, [editing])
+
   // 表单初始值（弹窗真正打开后由 afterOpenChange 回显，避免 Modal 惰性挂载导致 setFieldsValue 无效）
   const formInitialValues = (): Record<string, any> => {
     if (editing) {
@@ -218,9 +225,12 @@ const GameAchievements: React.FC = () => {
     const values = await form.validateFields()
     setSaving(true)
     try {
-      // 按条件类型组装 condition（与 App 端解析口径一致）
+      // 按条件类型组装 condition（与 App 端解析口径一致）；
+      // v2 徽章条件（mode_tier 等）暂不支持编辑，原样保留防破坏。
       let condition: Record<string, any> = {}
-      if (values.condType === 'score') {
+      if (isV2Condition && editing) {
+        condition = (editing.condition as Record<string, any>) ?? {}
+      } else if (values.condType === 'score') {
         condition = { type: 'score', dimension: values.condDimension, gte: Number(values.condValue) }
       } else if (values.condType === 'level') {
         condition = { type: 'level', min_level_no: Number(values.condValue) }
@@ -517,8 +527,17 @@ const GameAchievements: React.FC = () => {
               optionFilterProp="label"
             />
           </Form.Item>
+          {isV2Condition && (
+            <Alert
+              style={{ marginBottom: 12 }}
+              type="warning"
+              showIcon
+              message={`v2 条件类型「${String((editing?.condition as Record<string, any>)?.type)}」后台暂不支持编辑`}
+              description="保存时该成就的条件将原样保留，不会被改写。"
+            />
+          )}
           <Form.Item name="condType" label="达成条件类型" rules={[{ required: true, message: '请选择条件类型' }]}>
-            <Select options={COND_OPTIONS} />
+            <Select options={COND_OPTIONS} disabled={isV2Condition} />
           </Form.Item>
           <Form.Item
             noStyle
