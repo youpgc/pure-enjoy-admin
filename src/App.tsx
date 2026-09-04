@@ -184,14 +184,23 @@ export type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'w
   | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics' | 'game_items' | 'game_achievements' | 'game_reward_records' | 'game_modes'
   | 'profile'
 
+/** 页签导航参数信号：keepalive 页签不重挂载，消费方按 seq 变化感知新参数 */
+export interface PageNavSignal {
+  seq: number
+  data?: Record<string, unknown>
+}
+
 interface NavigationContextType {
   currentPage: PageKey
-  setCurrentPage: (page: PageKey) => void
+  setCurrentPage: (page: PageKey, params?: Record<string, unknown>) => void
+  /** 各页签最近一次带参跳转的信号（不带参跳转不产生信号） */
+  pageParams: Record<string, PageNavSignal>
 }
 
 export const NavigationContext = createContext<NavigationContextType>({
   currentPage: 'dashboard',
   setCurrentPage: () => {},
+  pageParams: {},
 })
 
 export const useNavigation = () => useContext(NavigationContext)
@@ -204,8 +213,13 @@ const MainLayout: React.FC = () => {
   // 已打开页签（keepalive）：默认含仪表盘，切换 / 跳转页面时追加，关闭页签时移除（仅当前会话，不持久化到 sessionStorage）
   const [openTabs, setOpenTabs] = useState<PageKey[]>(['dashboard'])
   // 统一跳转入口：激活页签 + 按需追加到已打开列表（供侧边菜单与子页面 useNavigation 复用，实现不刷新切换）
-  const openPage = useCallback((page: PageKey) => {
+  // params 非空时记录导航参数信号（seq 递增），供目标页感知深链定位（keepalive 下组件不重挂载）
+  const [pageParams, setPageParamsState] = useState<Record<string, PageNavSignal>>({})
+  const openPage = useCallback((page: PageKey, params?: Record<string, unknown>) => {
     setCurrentPage(page)
+    if (params) {
+      setPageParamsState((prev) => ({ ...prev, [page]: { seq: Date.now(), data: params } }))
+    }
     setOpenTabs((prev) => (prev.includes(page) ? prev : [...prev, page]))
   }, [])
 
@@ -539,6 +553,7 @@ const MainLayout: React.FC = () => {
             <NavigationContext.Provider value={{
               currentPage,
               setCurrentPage: openPage,
+              pageParams,
             }}>
               {/* 页签栏已上移至 Header（与菜单名称合并），此处仅渲染内容 */}
               {/* 页签内容（keepalive：非活动页签仅 display:none 隐藏，组件实例保留不重挂载） */}

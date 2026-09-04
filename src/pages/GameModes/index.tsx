@@ -2,54 +2,43 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   Table,
   Button,
-  Modal,
-  Form,
-  Input,
-  InputNumber,
-  Select,
-  Switch,
-  Popconfirm,
   message,
   Space,
+  Switch,
   Tag,
+  Tooltip,
+  Select,
+  Popconfirm,
 } from 'antd'
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined } from '@ant-design/icons'
+import {
+  PlusOutlined,
+  ReloadOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  AppstoreOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { supabase } from '../../utils/supabase'
 import type { Database } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../App'
-import { GAME_SHARED_ICON_BASE, GAME_SHARED_ICON_OPTIONS } from '../../constants/game'
+import { GAME_SHARED_ICON_BASE } from '../../constants/game'
+import ModeFormModal from './ModeFormModal'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
 
 type DbGameMode = Database['public']['Tables']['game_modes']['Row']
 
-const iconOptions = GAME_SHARED_ICON_OPTIONS.map((o) => ({
-  value: o.value,
-  label: `[${o.group}] ${o.label}`,
-}))
-
-// 玩法语义（引擎子类型）：App 端用它决定图标配色与引擎分支。
-const playKindOptions = [
-  { value: '2048', label: '2048 · 经典/挑战/限时' },
-  { value: '2048_timed', label: '2048 · 限时' },
-  { value: '2048_challenge', label: '2048 · 挑战' },
-  { value: '2048_endless', label: '2048 · 无尽' },
-  { value: 'score', label: '消消乐 · 计分' },
-  { value: 'clear', label: '消消乐 · 消除' },
-  { value: 'collect', label: '消消乐 · 收集' },
-  { value: 'obstacle', label: '消消乐 · 破冰' },
-  { value: 'timed', label: '消消乐 · 限时' },
-  { value: 'boss', label: '消消乐 · Boss' },
-  { value: 'merge', label: '羊了个羊 · 合成' },
-]
-
 /**
  * 游戏模式管理（game_modes）。模式为关卡选关的「一级维度」：
- * 主界面模式网格、选关弹窗按模式过滤均依赖本表。
- * 图标存 SVG 文件名（与 App 端 assets/games/icons 同名），下拉预览与列表同款渲染。
+ * 主界面模式网格、选关弹窗按模式过滤均依赖本表；play_kind 是模式 ↔ 引擎行为的唯一链接。
+ * - 未选游戏时展示全部模式（分页 10 条/页），选择游戏后按游戏过滤；
+ * - 「关卡」按钮深链定位到关卡页的对应游戏 + 模式；
+ * - 排序上移/下移仅在被游戏过滤视图内提供（全部视图跨游戏无相邻语义）。
+ * 表单弹窗见 ModeFormModal（play_kind 联动过滤 + config 推荐模板）。
  */
 const GameModes: React.FC = () => {
   const { hasPermission } = usePermission()
@@ -62,6 +51,10 @@ const GameModes: React.FC = () => {
     () => (meta?.games ?? []).map((g) => ({ id: g.id, code: g.code, name: g.name })),
     [meta?.games],
   )
+  const gameNameById = useMemo(
+    () => Object.fromEntries(games.map((g) => [g.id, `${g.name}（${g.code}）`])),
+    [games],
+  )
 
   const [selectedGameId, setSelectedGameId] = useState<string>('')
   const [modes, setModes] = useState<DbGameMode[]>([])
@@ -70,28 +63,26 @@ const GameModes: React.FC = () => {
   const [editing, setEditing] = useState<DbGameMode | null>(null)
   const [saving, setSaving] = useState(false)
   const [levelCounts, setLevelCounts] = useState<Record<string, number>>({})
-  const [form] = Form.useForm()
 
   const loadModes = async () => {
-    if (!selectedGameId) {
-      setModes([])
-      return
-    }
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      // 未选游戏 → 全部模式；已选 → 按游戏过滤
+      let q = supabase
         .from('game_modes')
         .select('id,game_id,code,name,icon,description,play_kind,config,sort_order,enabled,created_at,updated_at')
-        .eq('game_id', selectedGameId)
+      if (selectedGameId) q = q.eq('game_id', selectedGameId)
+      const { data, error } = await q
+        .order('game_id', { ascending: true })
         .order('sort_order', { ascending: true })
       if (error) throw error
       setModes((data as DbGameMode[]) ?? [])
-      // 统计每个模式的关卡数（单次查询后本地聚合，避免 N+1），供列表「关卡数」列展示
+      // 统计每个模式的关卡数（单次查询后本地聚合，避免 N+1）。
+      // range(0,1999) 破 PostgREST 默认 1000 行截断（game_levels 全量 1200 行）。
+      let lvq = supabase.from('game_levels').select('mode_id').range(0, 1999)
+      if (selectedGameId) lvq = lvq.eq('game_id', selectedGameId)
       try {
-        const { data: lv, error: lvErr } = await supabase
-          .from('game_levels')
-          .select('mode_id')
-          .eq('game_id', selectedGameId)
+        const { data: lv, error: lvErr } = await lvq
         if (lvErr) throw lvErr
         const counts: Record<string, number> = {}
         for (const r of (lv as { mode_id: string | null }[] | null) ?? []) {
@@ -109,34 +100,9 @@ const GameModes: React.FC = () => {
   }
 
   useEffect(() => {
-    if (selectedGameId) loadModes()
+    loadModes()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGameId])
-
-  const formInitialValues = (): Record<string, unknown> => ({
-    game_id: selectedGameId || undefined,
-    code: '',
-    name: '',
-    icon: '',
-    description: '',
-    play_kind: '',
-    config: '{}',
-    enabled: true,
-    sort_order: 0,
-  })
-
-  // 弹窗惰性挂载：open 后再 reset+回显，避免编辑串数据（与游戏模块其它表单一致）
-  const afterOpenChange = (open: boolean) => {
-    if (open) {
-      form.resetFields()
-      // 编辑时 config 为 DB 返回的 Json 对象，需序列化为字符串回填文本框；
-      // 新增时回落 formInitialValues（已含 config:'{}'）。否则保存会静默清空 config。
-      const initValues = editing
-        ? { ...editing, config: JSON.stringify((editing as any)?.config ?? {}) }
-        : formInitialValues()
-      form.setFieldsValue(initValues)
-    }
-  }
 
   const openAdd = () => {
     setEditing(null)
@@ -148,16 +114,16 @@ const GameModes: React.FC = () => {
     setModalVisible(true)
   }
 
-  const handleSave = async () => {
-    const values = await form.validateFields()
-    const payload: Record<string, any> = { ...values }
-    // config 文本框 → JSON 对象（与 game_levels 页同口径）；非法 JSON 拦截保存
+  // config 文本框 → JSON 对象（与 game_levels 页同口径）；非法 JSON 拦截保存
+  const handleSave = async (values: Record<string, any>) => {
+    let config: unknown
     try {
-      payload.config = values.config ? JSON.parse(values.config) : {}
+      config = values.config ? JSON.parse(values.config) : {}
     } catch {
       message.error('config 不是合法 JSON，请检查后重试')
       return
     }
+    const payload: Record<string, any> = { ...values, config }
     setSaving(true)
     try {
       if (editing) {
@@ -176,9 +142,54 @@ const GameModes: React.FC = () => {
       setEditing(null)
       loadModes()
     } catch (e: any) {
-      message.error(`保存失败：${e?.message ?? e}`)
+      // 唯一冲突转译：(game_id, code) 唯一索引 uk_game_modes_game_code
+      if (e?.code === '23505' || /duplicate key/i.test(String(e?.message ?? ''))) {
+        message.error('保存失败：该游戏下已存在同名模式编码（code 在游戏内唯一），请更换编码')
+      } else {
+        message.error(`保存失败：${e?.message ?? e}`)
+      }
     } finally {
       setSaving(false)
+    }
+  }
+
+  // 行内启停：App 端配置快照 TTL 30s，停用后至多 30s 同步
+  const handleToggleEnabled = async (record: DbGameMode, checked: boolean) => {
+    try {
+      const { error } = await (supabase.from('game_modes') as any)
+        .update({ enabled: checked, updated_at: new Date().toISOString() })
+        .eq('id', record.id)
+      if (error) throw error
+      message.success(checked ? '已启用模式' : '已停用模式（App 端至多 30s 后同步）')
+      loadModes()
+    } catch (e: any) {
+      message.error(`操作失败：${e?.message ?? e}`)
+    }
+  }
+
+  // 排序上移/下移：与相邻模式交换 sort_order（仅在按游戏过滤视图内提供，
+  // 全部视图跨游戏无相邻语义）。历史脏数据 sort_order 相等时退化为 ±1 平移。
+  const handleMove = async (record: DbGameMode, dir: -1 | 1) => {
+    if (!selectedGameId) return
+    const idx = modes.findIndex((m) => m.id === record.id)
+    const neighbor = modes[idx + dir]
+    if (!neighbor) return
+    try {
+      const a = record.sort_order ?? 0
+      const b = neighbor.sort_order ?? 0
+      const patchSelf = a === b ? a + dir : b
+      const patchNeighbor = a === b ? b : a
+      const { error: e1 } = await (supabase.from('game_modes') as any)
+        .update({ sort_order: patchSelf, updated_at: new Date().toISOString() })
+        .eq('id', record.id)
+      if (e1) throw e1
+      const { error: e2 } = await (supabase.from('game_modes') as any)
+        .update({ sort_order: patchNeighbor, updated_at: new Date().toISOString() })
+        .eq('id', neighbor.id)
+      if (e2) throw e2
+      loadModes()
+    } catch (e: any) {
+      message.error(`排序失败：${e?.message ?? e}`)
     }
   }
 
@@ -219,10 +230,17 @@ const GameModes: React.FC = () => {
 
   const columns: ColumnsType<DbGameMode> = [
     {
+      title: '所属游戏',
+      dataIndex: 'game_id',
+      key: 'game_id',
+      width: 130,
+      render: (v: string) => gameNameById[v] ?? v,
+    },
+    {
       title: '模式编码',
       dataIndex: 'code',
       key: 'code',
-      width: 130,
+      width: 120,
     },
     {
       title: '名称',
@@ -233,14 +251,14 @@ const GameModes: React.FC = () => {
       title: '语义',
       dataIndex: 'play_kind',
       key: 'play_kind',
-      width: 140,
+      width: 130,
       render: (v: string | null) => v || '-',
     },
     {
       title: '图标',
       dataIndex: 'icon',
       key: 'icon',
-      width: 80,
+      width: 70,
       render: (v: string | null) =>
         v ? (
           <img src={`${GAME_SHARED_ICON_BASE}/${v}.svg`} width={24} height={24} alt={v} />
@@ -249,18 +267,18 @@ const GameModes: React.FC = () => {
         ),
     },
     {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      render: (v: string | null) => v || '-',
-    },
-    {
       title: '关卡数',
       key: 'levelCount',
-      width: 90,
+      width: 80,
       render: (_: unknown, record: DbGameMode) => {
         const n = levelCounts[record.id] ?? 0
-        return n > 0 ? <Tag color="blue">{n}</Tag> : <span style={{ color: '#999' }}>0</span>
+        if (n > 0) return <Tag color="blue">{n}</Tag>
+        // 无尽等 App 合成模式无 server 关属正常态
+        return (
+          <Tooltip title="无服务器关卡（如无尽模式由 App 合成，属正常态）">
+            <span style={{ color: '#999' }}>0</span>
+          </Tooltip>
+        )
       },
     },
     {
@@ -268,18 +286,47 @@ const GameModes: React.FC = () => {
       dataIndex: 'enabled',
       key: 'enabled',
       width: 80,
-      render: (v: boolean) => <Switch checked={v} disabled />,
+      render: (v: boolean, record: DbGameMode) => (
+        <Switch
+          checked={v}
+          disabled={!canWrite}
+          onChange={(checked) => handleToggleEnabled(record, checked)}
+        />
+      ),
     },
     {
       title: '排序',
       dataIndex: 'sort_order',
       key: 'sort_order',
-      width: 80,
+      width: 90,
+      render: (v: number, record: DbGameMode) => {
+        if (!selectedGameId || !canWrite) return v
+        const idx = modes.findIndex((m) => m.id === record.id)
+        return (
+          <Space size={2}>
+            <span>{v}</span>
+            <Button
+              type="text"
+              size="small"
+              icon={<ArrowUpOutlined />}
+              disabled={idx <= 0}
+              onClick={() => handleMove(record, -1)}
+            />
+            <Button
+              type="text"
+              size="small"
+              icon={<ArrowDownOutlined />}
+              disabled={idx < 0 || idx >= modes.length - 1}
+              onClick={() => handleMove(record, 1)}
+            />
+          </Space>
+        )
+      },
     },
     {
       title: '操作',
       key: 'action',
-      width: 140,
+      width: 190,
       render: (_: unknown, record: DbGameMode) => (
         <Space>
           <Button
@@ -294,7 +341,10 @@ const GameModes: React.FC = () => {
           <Button
             size="small"
             icon={<AppstoreOutlined />}
-            onClick={() => setCurrentPage('game_levels')}
+            // 深链：关卡页直接定位到该游戏 + 该模式（keepalive 页签带参跳转）
+            onClick={() =>
+              setCurrentPage('game_levels', { gameId: record.game_id, modeId: record.id })
+            }
           >
             关卡
           </Button>
@@ -313,12 +363,13 @@ const GameModes: React.FC = () => {
       <div className={common.toolbar}>
         <Select
           className={common.sel240}
-          placeholder="请选择游戏"
+          placeholder="全部游戏（可筛选）"
+          allowClear
           value={selectedGameId || undefined}
-          onChange={(v) => setSelectedGameId(v)}
+          onChange={(v) => setSelectedGameId(v ?? '')}
           options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
         />
-        <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite || !selectedGameId} onClick={openAdd}>
+        <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
           新增模式
         </Button>
         <Button icon={<ReloadOutlined />} onClick={loadModes} loading={loading}>
@@ -331,80 +382,26 @@ const GameModes: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={modes}
-        pagination={false}
-        locale={{ emptyText: selectedGameId ? '暂无模式' : '请先选择游戏' }}
+        pagination={{
+          pageSize: 10,
+          showSizeChanger: false,
+          showTotal: (total) => `共 ${total} 条`,
+        }}
+        locale={{ emptyText: '暂无模式' }}
       />
 
-      <Modal
-        title={editing ? '编辑模式' : '新增模式'}
+      <ModeFormModal
         open={modalVisible}
+        editing={editing}
+        selectedGameId={selectedGameId}
+        games={games}
+        saving={saving}
         onOk={handleSave}
-        confirmLoading={saving}
         onCancel={() => {
           setModalVisible(false)
           setEditing(null)
         }}
-        afterOpenChange={afterOpenChange}
-        width={560}
-        destroyOnHidden
-      >
-        <Form form={form} layout="vertical" initialValues={formInitialValues()}>
-          <Form.Item name="game_id" label="所属游戏" rules={[{ required: true, message: '请选择游戏' }]}>
-            <Select
-              placeholder="选择游戏"
-              disabled={!!editing}
-              options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
-            />
-          </Form.Item>
-          <Form.Item name="code" label="模式编码" rules={[{ required: true, message: '请输入编码' }]}>
-            <Input placeholder="如 classic / timed / challenge" disabled={!!editing} />
-          </Form.Item>
-          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
-            <Input placeholder="如 经典模式" />
-          </Form.Item>
-          <Form.Item name="play_kind" label="玩法语义(play_kind)">
-            <Select allowClear placeholder="选择引擎子类型语义" options={playKindOptions} />
-          </Form.Item>
-          <Form.Item name="icon" label="图标">
-            <Select
-              allowClear
-              placeholder="选择共享图标资产（与 App 端同一套 SVG）"
-              showSearch
-              optionFilterProp="label"
-              options={iconOptions.map((o) => ({
-                value: o.value,
-                label: (
-                  <span key={o.value} className={styles.iconOption}>
-                    <img
-                      src={`${GAME_SHARED_ICON_BASE}/${o.value}.svg`}
-                      width={22}
-                      height={22}
-                      alt={o.label}
-                    />
-                    <span>{o.label}</span>
-                  </span>
-                ),
-              }))}
-            />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} placeholder="玩法简介" />
-          </Form.Item>
-          <Form.Item
-            name="config"
-            label="玩法参数(config, JSON)"
-            tooltip="模式级默认玩法参数（尺寸/限时/步数等），关卡可覆盖；留 {} 表示无默认"
-          >
-            <Input.TextArea rows={3} placeholder='如 {"size":4,"timeLimit":60}' />
-          </Form.Item>
-          <Form.Item name="sort_order" label="排序" initialValue={0}>
-            <InputNumber className={common.fullWidth} min={0} />
-          </Form.Item>
-          <Form.Item name="enabled" label="启用" valuePropName="checked">
-            <Switch checkedChildren="是" unCheckedChildren="否" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      />
     </div>
   )
 }

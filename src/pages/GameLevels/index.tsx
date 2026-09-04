@@ -30,6 +30,7 @@ import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { gameService, gameLevelService } from '../../services/gameService'
 import { supabase } from '../../utils/supabase'
+import { useNavigation } from '../../App'
 import type { DbGame, DbGameLevel } from '../../types/database'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
@@ -59,12 +60,17 @@ const GameLevels: React.FC = () => {
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
 
+  // 模式管理「关卡」按钮深链定位（keepalive 页签带参跳转，按 seq 信号感知）
+  const { pageParams } = useNavigation()
+  const pendingNavRef = useRef<{ gameId?: string; modeId?: string } | null>(null)
+
   const loadGames = useCallback(async () => {
     const res = await gameService.findAll((q) => q.eq('enabled', true))
     if (res.success && res.data) {
       if (!mountedRef.current) return
       setGames(res.data)
-      if (!selectedGameId && res.data.length > 0) {
+      // 深链进入时不自动选首游戏（pendingNav 携带的目标游戏优先）
+      if (!selectedGameId && res.data.length > 0 && !pendingNavRef.current?.gameId) {
         const firstId = res.data[0]?.id
         if (firstId) setSelectedGameId(firstId)
       }
@@ -121,10 +127,35 @@ const GameLevels: React.FC = () => {
     loadGames()
   }, [loadGames])
 
+  // 深链信号消费：gameId 与当前不同 → 仅记录 pendingNav，待下方
+  // [selectedGameId] effect 消费（避免同批次状态互踩）；相同 → 直接应用模式过滤并刷新。
+  useEffect(() => {
+    const sig = pageParams?.['game_levels']
+    if (!sig) return
+    const data = (sig.data ?? {}) as { gameId?: string; modeId?: string }
+    if (!data.gameId) return
+    if (data.gameId === selectedGameId) {
+      pendingNavRef.current = null
+      const want = data.modeId ?? ''
+      setSelectedModeId(want)
+      selectedModeIdRef.current = want
+      pager.resetPage()
+      loadLevels()
+    } else {
+      pendingNavRef.current = data
+      setSelectedGameId(data.gameId)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageParams])
+
   useEffect(() => {
     if (selectedGameId) {
-      setSelectedModeId('')
-      selectedModeIdRef.current = ''
+      // 深链进入：应用携带的模式过滤；常规切换：清空模式过滤
+      const nav = pendingNavRef.current
+      pendingNavRef.current = null
+      const wantMode = nav && nav.gameId === selectedGameId ? nav.modeId ?? '' : ''
+      setSelectedModeId(wantMode)
+      selectedModeIdRef.current = wantMode
       pager.resetPage()
       loadModes()
       loadLevels()
