@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
+  Alert,
   Table,
   Tag,
   Card,
@@ -297,6 +298,13 @@ const GameScores: React.FC = () => {
 
   return (
     <div>
+      <Alert
+        type="info"
+        showIcon
+        className={common.mb16}
+        message="成绩看板说明"
+        description="成绩按对局记录展示（不含「放弃」）；「通关条件」列由关卡 config 自动生成中文描述（得分/步数/冰块/收集目标/方块类型等）。左侧「全部最佳成绩」为各游戏主维度全局最佳（服务端聚合）；明细行可展开查看各维度取值；无尽模式会话在 App 游戏记录中按「总局数+累积分数」聚合展示。"
+      />
       {/* 最佳成绩概览 */}
       <Card
         title="最佳成绩概览（各游戏主维度全局最佳）"

@@ -3,6 +3,7 @@ import {
   Card,
   Row,
   Col,
+  Alert,
   Table,
   Tag,
   Spin,
@@ -215,6 +216,13 @@ const GameAnalytics: React.FC = () => {
 
   return (
     <div>
+      <Alert
+        type="info"
+        showIcon
+        className={common.mb16}
+        message="游戏数据分析说明"
+        description="指标基于 game_scores / game_reward_claims 聚合（按所选日期范围）：参与用户数、对局数、通关率与奖励发放构成（claim_key 前缀分类：通关/每日首通/成绩区间/成就段位）。"
+      />
       <div className={styles.header}>
         <Title level={4} className={common.noMargin}>
           游戏数据分析

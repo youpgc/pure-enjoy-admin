@@ -274,10 +274,10 @@ const GameRewardRules: React.FC = () => {
             <div className={styles.para}>
               <b>规则类型（rule_type）：</b>
               <ul className={styles.list}>
-                <li><b>每日首次通关 daily_first_clear</b>：每个自然日（北京时间）第一次通关「计入每日首通」的关卡时发放，跨游戏共享、单日一次；condition 留空 {'{}'}。</li>
+                <li><b>每日首次通关 daily_first_clear</b>：每个自然日（北京时间）第一次通关时发放 3 分（当前 1200 关全部计入），与「关卡首通奖励」可叠加；condition 留空 {'{}'}。</li>
                 <li><b>成绩区间 score_range</b>：通关时某维度值落入配置区间即发放，同一档位终身一次；condition 形如 {'{ "dimension": "score", "gte": 100, "lte": 999 }'}（dimension 填维度编码，见「游戏与维度配置」）。</li>
-                <li><b>单日上限 daily_limit</b>：控制当日全部游戏奖励积分总和的上限，达到后当日不再发任何游戏奖励；全局唯一一条，points 填每日上限值。建议按运营需要设置（偏低会让「可重复通关获取奖励」很快触顶）。</li>
-                <li><b>成就达成 achievement</b>：已拆分至「游戏成就配置」页独立维护、独立判断（成就走 game_achievements 表，终身只发一次），此处类型仅保留兼容旧数据，请勿新增。</li>
+                <li><b>单日上限 daily_limit</b>：控制单日游戏奖励积分总和，达到后当日不再发、次日刷新（不占坑可重获）；当前配置：全局 1 条 100 分 + 单游戏各 1 条 50 分，两者独立约束。</li>
+                <li><b>成就达成 achievement</b>：已拆分至「游戏成就配置」页独立维护（段位成就解锁即发分），此处类型仅保留兼容旧数据，请勿新增；全局 first_clear 规则已停用（App 无该消费逻辑）。</li>
               </ul>
             </div>
             <p className={styles.para}>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import {
+  Alert,
   Table,
   Button,
   Input,
@@ -229,6 +230,13 @@ const GameConfigs: React.FC = () => {
 
   return (
     <div>
+      <Alert
+        type="info"
+        showIcon
+        className={common.mb16}
+        message="游戏与维度配置说明"
+        description="游戏级 config 支持流程开关（flow.enabled / flow.nodes 控制模式网格·选关·结算节点）与无尽局数上限（endlessMaxRounds，默认 30）；「允许选关 + 选关模式」决定 App 选关交互；intro（游戏介绍）/ rules（游戏规则）为 App 玩法说明页文案来源。成绩维度（维度编码/聚合方式）供成绩上报与奖励区间判定使用。"
+      />
       <Card className={common.mb16}>
         <Tabs
           activeKey={activeTab}

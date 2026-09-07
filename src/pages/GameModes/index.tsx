@@ -329,7 +329,7 @@ const GameModes: React.FC = () => {
         showIcon
         className={common.mb16}
         message="游戏模式管理说明"
-        description="模式是选关与玩法的一级维度：名称以 App 玩法说明为标准；play_kind 决定引擎行为（跨游戏不可混用）；config 为模式级默认参数，关卡可覆盖；删除前会检查关卡/成绩引用防级联清空。"
+        description="模式是选关与玩法的一级维度：play_kind 决定引擎行为（消消乐 = score 计分 / clear 消除 / collect 收集 / obstacle 破冰 / timed 限时 / boss Boss，跨游戏不可混用）；config 为模式级默认参数（含 types 方块类型数 4..6 等难度键），关卡可覆盖；summary（模式简介）与 guide（达成规则描述）为 App 玩法说明页文案来源；flow_enabled=false 可对单模式停用；删除前会检查关卡/成绩引用防级联清空。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>

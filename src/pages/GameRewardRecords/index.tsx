@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
+  Alert,
   Table,
   Tabs,
   Button,
@@ -266,6 +267,13 @@ export default function GameRewardRecords() {
 
   return (
     <div>
+      <Alert
+        type="info"
+        showIcon
+        className={common.mb16}
+        message="游戏奖励记录说明"
+        description="「积分流水」= point_records 中 game_earn / game_spend 两类（含每局明细与总结算）；「累计获取/累计消费」为全表聚合（点击统计卡可按类型筛选流水）。「奖励领取」= game_reward_claims 发放明细，claim_key 前缀标识类型（level_clear 通关 / daily_first_clear 每日首通 / score_range 成绩区间 / achievement 成就段位）。"
+      />
       <Card
         title="游戏奖励记录"
         extra={

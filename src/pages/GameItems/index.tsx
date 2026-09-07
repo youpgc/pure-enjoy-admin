@@ -234,7 +234,7 @@ const GameItems: React.FC = () => {
         showIcon
         className={common.mb16}
         message="道具管理说明"
-        description="道具按游戏与模式配置：free_per_game 为每局免费次数，per_game_limit 为购买库存上限；App 端对局内按此渲染与扣减。"
+        description="道具按游戏与模式配置：free_per_game 为每局免费次数（0 = 纯积分购买制，如消消乐加时卡），per_game_limit 为购买库存上限；App 端对局内按此渲染与扣减。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
