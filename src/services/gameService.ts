@@ -189,18 +189,32 @@ class GameModeService extends BaseService<DbGameMode> {
   }
 
   /// 每模式关卡数（本地聚合，避免 N+1）。
-  /// range(0,1999) 破 PostgREST 默认 1000 行截断（game_levels 全量 1200 行）。
+  ///
+  /// **必须分页拉取（2026-09-07 实证）**：`range(0,1999)` 的上限会被 PostgREST
+  /// 服务端 `db-max-rows=1000` 静默钳制——game_levels 全量 1200 行时，按任意
+  /// 排序落在第 1000 行之后的模式计数被截断成 0/部分值（表现为「关卡数 0/5」
+  /// 的假象残留）。按 1000/页循环直至不足一页。
   async countLevelsByMode(gameId?: string): Promise<Record<string, number>> {
-    const res = await apiQuery<{ mode_id: string | null }[]>(
-      () => {
-        const q = supabase.from('game_levels').select('mode_id').range(0, 1999)
-        return gameId ? q.eq('game_id', gameId) : q
-      },
-      'GameModeService.countLevelsByMode',
-    )
     const counts: Record<string, number> = {}
-    for (const r of res.data ?? []) {
-      if (r.mode_id) counts[r.mode_id] = (counts[r.mode_id] ?? 0) + 1
+    const pageSize = 1000
+    let offset = 0
+    while (true) {
+      const res = await apiQuery<{ mode_id: string | null }[]>(
+        () => {
+          const q = supabase
+            .from('game_levels')
+            .select('mode_id')
+            .range(offset, offset + pageSize - 1)
+          return gameId ? q.eq('game_id', gameId) : q
+        },
+        'GameModeService.countLevelsByMode',
+      )
+      const rows = res.data ?? []
+      for (const r of rows) {
+        if (r.mode_id) counts[r.mode_id] = (counts[r.mode_id] ?? 0) + 1
+      }
+      if (rows.length < pageSize) break
+      offset += pageSize
     }
     return counts
   }
