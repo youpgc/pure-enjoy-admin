@@ -228,36 +228,36 @@ const GameConfigs: React.FC = () => {
           ]}
         />
         {activeTab === 'games' && (
-          <Space wrap>
-            <Input
-              placeholder="搜索编码/名称"
-              value={gameSearch}
-              onChange={(e) => setGameSearch(e.target.value)}
-              onPressEnter={() => {
-                gamePager.resetPage()
-                loadGames()
-              }}
-              prefix={<SearchOutlined />}
-              className={styles.sel300}
-              allowClear
-            />
-            <Button type="primary" icon={<SearchOutlined />} onClick={() => { gamePager.resetPage(); loadGames() }}>
-              搜索
+          <div className={styles.toolbar}>
+            <Space wrap>
+              <Input
+                placeholder="搜索编码/名称"
+                value={gameSearch}
+                onChange={(e) => setGameSearch(e.target.value)}
+                onPressEnter={() => {
+                  gamePager.resetPage()
+                  loadGames()
+                }}
+                prefix={<SearchOutlined />}
+                className={styles.sel300}
+                allowClear
+              />
+              <Button type="primary" icon={<SearchOutlined />} onClick={() => { gamePager.resetPage(); loadGames() }}>
+                搜索
+              </Button>
+              <Button icon={<ReloadOutlined />} onClick={loadGames} loading={loading}>
+                刷新
+              </Button>
+            </Space>
+            <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
+              新增游戏
             </Button>
-          </Space>
+          </div>
         )}
       </Card>
 
       {activeTab === 'games' ? (
         <>
-          <div className={styles.toolbar}>
-            <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
-              新增游戏
-            </Button>
-            <Button icon={<ReloadOutlined />} onClick={loadGames} loading={loading}>
-              刷新
-            </Button>
-          </div>
           <Table
             columns={buildGameColumns(columnsOps)}
             dataSource={games}
@@ -270,31 +270,31 @@ const GameConfigs: React.FC = () => {
       ) : (
         <>
           <Card className={common.mb16}>
-            <Space wrap>
-              <Text>选择游戏：</Text>
-              <Select
-                className={styles.sel240}
-                placeholder="请选择游戏"
-                value={selectedGameId || undefined}
-                onChange={(v) => {
-                  setSelectedGameId(v)
-                  dimPager.resetPage()
-                  loadDimensions()
-                }}
-                options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
-              />
-            </Space>
-          </Card>
-          {selectedGameId ? (
-            <>
-              <div className={styles.toolbar}>
-                <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
-                  新增维度
-                </Button>
+            <div className={styles.toolbar}>
+              <Space wrap>
+                <Text>选择游戏：</Text>
+                <Select
+                  className={styles.sel240}
+                  placeholder="请选择游戏"
+                  value={selectedGameId || undefined}
+                  onChange={(v) => {
+                    setSelectedGameId(v)
+                    dimPager.resetPage()
+                    loadDimensions()
+                  }}
+                  options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
+                />
                 <Button icon={<ReloadOutlined />} onClick={loadDimensions} loading={loading}>
                   刷新
                 </Button>
-              </div>
+              </Space>
+              <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite || !selectedGameId} onClick={openAdd}>
+                新增维度
+              </Button>
+            </div>
+          </Card>
+          {selectedGameId ? (
+            <>
               <Table
                 columns={buildDimColumns(columnsOps)}
                 dataSource={dimensions}

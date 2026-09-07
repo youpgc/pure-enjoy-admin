@@ -229,7 +229,22 @@ const GameItems: React.FC = () => {
 
   return (
     <div>
+      {/* 说明卡片统一置顶（布局规范：Alert → 工具栏 → 表格） */}
+      <Alert
+        type="info"
+        showIcon
+        className={common.mb16}
+        message="道具管理说明"
+        description="道具按游戏与模式配置：free_per_game 为每局免费次数，per_game_limit 为购买库存上限；App 端对局内按此渲染与扣减。"
+      />
       <div className={styles.toolbar}>
+        <Button
+          icon={<ReloadOutlined />}
+          loading={loading}
+          onClick={() => loadItems()}
+        >
+          刷新
+        </Button>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -237,13 +252,6 @@ const GameItems: React.FC = () => {
           onClick={openCreate}
         >
           新增道具
-        </Button>
-        <Button
-          icon={<ReloadOutlined />}
-          loading={loading}
-          onClick={() => loadItems()}
-        >
-          刷新
         </Button>
       </div>
       <Table
@@ -255,13 +263,6 @@ const GameItems: React.FC = () => {
         size="middle"
       />
 
-  <Alert
-    type="info"
-    showIcon
-    className={common.mb16}
-    message="道具管理说明"
-    description="道具按游戏与模式配置：free_per_game 为每局免费次数，per_game_limit 为购买库存上限；App 端对局内按此渲染与扣减。"
-  />
       <Modal
         title={editing ? '编辑道具' : '新增道具'}
         open={modalOpen}

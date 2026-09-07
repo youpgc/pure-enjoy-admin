@@ -325,53 +325,59 @@ const GameLevels: React.FC = () => {
 
   return (
     <div className={common.p24}>
+      {/* 说明卡片统一置顶（布局规范：Alert → 筛选 Card → 表格） */}
+      <Alert
+        type="info"
+        showIcon
+        className={common.mb16}
+        message="关卡配置说明"
+        description="关卡按「游戏 → 模式 → 关卡」三级组织；config 键名须与 App 引擎读取键一致（参考各 play_kind 推荐模板）；reward_points 为通关奖励，count_for_daily_clear 决定是否计入每日首通。"
+      />
       <Card className={common.mb16}>
-        <Space wrap>
-          <Text>选择游戏：</Text>
-          <Select
-            className={styles.sel240}
-            placeholder="请选择游戏"
-            value={selectedGameId || undefined}
-            onChange={(v) => {
-              setSelectedGameId(v)
-              pager.resetPage()
-            }}
-            options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
-          />
-          <Text>模式：</Text>
-          <Select
-            className={styles.sel240}
-            placeholder="全部模式"
-            allowClear
-            value={selectedModeId || undefined}
-            onChange={(v) => {
-              const next = v || ''
-              setSelectedModeId(next)
-              selectedModeIdRef.current = next
-              pager.resetPage()
-            }}
-            options={modes.map((m) => ({ value: m.id, label: `${m.name}（${m.code}）` }))}
-          />
-          <Button icon={<ReloadOutlined />} onClick={loadLevels} loading={loading}>
-            刷新
+        <div className={styles.toolbar}>
+          <Space wrap>
+            <Text>选择游戏：</Text>
+            <Select
+              className={styles.sel240}
+              placeholder="请选择游戏"
+              value={selectedGameId || undefined}
+              onChange={(v) => {
+                setSelectedGameId(v)
+                pager.resetPage()
+              }}
+              options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
+            />
+            <Text>模式：</Text>
+            <Select
+              className={styles.sel240}
+              placeholder="全部模式"
+              allowClear
+              value={selectedModeId || undefined}
+              onChange={(v) => {
+                const next = v || ''
+                setSelectedModeId(next)
+                selectedModeIdRef.current = next
+                pager.resetPage()
+              }}
+              options={modes.map((m) => ({ value: m.id, label: `${m.name}（${m.code}）` }))}
+            />
+            <Button icon={<ReloadOutlined />} onClick={loadLevels} loading={loading}>
+              刷新
+            </Button>
+          </Space>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            disabled={!canWrite || !selectedGameId}
+            onClick={openAdd}
+          >
+            新增关卡
           </Button>
-        </Space>
+        </div>
       </Card>
 
       {selectedGameId ? (
         <>
-  <Alert
-    type="info"
-    showIcon
-    className={common.mb16}
-    message="关卡配置说明"
-    description="关卡按「游戏 → 模式 → 关卡」三级组织；config 键名须与 App 引擎读取键一致（参考各 play_kind 推荐模板）；reward_points 为通关奖励，count_for_daily_clear 决定是否计入每日首通。"
-  />
-          <div className={styles.toolbar}>
-            <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
-              新增关卡
-            </Button>
-          </div>
           <Table
             columns={columns}
             dataSource={levels}

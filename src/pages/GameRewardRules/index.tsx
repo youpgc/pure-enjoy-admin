@@ -279,32 +279,31 @@ const GameRewardRules: React.FC = () => {
         }
       />
       <Card className={common.mb16}>
-        <Space wrap>
-          <Text>适用游戏：</Text>
-          <Select
-            className={styles.sel240}
-            value={gameFilter}
-            onChange={(v) => {
-              setGameFilter(v)
-              pager.resetPage()
-            }}
-            options={[
-              { value: 'all', label: '全部' },
-              { value: 'global', label: '全局规则' },
-              ...games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` })),
-            ]}
-          />
-          <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>
-            刷新
+        <div className={styles.toolbar}>
+          <Space wrap>
+            <Text>适用游戏：</Text>
+            <Select
+              className={styles.sel240}
+              value={gameFilter}
+              onChange={(v) => {
+                setGameFilter(v)
+                pager.resetPage()
+              }}
+              options={[
+                { value: 'all', label: '全部' },
+                { value: 'global', label: '全局规则' },
+                ...games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` })),
+              ]}
+            />
+            <Button icon={<ReloadOutlined />} onClick={loadRules} loading={loading}>
+              刷新
+            </Button>
+          </Space>
+          <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
+            新增规则
           </Button>
-        </Space>
+        </div>
       </Card>
-
-      <div className={styles.toolbar}>
-        <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
-          新增规则
-        </Button>
-      </div>
 
       <Table
         columns={columns}
