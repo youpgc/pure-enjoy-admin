@@ -17,6 +17,7 @@ import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { gameService, gameDimensionService } from '../../services/gameService'
+import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import type { DbGame, DbGameDimension } from '../../types/database'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
@@ -37,16 +38,23 @@ const GameConfigs: React.FC = () => {
   const canWrite = hasPermission('games:write')
   const canDelete = hasPermission('games:delete')
 
-  const [activeTab, setActiveTab] = useState<'games' | 'dimensions'>('games')
+  // 页签刷新筛选恢复（tabs 右键刷新=重挂载，保持用户当前筛选/Tab）
+  const restoredFilters = loadTabFilters('game_configs')
+
+  const [activeTab, setActiveTab] = useState<'games' | 'dimensions'>(
+    (restoredFilters.activeTab as 'games' | 'dimensions') ?? 'games'
+  )
 
   // ---- 游戏（Tab1） ----
   const [games, setGames] = useState<DbGame[]>([])
-  const [gameSearch, setGameSearch] = useState('')
+  const [gameSearch, setGameSearch] = useState((restoredFilters.gameSearch as string) ?? '')
   const gamePager = usePagination()
 
   // ---- 维度（Tab2） ----
   const [dimensions, setDimensions] = useState<DbGameDimension[]>([])
-  const [selectedGameId, setSelectedGameId] = useState<string>('')
+  const [selectedGameId, setSelectedGameId] = useState<string>(
+    (restoredFilters.selectedGameId as string) ?? ''
+  )
   const dimPager = usePagination()
 
   // ---- 公共 ----
@@ -54,6 +62,9 @@ const GameConfigs: React.FC = () => {
   const [modalVisible, setModalVisible] = useState(false)
   const [editing, setEditing] = useState<DbGame | DbGameDimension | null>(null)
   const [saving, setSaving] = useState(false)
+
+  // 页签刷新筛选持久化（卸载时写回快照）
+  usePersistTabFilters('game_configs', { activeTab, gameSearch, selectedGameId })
 
   // ========== 加载游戏列表（Tab1 + Tab2 选择器公共数据） ==========
   const loadGames = useCallback(async () => {
@@ -242,9 +253,6 @@ const GameConfigs: React.FC = () => {
                 className={styles.sel300}
                 allowClear
               />
-              <Button type="primary" icon={<SearchOutlined />} onClick={() => { gamePager.resetPage(); loadGames() }}>
-                搜索
-              </Button>
               <Button icon={<ReloadOutlined />} onClick={loadGames} loading={loading}>
                 刷新
               </Button>

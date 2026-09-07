@@ -15,6 +15,7 @@ import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { handleApiError } from '../../utils/apiClient'
+import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { useUsernames } from '../../hooks/useUsernames'
@@ -79,13 +80,24 @@ const GameScores: React.FC = () => {
   const dimMap = meta?.dimMap ?? {}
   const games = meta?.games ?? []
 
-  const [gameFilter, setGameFilter] = useState<string>('all')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
+  // 页签刷新筛选恢复（tabs 右键刷新=重挂载，保持用户当前筛选）
+  const restoredFilters = loadTabFilters('game_scores')
+  const [gameFilter, setGameFilter] = useState<string>(
+    (restoredFilters.gameFilter as string) ?? 'all'
+  )
+  const [statusFilter, setStatusFilter] = useState<string>(
+    (restoredFilters.statusFilter as string) ?? 'all'
+  )
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(
+    (restoredFilters.dateRange as [dayjs.Dayjs, dayjs.Dayjs] | null) ?? null
+  )
 
   const [scores, setScores] = useState<DbGameScore[]>([])
   const [loading, setLoading] = useState(false)
   const pager = usePagination()
+
+  // 页签刷新筛选持久化（卸载时写回快照）
+  usePersistTabFilters('game_scores', { gameFilter, statusFilter, dateRange })
 
   const [expandedValues, setExpandedValues] = useState<Record<string, DbGameScoreValue[]>>({})
   const [expandingId, setExpandingId] = useState<string | null>(null)
@@ -215,7 +227,7 @@ const GameScores: React.FC = () => {
       title: '关卡',
       dataIndex: 'level_id',
       key: 'level_id',
-      width: 150,
+      width: 200,
       render: (v: string | null) => (v ? (levelMap[v]?.name ?? '关卡') : '-'),
     },
     {

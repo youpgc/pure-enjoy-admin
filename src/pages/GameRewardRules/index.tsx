@@ -33,6 +33,7 @@ import {
   GAME_REWARD_RULE_TYPE_OPTIONS,
 } from '../../constants'
 import { gameService, gameRewardRuleService } from '../../services/gameService'
+import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import type { DbGame, DbGameRewardRule } from '../../types/database'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
@@ -50,10 +51,17 @@ const GameRewardRules: React.FC = () => {
 
   const [games, setGames] = useState<DbGame[]>([])
   const [gameNameMap, setGameNameMap] = useState<Record<string, string>>({})
-  const [gameFilter, setGameFilter] = useState<string>('all')
+  // 页签刷新筛选恢复（tabs 右键刷新=重挂载，保持用户当前筛选）
+  const restoredFilters = loadTabFilters('game_reward_rules')
+  const [gameFilter, setGameFilter] = useState<string>(
+    (restoredFilters.gameFilter as string) ?? 'all'
+  )
   const [rules, setRules] = useState<DbGameRewardRule[]>([])
   const [loading, setLoading] = useState(false)
   const pager = usePagination()
+
+  // 页签刷新筛选持久化（卸载时写回快照）
+  usePersistTabFilters('game_reward_rules', { gameFilter })
   const [modalVisible, setModalVisible] = useState(false)
   const [editing, setEditing] = useState<DbGameRewardRule | null>(null)
   const [saving, setSaving] = useState(false)

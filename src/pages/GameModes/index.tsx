@@ -27,9 +27,9 @@ import { usePermission } from '../../hooks/usePermission'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../App'
 import { gameModeService, gameScoreService } from '../../services/gameService'
+import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import { GAME_SHARED_ICON_BASE } from '../../constants/game'
 import ModeFormModal from './ModeFormModal'
-import styles from './index.module.css'
 import common from '../../styles/common.module.css'
 
 type DbGameMode = Database['public']['Tables']['game_modes']['Row']
@@ -58,13 +58,20 @@ const GameModes: React.FC = () => {
     [games],
   )
 
-  const [selectedGameId, setSelectedGameId] = useState<string>('')
+  // 页签刷新筛选恢复（tabs 右键刷新=重挂载，保持用户当前筛选）
+  const restoredFilters = loadTabFilters('game_modes')
+  const [selectedGameId, setSelectedGameId] = useState<string>(
+    (restoredFilters.selectedGameId as string) ?? ''
+  )
   const [modes, setModes] = useState<DbGameMode[]>([])
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
   const [editing, setEditing] = useState<DbGameMode | null>(null)
   const [saving, setSaving] = useState(false)
   const [levelCounts, setLevelCounts] = useState<Record<string, number>>({})
+
+  // 页签刷新筛选持久化（卸载时写回快照）
+  usePersistTabFilters('game_modes', { selectedGameId })
 
   const loadModes = async () => {
     setLoading(true)
@@ -190,7 +197,7 @@ const GameModes: React.FC = () => {
       title: '所属游戏',
       dataIndex: 'game_id',
       key: 'game_id',
-      width: 130,
+      width: 200,
       render: (v: string) => gameNameById[v] ?? v,
     },
     {

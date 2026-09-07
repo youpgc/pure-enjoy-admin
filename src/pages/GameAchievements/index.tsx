@@ -16,6 +16,7 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { usePermission } from '../../hooks/usePermission'
 import { gameAchievementService, gameDimensionService, gameService } from '../../services/gameService'
+import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import type { Database, DbGameDimension } from '../../types/database'
 import common from '../../styles/common.module.css'
 import styles from './index.module.css'
@@ -53,11 +54,17 @@ const GameAchievements: React.FC = () => {
   const [editing, setEditing] = useState<DbGameAchievement | null>(null)
   const [saving, setSaving] = useState(false)
 
-  // 列表筛选与分页
-  const [nameFilter, setNameFilter] = useState('')
-  const [gameFilter, setGameFilter] = useState<string | undefined>(undefined)
+  // 列表筛选与分页（页签刷新时恢复上次筛选）
+  const restoredFilters = loadTabFilters('game_achievements')
+  const [nameFilter, setNameFilter] = useState((restoredFilters.nameFilter as string) ?? '')
+  const [gameFilter, setGameFilter] = useState<string | undefined>(
+    restoredFilters.gameFilter as string | undefined
+  )
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+
+  // 页签刷新筛选持久化（卸载时写回快照）
+  usePersistTabFilters('game_achievements', { nameFilter, gameFilter })
 
   const loadItems = async () => {
     setLoading(true)

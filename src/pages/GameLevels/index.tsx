@@ -31,6 +31,7 @@ import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { gameService, gameLevelService } from '../../services/gameService'
 import { supabase } from '../../utils/supabase'
+import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import { useNavigation } from '../../App'
 import type { DbGame, DbGameLevel } from '../../types/database'
 import styles from './index.module.css'
@@ -46,10 +47,17 @@ const GameLevels: React.FC = () => {
   const canWrite = hasPermission('games:write')
   const canDelete = hasPermission('games:delete')
 
+  // 页签刷新筛选恢复（tabs 右键刷新=重挂载，模块级快照保持用户当前筛选）
+  const restoredFiltersRef = useRef(loadTabFilters('game_levels'))
+
   const [games, setGames] = useState<DbGame[]>([])
-  const [selectedGameId, setSelectedGameId] = useState<string>('')
+  const [selectedGameId, setSelectedGameId] = useState<string>(
+    (restoredFiltersRef.current.selectedGameId as string) ?? ''
+  )
   const [modes, setModes] = useState<{ id: string; code: string; name: string }[]>([])
-  const [selectedModeId, setSelectedModeId] = useState<string>('')
+  const [selectedModeId, setSelectedModeId] = useState<string>(
+    (restoredFiltersRef.current.selectedModeId as string) ?? ''
+  )
   // 用 ref 持有最新模式筛选值，避免 loadLevels 因 selectedModeId 变化而重建身份、
   // 进而触发「游戏切换」副作用把模式筛选重置为空。
   const selectedModeIdRef = useRef<string>('')
@@ -160,13 +168,19 @@ const GameLevels: React.FC = () => {
   }, [pageParams])
 
   // 游戏切换 / 深链进入：加载模式清单后**默认选中第一个模式**（深链指定且存在时
-  // 优先深链模式），选区落定后再由列表 effect 统一查询——避免「新游戏 + 旧游戏
-  // 模式过滤」的交互冲突空查询（2026-09-07 用户拍板交互）。
+  // 优先深链模式；页签刷新恢复的模式次之），选区落定后再由列表 effect 统一查询——
+  // 避免「新游戏 + 旧游戏模式过滤」的交互冲突空查询（2026-09-07 用户拍板交互）。
   useEffect(() => {
     if (!selectedGameId) return
     const nav = pendingNavRef.current
     pendingNavRef.current = null
-    const wantMode = nav && nav.gameId === selectedGameId ? nav.modeId ?? '' : ''
+    // 页签刷新恢复的模式仅首次生效（恢复的游戏+模式是配套快照），用后即清
+    const restoredMode = restoredFiltersRef.current.selectedModeId as string | undefined
+    if (restoredMode) delete restoredFiltersRef.current.selectedModeId
+    const wantMode =
+      nav && nav.gameId === selectedGameId
+        ? nav.modeId ?? ''
+        : (restoredMode ?? '')
     modePendingRef.current = true
     pager.resetPage()
     loadModes().then((list) => {
@@ -188,6 +202,9 @@ const GameLevels: React.FC = () => {
     if (modePendingRef.current) return
     loadLevels()
   }, [selectedGameId, selectedModeId, pager.pagination.current, pager.pagination.pageSize, loadLevels])
+
+  // 页签刷新筛选持久化（卸载时写回快照）
+  usePersistTabFilters('game_levels', { selectedGameId, selectedModeId })
 
   // 弹窗回显走 key 强制重挂载 + initialValues（Modal 惰性挂载前 setFieldsValue 无效；
   // 且表单值无 id，旧写法解构 id 为 undefined 拼出 uuid:"undefined" 触发 22P02）
