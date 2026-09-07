@@ -42,9 +42,17 @@ function levelConditionDesc(lv: Record<string, any> | undefined): string {
   else if (c.timeLimit) parts.push(`限时 ${c.timeLimit}s`)
   if (c.moves || c.max_moves) parts.push(`限 ${c.moves ?? c.max_moves} 步`)
   if (c.goal) parts.push(`得分≥${c.goal}`)
-  if (c.jelly_layers) parts.push(`果冻 ${c.jelly_layers} 层`)
-  if (c.ingredients) parts.push(`收集 ${c.ingredients} 个`)
+  if (c.jelly || c.jelly_layers) parts.push(`果冻 ${c.jelly ?? c.jelly_layers} 层`)
+  // 颜色收集目标（新数组口径 / 旧单值口径）
+  const collectDesc = (arr: any[]): string =>
+    arr
+      .map((g) => `${'●'}${g.type}×${g.count}`)
+      .join(' + ')
+  if (Array.isArray(c.collect) && c.collect.length) parts.push(collectDesc(c.collect))
+  else if (c.ingredients) parts.push(`收集 ${c.ingredients} 个`)
   if (c.orders) parts.push(`收集 ${c.orders} 个`)
+  if (c.ice) parts.push(`冰块 ${c.ice}`)
+  if (Array.isArray(c.iceCollect) && c.iceCollect.length) parts.push(collectDesc(c.iceCollect))
   if (typeof c.target === 'number') parts.push(`目标 ${c.target}`)
   if (c.layers) parts.push(`${c.layers} 层堆叠`)
   if (c.types) parts.push(`${c.types} 种方块`)

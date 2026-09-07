@@ -367,7 +367,7 @@ const GameLevels: React.FC = () => {
         showIcon
         className={common.mb16}
         message="关卡配置说明"
-        description="关卡按「游戏 → 模式 → 关卡」三级组织；config 键名须与 App 引擎读取键一致（参考各 play_kind 推荐模板）；reward_points 为通关奖励，count_for_daily_clear 决定是否计入每日首通。"
+        description="关卡按「游戏 → 模式 → 关卡」三级组织；config 键名须与 App 引擎读取键一致（types=方块类型数 4..6 为关键难度维度，collect/iceCollect 支持多目标数组 [{type,count}]，参考各 play_kind 推荐模板）；reward_points 为通关奖励，count_for_daily_clear 决定是否计入每日首通。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>

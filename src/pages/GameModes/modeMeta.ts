@@ -42,17 +42,29 @@ export function playKindOptionsFor(gameCode: string | undefined): PlayKindOption
 }
 
 /**
- * config 推荐参数模板（键名 = App 引擎读取键 / 04 种子键，见参考文档 §3.3）。
- * obstacle/boss 为引擎预留行为，无对应种子配方，不提供模板。
+ * config 推荐参数模板（键名 = App 引擎读取键，见参考文档 §3.3 与 §9 D 表）。
+ *
+ * 消消乐「方块类型 types」（2026-09-07）：关键难度维度，阈值 4..6
+ * （仅 6 种糖果图标）；4 时其他目标指数向上补偿。全模板必带 types。
+ * 收集目标 collect 支持 1..N 种类型：[{"type":T,"count":N},...]（type < types）。
+ * 破冰附加颜色目标用 iceCollect（同结构）。
  */
 export const CONFIG_TEMPLATES: Record<string, Record<string, unknown>> = {
   '2048': { size: 4, target: 2048 },
-  '2048_timed': { size: 4, target: 690, timeLimit: 60 },
-  '2048_challenge': { size: 4, target: 690, moves: 80 },
+  '2048_timed': { size: 4, target: 300, time_limit: 90 },
+  '2048_challenge': { size: 4, target: 300, max_moves: 100 },
   '2048_endless': { size: 4, target: 2000, noClear: true },
   merge: { types: 6, layers: 2, perType: 3, overlap: 0.7 },
-  score: { steps: 25, goal: 1000 },
-  clear: { steps: 25, goal: 1000, jelly_layers: 1 },
-  collect: { steps: 25, goal: 1000, ingredients: 1 },
-  timed: { goal: 1000, time_limit: 60 },
+  score: { types: 4, steps: 25, goal: 6484 },
+  clear: { types: 4, steps: 30, jelly: 2 },
+  collect: {
+    types: 4,
+    steps: 30,
+    collect: [
+      { type: 0, count: 15 },
+    ],
+  },
+  obstacle: { types: 4, steps: 40, ice: 6, iceCollect: [] },
+  timed: { types: 4, goal: 8753, time_limit: 90 },
+  boss: { types: 4, steps: 30, bossHp: 140 },
 }
