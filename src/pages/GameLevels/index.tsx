@@ -324,8 +324,7 @@ const GameLevels: React.FC = () => {
   ]
 
   return (
-    <div className={common.p24}>
-      {/* 说明卡片统一置顶（布局规范：Alert → 筛选 Card → 表格） */}
+    <div>
       <Alert
         type="info"
         showIcon
@@ -334,7 +333,7 @@ const GameLevels: React.FC = () => {
         description="关卡按「游戏 → 模式 → 关卡」三级组织；config 键名须与 App 引擎读取键一致（参考各 play_kind 推荐模板）；reward_points 为通关奖励，count_for_daily_clear 决定是否计入每日首通。"
       />
       <Card className={common.mb16}>
-        <div className={styles.toolbar}>
+        <div className={common.toolbar}>
           <Space wrap>
             <Text>选择游戏：</Text>
             <Select

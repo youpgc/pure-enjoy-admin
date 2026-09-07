@@ -11,8 +11,3 @@
 .sel240 {
   width: 240px;
 }
-.toolbar {
-  margin-bottom: 16px;
-  display: flex;
-  justify-content: space-between;
-}

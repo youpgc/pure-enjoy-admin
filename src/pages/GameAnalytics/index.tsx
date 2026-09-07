@@ -214,7 +214,7 @@ const GameAnalytics: React.FC = () => {
   }, [loadAll])
 
   return (
-    <div className={common.p24}>
+    <div>
       <div className={styles.header}>
         <Title level={4} className={common.noMargin}>
           游戏数据分析

@@ -115,7 +115,6 @@
 
 /* 统一工具栏（与成就配置页布局一致）：左右分栏、间距 12px、可换行 */
 .toolbar {
-  margin-bottom: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;

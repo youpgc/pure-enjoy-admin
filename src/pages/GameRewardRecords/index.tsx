@@ -265,7 +265,7 @@ export default function GameRewardRecords() {
     : flow.filter((r) => r.type === (flowType === 'earn' ? 'game_earn' : 'game_spend'))
 
   return (
-    <div className={common.p24}>
+    <div>
       <Card
         title="游戏奖励记录"
         extra={

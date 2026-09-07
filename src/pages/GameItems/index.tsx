@@ -6,6 +6,7 @@ import {
   Modal,
   Form,
   Input,
+  Card,
   InputNumber,
   Select,
   Switch,
@@ -21,7 +22,6 @@ import { usePermission } from '../../hooks/usePermission'
 import { gameItemService } from '../../services/gameService'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import { MATCH3_MODE_MAP, MATCH3_MODE_OPTIONS_WITH_ANY } from '../../constants/game'
-import styles from './index.module.css'
 import common from '../../styles/common.module.css'
 
 const ITEM_TYPE_LABEL: Record<string, string> = {
@@ -229,7 +229,6 @@ const GameItems: React.FC = () => {
 
   return (
     <div>
-      {/* 说明卡片统一置顶（布局规范：Alert → 工具栏 → 表格） */}
       <Alert
         type="info"
         showIcon
@@ -237,23 +236,25 @@ const GameItems: React.FC = () => {
         message="道具管理说明"
         description="道具按游戏与模式配置：free_per_game 为每局免费次数，per_game_limit 为购买库存上限；App 端对局内按此渲染与扣减。"
       />
-      <div className={styles.toolbar}>
-        <Button
-          icon={<ReloadOutlined />}
-          loading={loading}
-          onClick={() => loadItems()}
-        >
-          刷新
-        </Button>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          disabled={!canWrite}
-          onClick={openCreate}
-        >
-          新增道具
-        </Button>
-      </div>
+      <Card className={common.mb16}>
+        <div className={common.toolbar}>
+          <Button
+            icon={<ReloadOutlined />}
+            loading={loading}
+            onClick={() => loadItems()}
+          >
+            刷新
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            disabled={!canWrite}
+            onClick={openCreate}
+          >
+            新增道具
+          </Button>
+        </div>
+      </Card>
       <Table
         rowKey="id"
         loading={loading}

@@ -276,7 +276,7 @@ const GameScores: React.FC = () => {
   ]
 
   return (
-    <div className={common.p24}>
+    <div>
       {/* 最佳成绩概览 */}
       <Card
         title="最佳成绩概览（各游戏主维度全局最佳）"

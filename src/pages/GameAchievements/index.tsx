@@ -4,6 +4,7 @@ import {
   Button,
   Input,
   Select,
+  Card,
   Popconfirm,
   message,
   Space,
@@ -270,50 +271,52 @@ const GameAchievements: React.FC = () => {
           </div>
         }
       />
-      <div
-        className={styles.toolbar}
-      >
-        <Space wrap>
-          <Input.Search
-            placeholder="模糊搜索成就名称"
-            allowClear
-            value={nameFilter}
-            onChange={(e) => {
-              setNameFilter(e.target.value)
-              setPage(1)
-            }}
-            className={styles.searchInput}
-          />
-          <Select
-            placeholder="按游戏筛选"
-            allowClear
-            value={gameFilter}
-            onChange={(v) => {
-              setGameFilter(v)
-              setPage(1)
-            }}
-            options={[{ value: 'global', label: '全局（无所属游戏）' }, ...gameOptions]}
-            className={styles.gameSelect}
-            showSearch
-            optionFilterProp="label"
-          />
-          <Button
-            icon={<ReloadOutlined />}
-            loading={loading}
-            onClick={() => loadItems()}
-          >
-            刷新
-          </Button>
-        </Space>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          disabled={!canWrite}
-          onClick={openCreate}
+      <Card className={common.mb16}>
+        <div
+          className={common.toolbar}
         >
-          新增成就
-        </Button>
-      </div>
+          <Space wrap>
+            <Input.Search
+              placeholder="模糊搜索成就名称"
+              allowClear
+              value={nameFilter}
+              onChange={(e) => {
+                setNameFilter(e.target.value)
+                setPage(1)
+              }}
+              className={styles.searchInput}
+            />
+            <Select
+              placeholder="按游戏筛选"
+              allowClear
+              value={gameFilter}
+              onChange={(v) => {
+                setGameFilter(v)
+                setPage(1)
+              }}
+              options={[{ value: 'global', label: '全局（无所属游戏）' }, ...gameOptions]}
+              className={styles.gameSelect}
+              showSearch
+              optionFilterProp="label"
+            />
+            <Button
+              icon={<ReloadOutlined />}
+              loading={loading}
+              onClick={() => loadItems()}
+            >
+              刷新
+            </Button>
+          </Space>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            disabled={!canWrite}
+            onClick={openCreate}
+          >
+            新增成就
+          </Button>
+        </div>
+      </Card>
       <Table
         rowKey="id"
         loading={loading}

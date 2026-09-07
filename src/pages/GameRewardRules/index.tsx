@@ -250,7 +250,7 @@ const GameRewardRules: React.FC = () => {
   ]
 
   return (
-    <div className={common.p24}>
+    <div>
       <Alert
         type="info"
         showIcon
@@ -279,7 +279,7 @@ const GameRewardRules: React.FC = () => {
         }
       />
       <Card className={common.mb16}>
-        <div className={styles.toolbar}>
+        <div className={common.toolbar}>
           <Space wrap>
             <Text>适用游戏：</Text>
             <Select

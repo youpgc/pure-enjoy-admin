@@ -4,6 +4,7 @@ import {
   Alert,
   Button,
   message,
+  Card,
   Space,
   Switch,
   Tag,
@@ -315,31 +316,33 @@ const GameModes: React.FC = () => {
   ]
 
   return (
-    <div className={styles.page}>
-  <Alert
-    type="info"
-    showIcon
-    className={common.mb16}
-    message="游戏模式管理说明"
-    description="模式是选关与玩法的一级维度：名称以 App 玩法说明为标准；play_kind 决定引擎行为（跨游戏不可混用）；config 为模式级默认参数，关卡可覆盖；删除前会检查关卡/成绩引用防级联清空。"
-  />
-      <div className={common.toolbar}>
-        <Space wrap>
-          <Select
-            className={common.sel240}
-            placeholder="请选择游戏"
-            value={selectedGameId || undefined}
-            onChange={(v) => setSelectedGameId(v ?? '')}
-            options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
-          />
-          <Button icon={<ReloadOutlined />} onClick={loadModes} loading={loading}>
-            刷新
+    <div>
+      <Alert
+        type="info"
+        showIcon
+        className={common.mb16}
+        message="游戏模式管理说明"
+        description="模式是选关与玩法的一级维度：名称以 App 玩法说明为标准；play_kind 决定引擎行为（跨游戏不可混用）；config 为模式级默认参数，关卡可覆盖；删除前会检查关卡/成绩引用防级联清空。"
+      />
+      <Card className={common.mb16}>
+        <div className={common.toolbar}>
+          <Space wrap>
+            <Select
+              className={common.sel240}
+              placeholder="请选择游戏"
+              value={selectedGameId || undefined}
+              onChange={(v) => setSelectedGameId(v ?? '')}
+              options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
+            />
+            <Button icon={<ReloadOutlined />} onClick={loadModes} loading={loading}>
+              刷新
+            </Button>
+          </Space>
+          <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
+            新增模式
           </Button>
-        </Space>
-        <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
-          新增模式
-        </Button>
-      </div>
+        </div>
+      </Card>
 
       <Table
         rowKey="id"

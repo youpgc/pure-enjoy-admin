@@ -217,7 +217,7 @@ const GameConfigs: React.FC = () => {
   }
 
   return (
-    <div className={common.p24}>
+    <div>
       <Card className={common.mb16}>
         <Tabs
           activeKey={activeTab}
@@ -227,8 +227,8 @@ const GameConfigs: React.FC = () => {
             { key: 'dimensions', label: '成绩维度配置' },
           ]}
         />
-        {activeTab === 'games' && (
-          <div className={styles.toolbar}>
+        {activeTab === 'games' ? (
+          <div className={common.toolbar}>
             <Space wrap>
               <Input
                 placeholder="搜索编码/名称"
@@ -253,6 +253,29 @@ const GameConfigs: React.FC = () => {
               新增游戏
             </Button>
           </div>
+        ) : (
+          <div className={common.toolbar}>
+            <Space wrap>
+              <Text>选择游戏：</Text>
+              <Select
+                className={styles.sel240}
+                placeholder="请选择游戏"
+                value={selectedGameId || undefined}
+                onChange={(v) => {
+                  setSelectedGameId(v)
+                  dimPager.resetPage()
+                  loadDimensions()
+                }}
+                options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
+              />
+              <Button icon={<ReloadOutlined />} onClick={loadDimensions} loading={loading}>
+                刷新
+              </Button>
+            </Space>
+            <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite || !selectedGameId} onClick={openAdd}>
+              新增维度
+            </Button>
+          </div>
         )}
       </Card>
 
@@ -269,30 +292,6 @@ const GameConfigs: React.FC = () => {
         </>
       ) : (
         <>
-          <Card className={common.mb16}>
-            <div className={styles.toolbar}>
-              <Space wrap>
-                <Text>选择游戏：</Text>
-                <Select
-                  className={styles.sel240}
-                  placeholder="请选择游戏"
-                  value={selectedGameId || undefined}
-                  onChange={(v) => {
-                    setSelectedGameId(v)
-                    dimPager.resetPage()
-                    loadDimensions()
-                  }}
-                  options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
-                />
-                <Button icon={<ReloadOutlined />} onClick={loadDimensions} loading={loading}>
-                  刷新
-                </Button>
-              </Space>
-              <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite || !selectedGameId} onClick={openAdd}>
-                新增维度
-              </Button>
-            </div>
-          </Card>
           {selectedGameId ? (
             <>
               <Table

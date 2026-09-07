@@ -24,15 +24,6 @@
   border-radius: 6px;
 }
 
-/* 列表上方工具条：左侧筛选 + 右侧新增 */
-.toolbar {
-  margin-bottom: 12px;
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
 /* 名称搜索框固定宽 */
 .searchInput {
   width: 240px;
