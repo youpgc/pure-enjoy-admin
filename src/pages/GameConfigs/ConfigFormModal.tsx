@@ -120,7 +120,21 @@ const ConfigFormModal: React.FC<ConfigFormModalProps> = ({
               />
             </Form.Item>
             <Form.Item name="description" label="描述">
-              <Input.TextArea rows={2} placeholder="玩法简介" />
+              <Input.TextArea rows={2} placeholder="玩法简介（大厅/游戏头部展示）" />
+            </Form.Item>
+            <Form.Item
+              name="intro"
+              label="游戏介绍(intro)"
+              tooltip="App「查看说明」顶部的游戏介绍；留空则回退 App 内置文案"
+            >
+              <Input.TextArea rows={3} placeholder="一段话介绍这款游戏" />
+            </Form.Item>
+            <Form.Item
+              name="rules"
+              label="游戏规则(rules)"
+              tooltip="App 说明页「基础规则」段正文；留空则回退 App 内置文案"
+            >
+              <Input.TextArea rows={4} placeholder="基础操作与核心规则说明" />
             </Form.Item>
             <Form.Item name="engine" label="渲染引擎" rules={[{ required: true }]} tooltip="引擎为初始化默认选项，禁止编辑">
               <Select options={GAME_ENGINE_OPTIONS} disabled={!!editing} />

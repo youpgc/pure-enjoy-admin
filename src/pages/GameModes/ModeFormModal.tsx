@@ -55,6 +55,8 @@ const ModeFormModal: React.FC<ModeFormModalProps> = ({
     name: '',
     icon: '',
     description: '',
+    summary: '',
+    guide: '',
     play_kind: '',
     config: '{}',
     enabled: true,
@@ -138,7 +140,21 @@ const ModeFormModal: React.FC<ModeFormModalProps> = ({
           />
         </Form.Item>
         <Form.Item name="description" label="描述">
-          <Input.TextArea rows={2} placeholder="玩法简介" />
+          <Input.TextArea rows={2} placeholder="玩法简介（模式卡片副标题等场景）" />
+        </Form.Item>
+        <Form.Item
+          name="summary"
+          label="模式简介(summary)"
+          tooltip="一句话说明该模式目标；App 说明页该模式段首行展示，留空则忽略"
+        >
+          <Input placeholder="如 在限定步数内让分数达到目标值" />
+        </Form.Item>
+        <Form.Item
+          name="guide"
+          label="达成规则描述(guide)"
+          tooltip="该模式的玩法目标、规则要点与策略提示；App「查看说明」按模式展示，留空则回退 App 内置文案"
+        >
+          <Input.TextArea rows={4} placeholder="达成条件、规则细节与策略建议" />
         </Form.Item>
         <Form.Item
           name="config"
