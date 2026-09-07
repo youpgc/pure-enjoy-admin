@@ -31,6 +31,28 @@ import styles from './index.module.css'
 import common from '../../styles/common.module.css'
 
 const { Text } = Typography
+
+/// 按关卡 config/target 生成通关条件中文描述（各模式键见游戏模块配置参考文档 §3.3/§6）
+function levelConditionDesc(lv: Record<string, any> | undefined): string {
+  if (!lv) return '-'
+  const c = (lv.config ?? {}) as Record<string, any>
+  const parts: string[] = []
+  if (c.time_limit) parts.push(`限时 ${c.time_limit}s`)
+  else if (c.timeLimit) parts.push(`限时 ${c.timeLimit}s`)
+  if (c.moves || c.max_moves) parts.push(`限 ${c.moves ?? c.max_moves} 步`)
+  if (c.goal) parts.push(`得分≥${c.goal}`)
+  if (c.jelly_layers) parts.push(`果冻 ${c.jelly_layers} 层`)
+  if (c.ingredients) parts.push(`收集 ${c.ingredients} 个`)
+  if (c.orders) parts.push(`收集 ${c.orders} 个`)
+  if (typeof c.target === 'number') parts.push(`目标 ${c.target}`)
+  if (c.layers) parts.push(`${c.layers} 层堆叠`)
+  if (c.types) parts.push(`${c.types} 种方块`)
+  if (c.noClear) parts.push('无尽模式')
+  const t = lv.target as Record<string, any> | null
+  if (!parts.length && t?.score) parts.push(`得分≥${t.score}`)
+  if (!parts.length && t?.type === 'none') parts.push('合成目标方块')
+  return parts.length ? parts.join(' · ') : '-'
+}
 const { RangePicker } = DatePicker
 
 // 毫秒类维度（value_type=duration_ms 或 unit=ms）统一按秒展示
@@ -193,8 +215,17 @@ const GameScores: React.FC = () => {
       title: '关卡',
       dataIndex: 'level_id',
       key: 'level_id',
-      width: 120,
+      width: 150,
       render: (v: string | null) => (v ? (levelMap[v]?.name ?? '关卡') : '-'),
+    },
+    {
+      title: '通关条件',
+      key: 'level_condition',
+      render: (_: unknown, record: { level_id: string | null }) => {
+        const lv = record.level_id ? levelMap[record.level_id] : null
+        if (!lv) return '-'
+        return levelConditionDesc(lv)
+      },
     },
     {
       title: '状态',
@@ -292,7 +323,7 @@ const GameScores: React.FC = () => {
                 title: '达成时间',
                 dataIndex: 'playedAt',
                 key: 'playedAt',
-                render: (d: string | null) => (d ? dayjs(d).format('YYYY-MM-DD HH:mm') : '-'),
+                render: (d: string | null) => (d ? dayjs(d).format('YYYY-MM-DD HH:mm:ss') : '-'),
               },
             ]}
           />

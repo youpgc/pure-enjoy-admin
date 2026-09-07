@@ -227,29 +227,29 @@ const GameConfigs: React.FC = () => {
             { key: 'dimensions', label: '成绩维度配置' },
           ]}
         />
+        {activeTab === 'games' && (
+          <Space wrap>
+            <Input
+              placeholder="搜索编码/名称"
+              value={gameSearch}
+              onChange={(e) => setGameSearch(e.target.value)}
+              onPressEnter={() => {
+                gamePager.resetPage()
+                loadGames()
+              }}
+              prefix={<SearchOutlined />}
+              className={styles.sel300}
+              allowClear
+            />
+            <Button type="primary" icon={<SearchOutlined />} onClick={() => { gamePager.resetPage(); loadGames() }}>
+              搜索
+            </Button>
+          </Space>
+        )}
       </Card>
 
       {activeTab === 'games' ? (
         <>
-          <Card className={common.mb16}>
-            <Space wrap>
-              <Input
-                placeholder="搜索编码/名称"
-                value={gameSearch}
-                onChange={(e) => setGameSearch(e.target.value)}
-                onPressEnter={() => {
-                  gamePager.resetPage()
-                  loadGames()
-                }}
-                prefix={<SearchOutlined />}
-                className={styles.sel300}
-                allowClear
-              />
-              <Button type="primary" icon={<SearchOutlined />} onClick={() => { gamePager.resetPage(); loadGames() }}>
-                搜索
-              </Button>
-            </Space>
-          </Card>
           <div className={styles.toolbar}>
             <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
               新增游戏

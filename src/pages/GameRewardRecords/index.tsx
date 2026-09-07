@@ -19,6 +19,7 @@ import {
   gameRewardClaimService,
   gameRewardRuleService,
   gameService,
+  getGameFlowTotals,
 } from '../../services/gameService'
 import { userService } from '../../services/userService'
 import { usePagination } from '../../hooks/usePagination'
@@ -50,7 +51,7 @@ type DbRewardRule = { id: string; name: string | null; rule_type: string }
 type DbAchievement = { code: string; name: string }
 
 const fmtLocal = (iso: string | null) =>
-  iso ? dayjs(iso).format('YYYY-MM-DD HH:mm') : '-'
+  iso ? dayjs(iso).format('YYYY-MM-DD HH:mm:ss') : '-'
 
 const userName = (id: string, map: Record<string, string>) => map[id] || id.slice(0, 8)
 
@@ -119,14 +120,14 @@ export default function GameRewardRecords() {
       const list = (res.data?.data || []) as DbPointRecord[]
       setFlow(list)
       pager.setTotal(res.data?.total || 0)
-      setEarnTotal(list.filter((r) => r.type === 'game_earn').reduce((s, r) => s + r.amount, 0))
-      setSpendTotal(
-        list.filter((r) => r.type === 'game_spend').reduce((s, r) => s + Math.abs(r.amount), 0)
-      )
+      // 累计获取/消费为全表聚合（RPC SUM），非当前分页求和
+      const totals = await getGameFlowTotals()
+      setEarnTotal(totals.earn)
+      setSpendTotal(totals.spend)
     } finally {
       setLoading(false)
     }
-  }, [mountedRef, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
+  }, [mountedRef, flowType, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
 
   // 奖励领取：流水来自 game_reward_claims（含成就与规则发放，point_records 已含对应 game_earn）
   const loadClaims = useCallback(async () => {
@@ -288,10 +289,20 @@ export default function GameRewardRecords() {
                 <>
                   <Row gutter={16} className={common.mb16}>
                     <Col span={8}>
-                      <Statistic title="累计获取（游戏）" value={earnTotal} suffix="分" className={styles.statEarn} />
+                      <div
+                        onClick={() => { setFlowType(flowType === 'earn' ? 'all' : 'earn'); pager.resetPage() }}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <Statistic title="累计获取（游戏）· 点击筛选" value={earnTotal} suffix="分" className={styles.statEarn} />
+                      </div>
                     </Col>
                     <Col span={8}>
-                      <Statistic title="累计消费（游戏）" value={spendTotal} suffix="分" className={styles.statSpend} />
+                      <div
+                        onClick={() => { setFlowType(flowType === 'spend' ? 'all' : 'spend'); pager.resetPage() }}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <Statistic title="累计消费（游戏）· 点击筛选" value={spendTotal} suffix="分" className={styles.statSpend} />
+                      </div>
                     </Col>
                     <Col span={8}>
                       <Segmented

@@ -83,6 +83,13 @@ const GameModes: React.FC = () => {
     }
   }
 
+  // 游戏筛选项默认选中第一个（不再提供清空后全量查询）
+  useEffect(() => {
+    if (!selectedGameId && games.length > 0) {
+      setSelectedGameId(games[0]!.id)
+    }
+  }, [games, selectedGameId])
+
   useEffect(() => {
     loadModes()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -319,8 +326,7 @@ const GameModes: React.FC = () => {
       <div className={common.toolbar}>
         <Select
           className={common.sel240}
-          placeholder="全部游戏（可筛选）"
-          allowClear
+          placeholder="请选择游戏"
           value={selectedGameId || undefined}
           onChange={(v) => setSelectedGameId(v ?? '')}
           options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}

@@ -253,3 +253,13 @@ export const getGameBestScores = (
     data: DbGameBestScore[] | null
     error: unknown
   }>
+
+/// 游戏积分流水聚合（奖励记录页「累计获取/累计消费」）：
+/// 走 get_game_flow_totals RPC 全表 SUM，而非当前分页求和。
+export async function getGameFlowTotals(): Promise<{ earn: number; spend: number }> {
+  const { data, error } = await (supabase.rpc('get_game_flow_totals') as any)
+  if (error || !Array.isArray(data)) return { earn: 0, spend: 0 }
+  const earn = Number(data.find((r: any) => r.flow_type === 'game_earn')?.total ?? 0)
+  const spend = Number(data.find((r: any) => r.flow_type === 'game_spend')?.total ?? 0)
+  return { earn, spend }
+}

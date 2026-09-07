@@ -112,3 +112,17 @@
 .scrollY { overflow-y: auto; }
 .overflowHidden { overflow: hidden; }
 .cursorPointer { cursor: pointer; }
+
+/* 统一工具栏（与成就配置页布局一致）：左右分栏、间距 12px、可换行 */
+.toolbar {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sel240 { width: 240px; }
+.sel300 { width: 300px; }
+.fullWidth { width: 100%; }
+.p24 { padding: 24px; }

@@ -302,7 +302,7 @@ const GameLevels: React.FC = () => {
       title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      render: (d: string) => dayjs(d).format('YYYY-MM-DD HH:mm'),
+      render: (d: string) => dayjs(d).format('YYYY-MM-DD HH:mm:ss'),
     },
     {
       title: '操作',
