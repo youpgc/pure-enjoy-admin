@@ -64,6 +64,9 @@ const GameLevels: React.FC = () => {
   // 模式管理「关卡」按钮深链定位（keepalive 页签带参跳转，按 seq 信号感知）
   const { pageParams } = useNavigation()
   const pendingNavRef = useRef<{ gameId?: string; modeId?: string } | null>(null)
+  /// 模式默认选中未落定标记：游戏切换后等 loadModes 返回并选中第一个模式前，
+  /// 跳过列表查询（防止「新游戏 + 旧游戏模式过滤」的交互冲突空查询）
+  const modePendingRef = useRef(false)
 
   const loadGames = useCallback(async () => {
     const res = await gameService.findAll((q) => q.eq('enabled', true))
@@ -78,24 +81,30 @@ const GameLevels: React.FC = () => {
     }
   }, [mountedRef])
 
-  const loadModes = useCallback(async () => {
-    if (!selectedGameId) {
-      setModes([])
-      return
-    }
-    try {
-      const { data, error } = await supabase
-        .from('game_modes')
-        .select('id, code, name')
-        .eq('game_id', selectedGameId)
-        .order('sort_order', { ascending: true })
-      if (error) throw error
-      if (!mountedRef.current) return
-      setModes((data as { id: string; code: string; name: string }[]) || [])
-    } catch (error) {
-      handleApiError(error, 'GameLevels-加载模式')
-    }
-  }, [selectedGameId, mountedRef])
+  const loadModes = useCallback(
+    async (): Promise<{ id: string; code: string; name: string }[]> => {
+      if (!selectedGameId) {
+        setModes([])
+        return []
+      }
+      try {
+        const { data, error } = await supabase
+          .from('game_modes')
+          .select('id, code, name')
+          .eq('game_id', selectedGameId)
+          .order('sort_order', { ascending: true })
+        if (error) throw error
+        if (!mountedRef.current) return []
+        const list = (data as { id: string; code: string; name: string }[]) || []
+        setModes(list)
+        return list
+      } catch (error) {
+        handleApiError(error, 'GameLevels-加载模式')
+        return []
+      }
+    },
+    [selectedGameId, mountedRef],
+  )
 
   // 依赖 selectedModeId state（而非 ref）：模式筛选/翻页变化都能触发重载
   const loadLevels = useCallback(async () => {
@@ -150,23 +159,34 @@ const GameLevels: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageParams])
 
-  // 游戏切换 / 深链进入：重置模式过滤与页码（列表加载由下方分页 effect 统一触发，
-  // 避免本 effect 内含 resetPage 造成「翻页 → loadLevels 重建 → effect 重跑 → 页码回弹」死循环）
+  // 游戏切换 / 深链进入：加载模式清单后**默认选中第一个模式**（深链指定且存在时
+  // 优先深链模式），选区落定后再由列表 effect 统一查询——避免「新游戏 + 旧游戏
+  // 模式过滤」的交互冲突空查询（2026-09-07 用户拍板交互）。
   useEffect(() => {
-    if (selectedGameId) {
-      const nav = pendingNavRef.current
-      pendingNavRef.current = null
-      const wantMode = nav && nav.gameId === selectedGameId ? nav.modeId ?? '' : ''
-      setSelectedModeId(wantMode)
-      selectedModeIdRef.current = wantMode
-      pager.resetPage()
-      loadModes()
-    }
+    if (!selectedGameId) return
+    const nav = pendingNavRef.current
+    pendingNavRef.current = null
+    const wantMode = nav && nav.gameId === selectedGameId ? nav.modeId ?? '' : ''
+    modePendingRef.current = true
+    pager.resetPage()
+    loadModes().then((list) => {
+      if (!mountedRef.current) return
+      const nextMode =
+        wantMode && list.some((m) => m.id === wantMode)
+          ? wantMode
+          : (list[0]?.id ?? '')
+      selectedModeIdRef.current = nextMode
+      setSelectedModeId(nextMode)
+      modePendingRef.current = false
+    })
   }, [selectedGameId, loadModes])
 
-  // 列表加载：随 游戏 / 模式筛选 / 分页 变化触发
+  // 列表加载：随 游戏 / 模式筛选 / 分页 变化触发；模式默认选中未落定时跳过
+  // （防止同批次内用「旧游戏模式过滤」发出空查询）
   useEffect(() => {
-    if (selectedGameId) loadLevels()
+    if (!selectedGameId) return
+    if (modePendingRef.current) return
+    loadLevels()
   }, [selectedGameId, selectedModeId, pager.pagination.current, pager.pagination.pageSize, loadLevels])
 
   // 弹窗回显走 key 强制重挂载 + initialValues（Modal 惰性挂载前 setFieldsValue 无效；
