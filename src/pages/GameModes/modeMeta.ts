@@ -55,16 +55,16 @@ export const CONFIG_TEMPLATES: Record<string, Record<string, unknown>> = {
   '2048_challenge': { size: 4, target: 300, max_moves: 100 },
   '2048_endless': { size: 4, target: 2000, noClear: true },
   merge: { types: 6, layers: 2, perType: 3, overlap: 0.7 },
-  score: { types: 4, steps: 25, goal: 6484 },
-  clear: { types: 4, steps: 30, jelly: 2 },
+  score: { types: 4, steps: 25, goal: 13800 },
+  clear: { types: 4, steps: 30, jelly: 12 },
   collect: {
     types: 4,
     steps: 30,
     collect: [
-      { type: 0, count: 15 },
+      { type: 0, count: 30 },
     ],
   },
-  obstacle: { types: 4, steps: 40, ice: 6, iceCollect: [] },
-  timed: { types: 4, goal: 8753, time_limit: 90 },
-  boss: { types: 4, steps: 30, bossHp: 140 },
+  obstacle: { types: 4, steps: 40, ice: 20, iceCollect: [{ type: 0, count: 15 }] },
+  timed: { types: 4, goal: 16560, time_limit: 90 },
+  boss: { types: 4, steps: 30, bossHp: 220 },
 }
