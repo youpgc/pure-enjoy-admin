@@ -1,5 +1,5 @@
 import { Button, Space, Switch, Tag, Popconfirm, Typography } from 'antd'
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { EditOutlined, DeleteOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { GAME_SHARED_ICON_BASE, GAME_ENGINE_MAP, GAME_DIMENSION_VALUE_TYPE_MAP, GAME_DIMENSION_AGGREGATE_MAP } from '../../constants'
@@ -14,6 +14,10 @@ export interface GameConfigColumnsOps {
   onEdit: (record: any) => void
   onDelete: (id: string) => void
   onToggleEnabled: (record: DbGame, next: boolean) => void
+  /** 行内排序调整（仅游戏 Tab 使用）：dir = 上移/下移 */
+  onMove?: (record: any, dir: 'up' | 'down') => void
+  /** 当前列表快照（用于首/末行按钮禁用） */
+  list?: any[]
 }
 
 /// 游戏配置列（Tab1）
@@ -46,7 +50,39 @@ export function buildGameColumns(ops: GameConfigColumnsOps): ColumnsType<DbGame>
         return <Tag color={info.color}>{info.label}</Tag>
       },
     },
-    { title: '排序', dataIndex: 'sort_order', key: 'sort_order', width: 80 },
+    {
+      title: '排序',
+      dataIndex: 'sort_order',
+      key: 'sort_order',
+      width: 130,
+      render: (v: number, record: DbGame) => {
+        // 行内上移/下移：与相邻行交换 sort_order（App 大厅按此值升序展示）
+        const idx = ops.list ? ops.list.findIndex((r) => r.id === record.id) : -1
+        const isFirst = idx <= 0
+        const isLast = ops.list ? idx === ops.list.length - 1 : true
+        return (
+          <Space size={4}>
+            <Text>{v}</Text>
+            <Button
+              size="small"
+              type="text"
+              icon={<ArrowUpOutlined />}
+              title="上移"
+              disabled={!ops.canWrite || isFirst || !ops.onMove}
+              onClick={() => ops.onMove?.(record, 'up')}
+            />
+            <Button
+              size="small"
+              type="text"
+              icon={<ArrowDownOutlined />}
+              title="下移"
+              disabled={!ops.canWrite || isLast || !ops.onMove}
+              onClick={() => ops.onMove?.(record, 'down')}
+            />
+          </Space>
+        )
+      },
+    },
     {
       title: '选关',
       dataIndex: 'level_selectable',

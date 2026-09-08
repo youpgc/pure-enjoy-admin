@@ -220,12 +220,41 @@ const GameConfigs: React.FC = () => {
     else loadGames()
   }
 
+  // 行内排序（游戏 Tab 排序列上移/下移）：与相邻行交换 sort_order
+  const handleMove = async (record: DbGame, dir: 'up' | 'down') => {
+    const idx = games.findIndex((g) => g.id === record.id)
+    const targetIdx = dir === 'up' ? idx - 1 : idx + 1
+    if (idx < 0 || targetIdx < 0 || targetIdx >= games.length) return
+    const cur = games[idx]
+    const other = games[targetIdx]
+    if (!cur || !other) return
+    // sort_order 为 int，可能重复：值相等时按方向 ±1 兜底，保证交换后顺序一定变化
+    const nextCur =
+      other.sort_order === cur.sort_order
+        ? other.sort_order + (dir === 'down' ? 1 : -1)
+        : other.sort_order
+    const results = await Promise.all([
+      gameService.update(cur.id, { sort_order: nextCur }),
+      gameService.update(other.id, { sort_order: cur.sort_order }),
+    ])
+    const failed = results.find((r) => !r.success)
+    if (failed) {
+      handleApiError(failed.errorMessage, 'GameConfigs-调整排序')
+      loadGames()
+      return
+    }
+    message.success('排序已更新（App 端配置缓存 ≤30s 自动同步）')
+    loadGames()
+  }
+
   const columnsOps = {
     canWrite,
     canDelete,
     onEdit: openEdit,
     onDelete: handleDelete,
     onToggleEnabled: handleToggleEnabled,
+    onMove: handleMove,
+    list: games,
   }
 
   return (
@@ -235,7 +264,7 @@ const GameConfigs: React.FC = () => {
         showIcon
         className={common.mb16}
         message="游戏与维度配置说明"
-        description="游戏级 config 支持流程开关（flow.enabled / flow.nodes 控制模式网格·选关·结算节点）与无尽局数上限（endlessMaxRounds，默认 30）；「允许选关 + 选关模式」决定 App 选关交互；intro（游戏介绍）/ rules（游戏规则）为 App 玩法说明页文案来源。成绩维度（维度编码/聚合方式）供成绩上报与奖励区间判定使用。"
+        description="游戏级 config 支持流程开关（flow.enabled / flow.nodes 控制模式网格·选关·结算节点）与无尽局数上限（endlessMaxRounds，默认 30）；「允许选关 + 选关模式」决定 App 选关交互；intro（游戏介绍）/ rules（游戏规则）为 App 玩法说明页文案来源。排序列支持行内上移/下移，App 大厅按排序值升序展示（改后 ≤30s 同步）。成绩维度（维度编码/聚合方式）供成绩上报与奖励区间判定使用。"
       />
       <Card className={common.mb16}>
         <Tabs
