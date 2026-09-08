@@ -185,6 +185,14 @@ const GameConfigs: React.FC = () => {
           setSaving(false)
           return
         }
+        // 无尽局数上限：独立表单项存于 config.endlessMaxRounds（仅 g2048 展示），
+        // 编辑回显时已从 JSON 文本框剔除，此处合并回去（parse 出非对象时兜底为空对象）
+        if (values.code === 'g2048' && values.endlessMaxRounds != null) {
+          if (payload.config == null || typeof payload.config !== 'object' || Array.isArray(payload.config)) {
+            payload.config = {}
+          }
+          payload.config.endlessMaxRounds = values.endlessMaxRounds
+        }
         const result = editing
           ? await gameService.update(editing.id, payload)
           : await gameService.create(payload as any)

@@ -46,9 +46,14 @@ const ConfigFormModal: React.FC<ConfigFormModalProps> = ({
     if (activeTab === 'games') {
       if (editing) {
         const g = editing as Record<string, any>
-        return { ...g, config: JSON.stringify(g.config ?? {}) }
+        // endlessMaxRounds 是 config 内的键：回显时抽出为独立表单项，
+        // 并从 JSON 文本框中剔除，避免同一值两处编辑互相覆盖
+        const cfg = { ...(g.config ?? {}) }
+        const endlessMaxRounds = typeof cfg.endlessMaxRounds === 'number' ? cfg.endlessMaxRounds : 30
+        delete cfg.endlessMaxRounds
+        return { ...g, config: JSON.stringify(cfg), endlessMaxRounds }
       }
-      return { engine: 'widget', enabled: true, sort_order: 0, version: 1, level_selectable: false, config: '{}' }
+      return { engine: 'widget', enabled: true, sort_order: 0, version: 1, level_selectable: false, config: '{}', endlessMaxRounds: 30 }
     }
     if (editing) return { ...(editing as Record<string, any>) }
     return {
@@ -141,6 +146,21 @@ const ConfigFormModal: React.FC<ConfigFormModalProps> = ({
             </Form.Item>
             <Form.Item name="config" label="玩法参数(config, JSON)">
               <Input.TextArea rows={3} placeholder='如 {"size":4,"target":2048}' />
+            </Form.Item>
+            {/* 无尽链式局数上限：存于 config.endlessMaxRounds，App 端 game_play_screen 读取，
+                仅无尽链式玩法（2048 无尽模式）生效；保存时由父级合并回 config JSON */}
+            <Form.Item noStyle shouldUpdate={(prev, cur) => prev.code !== cur.code}>
+              {({ getFieldValue }) =>
+                getFieldValue('code') === 'g2048' ? (
+                  <Form.Item
+                    name="endlessMaxRounds"
+                    label="无尽局数上限(endlessMaxRounds)"
+                    tooltip="无尽链式模式的局数上限，达到后不再询问「继续下一局」，直接进入总结算；默认 30，最小 1"
+                  >
+                    <InputNumber className={common.fullWidth} min={1} precision={0} />
+                  </Form.Item>
+                ) : null
+              }
             </Form.Item>
             <Form.Item name="sort_order" label="排序" initialValue={0}>
               <InputNumber className={common.fullWidth} min={0} />
