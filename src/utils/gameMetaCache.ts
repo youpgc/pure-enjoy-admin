@@ -10,17 +10,20 @@
 // 仅暴露只读映射；若配置确有变更，调用 refreshGameMeta() 主动失效重拉。
 
 import { useEffect, useState } from 'react'
-import { gameService, gameLevelService, gameDimensionService } from '../services/gameService'
-import type { DbGame, DbGameLevel, DbGameDimension } from '../types/database'
+import { gameService, gameLevelService, gameDimensionService, gameModeService } from '../services/gameService'
+import type { DbGame, DbGameLevel, DbGameDimension, DbGameMode } from '../types/database'
 
 export interface GameMeta {
   games: DbGame[]
+  modes: DbGameMode[]
   levels: DbGameLevel[]
   dimensions: DbGameDimension[]
   // 按 id（成绩看板用 game_id 关联）
   gameMapById: Record<string, DbGame>
   // 按 code（道具管理用 game_code 关联）
   gameMapByCode: Record<string, DbGame>
+  // 按所属游戏分组（成绩看板模式筛选联动）
+  modesByGameId: Record<string, DbGameMode[]>
   levelMap: Record<string, DbGameLevel>
   dimMap: Record<string, DbGameDimension>
 }
@@ -48,12 +51,14 @@ async function fetchAllLevels(): Promise<DbGameLevel[]> {
 }
 
 async function fetchMeta(): Promise<GameMeta> {
-  const [gRes, levels, dRes] = await Promise.all([
+  const [gRes, mRes, levels, dRes] = await Promise.all([
     gameService.findAll(),
+    gameModeService.findAllModes(),
     fetchAllLevels(),
     gameDimensionService.findAll(),
   ])
   const games = (gRes.success ? (gRes.data as DbGame[] | null) : null) || []
+  const modes = (mRes.success ? (mRes.data as DbGameMode[] | null) : null) || []
   const dimensions = (dRes.success ? (dRes.data as DbGameDimension[] | null) : null) || []
 
   const gameMapById: Record<string, DbGame> = {}
@@ -71,7 +76,12 @@ async function fetchMeta(): Promise<GameMeta> {
     dimMap[d.id] = d
   })
 
-  return { games, levels, dimensions, gameMapById, gameMapByCode, levelMap, dimMap }
+  const modesByGameId: Record<string, DbGameMode[]> = {}
+  modes.forEach((m) => {
+    ;(modesByGameId[m.game_id] ??= []).push(m)
+  })
+
+  return { games, modes, levels, dimensions, gameMapById, gameMapByCode, modesByGameId, levelMap, dimMap }
 }
 
 // 单例：首次调用触发请求，之后复用同一 Promise（StrictMode 双调用也不会重复请求）。

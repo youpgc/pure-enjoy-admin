@@ -94,6 +94,10 @@ const GameScores: React.FC = () => {
   const [gameFilter, setGameFilter] = useState<string>(
     (restoredFilters.gameFilter as string) ?? 'all'
   )
+  // 模式筛选与游戏联动：选「全部」时禁用；切换游戏时重置为全部
+  const [modeFilter, setModeFilter] = useState<string>(
+    (restoredFilters.modeFilter as string) ?? 'all'
+  )
   const [statusFilter, setStatusFilter] = useState<string>(
     (restoredFilters.statusFilter as string) ?? 'all'
   )
@@ -106,7 +110,7 @@ const GameScores: React.FC = () => {
   const pager = usePagination()
 
   // 页签刷新筛选持久化（卸载时写回快照）
-  usePersistTabFilters('game_scores', { gameFilter, statusFilter, dateRange })
+  usePersistTabFilters('game_scores', { gameFilter, modeFilter, statusFilter, dateRange })
 
   const [expandedValues, setExpandedValues] = useState<Record<string, DbGameScoreValue[]>>({})
   const [expandingId, setExpandingId] = useState<string | null>(null)
@@ -127,6 +131,7 @@ const GameScores: React.FC = () => {
         (q) => {
           let builder = q
           if (gameFilter !== 'all') builder = builder.eq('game_id', gameFilter)
+          if (modeFilter !== 'all') builder = builder.eq('mode_id', modeFilter)
           if (statusFilter !== 'all') builder = builder.eq('status', statusFilter)
           if (dateRange?.[0]) builder = builder.gte('played_at', dateRange[0].format('YYYY-MM-DD'))
           if (dateRange?.[1]) builder = builder.lte('played_at', dateRange[1].format('YYYY-MM-DD') + 'T23:59:59')
@@ -145,7 +150,7 @@ const GameScores: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [gameFilter, statusFilter, dateRange, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
+  }, [gameFilter, modeFilter, statusFilter, dateRange, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
 
   // ========== 最佳成绩概览（各游戏主维度全局最佳） ==========
   // 主维度直接取自全局缓存 meta.dimensions（不再额外请求接口）；
@@ -369,9 +374,26 @@ const GameScores: React.FC = () => {
             value={gameFilter}
             onChange={(v) => {
               setGameFilter(v)
+              // 联动：切换游戏时重置模式筛选（原模式可能不属于新游戏）
+              setModeFilter('all')
               pager.resetPage()
             }}
             options={[{ value: 'all', label: '全部' }, ...games.map((g) => ({ value: g.id, label: g.name }))]}
+          />
+          <Text>模式：</Text>
+          <Select
+            className={styles.selW200}
+            value={modeFilter}
+            disabled={gameFilter === 'all'}
+            placeholder={gameFilter === 'all' ? '先选游戏' : undefined}
+            onChange={(v) => {
+              setModeFilter(v)
+              pager.resetPage()
+            }}
+            options={[
+              { value: 'all', label: '全部' },
+              ...(meta?.modesByGameId[gameFilter] ?? []).map((m) => ({ value: m.id, label: m.name })),
+            ]}
           />
           <Text>状态：</Text>
           <Select
