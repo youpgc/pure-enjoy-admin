@@ -2,12 +2,14 @@
 import React, { useMemo } from 'react'
 import { Card, Spin, Button, Empty, Table, Typography } from 'antd'
 import {
-  BookOutlined, MessageOutlined, ReloadOutlined,
+  // BookOutlined, MessageOutlined, // 小说模块下线，注释保留可恢复
+  TrophyOutlined, ReloadOutlined,
 } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
 import { useNavigation } from '../../App'
 import { useDashboard } from './useDashboard'
-import { buildNovelColumns, buildCommentColumns } from './columns'
+// import { buildNovelColumns, buildCommentColumns } from './columns' // 小说模块下线，注释保留可恢复
+import { buildGameOverviewColumns } from './columns'
 import { StatsCards } from './StatsCards'
 import { RecentActivities } from './RecentActivities'
 import { TrendChart } from './TrendChart'
@@ -23,22 +25,25 @@ const Dashboard: React.FC = () => {
     lastUpdated,
     loading,
     userStats,
-    novelStats,
-    novels,
-    novelsLoading,
-    novelPagination,
-    comments,
-    commentsLoading,
-    commentPagination,
+    // novelStats,      // 小说模块下线，注释保留可恢复
+    // novels,          // 小说模块下线，注释保留可恢复
+    // novelsLoading,   // 小说模块下线，注释保留可恢复
+    // novelPagination, // 小说模块下线，注释保留可恢复
+    // comments,          // 小说模块下线，注释保留可恢复
+    // commentsLoading,   // 小说模块下线，注释保留可恢复
+    // commentPagination, // 小说模块下线，注释保留可恢复
     recentActivities,
     userTrendData,
-    loadNovels,
-    loadComments,
+    gameStats,
+    gameRows,
+    gameRowsLoading,
+    loadGameRows,
     refreshAll,
   } = useDashboard()
 
-  const novelColumns = useMemo(() => buildNovelColumns(), [])
-  const commentColumns = useMemo(() => buildCommentColumns(), [])
+  // const novelColumns = useMemo(() => buildNovelColumns(), [])   // 小说模块下线，注释保留可恢复
+  // const commentColumns = useMemo(() => buildCommentColumns(), []) // 小说模块下线，注释保留可恢复
+  const gameColumns = useMemo(() => buildGameOverviewColumns(), [])
 
   if (!hasPermission('dashboard:read')) {
     return (
@@ -59,17 +64,17 @@ const Dashboard: React.FC = () => {
           type="primary"
           icon={<ReloadOutlined />}
           onClick={refreshAll}
-          loading={loading || novelsLoading || commentsLoading}
+          loading={loading || gameRowsLoading}
         >
           刷新数据
         </Button>
       </div>
       <Spin spinning={loading} tip="加载中...">
         <div>
-          {/* 统计卡片 */}
+          {/* 统计卡片（用户数据 + 游戏数据） */}
           <StatsCards
             userStats={userStats}
-            novelStats={novelStats}
+            gameStats={gameStats}
             onNavigate={setCurrentPage}
           />
 
@@ -83,7 +88,33 @@ const Dashboard: React.FC = () => {
           {/* 最近活动 */}
           <RecentActivities activities={recentActivities} />
 
-          {/* 小说排行榜 */}
+          {/* 游戏数据概览（小说排行榜/最新评论已下线，见下方注释块） */}
+          <Card
+            title={
+              <div className={styles.cardTitle}>
+                <TrophyOutlined className={styles.titleIconPurple} />
+                <span>游戏数据概览</span>
+              </div>
+            }
+            extra={
+              <Button size="small" icon={<ReloadOutlined />} onClick={loadGameRows} loading={gameRowsLoading}>
+                刷新
+              </Button>
+            }
+          >
+            <Table
+              columns={gameColumns}
+              dataSource={gameRows}
+              rowKey="id"
+              loading={gameRowsLoading}
+              pagination={false}
+              size="small"
+            />
+          </Card>
+
+          {/* 小说模块下线（2026-09-08）：以下两块注释保留，恢复时连同
+              useDashboard/StatsCards/columns 中对应注释一并打开 */}
+          {/* 小说排行榜
           <Card
             title={
               <div className={styles.cardTitle}>
@@ -111,7 +142,7 @@ const Dashboard: React.FC = () => {
             />
           </Card>
 
-          {/* 最新评论 */}
+          最新评论
           <Card
             title={
               <div className={styles.cardTitle}>
@@ -137,6 +168,7 @@ const Dashboard: React.FC = () => {
               size="small"
             />
           </Card>
+          */}
         </div>
       </Spin>
     </div>

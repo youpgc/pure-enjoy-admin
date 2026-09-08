@@ -1,19 +1,21 @@
 // Dashboard 数据加载 Hook（从 Dashboard.tsx 抽取，行为保持）
 import { useState, useCallback, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
-import { supabase } from '../../utils/supabase'
+// import { supabase } from '../../utils/supabase' // 小说模块下线，注释保留可恢复
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
-import { usePagination } from '../../hooks/usePagination'
+// import { usePagination } from '../../hooks/usePagination' // 小说模块下线，注释保留可恢复
 import { dashboardService } from '../../services/dashboardService'
 import { handleApiError } from '../../utils/apiClient'
 import type {
-  CommentItem,
-  NovelListItem,
-  NovelStats,
+  // CommentItem,
+  // NovelListItem,
+  // NovelStats,
   RecentActivity,
   TrendPoint,
   UserStats,
+  GameStats,
+  GameOverviewRow,
 } from './types'
 
 function safeCount(count: unknown): number {
@@ -52,22 +54,36 @@ export function useDashboard() {
     retention: 0,
     retentionChange: 0,
   })
-  const [novelStats, setNovelStats] = useState<NovelStats>({
+  // 小说统计（小说模块下线，注释保留可恢复）
+  // const [novelStats, setNovelStats] = useState<NovelStats>({
+  //   total: 0,
+  //   totalRead: 0,
+  //   readers: 0,
+  //   newReaders: 0,
+  // })
+
+  // // 小说列表分页（小说模块下线，注释保留可恢复）
+  // const [novels, setNovels] = useState<NovelListItem[]>([])
+  // const [novelsLoading, setNovelsLoading] = useState(false)
+  // const novelPagination = usePagination(20)
+
+  // // 评论列表分页（小说模块下线，注释保留可恢复）
+  // const [comments, setComments] = useState<CommentItem[]>([])
+  // const [commentsLoading, setCommentsLoading] = useState(false)
+  // const commentPagination = usePagination(20)
+
+  // 游戏模块统计卡片 + 概览表
+  const [gameStats, setGameStats] = useState<GameStats>({
     total: 0,
-    totalRead: 0,
-    readers: 0,
-    newReaders: 0,
+    enabled: 0,
+    scoresTotal: 0,
+    scoresToday: 0,
+    playersToday: 0,
+    playersWeek: 0,
+    pointsToday: 0,
   })
-
-  // 小说列表分页
-  const [novels, setNovels] = useState<NovelListItem[]>([])
-  const [novelsLoading, setNovelsLoading] = useState(false)
-  const novelPagination = usePagination(20)
-
-  // 评论列表分页
-  const [comments, setComments] = useState<CommentItem[]>([])
-  const [commentsLoading, setCommentsLoading] = useState(false)
-  const commentPagination = usePagination(20)
+  const [gameRows, setGameRows] = useState<GameOverviewRow[]>([])
+  const [gameRowsLoading, setGameRowsLoading] = useState(false)
 
   // 最近活动
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
@@ -99,10 +115,16 @@ export function useDashboard() {
         lastWeekRes,
         activeEventsRes,
         lastMonthUsersRes,
-        novelsRes,
-        readCountRes,
+        // novelsRes,        // 小说模块下线，注释保留可恢复
+        // readCountRes,     // 小说模块下线，注释保留可恢复
         trendRes,
         logsRes,
+        gameListRes,
+        gameScoresTotalRes,
+        gameScoresTodayRes,
+        gamePlayersTodayRes,
+        gamePlayersWeekRes,
+        gamePointsTodayRes,
       ] = await Promise.all([
         dashboardService.getTotalUsers(),
         dashboardService.getTodayNewUsers(todayStart),
@@ -111,10 +133,17 @@ export function useDashboard() {
         dashboardService.getNewUsersInRange(lastWeekStart, weekStart),
         dashboardService.getActiveUserEvents(monthStart),
         dashboardService.getNewUserIdsInRange(lastMonthStart, lastMonthEnd),
-        dashboardService.getNovelsCount(),
-        dashboardService.getNovelReadCounts(),
+        // dashboardService.getNovelsCount(),      // 小说模块下线，注释保留可恢复
+        // dashboardService.getNovelReadCounts(),  // 小说模块下线，注释保留可恢复
         dashboardService.getUserTrendData(trendStart),
         dashboardService.getRecentLogs(),
+        // 游戏模块统计
+        dashboardService.getGamesList(),
+        dashboardService.getGameScoresCount(),
+        dashboardService.getGameScoresCount(undefined, todayStart),
+        dashboardService.getGameActivePlayers(todayStart),
+        dashboardService.getGameActivePlayers(weekStart),
+        dashboardService.getGamePointsSum(todayStart),
       ])
 
       if (!mountedRef.current) return
@@ -167,29 +196,41 @@ export function useDashboard() {
         retentionChange,
       })
 
-      // 小说统计
-      const novelsTotal = safeCount(novelsRes.count)
-      const totalRead = readCountRes.success
-        ? (readCountRes.data || []).reduce((sum, n) => sum + (n.read_count || 0), 0)
-        : 0
+      // 小说统计（小说模块下线，注释保留可恢复）
+      // const novelsTotal = safeCount(novelsRes.count)
+      // const totalRead = readCountRes.success
+      //   ? (readCountRes.data || []).reduce((sum, n) => sum + (n.read_count || 0), 0)
+      //   : 0
 
-      // 活跃读者（本周/今日阅读过小说）：复用上方已拉取的阅读类活跃事件
-      // （source==='read' 即 user_novels.last_read_at），无需再发两次 getActiveReaders 请求
-      const readEvents = activeEvents.filter(e => e.source === 'read')
-      const readers = new Set(
-        readEvents.filter(e => e.created_at >= weekStart).map(e => e.user_id)
-      ).size
-      const newReaders = new Set(
-        readEvents.filter(e => e.created_at >= todayStart).map(e => e.user_id)
-      ).size
+      // // 活跃读者（本周/今日阅读过小说）：复用上方已拉取的阅读类活跃事件
+      // // （source==='read' 即 user_novels.last_read_at），无需再发两次 getActiveReaders 请求
+      // const readEvents = activeEvents.filter(e => e.source === 'read')
+      // const readers = new Set(
+      //   readEvents.filter(e => e.created_at >= weekStart).map(e => e.user_id)
+      // ).size
+      // const newReaders = new Set(
+      //   readEvents.filter(e => e.created_at >= todayStart).map(e => e.user_id)
+      // ).size
 
       if (!mountedRef.current) return
 
-      setNovelStats({
-        total: novelsTotal,
-        totalRead,
-        readers,
-        newReaders,
+      // setNovelStats({
+      //   total: novelsTotal,
+      //   totalRead,
+      //   readers,
+      //   newReaders,
+      // })
+
+      // 游戏模块统计
+      const gameList = gameListRes.success ? (gameListRes.data || []) : []
+      setGameStats({
+        total: gameList.length,
+        enabled: gameList.filter((g) => g.enabled).length,
+        scoresTotal: safeCount(gameScoresTotalRes.count),
+        scoresToday: safeCount(gameScoresTodayRes.count),
+        playersToday: gamePlayersTodayRes.success ? (gamePlayersTodayRes.data || []).length : 0,
+        playersWeek: gamePlayersWeekRes.success ? (gamePlayersWeekRes.data || []).length : 0,
+        pointsToday: gamePointsTodayRes.success ? (gamePointsTodayRes.data || 0) : 0,
       })
 
       // 用户增长趋势（最近30天）
@@ -237,85 +278,124 @@ export function useDashboard() {
     }
   }, []) // 依赖清空：hasPermission 改为经 hasPermissionRef 读取最新值，避免引用变化触发重复刷新
 
-  // 小说列表
-  const loadNovels = useCallback(async (page = novelPagination.pagination.current, pageSize = novelPagination.pagination.pageSize) => {
-    setNovelsLoading(true)
+  // // 小说列表（小说模块下线，注释保留可恢复）
+  // const loadNovels = useCallback(async (page = novelPagination.pagination.current, pageSize = novelPagination.pagination.pageSize) => {
+  //   setNovelsLoading(true)
+  //   try {
+  //     const from = (page - 1) * pageSize
+  //     const to = from + pageSize - 1
+  //     const { data, error, count } = await supabase
+  //       .from('novels')
+  //       .select('id, title, author, read_count, rating, created_at, category', { count: 'exact' })
+  //       .order('read_count', { ascending: false })
+  //       .range(from, to)
+  //
+  //     if (error) throw error
+  //     if (!mountedRef.current) return
+  //     setNovels((data as NovelListItem[]) || [])
+  //     novelPagination.setTotal(count || 0)
+  //   } catch (error) {
+  //     handleApiError(error, 'Dashboard-获取小说列表')
+  //   } finally {
+  //     setNovelsLoading(false)
+  //   }
+  // }, [novelPagination.pagination.current, novelPagination.pagination.pageSize])
+
+  // // 评论列表（小说模块下线，注释保留可恢复）
+  // const loadComments = useCallback(async (page = commentPagination.pagination.current, pageSize = commentPagination.pagination.pageSize) => {
+  //   setCommentsLoading(true)
+  //   try {
+  //     const from = (page - 1) * pageSize
+  //     const to = from + pageSize - 1
+  //     const { data, error, count } = await supabase
+  //       .from('novel_comments')
+  //       .select(`
+  //         id,
+  //         novel_id,
+  //         user_id,
+  //         user_nickname,
+  //         content,
+  //         rating,
+  //         created_at,
+  //         novels: novel_id (title)
+  //       `, { count: 'exact' })
+  //       .order('created_at', { ascending: false })
+  //       .range(from, to)
+  //
+  //     if (error) throw error
+  //     if (!mountedRef.current) return
+  //     const processedComments = ((data || []) as unknown as Array<{
+  //       id: string
+  //       novel_id: string
+  //       user_id: string
+  //       user_nickname: string | null
+  //       content: string
+  //       rating: number | null
+  //       created_at: string
+  //       novels: { title: string | null } | { title: string | null }[] | null
+  //     }>).map(comment => {
+  //       const novelData = comment.novels
+  //       return {
+  //         ...comment,
+  //         novel_title: Array.isArray(novelData) ? novelData[0]?.title : novelData?.title,
+  //         novels: undefined,
+  //       }
+  //     })
+  //     setComments(processedComments as unknown as CommentItem[])
+  //     commentPagination.setTotal(count || 0)
+  //   } catch (error) {
+  //     handleApiError(error, 'Dashboard-获取评论列表')
+  //   } finally {
+  //     setCommentsLoading(false)
+  //   }
+  // }, [commentPagination.pagination.current, commentPagination.pagination.pageSize])
+
+  // 游戏数据概览表（按游戏聚合：累计/今日成绩、今日活跃玩家、今日积分发放）
+  const loadGameRows = useCallback(async () => {
+    setGameRowsLoading(true)
     try {
-      const from = (page - 1) * pageSize
-      const to = from + pageSize - 1
-      const { data, error, count } = await supabase
-        .from('novels')
-        .select('id, title, author, read_count, rating, created_at, category', { count: 'exact' })
-        .order('read_count', { ascending: false })
-        .range(from, to)
-
-      if (error) throw error
+      const todayStart = dayjs().startOf('day').toISOString()
+      const listRes = await dashboardService.getGamesList()
+      if (!listRes.success) {
+        handleApiError(listRes.errorMessage, 'Dashboard-游戏概览列表')
+        return
+      }
       if (!mountedRef.current) return
-      setNovels((data as NovelListItem[]) || [])
-      novelPagination.setTotal(count || 0)
-    } catch (error) {
-      handleApiError(error, 'Dashboard-获取小说列表')
-    } finally {
-      setNovelsLoading(false)
-    }
-  }, [novelPagination.pagination.current, novelPagination.pagination.pageSize])
-
-  // 评论列表
-  const loadComments = useCallback(async (page = commentPagination.pagination.current, pageSize = commentPagination.pagination.pageSize) => {
-    setCommentsLoading(true)
-    try {
-      const from = (page - 1) * pageSize
-      const to = from + pageSize - 1
-      const { data, error, count } = await supabase
-        .from('novel_comments')
-        .select(`
-          id,
-          novel_id,
-          user_id,
-          user_nickname,
-          content,
-          rating,
-          created_at,
-          novels: novel_id (title)
-        `, { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(from, to)
-
-      if (error) throw error
+      const games = listRes.data || []
+      const rows = await Promise.all(
+        games.map(async (g) => {
+          const [scoresTotal, scoresToday, playersToday, pointsToday] = await Promise.all([
+            dashboardService.getGameScoresCount(g.id),
+            dashboardService.getGameScoresCount(g.id, todayStart),
+            dashboardService.getGameActivePlayers(todayStart, g.id),
+            dashboardService.getGamePointsSum(todayStart, g.id),
+          ])
+          return {
+            ...g,
+            scoresTotal: safeCount(scoresTotal.count),
+            scoresToday: safeCount(scoresToday.count),
+            playersToday: playersToday.success ? (playersToday.data || []).length : 0,
+            pointsToday: pointsToday.success ? (pointsToday.data || 0) : 0,
+          } satisfies GameOverviewRow
+        })
+      )
       if (!mountedRef.current) return
-      const processedComments = ((data || []) as unknown as Array<{
-        id: string
-        novel_id: string
-        user_id: string
-        user_nickname: string | null
-        content: string
-        rating: number | null
-        created_at: string
-        novels: { title: string | null } | { title: string | null }[] | null
-      }>).map(comment => {
-        const novelData = comment.novels
-        return {
-          ...comment,
-          novel_title: Array.isArray(novelData) ? novelData[0]?.title : novelData?.title,
-          novels: undefined,
-        }
-      })
-      setComments(processedComments as unknown as CommentItem[])
-      commentPagination.setTotal(count || 0)
+      setGameRows(rows)
     } catch (error) {
-      handleApiError(error, 'Dashboard-获取评论列表')
+      handleApiError(error, 'Dashboard-游戏概览')
     } finally {
-      setCommentsLoading(false)
+      setGameRowsLoading(false)
     }
-  }, [commentPagination.pagination.current, commentPagination.pagination.pageSize])
+  }, [])
 
   // 统一刷新入口：初次加载与手动刷新按钮共用，避免逻辑重复
   const refreshAll = useCallback(() => {
     setLastUpdated(dayjs().format('YYYY-MM-DD HH:mm:ss'))
     loadStats()
-    loadNovels()
-    loadComments()
-  }, [loadStats, loadNovels, loadComments])
+    loadGameRows()
+    // loadNovels()   // 小说模块下线，注释保留可恢复
+    // loadComments() // 小说模块下线，注释保留可恢复
+  }, [loadStats, loadGameRows])
 
   // 仅挂载时自动加载一次。权限（usePermission）为异步加载，首帧 hasPermission 为 false，
   // 若直接刷新会导致 loadStats 的权限门禁提前拦截、且后续权限就绪后 useEffect 不再二次触发，
@@ -333,17 +413,21 @@ export function useDashboard() {
     lastUpdated,
     loading,
     userStats,
-    novelStats,
-    novels,
-    novelsLoading,
-    novelPagination,
-    comments,
-    commentsLoading,
-    commentPagination,
+    // novelStats,        // 小说模块下线，注释保留可恢复
+    // novels,            // 小说模块下线，注释保留可恢复
+    // novelsLoading,     // 小说模块下线，注释保留可恢复
+    // novelPagination,   // 小说模块下线，注释保留可恢复
+    // comments,          // 小说模块下线，注释保留可恢复
+    // commentsLoading,   // 小说模块下线，注释保留可恢复
+    // commentPagination, // 小说模块下线，注释保留可恢复
     recentActivities,
     userTrendData,
-    loadNovels,
-    loadComments,
+    gameStats,
+    gameRows,
+    gameRowsLoading,
+    loadGameRows,
+    // loadNovels,   // 小说模块下线，注释保留可恢复
+    // loadComments, // 小说模块下线，注释保留可恢复
     refreshAll,
   }
 }

@@ -161,6 +161,85 @@ class DashboardService {
       'Dashboard-用户昵称查询'
     )
   }
+
+  // ==================== 游戏模块（Dashboard 概览） ====================
+
+  /// 游戏列表（概览表行基础数据，按 sort_order 升序与 App 大厅一致）
+  async getGamesList() {
+    return apiQuery<{ id: string; name: string; code: string; engine: string; enabled: boolean }[]>(
+      () =>
+        supabase
+          .from('games')
+          .select('id,name,code,engine,enabled,sort_order')
+          .order('sort_order', { ascending: true }),
+      'Dashboard-游戏列表'
+    )
+  }
+
+  /// 游戏成绩数（gameId 缺省 = 全部游戏；since 缺省 = 不限时间；head count 不受 1000 行钳制影响）
+  async getGameScoresCount(gameId?: string, since?: string) {
+    return apiQuery(
+      () => {
+        let q = supabase.from('game_scores').select('id', { count: 'exact', head: true })
+        if (gameId) q = q.eq('game_id', gameId)
+        if (since) q = q.gte('created_at', since)
+        return q
+      },
+      'Dashboard-游戏成绩数'
+    )
+  }
+
+  /// 游戏活跃玩家（time 窗口内去重 user_id 集合）。
+  /// PostgREST 服务端 db-max-rows=1000 钳制：单请求最多返回 1000 行，
+  /// 必须 range 分页循环；maxRows 为上限，超出即视为近似值（与 getActiveUserEvents 同口径）。
+  async getGameActivePlayers(since: string, gameId?: string, maxRows = 5000): Promise<ApiResponse<string[]>> {
+    const userIds = new Set<string>()
+    const pageSize = 1000
+    for (let offset = 0; offset < maxRows; offset += pageSize) {
+      const res = await apiQuery<{ user_id: string | null }[]>(
+        () => {
+          let q = supabase
+            .from('game_scores')
+            .select('user_id')
+            .gte('created_at', since)
+            .range(offset, offset + pageSize - 1)
+          if (gameId) q = q.eq('game_id', gameId)
+          return q
+        },
+        'Dashboard-游戏活跃玩家'
+      )
+      if (!res.success) return { ...res, data: [] }
+      const rows = res.data || []
+      for (const r of rows) if (r.user_id) userIds.add(r.user_id)
+      if (rows.length < pageSize) break
+    }
+    return { success: true, data: [...userIds], errorMessage: null, statusCode: 200 }
+  }
+
+  /// 游戏积分发放合计（game_reward_claims.points 求和，分页循环规避 1000 行钳制）
+  async getGamePointsSum(since: string, gameId?: string): Promise<ApiResponse<number>> {
+    let total = 0
+    const pageSize = 1000
+    for (let offset = 0; offset < 10000; offset += pageSize) {
+      const res = await apiQuery<{ points: number | null }[]>(
+        () => {
+          let q = supabase
+            .from('game_reward_claims')
+            .select('points')
+            .gte('created_at', since)
+            .range(offset, offset + pageSize - 1)
+          if (gameId) q = q.eq('game_id', gameId)
+          return q
+        },
+        'Dashboard-游戏积分发放'
+      )
+      if (!res.success) return { ...res, data: 0 }
+      const rows = res.data || []
+      for (const r of rows) total += r.points || 0
+      if (rows.length < pageSize) break
+    }
+    return { success: true, data: total, errorMessage: null, statusCode: 200 }
+  }
 }
 
 export const dashboardService = new DashboardService()
