@@ -28,14 +28,32 @@ export interface GameMeta {
 let metaPromise: Promise<GameMeta> | null = null
 let metaCache: GameMeta | null = null
 
+// game_levels 全量 1200 行（12 模式 × 100 关），单请求会被 PostgREST
+// db-max-rows=1000 静默钳制（成绩看板 L84+ 关卡/通关条件不展示的根因），
+// 必须按 1000/页 offset 循环拉全。
+async function fetchAllLevels(): Promise<DbGameLevel[]> {
+  const all: DbGameLevel[] = []
+  const pageSize = 1000
+  for (let page = 1; ; page++) {
+    const res = await gameLevelService.paginate(page, pageSize)
+    if (!res.success) {
+      throw new Error(res.errorMessage ?? 'game_levels 拉取失败')
+    }
+    const rows = (res.data?.data as DbGameLevel[] | null) || []
+    all.push(...rows)
+    const total = res.data?.total ?? all.length
+    if (all.length >= total || rows.length < pageSize) break
+  }
+  return all
+}
+
 async function fetchMeta(): Promise<GameMeta> {
-  const [gRes, lRes, dRes] = await Promise.all([
+  const [gRes, levels, dRes] = await Promise.all([
     gameService.findAll(),
-    gameLevelService.findAll(),
+    fetchAllLevels(),
     gameDimensionService.findAll(),
   ])
   const games = (gRes.success ? (gRes.data as DbGame[] | null) : null) || []
-  const levels = (lRes.success ? (lRes.data as DbGameLevel[] | null) : null) || []
   const dimensions = (dRes.success ? (dRes.data as DbGameDimension[] | null) : null) || []
 
   const gameMapById: Record<string, DbGame> = {}
