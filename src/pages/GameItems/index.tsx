@@ -70,23 +70,26 @@ const GameItems: React.FC = () => {
   // 全局游戏元数据（games 一次拉取、跨页复用），用于「游戏」列转译与下拉。
   const meta = useGameMeta()
 
-  // 筛选：游戏 + 模式（与游戏联动），随页签刷新持久化
+  // 筛选：游戏 + 模式，**必选**（无「全部」项，用户拍板 2026-09-09）：
+  // 游戏默认第一个，模式默认「通用」；随页签刷新持久化（恢复值含已废弃的
+  // 'all' 或不存在于目录时回退默认）。
   const restored = loadTabFilters('game_items')
+  const restoredGame = restored.gameFilter as string
+  const restoredMode = restored.modeFilter as string
   const [gameFilter, setGameFilter] = useState<string>(
-    (restored.gameFilter as string) ?? 'all'
+    restoredGame && restoredGame !== 'all' ? restoredGame : ''
   )
   const [modeFilter, setModeFilter] = useState<string>(
-    (restored.modeFilter as string) ?? 'all'
+    restoredMode && restoredMode !== 'all' ? restoredMode : ''
   )
   usePersistTabFilters('game_items', { gameFilter, modeFilter })
 
-  // 模式筛选项与游戏联动：未选游戏 = 通用 + 全部消消乐模式；
-  // 选了消消乐 = 通用 + 其模式；选了其他游戏 = 仅通用（game_items.mode=''）
-  const isMatch3 = gameFilter === 'all' || gameFilter === 'match3'
-  const modeFilterOptions = useMemo(() => {
-    if (!isMatch3) return [{ value: '', label: '通用（该游戏全部模式）' }]
-    return MATCH3_MODE_OPTIONS_WITH_ANY
-  }, [isMatch3])
+  // games 异步就绪后：当前游戏为空/失效（含首次进入）→ 默认第一个游戏
+  const gameCodes = useMemo(() => (meta?.games ?? []).map((g) => g.code), [meta])
+  useEffect(() => {
+    if (gameCodes.length === 0) return
+    if (!gameCodes.includes(gameFilter)) setGameFilter(gameCodes[0] ?? '')
+  }, [gameCodes, gameFilter])
 
   // 表单模式选项与 game_code 联动（新增/编辑一致）
   const formGameCode = Form.useWatch('game_code', form)
@@ -99,9 +102,7 @@ const GameItems: React.FC = () => {
 
   const filteredItems = useMemo(() => {
     return items.filter(
-      (it) =>
-        (gameFilter === 'all' || it.game_code === gameFilter) &&
-        (modeFilter === 'all' || it.mode === modeFilter)
+      (it) => it.game_code === gameFilter && it.mode === modeFilter
     )
   }, [items, gameFilter, modeFilter])
 
@@ -288,32 +289,27 @@ const GameItems: React.FC = () => {
             <span>游戏：</span>
             <Select
               className={styles.sel240}
-              value={gameFilter}
+              value={gameFilter || undefined}
+              placeholder="选择游戏"
               onChange={(v) => {
                 setGameFilter(v)
-                // 联动：切换游戏后当前模式可能不再适用，重置为全部
-                setModeFilter('all')
+                // 联动：切换游戏后模式重置为「通用」（默认第一项）
+                setModeFilter('')
               }}
-              options={[
-                { value: 'all', label: '全部游戏' },
-                ...(meta?.games ?? []).map((g) => ({
-                  value: g.code,
-                  label: g.name,
-                })),
-              ]}
+              options={(meta?.games ?? []).map((g) => ({
+                value: g.code,
+                label: g.name,
+              }))}
               showSearch
               optionFilterProp="label"
             />
             <span>模式：</span>
             <Select
               className={styles.sel240}
-              value={isMatch3 ? modeFilter : ''}
-              disabled={!isMatch3}
+              value={modeFilter || undefined}
+              placeholder="选择模式"
               onChange={(v) => setModeFilter(v)}
-              options={[
-                { value: 'all', label: '全部' },
-                ...modeFilterOptions,
-              ]}
+              options={MATCH3_MODE_OPTIONS_WITH_ANY}
             />
             <Button
               icon={<ReloadOutlined />}
