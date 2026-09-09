@@ -13,15 +13,18 @@ import {
   Popconfirm,
   message,
   Space,
-  Tag,
-} from 'antd'
+  Tag, Typography } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { DbGameItem } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
 import { gameItemService } from '../../services/gameService'
 import { useGameMeta } from '../../utils/gameMetaCache'
-import { MATCH3_MODE_MAP, MATCH3_MODE_OPTIONS_WITH_ANY } from '../../constants/game'
+import {
+  GAME_SHARED_ICON_BASE,
+  MATCH3_MODE_MAP,
+  MATCH3_MODE_OPTIONS_WITH_ANY,
+} from '../../constants/game'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
@@ -240,7 +243,21 @@ const GameItems: React.FC = () => {
       title: '图标',
       dataIndex: 'icon',
       width: 130,
-      render: (v: string | null) => (v ? <Tag color="geekblue">{v}</Tag> : <Tag>内置</Tag>),
+      render: (v: string | null) =>
+        v ? (
+          <Space size={6}>
+            <img
+              src={`${GAME_SHARED_ICON_BASE}/${v}.svg`}
+              alt={v}
+              width={28}
+              height={28}
+              style={{ display: 'block' }}
+            />
+            <Typography.Text style={{ fontSize: 12 }}>{v}</Typography.Text>
+          </Space>
+        ) : (
+          <Tag>内置</Tag>
+        ),
     },
     { title: '名称', dataIndex: 'name', width: 120 },
     { title: '说明', dataIndex: 'description', ellipsis: true },
