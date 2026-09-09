@@ -132,6 +132,21 @@ export const GAME_SHARED_ICON_OPTIONS: { label: string; value: string; group: st
   { group: '糖果', label: '葡萄', value: 'candy_06_grape' },
 ]
 
+// 道具图标（game_items.icon，2026-09-09 定版动物/道具风格）
+// App 端 assets/games/items、管理后台 public/game-icons 同一套文件
+export const PROP_ICON_OPTIONS: { label: string; value: string; group: string }[] = [
+  { group: '消消乐道具', label: '洗牌卡', value: 'prop_shuffle' },
+  { group: '消消乐道具', label: '破坏锤', value: 'prop_hammer' },
+  { group: '消消乐道具', label: '提示卡', value: 'prop_hint' },
+  { group: '消消乐道具', label: '强制交换', value: 'prop_force_swap' },
+  { group: '消消乐道具', label: '魔法棒', value: 'prop_magic_wand' },
+  { group: '消消乐道具', label: '加步卡', value: 'prop_add_steps' },
+  { group: '消消乐道具', label: '加时卡', value: 'prop_add_time' },
+  { group: '羊了个羊道具', label: '移出卡', value: 'prop_remove' },
+  { group: '羊了个羊道具', label: '撤回卡', value: 'prop_undo' },
+  { group: '羊了个羊道具', label: '洗牌卡(羊)', value: 'prop_shuffle_sheep' },
+]
+
 // 成就图标资产（独立目录，与游戏图标分离）
 // 风格：100×100 viewBox、无边框、径向渐变+柔光、颜色随等级递增。
 // App 端 assets/games/achievements、管理后台 public/game-achievements 同一套文件。

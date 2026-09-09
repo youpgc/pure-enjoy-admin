@@ -13,7 +13,9 @@ import {
   Popconfirm,
   message,
   Space,
-  Tag, Typography } from 'antd'
+  Tag,
+  Tooltip,
+} from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { DbGameItem } from '../../types/database'
@@ -24,6 +26,7 @@ import {
   GAME_SHARED_ICON_BASE,
   MATCH3_MODE_MAP,
   MATCH3_MODE_OPTIONS_WITH_ANY,
+  PROP_ICON_OPTIONS,
 } from '../../constants/game'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import styles from './index.module.css'
@@ -159,7 +162,7 @@ const GameItems: React.FC = () => {
         item_type: editing.item_type,
         name: editing.name,
         description: editing.description ?? '',
-        icon: editing.icon ?? '',
+        icon: editing.icon ?? undefined,
         point_cost: editing.point_cost,
         per_game_limit: editing.per_game_limit,
         free_per_game: editing.free_per_game,
@@ -245,16 +248,16 @@ const GameItems: React.FC = () => {
       width: 130,
       render: (v: string | null) =>
         v ? (
-          <Space size={6}>
+          // 与游戏/成就图标列同口径：仅图标预览，文件名放 hover 提示
+          <Tooltip title={v}>
             <img
               src={`${GAME_SHARED_ICON_BASE}/${v}.svg`}
               alt={v}
-              width={28}
-              height={28}
-              style={{ display: 'block' }}
+              width={30}
+              height={30}
+              style={{ display: 'block', cursor: 'default' }}
             />
-            <Typography.Text style={{ fontSize: 12 }}>{v}</Typography.Text>
-          </Space>
+          </Tooltip>
         ) : (
           <Tag>内置</Tag>
         ),
@@ -446,10 +449,31 @@ const GameItems: React.FC = () => {
           </Form.Item>
           <Form.Item
             name="icon"
-            label="图标文件名"
-            tooltip="预留口子：留空 = App 使用内置图标；统一设计图标文件后填文件名（参考游戏/成就图标机制）"
+            label="图标"
+            tooltip="与游戏/成就图标同机制：下拉选择定版道具图标（App 道具栏/确认弹窗/商城页同步生效）；留空 = App 内置图标"
           >
-            <Input maxLength={64} placeholder="暂留空，使用内置图标" allowClear />
+            <Select
+              allowClear
+              placeholder="选择道具图标（留空使用内置图标）"
+              showSearch
+              optionFilterProp="label"
+              options={PROP_ICON_OPTIONS.map((o) => ({
+                value: o.value,
+                label: (
+                  <span key={o.value} className={styles.iconOption}>
+                    <img
+                      src={`${GAME_SHARED_ICON_BASE}/${o.value}.svg`}
+                      width={22}
+                      height={22}
+                      alt={o.label}
+                    />
+                    <span>
+                      [{o.group}] {o.label}
+                    </span>
+                  </span>
+                ),
+              }))}
+            />
           </Form.Item>
           <Form.Item
             name="point_cost"

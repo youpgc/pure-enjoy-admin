@@ -1,0 +1,9 @@
+.sel240 {
+  width: 240px;
+}
+/* 下拉图标选项：图标 + 分组文案水平排列（与 GameConfigs 图标选择器同款） */
+.iconOption {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
