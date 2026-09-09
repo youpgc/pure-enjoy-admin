@@ -223,6 +223,10 @@ const GameLevels: React.FC = () => {
       return {
         ...editing,
         config: JSON.stringify(editing.config ?? {}),
+        propUnlock:
+          editing.config && typeof editing.config === 'object' && (editing.config as Record<string, any>).propUnlock
+            ? JSON.stringify((editing.config as Record<string, any>).propUnlock)
+            : '',
         target: JSON.stringify(editing.target ?? {}),
       }
     }
@@ -259,8 +263,16 @@ const GameLevels: React.FC = () => {
       try {
         payload.config = values.config ? JSON.parse(values.config) : {}
         payload.target = values.target ? JSON.parse(values.target) : {}
+        // 道具解锁配置：独立表单项，保存合并回 config.propUnlock（空则删除键）
+        if (values.propUnlock && String(values.propUnlock).trim()) {
+          const pu = JSON.parse(values.propUnlock)
+          if (pu == null || typeof pu !== 'object' || Array.isArray(pu)) throw new Error('propUnlock')
+          payload.config.propUnlock = pu
+        } else {
+          delete payload.config.propUnlock
+        }
       } catch {
-        message.error('config / target 不是合法 JSON')
+        message.error('config / target / propUnlock 不是合法 JSON')
         setSaving(false)
         return
       }
@@ -474,6 +486,13 @@ const GameLevels: React.FC = () => {
           </Form.Item>
           <Form.Item name="config" label="关卡布局(config, JSON)">
             <Input.TextArea rows={3} placeholder='如 {}' />
+          </Form.Item>
+          <Form.Item
+            name="propUnlock"
+            label="道具解锁配置(propUnlock, JSON)"
+            tooltip='可选。{"hint":1,"shuffle":5,"hammer":10} 表示第 N 关起允许使用对应道具；留空 = 全部允许。未解锁的道具在 App 道具栏不渲染。'
+          >
+            <Input.TextArea rows={2} placeholder='留空 = 全部允许；如 {"shuffle":5,"hammer":10}' />
           </Form.Item>
           <Form.Item name="target" label="通关条件(target, JSON)">
             <Input.TextArea rows={3} placeholder='如 {"level":2}' />

@@ -226,7 +226,7 @@ class GameItemService extends BaseService<DbGameItem> {
     super('game_items', {
       defaultOrder: { column: 'sort_order', ascending: true },
       select:
-        'id,game_code,mode,item_type,name,description,point_cost,per_game_limit,free_per_game,enabled,sort_order,created_at,updated_at',
+        'id,game_code,mode,item_type,name,description,icon,point_cost,per_game_limit,free_per_game,enabled,sort_order,created_at,updated_at',
     })
   }
 }

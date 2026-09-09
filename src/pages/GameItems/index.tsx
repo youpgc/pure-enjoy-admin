@@ -101,6 +101,7 @@ const GameItems: React.FC = () => {
         item_type: editing.item_type,
         name: editing.name,
         description: editing.description ?? '',
+        icon: editing.icon ?? '',
         point_cost: editing.point_cost,
         per_game_limit: editing.per_game_limit,
         free_per_game: editing.free_per_game,
@@ -121,6 +122,7 @@ const GameItems: React.FC = () => {
         item_type: values.item_type,
         name: values.name,
         description: values.description || null,
+        icon: values.icon || null,
         point_cost: Number(values.point_cost) || 0,
         per_game_limit: Number(values.per_game_limit) || 1,
         free_per_game: Number(values.free_per_game) || 0,
@@ -239,19 +241,19 @@ const GameItems: React.FC = () => {
       <Card className={common.mb16}>
         <div className={common.toolbar}>
           <Button
-            icon={<ReloadOutlined />}
-            loading={loading}
-            onClick={() => loadItems()}
-          >
-            刷新
-          </Button>
-          <Button
             type="primary"
             icon={<PlusOutlined />}
             disabled={!canWrite}
             onClick={openCreate}
           >
             新增道具
+          </Button>
+          <Button
+            icon={<ReloadOutlined />}
+            loading={loading}
+            onClick={() => loadItems()}
+          >
+            刷新
           </Button>
         </div>
       </Card>
@@ -333,6 +335,13 @@ const GameItems: React.FC = () => {
           </Form.Item>
           <Form.Item name="description" label="说明">
             <Input.TextArea rows={2} placeholder="道具效果说明" />
+          </Form.Item>
+          <Form.Item
+            name="icon"
+            label="图标文件名"
+            tooltip="预留口子：留空 = App 使用内置图标；统一设计图标文件后填文件名（参考游戏/成就图标机制）"
+          >
+            <Input maxLength={64} placeholder="暂留空，使用内置图标" allowClear />
           </Form.Item>
           <Form.Item
             name="point_cost"
