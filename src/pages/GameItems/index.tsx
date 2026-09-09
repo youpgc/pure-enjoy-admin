@@ -236,6 +236,12 @@ const GameItems: React.FC = () => {
       width: 110,
       render: (v: string) => ITEM_TYPE_LABEL[v] ?? v,
     },
+    {
+      title: '图标',
+      dataIndex: 'icon',
+      width: 130,
+      render: (v: string | null) => (v ? <Tag color="geekblue">{v}</Tag> : <Tag>内置</Tag>),
+    },
     { title: '名称', dataIndex: 'name', width: 120 },
     { title: '说明', dataIndex: 'description', ellipsis: true },
     {
