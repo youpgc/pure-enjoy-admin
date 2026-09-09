@@ -29,5 +29,8 @@ export function condSummary(cond: Record<string, any>): string {
   if (type === 'mode_tier') {
     return `段位徽章（${cond?.mode ?? '?'} · T${cond?.tier ?? '?'}）`
   }
+  if (type === 'all_modes_tier') {
+    return `集齐 ${cond?.game ?? '?'} 全部模式全部段位`
+  }
   return String(type ?? '任意通关')
 }
