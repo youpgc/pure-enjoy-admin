@@ -81,7 +81,7 @@ class GameAchievementService extends BaseService<DbGameAchievement> {
     super('game_achievements', {
       defaultOrder: { column: 'sort_order', ascending: true },
       select:
-        'id,game_id,code,name,description,icon,condition,reward_points,enabled,sort_order,created_at,updated_at',
+        'id,game_id,code,name,description,icon,condition,reward_points,group_key,enabled,sort_order,created_at,updated_at',
     })
   }
 }

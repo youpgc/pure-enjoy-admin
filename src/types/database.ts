@@ -1226,6 +1226,7 @@ export interface Database {
           icon: string | null
           condition: Json
           reward_points: number
+          group_key: string | null
           enabled: boolean
           sort_order: number
           created_at: string

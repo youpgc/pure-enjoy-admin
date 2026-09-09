@@ -137,6 +137,8 @@ const GameAchievements: React.FC = () => {
         icon: values.icon || null,
         condition,
         reward_points: Number(values.reward_points) || 0,
+        // 分组键：空 = 独立成就框；同键成就 App 合并展示（网格仅显最高档）
+        group_key: values.group_key || null,
         enabled: !!values.enabled,
         sort_order: Number(values.sort_order) || 0,
       }
@@ -214,6 +216,14 @@ const GameAchievements: React.FC = () => {
       key: 'condition',
       render: (_: unknown, record: DbGameAchievement) =>
         condSummary((record.condition ?? {}) as Record<string, any>),
+    },
+    {
+      title: '分组键',
+      dataIndex: 'group_key',
+      width: 160,
+      ellipsis: true,
+      render: (v: string | null) =>
+        v ? <Tag color="blue">{v}</Tag> : <Text type="secondary">独立</Text>,
     },
     {
       title: '奖励积分',

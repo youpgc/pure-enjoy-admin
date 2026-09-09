@@ -74,6 +74,7 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
                   description: editing.description ?? '',
                   icon: editing.icon ?? undefined,
                   reward_points: editing.reward_points,
+                  group_key: editing.group_key ?? '',
                   enabled: editing.enabled,
                   sort_order: editing.sort_order,
                   ...initialCond,
@@ -193,6 +194,13 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
             }
             return null
           }}
+        </Form.Item>
+        <Form.Item
+          name="group_key"
+          label="分组键"
+          tooltip="同键成就 App 端合并为一个成就框（网格仅显最高档，详情可左右切换全档位）；留空 = 独立成就框。命名建议按达成条件类型，如 tier:match3:blended、level:sheep、score:match3:score"
+        >
+          <Input placeholder="如 tier:match3:blended（留空 = 独立）" />
         </Form.Item>
         <Form.Item
           name="reward_points"
