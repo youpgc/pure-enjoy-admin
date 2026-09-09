@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Table,
   Alert,
@@ -100,32 +100,38 @@ const GameItems: React.FC = () => {
     return MATCH3_MODE_OPTIONS_WITH_ANY
   }, [formGameCode])
 
-  const filteredItems = useMemo(() => {
-    return items.filter(
-      (it) => it.game_code === gameFilter && it.mode === modeFilter
-    )
-  }, [items, gameFilter, modeFilter])
+  // 请求乱序守卫：快速切换筛选时只采纳最后一次的结果
+  const reqSeq = useRef(0)
 
-  const loadItems = async () => {
+  // 按当前筛选服务端过滤请求；筛选未就绪（gameFilter 为空，games 未加载）
+  // 时不发请求——初始化顺序：先赋值筛选项，再发起请求
+  const loadItems = useCallback(async () => {
+    if (!gameFilter) return
+    const seq = ++reqSeq.current
     setLoading(true)
     try {
       // 列清单在 gameItemService 构造器统一维护（feature_game_items_tables.sql DDL + free_per_game）
-      const res = await gameItemService.findAll()
+      const res = await gameItemService.findAll((q) =>
+        (q as any).eq('game_code', gameFilter).eq('mode', modeFilter)
+      )
+      if (seq !== reqSeq.current) return // 已有更新的请求，丢弃过期结果
       if (!res.success) {
         message.error('加载道具失败：' + (res.errorMessage ?? '未知错误'))
         return
       }
       setItems(res.data ?? [])
     } catch (e: any) {
+      if (seq !== reqSeq.current) return
       message.error('加载道具失败：' + (e?.message ?? e))
     } finally {
-      setLoading(false)
+      if (seq === reqSeq.current) setLoading(false)
     }
-  }
+  }, [gameFilter, modeFilter])
 
+  // 筛选值变化（含 meta 就绪后赋默认值）自动重新请求
   useEffect(() => {
     loadItems()
-  }, [])
+  }, [loadItems])
 
   const openCreate = () => {
     setEditing(null)
@@ -333,7 +339,7 @@ const GameItems: React.FC = () => {
         rowKey="id"
         loading={loading}
         columns={columns}
-        dataSource={filteredItems}
+        dataSource={items}
         pagination={false}
         size="middle"
       />
