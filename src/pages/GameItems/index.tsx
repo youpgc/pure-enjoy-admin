@@ -111,9 +111,13 @@ const GameItems: React.FC = () => {
     setLoading(true)
     try {
       // 列清单在 gameItemService 构造器统一维护（feature_game_items_tables.sql DDL + free_per_game）
-      const res = await gameItemService.findAll((q) =>
-        (q as any).eq('game_code', gameFilter).eq('mode', modeFilter)
-      )
+      const res = await gameItemService.findAll((q) => {
+        let qq = (q as any).eq('game_code', gameFilter)
+        // 模式选「全部模式」（''）= 不限模式（含模式专属道具，如限时加时卡）；
+        // 选具体模式才精确匹配
+        if (modeFilter) qq = qq.eq('mode', modeFilter)
+        return qq
+      })
       if (seq !== reqSeq.current) return // 已有更新的请求，丢弃过期结果
       if (!res.success) {
         message.error('加载道具失败：' + (res.errorMessage ?? '未知错误'))
@@ -315,7 +319,10 @@ const GameItems: React.FC = () => {
               value={modeFilter || undefined}
               placeholder="选择模式"
               onChange={(v) => setModeFilter(v)}
-              options={MATCH3_MODE_OPTIONS_WITH_ANY}
+              options={[
+                { value: '', label: '全部模式' },
+                ...MATCH3_MODE_OPTIONS_WITH_ANY.slice(1),
+              ]}
             />
             <Button
               icon={<ReloadOutlined />}
