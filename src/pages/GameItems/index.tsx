@@ -22,12 +22,18 @@ import { usePermission } from '../../hooks/usePermission'
 import { gameItemService } from '../../services/gameService'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import { MATCH3_MODE_MAP, MATCH3_MODE_OPTIONS_WITH_ANY } from '../../constants/game'
+import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import common from '../../styles/common.module.css'
 
 const ITEM_TYPE_LABEL: Record<string, string> = {
   remove: '移出',
   undo: '撤回',
   shuffle: '洗牌',
+  hammer: '破坏',
+  hint: '提示',
+  force_swap: '强制交换',
+  magic_wand: '魔法棒',
+  add_steps: '加步',
   add_time: '加时',
 }
 
@@ -35,11 +41,13 @@ const ITEM_TYPE_OPTIONS = [
   { value: 'remove', label: '移出（羊了个羊）' },
   { value: 'undo', label: '撤回（羊了个羊）' },
   { value: 'shuffle', label: '洗牌（羊了个羊）' },
-  { value: 'add_time', label: '加时（消消乐·限时）' },
+  { value: 'hammer', label: '破坏锤（消消乐）' },
+  { value: 'hint', label: '提示卡（消消乐）' },
+  { value: 'force_swap', label: '强制交换（消消乐）' },
+  { value: 'magic_wand', label: '魔法棒（消消乐）' },
+  { value: 'add_steps', label: '加步卡（消消乐·限步）' },
+  { value: 'add_time', label: '加时卡（消消乐·限时）' },
 ]
-
-// 模式枚举统一从 constants/game.ts 取（单一源，禁止在页面硬编码）
-const MODE_OPTIONS = MATCH3_MODE_OPTIONS_WITH_ANY
 
 /**
  * 游戏道具目录管理（game_items）。
@@ -60,6 +68,41 @@ const GameItems: React.FC = () => {
 
   // 全局游戏元数据（games 一次拉取、跨页复用），用于「游戏」列转译与下拉。
   const meta = useGameMeta()
+
+  // 筛选：游戏 + 模式（与游戏联动），随页签刷新持久化
+  const restored = loadTabFilters('game_items')
+  const [gameFilter, setGameFilter] = useState<string>(
+    (restored.gameFilter as string) ?? 'all'
+  )
+  const [modeFilter, setModeFilter] = useState<string>(
+    (restored.modeFilter as string) ?? 'all'
+  )
+  usePersistTabFilters('game_items', { gameFilter, modeFilter })
+
+  // 模式筛选项与游戏联动：未选游戏 = 通用 + 全部消消乐模式；
+  // 选了消消乐 = 通用 + 其模式；选了其他游戏 = 仅通用（game_items.mode=''）
+  const isMatch3 = gameFilter === 'all' || gameFilter === 'match3'
+  const modeFilterOptions = useMemo(() => {
+    if (!isMatch3) return [{ value: '', label: '通用（该游戏全部模式）' }]
+    return MATCH3_MODE_OPTIONS_WITH_ANY
+  }, [isMatch3])
+
+  // 表单模式选项与 game_code 联动（新增/编辑一致）
+  const formGameCode = Form.useWatch('game_code', form)
+  const formModeOptions = useMemo(() => {
+    if (formGameCode && formGameCode !== 'match3') {
+      return [{ value: '', label: '通用（该游戏全部模式）' }]
+    }
+    return MATCH3_MODE_OPTIONS_WITH_ANY
+  }, [formGameCode])
+
+  const filteredItems = useMemo(() => {
+    return items.filter(
+      (it) =>
+        (gameFilter === 'all' || it.game_code === gameFilter) &&
+        (modeFilter === 'all' || it.mode === modeFilter)
+    )
+  }, [items, gameFilter, modeFilter])
 
   const loadItems = async () => {
     setLoading(true)
@@ -255,13 +298,43 @@ const GameItems: React.FC = () => {
           >
             刷新
           </Button>
+          <span>游戏：</span>
+          <Select
+            className={common.selW200}
+            value={gameFilter}
+            onChange={(v) => {
+              setGameFilter(v)
+              // 联动：切换游戏后当前模式可能不再适用，重置为全部
+              setModeFilter('all')
+            }}
+            options={[
+              { value: 'all', label: '全部游戏' },
+              ...(meta?.games ?? []).map((g) => ({
+                value: g.code,
+                label: g.name,
+              })),
+            ]}
+            showSearch
+            optionFilterProp="label"
+          />
+          <span>模式：</span>
+          <Select
+            className={common.selW200}
+            value={isMatch3 ? modeFilter : ''}
+            disabled={!isMatch3}
+            onChange={(v) => setModeFilter(v)}
+            options={[
+              { value: 'all', label: '全部' },
+              ...modeFilterOptions,
+            ]}
+          />
         </div>
       </Card>
       <Table
         rowKey="id"
         loading={loading}
         columns={columns}
-        dataSource={items}
+        dataSource={filteredItems}
         pagination={false}
         size="middle"
       />
@@ -317,7 +390,7 @@ const GameItems: React.FC = () => {
             />
           </Form.Item>
           <Form.Item name="mode" label="模式" tooltip="「通用」表示适用于该游戏全部模式；也可指定消消乐某一模式">
-            <Select options={MODE_OPTIONS} />
+            <Select options={formModeOptions} />
           </Form.Item>
           <Form.Item
             name="item_type"
