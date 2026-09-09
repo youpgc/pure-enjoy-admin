@@ -23,6 +23,7 @@ import { gameItemService } from '../../services/gameService'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import { MATCH3_MODE_MAP, MATCH3_MODE_OPTIONS_WITH_ANY } from '../../constants/game'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
+import styles from './index.module.css'
 import common from '../../styles/common.module.css'
 
 const ITEM_TYPE_LABEL: Record<string, string> = {
@@ -283,6 +284,45 @@ const GameItems: React.FC = () => {
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
+          <Space wrap>
+            <span>游戏：</span>
+            <Select
+              className={styles.sel240}
+              value={gameFilter}
+              onChange={(v) => {
+                setGameFilter(v)
+                // 联动：切换游戏后当前模式可能不再适用，重置为全部
+                setModeFilter('all')
+              }}
+              options={[
+                { value: 'all', label: '全部游戏' },
+                ...(meta?.games ?? []).map((g) => ({
+                  value: g.code,
+                  label: g.name,
+                })),
+              ]}
+              showSearch
+              optionFilterProp="label"
+            />
+            <span>模式：</span>
+            <Select
+              className={styles.sel240}
+              value={isMatch3 ? modeFilter : ''}
+              disabled={!isMatch3}
+              onChange={(v) => setModeFilter(v)}
+              options={[
+                { value: 'all', label: '全部' },
+                ...modeFilterOptions,
+              ]}
+            />
+            <Button
+              icon={<ReloadOutlined />}
+              loading={loading}
+              onClick={() => loadItems()}
+            >
+              刷新
+            </Button>
+          </Space>
           <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -291,43 +331,6 @@ const GameItems: React.FC = () => {
           >
             新增道具
           </Button>
-          <Button
-            icon={<ReloadOutlined />}
-            loading={loading}
-            onClick={() => loadItems()}
-          >
-            刷新
-          </Button>
-          <span>游戏：</span>
-          <Select
-            className={common.selW200}
-            value={gameFilter}
-            onChange={(v) => {
-              setGameFilter(v)
-              // 联动：切换游戏后当前模式可能不再适用，重置为全部
-              setModeFilter('all')
-            }}
-            options={[
-              { value: 'all', label: '全部游戏' },
-              ...(meta?.games ?? []).map((g) => ({
-                value: g.code,
-                label: g.name,
-              })),
-            ]}
-            showSearch
-            optionFilterProp="label"
-          />
-          <span>模式：</span>
-          <Select
-            className={common.selW200}
-            value={isMatch3 ? modeFilter : ''}
-            disabled={!isMatch3}
-            onChange={(v) => setModeFilter(v)}
-            options={[
-              { value: 'all', label: '全部' },
-              ...modeFilterOptions,
-            ]}
-          />
         </div>
       </Card>
       <Table
