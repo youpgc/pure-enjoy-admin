@@ -53,7 +53,7 @@ const ConfigFormModal: React.FC<ConfigFormModalProps> = ({
         delete cfg.endlessMaxRounds
         return { ...g, config: JSON.stringify(cfg), endlessMaxRounds }
       }
-      return { engine: 'widget', enabled: true, sort_order: 0, version: 1, level_selectable: false, config: '{}', endlessMaxRounds: 30 }
+      return { engine: 'widget', enabled: true, sort_order: 0, version: 1, level_selectable: false, test_only: false, config: '{}', endlessMaxRounds: 30 }
     }
     if (editing) return { ...(editing as Record<string, any>) }
     return {
@@ -187,6 +187,15 @@ const ConfigFormModal: React.FC<ConfigFormModalProps> = ({
                   </Form.Item>
                 ) : null
               }
+            </Form.Item>
+            <Form.Item
+              name="test_only"
+              label="测试环境"
+              valuePropName="checked"
+              initialValue={false}
+              tooltip="开发/测试中的游戏：开启后生产环境 App 不展示；仅当 App 包内打包了该游戏图标资源（测试/开发包）时才展示，供测试开发用"
+            >
+              <Switch checkedChildren="测试" unCheckedChildren="正式" />
             </Form.Item>
           </>
         ) : (

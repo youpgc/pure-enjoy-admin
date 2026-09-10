@@ -104,6 +104,14 @@ export function buildGameColumns(ops: GameConfigColumnsOps): ColumnsType<DbGame>
           : <Tag>—</Tag>,
     },
     {
+      title: '测试环境',
+      dataIndex: 'test_only',
+      key: 'test_only',
+      width: 90,
+      render: (v: boolean | null) =>
+        v ? <Tag color="orange">测试</Tag> : <Tag>正式</Tag>,
+    },
+    {
       title: '状态',
       dataIndex: 'enabled',
       key: 'enabled',

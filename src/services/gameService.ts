@@ -29,8 +29,9 @@ class GameService extends BaseService<DbGame> {
       // 且编辑回显拿不到原值 → 保存把 level_selectable 覆写成 false、level_select_mode
       // 缺失触发 check 约束报错（选关/选关模式「修改未生效 + 报错」根因）。
       // intro/rules：游戏介绍与规则（说明配置化，缺列会导致编辑回显空并覆写清空云端值）。
+      // test_only：测试环境标记（2026-09-10），缺列会致编辑回显 false 并覆写清掉云端值。
       select:
-        'id,code,name,icon,description,intro,rules,engine,enabled,sort_order,config,version,level_selectable,level_select_mode,created_at,updated_at',
+        'id,code,name,icon,description,intro,rules,engine,enabled,sort_order,config,version,level_selectable,level_select_mode,test_only,created_at,updated_at',
     })
   }
 }

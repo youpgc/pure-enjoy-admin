@@ -52,8 +52,8 @@ const ITEM_TYPE_OPTIONS = [
   { value: 'hint', label: '提示卡（消消乐）' },
   { value: 'force_swap', label: '强制交换（消消乐）' },
   { value: 'magic_wand', label: '魔法棒（消消乐）' },
-  { value: 'add_steps', label: '加步卡（消消乐·限步）' },
-  { value: 'add_time', label: '加时卡（消消乐·限时）' },
+  { value: 'add_steps', label: '加步卡（消消乐·限步 / 2048·挑战）' },
+  { value: 'add_time', label: '加时卡（消消乐·限时 / 2048·限时）' },
 ]
 
 /**
@@ -97,14 +97,40 @@ const GameItems: React.FC = () => {
     if (!gameCodes.includes(gameFilter)) setGameFilter(gameCodes[0] ?? '')
   }, [gameCodes, gameFilter])
 
-  // 表单模式选项与 game_code 联动（新增/编辑一致）
+  // 表单模式选项与 game_code 联动（新增/编辑一致）：
+  // match3 用定版六模式映射；其余游戏（如 2048 的 timed/challenge）按
+  // game_modes 实配动态生成，mode 留空 = 通用（该游戏全部模式）
   const formGameCode = Form.useWatch('game_code', form)
   const formModeOptions = useMemo(() => {
-    if (formGameCode && formGameCode !== 'match3') {
-      return [{ value: '', label: '通用（该游戏全部模式）' }]
+    if (!formGameCode || formGameCode === 'match3') {
+      return MATCH3_MODE_OPTIONS_WITH_ANY
     }
-    return MATCH3_MODE_OPTIONS_WITH_ANY
-  }, [formGameCode])
+    const gameId = meta?.gameMapByCode[formGameCode]?.id
+    const modes = (gameId ? meta?.modesByGameId[gameId] : undefined) ?? []
+    return [
+      { value: '', label: '通用（该游戏全部模式）' },
+      ...modes.map((m) => ({ value: m.code, label: m.name })),
+    ]
+  }, [formGameCode, meta])
+
+  // 模式编码 → 模式名（全游戏统一映射；match3 定版映射兜底配色/文案）
+  const modeNameByCode = useMemo(() => {
+    const map: Record<string, string> = {}
+    ;(meta?.modes ?? []).forEach((m) => {
+      map[m.code] = m.name
+    })
+    return map
+  }, [meta])
+
+  // 筛选区模式选项：跟随当前所选游戏的 game_modes 实配
+  const filterModeOptions = useMemo(() => {
+    const gameId = meta?.gameMapByCode[gameFilter]?.id
+    const modes = (gameId ? meta?.modesByGameId[gameId] : undefined) ?? []
+    return [
+      { value: '', label: '全部模式' },
+      ...modes.map((m) => ({ value: m.code, label: m.name })),
+    ]
+  }, [meta, gameFilter])
 
   // 请求乱序守卫：快速切换筛选时只采纳最后一次的结果
   const reqSeq = useRef(0)
@@ -231,7 +257,9 @@ const GameItems: React.FC = () => {
       width: 90,
       render: (v: string) =>
         v ? (
-          <Tag color={MATCH3_MODE_MAP[v]?.color}>{MATCH3_MODE_MAP[v]?.label ?? v}</Tag>
+          <Tag color={MATCH3_MODE_MAP[v]?.color}>
+            {modeNameByCode[v] ?? MATCH3_MODE_MAP[v]?.label ?? v}
+          </Tag>
         ) : (
           <Tag color="default">通用</Tag>
         ),
@@ -345,10 +373,7 @@ const GameItems: React.FC = () => {
               value={modeFilter || undefined}
               placeholder="选择模式"
               onChange={(v) => setModeFilter(v)}
-              options={[
-                { value: '', label: '全部模式' },
-                ...MATCH3_MODE_OPTIONS_WITH_ANY.slice(1),
-              ]}
+              options={filterModeOptions}
             />
             <Button
               icon={<ReloadOutlined />}
