@@ -24,7 +24,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import type { Database } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
-import { useGameMeta } from '../../utils/gameMetaCache'
+import { useGameMeta, refreshGameMeta } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../App'
 import { gameModeService, gameScoreService } from '../../services/gameService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
@@ -130,6 +130,7 @@ const GameModes: React.FC = () => {
         : await gameModeService.create(payload as any)
       if (!res.success) return // service 已统一弹窗 + 记日志
       message.success(editing ? '已更新模式' : '已新增模式')
+      refreshGameMeta().catch(() => {})
       setModalVisible(false)
       setEditing(null)
       loadModes()
@@ -150,6 +151,7 @@ const GameModes: React.FC = () => {
     const res = await gameModeService.updateEnabled(record.id, checked)
     if (!res.success) return // service 已统一弹窗 + 记日志
     message.success(checked ? '已启用模式' : '已停用模式（App 端至多 30s 后同步）')
+    refreshGameMeta().catch(() => {})
     loadModes()
   }
 
@@ -189,6 +191,7 @@ const GameModes: React.FC = () => {
     const res = await gameModeService.delete(record.id)
     if (!res.success) return // service 已统一弹窗 + 记日志
     message.success('已删除模式')
+    refreshGameMeta().catch(() => {})
     loadModes()
   }
 

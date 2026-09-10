@@ -133,6 +133,22 @@ class GameScoreValueService extends BaseService<DbGameScoreValue> {
   getScoreValues(scoreId: string) {
     return this.findAll((q) => q.eq('score_id', scoreId).order('dimension_id', { ascending: true }))
   }
+
+  /// 最佳概览：按维度取全局最优 TOP N（EAV 联查主记录取 game/user/status）。
+  /// 2026-09-10 审查：由 GameScores 页内裸 supabase.from 下沉到 service 层
+  /// （service 层允许直连 supabase，页面禁止——与 rpc 调用同口径）。
+  async findTopByDimension(dimensionId: string, ascending: boolean, limit = 100) {
+    const { data, error } = await supabase
+      .from('game_score_values')
+      .select('value, score:score_id(game_id, user_id, status, played_at)')
+      .eq('dimension_id', dimensionId)
+      .order('value', { ascending })
+      .limit(limit)
+    if (error) {
+      return { success: false, errorMessage: error.message, data: null } as any
+    }
+    return { success: true, errorMessage: null, data: data as any } as any
+  }
 }
 
 // 56. 用户成就（用户数据）

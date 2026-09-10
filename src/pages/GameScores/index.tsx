@@ -23,7 +23,6 @@ import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import { GAME_STATUS_MAP } from '../../constants'
-import { supabase } from '../../utils/supabase'
 import {
   gameScoreService,
   gameScoreValueService,
@@ -251,13 +250,13 @@ const GameScores: React.FC = () => {
       const rows: BestOverviewRow[] = []
       for (const d of primaryDims) {
         // EAV：按聚合方向取最优一条，并附带所属 game_scores（用于取 user_id / status 过滤）
-        const { data } = await (supabase as any)
-          .from('game_score_values')
-          .select('value, score:score_id(game_id, user_id, status, played_at)')
-          .eq('dimension_id', d.id)
-          .order('value', { ascending: d.aggregate !== 'max' })
-          .limit(100)
-        const list = (data as unknown as Array<{
+        // 2026-09-10 审查：裸 supabase.from 下沉到 gameScoreValueService（页面禁直连）
+        const res = await gameScoreValueService.findTopByDimension(
+          d.id,
+          d.aggregate !== 'max'
+        )
+        if (!res.success) continue
+        const list = (res.data as unknown as Array<{
           value: number
           score: { game_id: string; user_id: string; status: string; played_at: string | null } | null
         }> | null) || []
@@ -359,7 +358,9 @@ const GameScores: React.FC = () => {
         continue
       }
       const t = r.played_at ? dayjs(r.played_at) : null
-      const prevT = cur?.played_at ? dayjs(cur.played_at) : null
+      // 相邻两局间隔口径（2026-09-10 审查修正）：用上一局结束时间 _endPlayed，
+      // 而非会话首局时间 cur.played_at——后者会把「累计距首局≤30min」误判为可续
+      const prevT = cur?._endPlayed ? dayjs(cur._endPlayed) : null
       const continuable =
         cur &&
         cur.user_id === r.user_id &&

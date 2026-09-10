@@ -32,6 +32,7 @@ import { usePermission } from '../../hooks/usePermission'
 import { gameService, gameLevelService } from '../../services/gameService'
 import { supabase } from '../../utils/supabase'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
+import { refreshGameMeta } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../App'
 import type { DbGame, DbGameLevel } from '../../types/database'
 import styles from './index.module.css'
@@ -249,6 +250,7 @@ const GameLevels: React.FC = () => {
       return
     }
     message.success('删除成功')
+    refreshGameMeta().catch(() => {})
     loadLevels()
   }
 
@@ -291,6 +293,8 @@ const GameLevels: React.FC = () => {
           }
           message.success('创建成功')
         }
+      // 关卡变更 → 全局 meta 缓存失效重拉（GameScores 等页同步）
+      refreshGameMeta().catch(() => {})
       setModalVisible(false)
       setEditing(null)
       form.resetFields()

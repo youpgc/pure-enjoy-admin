@@ -450,6 +450,11 @@ const GameItems: React.FC = () => {
               options={gameOptions}
               showSearch
               optionFilterProp="label"
+              onChange={() => {
+                // 2026-09-10 审查：切换游戏后模式归属失效，重置为「通用」
+                // 防止旧游戏的 mode 编码随新游戏落库成脏数据（如 g2048+jelly）
+                form.setFieldValue('mode', '')
+              }}
             />
           </Form.Item>
           <Form.Item name="mode" label="模式" tooltip="「通用」表示适用于该游戏全部模式；也可指定消消乐某一模式">

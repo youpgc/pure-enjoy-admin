@@ -31,6 +31,11 @@ export interface GameMeta {
 let metaPromise: Promise<GameMeta> | null = null
 let metaCache: GameMeta | null = null
 
+// 订阅机制（2026-09-10 审查修复）：配置写操作后调用 refreshGameMeta() 失效重拉，
+// 已挂载页面经 listeners 同步拿到新 meta——此前 refreshGameMeta 无人调用、
+// useGameMeta 只在挂载时取值，配置变更后整个会话内映射永不更新。
+const listeners = new Set<(m: GameMeta | null) => void>()
+
 // game_levels 全量 1200 行（12 模式 × 100 关），单请求会被 PostgREST
 // db-max-rows=1000 静默钳制（成绩看板 L84+ 关卡/通关条件不展示的根因），
 // 必须按 1000/页 offset 循环拉全。
@@ -85,33 +90,51 @@ async function fetchMeta(): Promise<GameMeta> {
 }
 
 // 单例：首次调用触发请求，之后复用同一 Promise（StrictMode 双调用也不会重复请求）。
+// 2026-09-10 审查修复：失败时把 metaPromise 置回 null，允许下次挂载重试——
+// 此前 rejected Promise 会被永久复用，首次拉取失败后所有页面 meta 恒为 null。
 export function getGameMeta(): Promise<GameMeta> {
   if (!metaPromise) {
-    metaPromise = fetchMeta().then((m) => {
-      metaCache = m
-      return m
-    })
+    metaPromise = fetchMeta()
+      .then((m) => {
+        metaCache = m
+        listeners.forEach((l) => l(m))
+        return m
+      })
+      .catch((e) => {
+        metaPromise = null
+        throw e
+      })
   }
   return metaPromise
 }
 
-// 主动失效并重拉（如后台配置变更后需刷新看板映射）。
+// 主动失效并重拉（游戏/模式/关卡/维度写操作成功后调用），已挂载页面同步刷新。
 export function refreshGameMeta(): Promise<GameMeta> {
   metaPromise = null
   metaCache = null
   return getGameMeta()
 }
 
-// React hook：组件挂载即拿到已缓存的 meta（可能为 null，加载完成后自动更新）。
+// React hook：组件挂载即拿到已缓存的 meta（可能为 null，加载完成后自动更新）；
+// 订阅变更：其他页面写配置触发 refreshGameMeta 后，本页自动拿到新映射。
 export function useGameMeta(): GameMeta | null {
   const [meta, setMeta] = useState<GameMeta | null>(metaCache)
   useEffect(() => {
     let cancelled = false
-    getGameMeta().then((m) => {
+    const listener = (m: GameMeta | null) => {
       if (!cancelled) setMeta(m)
-    })
+    }
+    listeners.add(listener)
+    getGameMeta()
+      .then((m) => {
+        if (!cancelled) setMeta(m)
+      })
+      .catch(() => {
+        // 失败保持 null，交由页面空态兜底；下次挂载经 getGameMeta 重试
+      })
     return () => {
       cancelled = true
+      listeners.delete(listener)
     }
   }, [])
   return meta

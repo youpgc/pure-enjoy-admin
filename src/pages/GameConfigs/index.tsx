@@ -19,6 +19,7 @@ import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { gameService, gameDimensionService } from '../../services/gameService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
+import { refreshGameMeta } from '../../utils/gameMetaCache'
 import type { DbGame, DbGameDimension } from '../../types/database'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
@@ -165,6 +166,7 @@ const GameConfigs: React.FC = () => {
         return
       }
       message.success('删除成功')
+      refreshGameMeta().catch(() => {})
       refreshCurrent()
     } catch (error) {
       handleApiError(error, 'GameConfigs-删除')
@@ -214,6 +216,8 @@ const GameConfigs: React.FC = () => {
         }
         message.success('保存成功')
       }
+      // 游戏/维度配置变更 → 全局 meta 缓存失效重拉（GameItems/GameScores 等页同步）
+      refreshGameMeta().catch(() => {})
       setModalVisible(false)
       setEditing(null)
       refreshCurrent()
@@ -228,7 +232,10 @@ const GameConfigs: React.FC = () => {
   const handleToggleEnabled = async (record: DbGame, next: boolean) => {
     const r = await gameService.update(record.id, { enabled: next })
     if (!r.success) handleApiError(r.errorMessage, 'GameConfigs-切换状态')
-    else loadGames()
+    else {
+      refreshGameMeta().catch(() => {})
+      loadGames()
+    }
   }
 
   // 行内排序（游戏 Tab 排序列上移/下移）：与相邻行交换 sort_order
