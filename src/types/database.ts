@@ -1268,6 +1268,7 @@ export interface Database {
           id: string
           user_id: string
           game_id: string
+          mode_id: string | null
           level_id: string | null
           status: string
           duration_ms: number | null

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Alert,
   Table,
@@ -28,14 +28,26 @@ import {
   gameScoreService,
   gameScoreValueService,
 } from '../../services/gameService'
-import type { DbGameScore, DbGameScoreValue } from '../../types/database'
+import type {
+  DbGameScore,
+  DbGameScoreValue,
+  DbGameMode,
+  DbGameLevel,
+} from '../../types/database'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
 
 const { Text } = Typography
 
 /// 按关卡 config/target 生成通关条件中文描述（各模式键见游戏模块配置参考文档 §3.3/§6）
-function levelConditionDesc(lv: Record<string, any> | undefined): string {
+///
+/// [gameCode] 用于区分语义：g2048 的 target 是「合成目标方块」而非得分。
+/// 注意：config 里的 types（方块种类数）/layers（堆叠深度）是难度旋钮而非
+/// 通关条件，不进入描述（2026-09-10 用户反馈展示内容不符）。
+function levelConditionDesc(
+  lv: Record<string, any> | undefined,
+  gameCode?: string
+): string {
   if (!lv) return '-'
   const c = (lv.config ?? {}) as Record<string, any>
   const parts: string[] = []
@@ -54,10 +66,10 @@ function levelConditionDesc(lv: Record<string, any> | undefined): string {
   if (c.orders) parts.push(`收集 ${c.orders} 个`)
   if (c.ice) parts.push(`冰块 ${c.ice}`)
   if (Array.isArray(c.iceCollect) && c.iceCollect.length) parts.push(collectDesc(c.iceCollect))
-  if (typeof c.target === 'number') parts.push(`目标 ${c.target}`)
-  if (c.layers) parts.push(`${c.layers} 层堆叠`)
-  if (c.types) parts.push(`${c.types} 种方块`)
-  if (c.noClear) parts.push('无尽模式')
+  if (typeof c.target === 'number') {
+    // g2048 的 target = 合成目标方块（256/512/…/2048），与得分无关
+    parts.push(gameCode === 'g2048' ? `合成 ${c.target}` : `目标 ${c.target}`)
+  }
   const t = lv.target as Record<string, any> | null
   if (!parts.length && t?.score) parts.push(`得分≥${t.score}`)
   if (!parts.length && t?.type === 'none') parts.push('合成目标方块')
@@ -88,6 +100,33 @@ const GameScores: React.FC = () => {
   const levelMap = meta?.levelMap ?? {}
   const dimMap = meta?.dimMap ?? {}
   const games = meta?.games ?? []
+
+  // ===== 无尽模式会话聚合（2026-09-10）=====
+  // 无尽链式对局每局一条 score（level_id 为空，合成关非 uuid），明细行显示
+  // 「关卡 - / 条件 -」且未聚合成会话。此处按 App 游戏记录同口径聚合：
+  // 同用户、同无尽模式、相邻两局 played_at ≤ 30min → 合并为一行（N 局/累计）。
+  const modeById = useMemo(() => {
+    const m: Record<string, DbGameMode> = {}
+    ;(meta?.modes ?? []).forEach((x) => (m[x.id] = x))
+    return m
+  }, [meta])
+  const endlessModeIds = useMemo(
+    () =>
+      new Set(
+        (meta?.modes ?? []).filter((x) => x.code === 'endless').map((x) => x.id)
+      ),
+    [meta]
+  )
+  // level_id 为空的行（无尽/部分 2048 对局）用该模式 L001 的 config 兜底展示条件
+  const baseLevelByMode = useMemo(() => {
+    const m: Record<string, DbGameLevel> = {}
+    ;(meta?.levels ?? []).forEach((l) => {
+      if (l.mode_id == null) return
+      const cur = m[l.mode_id]
+      if (!cur || l.level_no < cur.level_no) m[l.mode_id] = l
+    })
+    return m
+  }, [meta])
 
   // 页签刷新筛选恢复（tabs 右键刷新=重挂载，保持用户当前筛选）
   const restoredFilters = loadTabFilters('game_scores')
@@ -207,21 +246,102 @@ const GameScores: React.FC = () => {
   }, [loadBestOverview])
 
   // ========== 展开维度值 ==========
-  const handleExpand = async (scoreId: string) => {
+  // 无尽会话聚合行：拉取合并范围内全部明细，按维度聚合口径合并
+  // （sum→累计、max→取最大、min→取最小、latest/其它→首局值）
+  const handleExpand = async (scoreId: string, mergedIds?: string[]) => {
+    const ids = mergedIds ?? [scoreId]
     if (expandedValues[scoreId]) return
     setExpandingId(scoreId)
     try {
-      const res = await gameScoreValueService.getScoreValues(scoreId)
+      const lists = await Promise.all(ids.map((id) => gameScoreValueService.getScoreValues(id)))
       if (!mountedRef.current) return
-      if (res.success && res.data) {
-        setExpandedValues((prev) => ({ ...prev, [scoreId]: res.data as DbGameScoreValue[] }))
+      const all: DbGameScoreValue[] = []
+      lists.forEach((res) => {
+        if (res.success && res.data) all.push(...(res.data as DbGameScoreValue[]))
+      })
+      // 按 dimension_id 合并
+      const byDim: Record<string, { row: DbGameScoreValue; values: number[] }> = {}
+      for (const v of all) {
+        let slot = byDim[v.dimension_id]
+        if (!slot) {
+          slot = { row: v, values: [] }
+          byDim[v.dimension_id] = slot
+        }
+        slot.values.push(Number(v.value))
       }
+      const mergedVals = Object.values(byDim).map(({ row, values }) => {
+        const agg = dimMap[row.dimension_id]?.aggregate
+        let value: number
+        if (agg === 'sum') value = values.reduce((a, b) => a + b, 0)
+        else if (agg === 'max') value = Math.max(...values)
+        else if (agg === 'min') value = Math.min(...values)
+        else value = values[0] ?? 0
+        return { ...row, value }
+      })
+      setExpandedValues((prev) => ({ ...prev, [scoreId]: mergedVals }))
     } catch (error) {
       handleApiError(error, 'GameScores-维度值')
     } finally {
       setExpandingId(null)
     }
   }
+
+  const displayRows = useMemo(() => {
+    type Merged = DbGameScore & {
+      _mergedIds: string[]
+      _rounds: number
+      _endPlayed: string | null
+      _totalMs: number | null
+    }
+    const sorted = [...scores].sort((a, b) =>
+      (a.played_at ?? '').localeCompare(b.played_at ?? '')
+    )
+    const out: Merged[] = []
+    let cur: Merged | null = null
+    const flush = () => {
+      if (cur) out.push(cur)
+      cur = null
+    }
+    for (const r of sorted) {
+      const isEndless = r.mode_id != null && endlessModeIds.has(r.mode_id)
+      if (!isEndless) {
+        flush()
+        out.push(r as Merged)
+        continue
+      }
+      const t = r.played_at ? dayjs(r.played_at) : null
+      const prevT = cur?.played_at ? dayjs(cur.played_at) : null
+      const continuable =
+        cur &&
+        cur.user_id === r.user_id &&
+        cur.mode_id === r.mode_id &&
+        t &&
+        prevT &&
+        t.diff(prevT, 'minute') <= 30
+      if (continuable && cur) {
+        cur._mergedIds.push(r.id)
+        cur._rounds += 1
+        cur._endPlayed = r.played_at
+        if (r.duration_ms != null) {
+          cur._totalMs = (cur._totalMs ?? 0) + r.duration_ms
+        }
+      } else {
+        flush()
+        cur = {
+          ...r,
+          _mergedIds: [r.id],
+          _rounds: 1,
+          _endPlayed: r.played_at,
+          _totalMs: r.duration_ms,
+        }
+      }
+    }
+    flush()
+    // 按游玩时间倒序还原展示顺序
+    return out.sort((a, b) =>
+      (b.played_at ?? '').localeCompare(a.played_at ?? '')
+    )
+  }, [scores, endlessModeIds])
 
   const columns: ColumnsType<DbGameScore> = [    {
       title: '用户',
@@ -242,15 +362,40 @@ const GameScores: React.FC = () => {
       dataIndex: 'level_id',
       key: 'level_id',
       width: 200,
-      render: (v: string | null) => (v ? (levelMap[v]?.name ?? '关卡') : '-'),
+      render: (v: string | null, record) => {
+        // 无尽会话聚合行：显示「无尽模式 · N 局」
+        const merged = record as DbGameScore & { _rounds?: number }
+        if (merged._rounds && merged._rounds > 1) {
+          const modeName =
+            (merged.mode_id != null ? modeById[merged.mode_id]?.name : null) ??
+            '无尽模式'
+          return `${modeName} · ${merged._rounds} 局`
+        }
+        if (v) return levelMap[v]?.name ?? '关卡'
+        // 无 level_id（2048 等无关卡感对局）：回退模式名，不再显示 '-'
+        return record.mode_id != null
+          ? modeById[record.mode_id]?.name ?? '-'
+          : '-'
+      },
     },
     {
       title: '通关条件',
       key: 'level_condition',
-      render: (_: unknown, record: { level_id: string | null }) => {
-        const lv = record.level_id ? levelMap[record.level_id] : null
+      render: (_: unknown, record) => {
+        const merged = record as DbGameScore & { _rounds?: number }
+        // 无尽会话聚合行：条件为链式累计（每局目标随关卡阶梯上升）
+        if (merged._rounds && merged._rounds > 1) {
+          return `链式会话累计（${merged._rounds} 局合计）`
+        }
+        const gameCode = gameMap[record.game_id]?.code
+        // 有 level_id 用该关 config；无 level_id 用该模式 L001 的 config 兜底
+        const lv = record.level_id
+          ? levelMap[record.level_id]
+          : record.mode_id != null
+            ? baseLevelByMode[record.mode_id]
+            : null
         if (!lv) return '-'
-        return levelConditionDesc(lv)
+        return levelConditionDesc(lv, gameCode)
       },
     },
     {
@@ -268,13 +413,34 @@ const GameScores: React.FC = () => {
       dataIndex: 'duration_ms',
       key: 'duration_ms',
       width: 110,
-      render: (v: number | null) => (v == null ? '-' : `${(v / 1000).toFixed(1)}s`),
+      render: (v: number | null, record) => {
+        // 无尽会话聚合行：显示整段会话累计耗时
+        const merged = record as DbGameScore & { _totalMs?: number | null }
+        const ms = merged._totalMs ?? v
+        return ms == null ? '-' : `${(ms / 1000).toFixed(1)}s`
+      },
     },
     {
       title: '游玩时间',
       dataIndex: 'played_at',
       key: 'played_at',
-      render: (d: string) => dayjs(d).format('YYYY-MM-DD HH:mm:ss'),
+      render: (d: string, record) => {
+        // 无尽会话聚合行：显示会话起止时间
+        const merged = record as DbGameScore & {
+          _rounds?: number
+          _endPlayed?: string | null
+        }
+        if (merged._rounds && merged._rounds > 1 && merged._endPlayed) {
+          const start = dayjs(d)
+          const end = dayjs(merged._endPlayed)
+          const fmt = (t: dayjs.Dayjs) =>
+            start.isSame(end, 'day')
+              ? t.format('HH:mm:ss')
+              : t.format('MM-DD HH:mm:ss')
+          return `${start.format('MM-DD HH:mm:ss')} ~ ${fmt(end)}`
+        }
+        return dayjs(d).format('YYYY-MM-DD HH:mm:ss')
+      },
     },
   ]
 
@@ -308,7 +474,7 @@ const GameScores: React.FC = () => {
         showIcon
         className={common.mb16}
         message="成绩看板说明"
-        description="成绩按对局记录展示（不含「放弃」）；「通关条件」列由关卡 config 自动生成中文描述（得分/步数/冰块/收集目标/方块类型等）。左侧「全部最佳成绩」为各游戏主维度全局最佳（服务端聚合）；明细行可展开查看各维度取值；无尽模式会话在 App 游戏记录中按「总局数+累积分数」聚合展示。"
+        description="成绩按对局记录展示（不含「放弃」）；「通关条件」列由关卡 config 自动生成中文描述（得分/步数/冰块/收集目标/方块类型等）。左侧「全部最佳成绩」为各游戏主维度全局最佳（服务端聚合）；明细行可展开查看各维度取值；无尽模式会话在本看板已按 App 同口径聚合展示（同用户相邻 ≤30 分钟合并为「N 局」会话行，展开为累计维度值；跨分页的会话会在页边界拆分）。"
       />
       {/* 最佳成绩概览 */}
       <Card
@@ -422,7 +588,7 @@ const GameScores: React.FC = () => {
 
       <Table
         columns={columns}
-        dataSource={scores}
+        dataSource={displayRows}
         rowKey="id"
         loading={loading}
         pagination={pager.tablePagination}
@@ -447,7 +613,8 @@ const GameScores: React.FC = () => {
             )
           },
           onExpand: (expanded, record) => {
-            if (expanded) handleExpand(record.id)
+            const merged = record as DbGameScore & { _mergedIds?: string[] }
+            if (expanded) handleExpand(record.id, merged._mergedIds)
           },
         }}
       />
