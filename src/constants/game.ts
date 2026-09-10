@@ -9,10 +9,10 @@ export const GAME_ENGINE_MAP: Record<string, { color: string; label: string }> =
   flame: { color: 'volcano', label: 'Flame' },
 }
 
-// 成绩状态（game_scores.status）
+// 成绩状态（game_scores.status）；未通关区分语义：放弃=灰 / 挑战失败=红（2026-09-10）
 export const GAME_STATUS_MAP: Record<string, { color: string; label: string }> = {
   cleared: { color: 'green', label: '通关' },
-  failed: { color: 'red', label: '失败' },
+  failed: { color: 'red', label: '挑战失败' },
   aborted: { color: 'default', label: '放弃' },
 }
 
