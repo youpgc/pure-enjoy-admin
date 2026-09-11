@@ -68,7 +68,7 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
           form.setFieldsValue(
             editing
               ? {
-                  game_id: editing.game_id ?? undefined,
+                  game_id: editing.game_id ?? 'global',
                   code: editing.code,
                   name: editing.name,
                   description: editing.description ?? '',
@@ -95,7 +95,7 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
         initialValues={
           editing
             ? {
-                game_id: editing.game_id ?? undefined,
+                game_id: editing.game_id ?? 'global',
                 code: editing.code,
                 name: editing.name,
                 description: editing.description ?? '',

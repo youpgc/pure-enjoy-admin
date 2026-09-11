@@ -138,7 +138,8 @@ const GameAchievements: React.FC = () => {
         condition = { type: 'first_clear' }
       }
       const payload = {
-        game_id: values.game_id,
+        // 「全局」为表单哨兵值 → 落库 NULL（全局成就无所属游戏）
+        game_id: values.game_id === 'global' ? null : values.game_id,
         code: values.code,
         name: values.name,
         description: values.description || null,
@@ -182,6 +183,13 @@ const GameAchievements: React.FC = () => {
   const gameOptions = useMemo(
     () => games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` })),
     [games]
+  )
+
+  // 编辑表单游戏选项：全局成就（game_id 为 NULL）需可选「全局」，否则编辑
+  // 全局成就时下拉无法回显、也看不出该成就跨游戏（2026-09-11 用户反馈）
+  const formGameOptions = useMemo(
+    () => [{ value: 'global', label: '全局（无所属游戏）' }, ...gameOptions],
+    [gameOptions]
   )
 
   // 分组键选项：从数据动态提取去重排序（键体系随配置迭代增长，不硬编码）。
@@ -392,7 +400,7 @@ const GameAchievements: React.FC = () => {
       <AchievementFormModal
         open={modalOpen}
         editing={editing}
-        gameOptions={gameOptions}
+        gameOptions={formGameOptions}
         dims={dims}
         saving={saving}
         onOk={handleSave}
