@@ -81,8 +81,11 @@ const VersionManagement: React.FC = () => {
             <Tag color="green">已激活</Tag>
           }
         >
-          <Row gutter={24} align="middle">
-            <Col flex="none">
+          {/* flexWrap nowrap + 右列 basis 0：二维码与表格强制左右布局——
+              Col flex=auto 的 basis 是「内容宽」，长内容在换行判断阶段
+              （先于收缩）就把 flex line 挤断，min-width:0 拦不住（2026-09-11） */}
+          <Row gutter={24} align="middle" style={{ flexWrap: 'nowrap' }}>
+            <Col flex="0 0 auto">
               <div className={styles.qrBox}>
                 <QRCodeSVG
                   value={v.getDownloadUrl(currentVersion) || 'https://example.com'}
@@ -91,7 +94,7 @@ const VersionManagement: React.FC = () => {
                 />
               </div>
             </Col>
-            <Col flex="auto" style={{ minWidth: 0 }}>
+            <Col style={{ flex: '1 1 0%', minWidth: 0 }}>
               {/* tableLayout fixed：锁死表格宽度为容器宽，长内容不再把 auto 列
                   撑超剩余空间导致 Row 换行（二维码与表格上下错位，2026-09-11） */}
               <Descriptions
