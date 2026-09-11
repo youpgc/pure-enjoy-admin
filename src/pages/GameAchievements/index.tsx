@@ -184,19 +184,17 @@ const GameAchievements: React.FC = () => {
     [games]
   )
 
-  // 分组键选项：从数据动态提取去重排序（键体系随配置迭代增长，不硬编码）；
-  // 追加「独立（无分组键）」筛选项（值 'none'，App 端独立成就框不合并展示）
+  // 分组键选项：从数据动态提取去重排序（键体系随配置迭代增长，不硬编码）。
+  // 无「独立」专项筛选——分组键没有独立的说法，全部成就都应归属分组键
+  //（2026-09-11 用户拍板；group_key 为空的存量行由补键 SQL 修正）。
   const groupKeyOptions = useMemo(() => {
     const keys = Array.from(
       new Set(items.map((it) => it.group_key ?? '').filter((k) => k !== ''))
     ).sort()
-    return [
-      { value: 'none', label: '独立（无分组键）' },
-      ...keys.map((k) => ({ value: k, label: k })),
-    ]
+    return keys.map((k) => ({ value: k, label: k }))
   }, [items])
 
-  // 客户端筛选：名称模糊匹配 + 游戏（含「全局」）+ 分组键（含「独立」）
+  // 客户端筛选：名称模糊匹配 + 游戏（含「全局」）+ 分组键
   const filteredItems = useMemo(() => {
     const kw = nameFilter.trim().toLowerCase()
     return items.filter((it) => {
@@ -206,9 +204,7 @@ const GameAchievements: React.FC = () => {
       } else if (gameFilter) {
         if (it.game_id !== gameFilter) return false
       }
-      if (groupKeyFilter === 'none') {
-        if (it.group_key) return false
-      } else if (groupKeyFilter) {
+      if (groupKeyFilter) {
         if ((it.group_key ?? '') !== groupKeyFilter) return false
       }
       return true
@@ -248,7 +244,7 @@ const GameAchievements: React.FC = () => {
       width: 160,
       ellipsis: true,
       render: (v: string | null) =>
-        v ? <Tag color="blue">{v}</Tag> : <Text type="secondary">独立</Text>,
+        v ? <Tag color="blue">{v}</Tag> : <Tag color="orange">未分组</Tag>,
     },
     {
       title: '奖励积分',
