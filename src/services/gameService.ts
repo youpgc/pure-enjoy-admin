@@ -167,6 +167,16 @@ class GameRewardClaimService extends BaseService<DbGameRewardClaim> {
       defaultOrder: { column: 'claimed_at', ascending: false },
     })
   }
+
+  /// 带时间窗分页（claimed_at，to 为开区间上界），与积分流水/统计卡同口径
+  paginateClaims(page: number, pageSize: number, fromIso?: string, toIso?: string) {
+    return this.paginate(page, pageSize, (q) => {
+      let query = q
+      if (fromIso) query = query.gte('claimed_at', fromIso)
+      if (toIso) query = query.lt('claimed_at', toIso)
+      return query
+    })
+  }
 }
 
 // 51c. 游戏模式（模式 ↔ play_kind 唯一链接；GameModes 页）
@@ -274,9 +284,15 @@ class GamePointFlowService extends BaseService<DbPointRecord> {
     })
   }
 
-  /// 游戏相关流水分页（type ∈ GAME_FLOW_TYPES，与 App 端发放/消费口径一致）
-  paginateGameFlow(page: number, pageSize: number) {
-    return this.paginate(page, pageSize, (q) => q.in('type', [...GAME_FLOW_TYPES]))
+  /// 游戏相关流水分页（type ∈ GAME_FLOW_TYPES，与 App 端发放/消费口径一致）；
+  /// [fromIso]/[toIso] 时间窗（created_at，to 为开区间上界），与统计卡聚合同口径。
+  paginateGameFlow(page: number, pageSize: number, fromIso?: string, toIso?: string) {
+    return this.paginate(page, pageSize, (q) => {
+      let query = q.in('type', [...GAME_FLOW_TYPES])
+      if (fromIso) query = query.gte('created_at', fromIso)
+      if (toIso) query = query.lt('created_at', toIso)
+      return query
+    })
   }
 }
 
@@ -305,11 +321,20 @@ export const getGameBestScores = (
     error: unknown
   }>
 
-/// 游戏积分流水聚合（奖励记录页「累计获取/累计消费」）：
-/// 走 get_game_flow_totals RPC 全表 SUM，而非当前分页求和。
-export async function getGameFlowTotals(): Promise<{ earn: number; spend: number }> {
-  const { data, error } = await (supabase.rpc('get_game_flow_totals') as any)
-  if (error || !Array.isArray(data)) return { earn: 0, spend: 0 }
+/// 游戏积分流水聚合（奖励记录页「获取/消费合计」）：
+/// 走 get_game_flow_totals RPC 按时间窗 SUM（数据量巨大，不做全表聚合）。
+/// [fromIso]/[toIso] 为 ISO 字符串（to 为开区间上界）；error 上抛由调用方提示，
+/// 不再静默兜底 0（曾把 RPC 被门禁拒绝掩盖成「显示 0」，2026-09-11 用户反馈）。
+export async function getGameFlowTotals(
+  fromIso?: string,
+  toIso?: string
+): Promise<{ earn: number; spend: number }> {
+  const { data, error } = await (supabase.rpc('get_game_flow_totals', {
+    p_from: fromIso ?? null,
+    p_to: toIso ?? null,
+  } as any) as any)
+  if (error) throw new Error(error.message || 'get_game_flow_totals 调用失败')
+  if (!Array.isArray(data)) throw new Error('get_game_flow_totals 返回结构异常')
   const earn = Number(data.find((r: any) => r.flow_type === 'game_earn')?.total ?? 0)
   const spend = Number(data.find((r: any) => r.flow_type === 'game_spend')?.total ?? 0)
   return { earn, spend }

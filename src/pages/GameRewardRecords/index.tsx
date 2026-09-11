@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Alert,
   Table,
@@ -10,6 +10,9 @@ import {
   Row,
   Col,
   Segmented,
+  DatePicker,
+  Space,
+  message,
 } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -75,6 +78,20 @@ export default function GameRewardRecords() {
   const [earnTotal, setEarnTotal] = useState(0)
   const [spendTotal, setSpendTotal] = useState(0)
 
+  // 时间筛选（2026-09-11）：数据量巨大，聚合/明细统一按时间窗查询——
+  // 默认近 1 个月，最大可查 3 个月（超出范围在选择时拦截）。
+  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
+    dayjs().subtract(1, 'month'),
+    dayjs(),
+  ])
+  // 派生 ISO：from 含当天 00:00（闭）、to 为 end 当天次日 00:00（开区间上界），
+  // 与 RPC get_game_flow_totals(p_from, p_to) 的 >= p_from / < p_to 口径一致。
+  const fromIso = useMemo(() => range[0].startOf('day').toISOString(), [range])
+  const toIso = useMemo(
+    () => range[1].add(1, 'day').startOf('day').toISOString(),
+    [range]
+  )
+
   const loadMaps = useCallback(async () => {
     // 元数据映射经各 service（统一响应/错误处理）
     const [gRes, uRes, rRes, aRes] = await Promise.all([
@@ -112,6 +129,8 @@ export default function GameRewardRecords() {
       const res = await gamePointFlowService.paginateGameFlow(
         pager.pagination.current,
         pager.pagination.pageSize,
+        fromIso,
+        toIso,
       )
       if (!res.success) {
         handleApiError(res.errorMessage, 'GameRewardRecords-积分流水')
@@ -121,22 +140,30 @@ export default function GameRewardRecords() {
       const list = (res.data?.data || []) as DbPointRecord[]
       setFlow(list)
       pager.setTotal(res.data?.total || 0)
-      // 累计获取/消费为全表聚合（RPC SUM），非当前分页求和
-      const totals = await getGameFlowTotals()
-      setEarnTotal(totals.earn)
-      setSpendTotal(totals.spend)
+      // 获取/消费合计：按所选时间窗聚合（RPC SUM），非当前分页求和；
+      // RPC 失败上抛提示，不再静默显示 0（2026-09-11 用户反馈根因）。
+      try {
+        const totals = await getGameFlowTotals(fromIso, toIso)
+        if (!mountedRef.current) return
+        setEarnTotal(totals.earn)
+        setSpendTotal(totals.spend)
+      } catch (e: any) {
+        handleApiError(e, 'GameRewardRecords-合计聚合')
+      }
     } finally {
       setLoading(false)
     }
-  }, [mountedRef, flowType, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
+  }, [mountedRef, flowType, fromIso, toIso, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
 
   // 奖励领取：流水来自 game_reward_claims（含成就与规则发放，point_records 已含对应 game_earn）
   const loadClaims = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await gameRewardClaimService.paginate(
+      const res = await gameRewardClaimService.paginateClaims(
         pager.pagination.current,
         pager.pagination.pageSize,
+        fromIso,
+        toIso,
       )
       if (!res.success) {
         handleApiError(res.errorMessage, 'GameRewardRecords-奖励领取')
@@ -148,7 +175,7 @@ export default function GameRewardRecords() {
     } finally {
       setLoading(false)
     }
-  }, [mountedRef, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
+  }, [mountedRef, fromIso, toIso, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
 
   useEffect(() => {
     loadMaps()
@@ -272,18 +299,34 @@ export default function GameRewardRecords() {
         showIcon
         className={common.mb16}
         message="游戏奖励记录说明"
-        description="「积分流水」= point_records 中 game_earn / game_spend 两类（含每局明细与总结算）；「累计获取/累计消费」为全表聚合（点击统计卡可按类型筛选流水）。「奖励领取」= game_reward_claims 发放明细，claim_key 前缀标识类型（level_clear 通关 / daily_first_clear 每日首通 / score_range 成绩区间 / achievement 成就段位）。"
+        description="「积分流水」= point_records 中 game_earn / game_spend 两类（含每局明细与总结算）；「获取/消费合计」按右上角所选时间范围聚合（默认近 1 个月，最大可查 3 个月；点击统计卡可按类型筛选流水）。「奖励领取」= game_reward_claims 发放明细，claim_key 前缀标识类型（level_clear 通关 / daily_first_clear 每日首通 / score_range 成绩区间 / achievement 成就段位）。"
       />
       <Card
         title="游戏奖励记录"
         extra={
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => (tab === 'flow' ? loadFlow() : loadClaims())}
-            loading={loading}
-          >
-            刷新
-          </Button>
+          <Space>
+            <DatePicker.RangePicker
+              value={range}
+              allowClear={false}
+              onChange={(v) => {
+                if (!v || !v[0] || !v[1]) return
+                // 最大查询范围 3 个月（自然月）；超出拦截并提示
+                if (v[1].isAfter(v[0].add(3, 'month'))) {
+                  message.warning('最大查询范围为 3 个月，请缩小时间跨度')
+                  return
+                }
+                setRange([v[0], v[1]])
+                pager.resetPage()
+              }}
+            />
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => (tab === 'flow' ? loadFlow() : loadClaims())}
+              loading={loading}
+            >
+              刷新
+            </Button>
+          </Space>
         }
       >
         <Tabs
@@ -301,7 +344,7 @@ export default function GameRewardRecords() {
                         onClick={() => { setFlowType(flowType === 'earn' ? 'all' : 'earn'); pager.resetPage() }}
                         style={{ cursor: 'pointer' }}
                       >
-                        <Statistic title="累计获取（游戏）· 点击筛选" value={earnTotal} suffix="分" className={styles.statEarn} />
+                        <Statistic title={`获取合计（游戏）· 点击筛选`} value={earnTotal} suffix="分" className={styles.statEarn} />
                       </div>
                     </Col>
                     <Col span={8}>
@@ -309,7 +352,7 @@ export default function GameRewardRecords() {
                         onClick={() => { setFlowType(flowType === 'spend' ? 'all' : 'spend'); pager.resetPage() }}
                         style={{ cursor: 'pointer' }}
                       >
-                        <Statistic title="累计消费（游戏）· 点击筛选" value={spendTotal} suffix="分" className={styles.statSpend} />
+                        <Statistic title={`消费合计（游戏）· 点击筛选`} value={spendTotal} suffix="分" className={styles.statSpend} />
                       </div>
                     </Col>
                     <Col span={8}>
