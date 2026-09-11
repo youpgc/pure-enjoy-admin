@@ -143,7 +143,12 @@ const GameAchievements: React.FC = () => {
       if (isV2ConditionOf(editing?.condition) && editing) {
         condition = (editing.condition as Record<string, any>) ?? {}
       } else if (values.condType === 'score') {
-        condition = { type: 'score', dimension: values.condDimension, gte: Number(values.condValue) }
+        // 阈值方向：≥ 写 gte（得分/得物类）、≤ 写 lte（用时/步数类，如速通）——
+        // 此前无条件写 gte，编辑 lte 型成就会把它翻转成反向逻辑
+        condition =
+          values.condDirection === 'lte'
+            ? { type: 'score', dimension: values.condDimension, lte: Number(values.condValue) }
+            : { type: 'score', dimension: values.condDimension, gte: Number(values.condValue) }
       } else if (values.condType === 'level') {
         condition = { type: 'level', min_level_no: Number(values.condValue) }
       } else {

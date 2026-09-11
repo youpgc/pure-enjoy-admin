@@ -1,5 +1,5 @@
 import React from 'react'
-import { Modal, Form, Input, InputNumber, Select, Switch } from 'antd'
+import { Modal, Form, Input, InputNumber, Select, Switch, Segmented } from 'antd'
 import type { Database } from '../../types/database'
 import { ACHIEVEMENT_ICON_OPTIONS } from '../../constants/game'
 import { COND_OPTIONS, isV2ConditionOf } from './achievementMeta'
@@ -36,14 +36,26 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
 }) => {
   const [form] = Form.useForm()
 
-  // condition JSON → 表单三个字段（类型 / 维度 / 阈值）
+  // condition JSON → 表单字段（类型 / 维度 / 阈值方向 / 阈值）。
+  // 阈值方向：score 条件支持 ≥（得分/得物类，gte）与 ≤（用时/步数类，lte）——
+  // 此前表单只认 gte，lte 型成就（如速通）回显空值、保存即被翻转成反向逻辑。
   const initialCond = (() => {
     const cond = (editing?.condition ?? {}) as Record<string, any>
     const type = cond?.type ?? 'first_clear'
+    if (type === 'score') {
+      const hasLte = cond?.lte != null
+      return {
+        condType: type as string,
+        condDimension: String(cond?.dimension ?? 'score'),
+        condDirection: hasLte ? ('lte' as const) : ('gte' as const),
+        condValue: (hasLte ? cond?.lte : cond?.gte) as number | undefined,
+      }
+    }
     return {
       condType: type as string,
-      condDimension: type === 'score' ? String(cond?.dimension ?? 'score') : undefined,
-      condValue: type === 'score' ? (cond?.gte as number) : type === 'level' ? (cond?.min_level_no as number) : undefined,
+      condDimension: undefined,
+      condDirection: 'gte' as const,
+      condValue: type === 'level' ? (cond?.min_level_no as number) : undefined,
     }
   })()
 
@@ -79,7 +91,13 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
                   sort_order: editing.sort_order,
                   ...initialCond,
                 }
-              : { condType: 'first_clear', reward_points: 5, enabled: true, sort_order: 0 },
+              : {
+                  condType: 'first_clear',
+                  condDirection: 'gte',
+                  reward_points: 5,
+                  enabled: true,
+                  sort_order: 0,
+                },
           )
         }
       }}
@@ -149,7 +167,9 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
         <Form.Item
           noStyle
           shouldUpdate={(prev, cur) =>
-            prev.condType !== cur.condType || prev.game_id !== cur.game_id
+            prev.condType !== cur.condType ||
+            prev.game_id !== cur.game_id ||
+            prev.condDirection !== cur.condDirection
           }
         >
           {({ getFieldValue }) => {
@@ -159,8 +179,17 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
               const dimOptions = dims
                 .filter((d) => !gameId || d.game_id === gameId)
                 .map((d) => ({ value: d.code, label: `${d.name}（${d.code}）` }))
+              const isLte = getFieldValue('condDirection') === 'lte'
               return (
                 <>
+                  <Form.Item name="condDirection" label="阈值方向">
+                    <Segmented
+                      options={[
+                        { value: 'gte', label: '≥ 至少达到（得分/得物类）' },
+                        { value: 'lte', label: '≤ 不超过（用时/步数类）' },
+                      ]}
+                    />
+                  </Form.Item>
                   <Form.Item
                     name="condDimension"
                     label="达成维度"
@@ -172,11 +201,22 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
                     />
                   </Form.Item>
                   <Form.Item
-                    name="condValue"
-                    label="达到阈值"
-                    rules={[{ required: true, message: '请输入阈值' }]}
+                    noStyle
+                    shouldUpdate={(prev, cur) => prev.condDirection !== cur.condDirection}
                   >
-                    <InputNumber min={0} className={common.fullWidth} placeholder="如 2048" />
+                    {({ getFieldValue: gf }) => (
+                      <Form.Item
+                        name="condValue"
+                        label={gf('condDirection') === 'lte' ? '不超过阈值' : '达到阈值'}
+                        rules={[{ required: true, message: '请输入阈值' }]}
+                      >
+                        <InputNumber
+                          min={0}
+                          className={common.fullWidth}
+                          placeholder={gf('condDirection') === 'lte' ? '如 20000（20 秒内）' : '如 2048'}
+                        />
+                      </Form.Item>
+                    )}
                   </Form.Item>
                 </>
               )
