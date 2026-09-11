@@ -204,27 +204,25 @@ const GameAchievements: React.FC = () => {
     [gameOptions]
   )
 
-  // 模式筛选选项（联动游戏筛选）：选中游戏 → 仅该游戏模式；未选 → 全部
-  //（label 带游戏名前缀防跨游戏同名歧义）；「全局」成就无模式语义 → 不含
-  const modeOptions = useMemo(() => {
-    const list = gameFilter && gameFilter !== 'global'
-      ? modes.filter((m) => m.game_id === gameFilter)
-      : modes
-    return list.map((m) => {
-      const gameName = gameNameMap[m.game_id]?.split('（')[0]
-      return { value: m.code, label: gameName ? `${gameName}·${m.name}` : m.name }
-    })
-  }, [modes, gameFilter, gameNameMap])
+  // 模式筛选选项（强联动游戏筛选）：必须先选游戏才能选模式；
+  // value 用 mode.id（uuid 全局唯一）——code 跨游戏重复（sheep/g2048 均有
+  // timed）会触发 React 同 key 警告；匹配时再由 id 反查 code
+  const modeOptions = useMemo(
+    () =>
+      !gameFilter || gameFilter === 'global'
+        ? []
+        : modes
+            .filter((m) => m.game_id === gameFilter)
+            .map((m) => ({ value: m.id, label: m.name })),
+    [modes, gameFilter]
+  )
+  const modeSelectDisabled = !gameFilter || gameFilter === 'global' || modeOptions.length === 0
 
-  // 游戏筛选变化时重置模式筛选（防跨游戏残留 mode code 空筛）
+  // 游戏筛选变化：自动带出该游戏第一个模式（清空/全局则清空模式筛选）
   const handleGameFilterChange = (v: string | undefined) => {
     setGameFilter(v)
-    if (v && modeFilter) {
-      const stillValid = modes.some(
-        (m) => m.code === modeFilter && (v === 'global' || m.game_id === v)
-      )
-      if (!stillValid) setModeFilter(undefined)
-    }
+    const first = v && v !== 'global' ? modes.find((m) => m.game_id === v) : undefined
+    setModeFilter(first?.id)
     setPage(1)
   }
 
@@ -251,15 +249,19 @@ const GameAchievements: React.FC = () => {
       if (groupKeyFilter) {
         if ((it.group_key ?? '') !== groupKeyFilter) return false
       }
-      // 模式筛选：匹配 condition.mode（mode_tier / mode_score / all_modes_tier）
-      if (modeFilter) {
-        if (((it.condition as Record<string, any> | null)?.mode ?? '') !== modeFilter) {
+      // 模式筛选：modeFilter 存 mode.id → 反查 code 匹配 condition.mode
+      //（mode_tier / mode_score / all_modes_tier 类成就）；id 失效（模式被删）时忽略
+      const filteredModeCode = modeFilter
+        ? modes.find((m) => m.id === modeFilter)?.code
+        : undefined
+      if (modeFilter && filteredModeCode) {
+        if (((it.condition as Record<string, any> | null)?.mode ?? '') !== filteredModeCode) {
           return false
         }
       }
       return true
     })
-  }, [items, nameFilter, gameFilter, groupKeyFilter, modeFilter])
+  }, [items, nameFilter, gameFilter, groupKeyFilter, modeFilter, modes])
 
   const columns: ColumnsType<DbGameAchievement> = [
     {
@@ -386,8 +388,9 @@ const GameAchievements: React.FC = () => {
               optionFilterProp="label"
             />
             <Select
-              placeholder="按模式筛选"
+              placeholder={modeSelectDisabled ? '请先选择游戏' : '按模式筛选'}
               allowClear
+              disabled={modeSelectDisabled}
               value={modeFilter}
               onChange={(v) => {
                 setModeFilter(v)
