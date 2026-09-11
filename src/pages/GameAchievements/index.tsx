@@ -218,23 +218,39 @@ const GameAchievements: React.FC = () => {
   )
   const modeSelectDisabled = !gameFilter || gameFilter === 'global' || modeOptions.length === 0
 
-  // 游戏筛选变化：自动带出该游戏第一个模式（清空/全局则清空模式筛选）
+  // 游戏筛选变化：自动带出该游戏第一个模式（清空/全局则清空模式筛选）；
+  // 分组键失效重置（键首段=游戏编码，切游戏后旧键不再属于新游戏）
   const handleGameFilterChange = (v: string | undefined) => {
     setGameFilter(v)
     const first = v && v !== 'global' ? modes.find((m) => m.game_id === v) : undefined
     setModeFilter(first?.id)
+    if (groupKeyFilter) {
+      const gameCode = v && v !== 'global' ? games.find((g) => g.id === v)?.code : undefined
+      if (!gameCode || !groupKeyFilter.startsWith(`${gameCode}:`)) setGroupKeyFilter(undefined)
+    }
     setPage(1)
   }
 
   // 分组键选项：从数据动态提取去重排序（键体系随配置迭代增长，不硬编码）。
   // 无「独立」专项筛选——分组键没有独立的说法，全部成就都应归属分组键
   //（2026-09-11 用户拍板；group_key 为空的存量行由补键 SQL 修正）。
+  // 三级关联：键首段=游戏编码（如 match3:jelly_clear）→ 选游戏后仅列该游戏
+  // 的键；不选游戏全量可独立筛选。键为「游戏:语义族」结构、与模式无可靠
+  // 映射（如 g2048:score_break 跨模式），故模式不再向下联动分组键——
+  // 游戏+模式+分组键三者 AND 叠加即可表达任意组合。
+  const gameCodeOfFilter =
+    gameFilter && gameFilter !== 'global'
+      ? games.find((g) => g.id === gameFilter)?.code
+      : undefined
   const groupKeyOptions = useMemo(() => {
     const keys = Array.from(
       new Set(items.map((it) => it.group_key ?? '').filter((k) => k !== ''))
     ).sort()
-    return keys.map((k) => ({ value: k, label: k }))
-  }, [items])
+    const narrowed = gameCodeOfFilter
+      ? keys.filter((k) => k.startsWith(`${gameCodeOfFilter}:`))
+      : keys
+    return narrowed.map((k) => ({ value: k, label: k }))
+  }, [items, gameCodeOfFilter])
 
   // 客户端筛选：名称模糊匹配 + 游戏（含「全局」）+ 分组键
   const filteredItems = useMemo(() => {
