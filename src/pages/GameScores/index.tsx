@@ -16,6 +16,7 @@ import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { handleApiError } from '../../utils/apiClient'
+import { formatDurationSmart } from '../../utils/durationFormat'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import EndlessRoundsExpand, { type EndlessRoundRow } from './EndlessRoundsExpand'
 import { usePagination } from '../../hooks/usePagination'
@@ -402,11 +403,12 @@ const GameScores: React.FC = () => {
       },
     },
     {
-      title: '耗时(s)',
+      title: '耗时',
       dataIndex: 'duration_ms',
       key: 'duration_ms',
-      width: 110,
-      render: (v: number | null) => (v == null ? '-' : `${(v / 1000).toFixed(1)}s`),
+      width: 130,
+      // 进阶时间单位（2026-09-11）：秒→分秒→时分秒，与 App 端同口径
+      render: (v: number | null) => (v == null ? '-' : formatDurationSmart(v)),
     },
     {
       title: '游玩时间',
@@ -424,7 +426,7 @@ const GameScores: React.FC = () => {
       key: 'value',
       render: (v: number, row: DbGameScoreValue) => {
         const dim = dimMap[row.dimension_id]
-        return isMsDim(dim) ? `${(v / 1000).toFixed(1)}s` : v
+        return isMsDim(dim) ? formatDurationSmart(v) : v
       },
     },
     {
@@ -433,7 +435,8 @@ const GameScores: React.FC = () => {
       key: 'unit',
       render: (id: string) => {
         const dim = dimMap[id]
-        if (isMsDim(dim)) return 's'
+        // 时间类维度值已带进阶单位，单位列不再重复标注
+        if (isMsDim(dim)) return '-'
         return dim?.unit || '-'
       },
     },
@@ -478,7 +481,7 @@ const GameScores: React.FC = () => {
                   const ms = r.unit === 'ms'
                   return (
                     <Text strong>
-                      {ms ? `${(r.value / 1000).toFixed(1)}s` : r.value}{' '}
+                      {ms ? formatDurationSmart(r.value) : r.value}{' '}
                       {ms ? '' : r.unit || ''}
                     </Text>
                   )

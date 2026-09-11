@@ -1,6 +1,7 @@
 import React from 'react'
 import { Table, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import { formatDurationSmart } from '../../utils/durationFormat'
 
 const { Text } = Typography
 
@@ -44,10 +45,11 @@ const EndlessRoundsExpand: React.FC<{ rows: EndlessRoundRow[] }> = ({ rows }) =>
       render: (v: number | null) => v ?? '-',
     },
     {
-      title: '用时(s)',
+      title: '用时',
       dataIndex: 'duration_ms',
       key: 'duration_ms',
-      render: (v: number | null) => (v == null ? '-' : `${(v / 1000).toFixed(1)}s`),
+      // 进阶时间单位（2026-09-11）：秒→分秒→时分秒，与 App 端同口径
+      render: (v: number | null) => (v == null ? '-' : formatDurationSmart(v)),
     },
   ]
 
@@ -69,7 +71,7 @@ const EndlessRoundsExpand: React.FC<{ rows: EndlessRoundRow[] }> = ({ rows }) =>
             </Table.Summary.Cell>
             <Table.Summary.Cell index={2}>-</Table.Summary.Cell>
             <Table.Summary.Cell index={3}>
-              <Text strong>{(totalMs / 1000).toFixed(1)}s</Text>
+              <Text strong>{formatDurationSmart(totalMs)}</Text>
             </Table.Summary.Cell>
           </Table.Summary.Row>
         </Table.Summary>
