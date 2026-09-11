@@ -359,7 +359,15 @@ const GameScores: React.FC = () => {
       key: 'level_id',
       width: 200,
       render: (v: string | null, record) => {
-        if (v) return levelMap[v]?.name ?? '关卡'
+        if (v) {
+          // 关卡名种子自带「游戏·模式」前缀（如「2048·经典模式 L001」），
+          // 「游戏」列已展示游戏名，此处剥掉前缀避免重复
+          const raw = levelMap[v]?.name
+          if (!raw) return '关卡'
+          const gameName = gameMap[record.game_id]?.name
+          const prefix = gameName ? `${gameName}·` : ''
+          return prefix && raw.startsWith(prefix) ? raw.slice(prefix.length) : raw
+        }
         // 无 level_id（无尽会话 / 2048 等无关卡感对局）：回退模式名
         return record.mode_id != null
           ? modeById[record.mode_id]?.name ?? '-'
