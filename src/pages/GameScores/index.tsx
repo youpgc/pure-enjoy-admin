@@ -17,6 +17,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { handleApiError } from '../../utils/apiClient'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
+import EndlessRoundsExpand, { type EndlessRoundRow } from './EndlessRoundsExpand'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { useUsernames } from '../../hooks/useUsernames'
@@ -26,6 +27,7 @@ import { GAME_STATUS_MAP } from '../../constants'
 import {
   gameScoreService,
   gameScoreValueService,
+  gameEndlessRoundService,
 } from '../../services/gameService'
 import type {
   DbGameScore,
@@ -293,40 +295,17 @@ const GameScores: React.FC = () => {
     loadBestOverview()
   }, [loadBestOverview])
 
-  // ========== 展开维度值 ==========
-  // 无尽会话聚合行：拉取合并范围内全部明细，按维度聚合口径合并
-  // （sum→累计、max→取最大、min→取最小、latest/其它→首局值）
-  const handleExpand = async (scoreId: string, mergedIds?: string[]) => {
-    const ids = mergedIds ?? [scoreId]
+  // ========== 展开明细 ==========
+  // 2026-09-11 改造：无尽会话不再前端合并——会话主记录（每会话一条）展开时
+  // 加载 game_endless_rounds 局明细（独立展开表）；其余行回退维度值表格。
+  const handleExpand = async (scoreId: string) => {
     if (expandedValues[scoreId]) return
     setExpandingId(scoreId)
     try {
-      const lists = await Promise.all(ids.map((id) => gameScoreValueService.getScoreValues(id)))
+      const res = await gameScoreValueService.getScoreValues(scoreId)
       if (!mountedRef.current) return
-      const all: DbGameScoreValue[] = []
-      lists.forEach((res) => {
-        if (res.success && res.data) all.push(...(res.data as DbGameScoreValue[]))
-      })
-      // 按 dimension_id 合并
-      const byDim: Record<string, { row: DbGameScoreValue; values: number[] }> = {}
-      for (const v of all) {
-        let slot = byDim[v.dimension_id]
-        if (!slot) {
-          slot = { row: v, values: [] }
-          byDim[v.dimension_id] = slot
-        }
-        slot.values.push(Number(v.value))
-      }
-      const mergedVals = Object.values(byDim).map(({ row, values }) => {
-        const agg = dimMap[row.dimension_id]?.aggregate
-        let value: number
-        if (agg === 'sum') value = values.reduce((a, b) => a + b, 0)
-        else if (agg === 'max') value = Math.max(...values)
-        else if (agg === 'min') value = Math.min(...values)
-        else value = values[0] ?? 0
-        return { ...row, value }
-      })
-      setExpandedValues((prev) => ({ ...prev, [scoreId]: mergedVals }))
+      const vals = (res.success && res.data ? (res.data as DbGameScoreValue[]) : [])
+      setExpandedValues((prev) => ({ ...prev, [scoreId]: vals }))
     } catch (error) {
       handleApiError(error, 'GameScores-维度值')
     } finally {
@@ -334,64 +313,31 @@ const GameScores: React.FC = () => {
     }
   }
 
-  const displayRows = useMemo(() => {
-    type Merged = DbGameScore & {
-      _mergedIds: string[]
-      _rounds: number
-      _endPlayed: string | null
-      _totalMs: number | null
+  // 无尽局明细加载（独立展开表数据源）
+  const [expandRounds, setExpandRounds] = useState<Record<string, EndlessRoundRow[]>>({})
+  const [expandingRoundId, setExpandingRoundId] = useState<string | null>(null)
+  const loadEndlessRounds = async (scoreId: string) => {
+    if (expandRounds[scoreId]) return
+    setExpandingRoundId(scoreId)
+    try {
+      const res = await gameEndlessRoundService.getRoundsByScoreId(scoreId)
+      if (!mountedRef.current) return
+      const rows = (res.success && res.data ? res.data : []) as unknown as EndlessRoundRow[]
+      setExpandRounds((prev) => ({ ...prev, [scoreId]: rows }))
+    } catch (error) {
+      handleApiError(error, 'GameScores-无尽局明细')
+    } finally {
+      setExpandingRoundId(null)
     }
-    const sorted = [...scores].sort((a, b) =>
-      (a.played_at ?? '').localeCompare(b.played_at ?? '')
-    )
-    const out: Merged[] = []
-    let cur: Merged | null = null
-    const flush = () => {
-      if (cur) out.push(cur)
-      cur = null
-    }
-    for (const r of sorted) {
-      const isEndless = r.mode_id != null && endlessModeIds.has(r.mode_id)
-      if (!isEndless) {
-        flush()
-        out.push(r as Merged)
-        continue
-      }
-      const t = r.played_at ? dayjs(r.played_at) : null
-      // 相邻两局间隔口径（2026-09-10 审查修正）：用上一局结束时间 _endPlayed，
-      // 而非会话首局时间 cur.played_at——后者会把「累计距首局≤30min」误判为可续
-      const prevT = cur?._endPlayed ? dayjs(cur._endPlayed) : null
-      const continuable =
-        cur &&
-        cur.user_id === r.user_id &&
-        cur.mode_id === r.mode_id &&
-        t &&
-        prevT &&
-        t.diff(prevT, 'minute') <= 30
-      if (continuable && cur) {
-        cur._mergedIds.push(r.id)
-        cur._rounds += 1
-        cur._endPlayed = r.played_at
-        if (r.duration_ms != null) {
-          cur._totalMs = (cur._totalMs ?? 0) + r.duration_ms
-        }
-      } else {
-        flush()
-        cur = {
-          ...r,
-          _mergedIds: [r.id],
-          _rounds: 1,
-          _endPlayed: r.played_at,
-          _totalMs: r.duration_ms,
-        }
-      }
-    }
-    flush()
-    // 按游玩时间倒序还原展示顺序
-    return out.sort((a, b) =>
-      (b.played_at ?? '').localeCompare(a.played_at ?? '')
-    )
-  }, [scores, endlessModeIds])
+  }
+
+  // 2026-09-11 改造：废弃前端合并聚合——无尽会话由 App 端按「一条主记录 +
+  // 局明细数组」上传，主表每会话自然一行，展开走独立局明细表（EndlessRoundsExpand）。
+  // 旧模型「每局一条」的历史行平铺展示，展开回退维度值表格。
+  const displayRows = scores
+
+  const isEndlessRow = (record: DbGameScore) =>
+    record.mode_id != null && endlessModeIds.has(record.mode_id)
 
   const columns: ColumnsType<DbGameScore> = [    {
       title: '用户',
@@ -413,16 +359,8 @@ const GameScores: React.FC = () => {
       key: 'level_id',
       width: 200,
       render: (v: string | null, record) => {
-        // 无尽会话聚合行：显示「无尽模式 · N 局」
-        const merged = record as DbGameScore & { _rounds?: number }
-        if (merged._rounds && merged._rounds > 1) {
-          const modeName =
-            (merged.mode_id != null ? modeById[merged.mode_id]?.name : null) ??
-            '无尽模式'
-          return `${modeName} · ${merged._rounds} 局`
-        }
         if (v) return levelMap[v]?.name ?? '关卡'
-        // 无 level_id（2048 等无关卡感对局）：回退模式名，不再显示 '-'
+        // 无 level_id（无尽会话 / 2048 等无关卡感对局）：回退模式名
         return record.mode_id != null
           ? modeById[record.mode_id]?.name ?? '-'
           : '-'
@@ -432,11 +370,8 @@ const GameScores: React.FC = () => {
       title: '通关条件',
       key: 'level_condition',
       render: (_: unknown, record) => {
-        const merged = record as DbGameScore & { _rounds?: number }
-        // 无尽会话聚合行：条件为链式累计（每局目标随关卡阶梯上升）
-        if (merged._rounds && merged._rounds > 1) {
-          return `链式会话累计（${merged._rounds} 局合计）`
-        }
+        // 无尽会话主行：链式累计得分，条件在局明细展开表中逐局展示
+        if (isEndlessRow(record)) return '无尽会话累计得分'
         const gameCode = gameMap[record.game_id]?.code
         // 有 level_id 用该关 config；无 level_id 用该模式 L001 的 config 兜底
         const lv = record.level_id
@@ -463,34 +398,13 @@ const GameScores: React.FC = () => {
       dataIndex: 'duration_ms',
       key: 'duration_ms',
       width: 110,
-      render: (v: number | null, record) => {
-        // 无尽会话聚合行：显示整段会话累计耗时
-        const merged = record as DbGameScore & { _totalMs?: number | null }
-        const ms = merged._totalMs ?? v
-        return ms == null ? '-' : `${(ms / 1000).toFixed(1)}s`
-      },
+      render: (v: number | null) => (v == null ? '-' : `${(v / 1000).toFixed(1)}s`),
     },
     {
       title: '游玩时间',
       dataIndex: 'played_at',
       key: 'played_at',
-      render: (d: string, record) => {
-        // 无尽会话聚合行：显示会话起止时间
-        const merged = record as DbGameScore & {
-          _rounds?: number
-          _endPlayed?: string | null
-        }
-        if (merged._rounds && merged._rounds > 1 && merged._endPlayed) {
-          const start = dayjs(d)
-          const end = dayjs(merged._endPlayed)
-          const fmt = (t: dayjs.Dayjs) =>
-            start.isSame(end, 'day')
-              ? t.format('HH:mm:ss')
-              : t.format('MM-DD HH:mm:ss')
-          return `${start.format('MM-DD HH:mm:ss')} ~ ${fmt(end)}`
-        }
-        return dayjs(d).format('YYYY-MM-DD HH:mm:ss')
-      },
+      render: (d: string) => dayjs(d).format('YYYY-MM-DD HH:mm:ss'),
     },
   ]
 
@@ -524,7 +438,7 @@ const GameScores: React.FC = () => {
         showIcon
         className={common.mb16}
         message="成绩看板说明"
-        description="成绩按对局记录展示（不含「放弃」）；「通关条件」列由关卡 config 自动生成中文描述（得分/步数/冰块/收集目标/方块类型等）。左侧「全部最佳成绩」为各游戏主维度全局最佳（服务端聚合）；明细行可展开查看各维度取值；无尽模式会话在本看板已按 App 同口径聚合展示（同用户相邻 ≤30 分钟合并为「N 局」会话行，展开为累计维度值；跨分页的会话会在页边界拆分）。"
+        description="成绩按对局记录展示（不含「放弃」）；「通关条件」列由关卡 config 自动生成中文描述（得分/步数/冰块/收集目标/方块类型等）。左侧「全部最佳成绩」为各游戏主维度全局最佳（服务端聚合）。无尽模式：每段会话一条主记录，展开查看「局明细」表（第N局/得分/步数/用时，App 端总结算时上传）；历史会话（未上传明细）展开为维度值。"
       />
       {/* 最佳成绩概览 */}
       <Card
@@ -645,6 +559,18 @@ const GameScores: React.FC = () => {
         scroll={{ x: 'max-content' }}
         expandable={{
           expandedRowRender: (record) => {
+            // 无尽会话：独立局明细展开表（对局信息/得分/步数/用时 + 合计）
+            if (isEndlessRow(record)) {
+              const rounds = expandRounds[record.id]
+              if (expandingRoundId === record.id && !rounds) {
+                return <Spin size="small" />
+              }
+              if (!rounds || rounds.length === 0) {
+                return <Text type="secondary">无局明细（历史会话未上传明细）</Text>
+              }
+              return <EndlessRoundsExpand rows={rounds} />
+            }
+            // 其余行：维度值表格（历史回退）
             const vals = expandedValues[record.id]
             if (expandingId === record.id && !vals) {
               return <Spin size="small" />
@@ -663,8 +589,12 @@ const GameScores: React.FC = () => {
             )
           },
           onExpand: (expanded, record) => {
-            const merged = record as DbGameScore & { _mergedIds?: string[] }
-            if (expanded) handleExpand(record.id, merged._mergedIds)
+            if (!expanded) return
+            if (isEndlessRow(record)) {
+              loadEndlessRounds(record.id)
+            } else {
+              handleExpand(record.id)
+            }
           },
         }}
       />

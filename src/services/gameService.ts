@@ -237,6 +237,24 @@ class GameModeService extends BaseService<DbGameMode> {
   }
 }
 
+// 58d. 无尽模式局明细（game_endless_rounds；GameScores 无尽展开表）
+class GameEndlessRoundService extends BaseService<any> {
+  constructor() {
+    super('game_endless_rounds', {
+      defaultOrder: { column: 'round_no', ascending: true },
+    })
+  }
+
+  /// 按会话主记录取局明细（round_no 升序）
+  getRoundsByScoreId(scoreId: string) {
+    return this.findAll((q) =>
+      q
+        .eq('score_id', scoreId)
+        .order('round_no', { ascending: true })
+    )
+  }
+}
+
 // 58b. 游戏道具目录（game_items；GameItems 页）
 class GameItemService extends BaseService<DbGameItem> {
   constructor() {
@@ -272,6 +290,7 @@ export const gameItemService = new GameItemService()
 export const gamePointFlowService = new GamePointFlowService()
 export const gameScoreService = new GameScoreService()
 export const gameScoreValueService = new GameScoreValueService()
+export const gameEndlessRoundService = new GameEndlessRoundService()
 export const userGameAchievementService = new UserGameAchievementService()
 export const gameRewardClaimService = new GameRewardClaimService()
 
