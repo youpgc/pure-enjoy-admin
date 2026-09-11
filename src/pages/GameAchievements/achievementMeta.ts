@@ -59,14 +59,15 @@ export function condSummary(cond: Record<string, any>): string {
   }
   if (type === 'mode_tier') {
     const mode = MODE_LABELS[cond?.mode] ?? cond?.mode ?? '?'
-    const tier = TIER_LABELS[Number(cond?.tier)] ?? `T${cond?.tier ?? '?'}`
     const threshold = cond?.threshold as Record<string, any> | undefined
+    // 只输出判定语义本身：段位/模式信息由名称列承载，不加括号注释
     if (threshold?.level != null) {
-      return `${mode}通关达到第 ${threshold.level} 关（${tier}段位标准）`
+      return `${mode}通关达到第 ${threshold.level} 关`
     }
     if (threshold?.score != null) {
-      return `${mode}单局得分 ≥ ${threshold.score}（${tier}段位标准）`
+      return `${mode}单局得分 ≥ ${threshold.score}`
     }
+    const tier = TIER_LABELS[Number(cond?.tier)] ?? `T${cond?.tier ?? '?'}`
     return `${mode}${tier}段位`
   }
   if (type === 'all_modes_tier') {
