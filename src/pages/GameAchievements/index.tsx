@@ -15,9 +15,9 @@ import {
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { usePermission } from '../../hooks/usePermission'
-import { gameAchievementService, gameDimensionService, gameService } from '../../services/gameService'
+import { gameAchievementService, gameDimensionService, gameModeService, gameService } from '../../services/gameService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
-import type { Database, DbGameDimension } from '../../types/database'
+import type { Database, DbGameDimension, DbGameMode } from '../../types/database'
 import common from '../../styles/common.module.css'
 import styles from './index.module.css'
 import AchievementIcon from './AchievementIcon'
@@ -64,6 +64,11 @@ const GameAchievements: React.FC = () => {
   const [groupKeyFilter, setGroupKeyFilter] = useState<string | undefined>(
     restoredFilters.groupKeyFilter as string | undefined
   )
+  // 模式筛选（联动游戏筛选：选中游戏后仅列出该游戏模式；condition.mode 匹配）
+  const [modeFilter, setModeFilter] = useState<string | undefined>(
+    restoredFilters.modeFilter as string | undefined
+  )
+  const [modes, setModes] = useState<DbGameMode[]>([])
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
@@ -72,6 +77,7 @@ const GameAchievements: React.FC = () => {
     nameFilter,
     gameFilter,
     groupKeyFilter,
+    modeFilter,
   })
 
   const loadItems = async () => {
@@ -105,10 +111,16 @@ const GameAchievements: React.FC = () => {
     if (res.success && res.data) setDims(res.data)
   }
 
+  const loadModes = async () => {
+    const res = await gameModeService.findAll()
+    if (res.success && res.data) setModes(res.data)
+  }
+
   useEffect(() => {
     loadItems()
     loadGames()
     loadDims()
+    loadModes()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -192,6 +204,30 @@ const GameAchievements: React.FC = () => {
     [gameOptions]
   )
 
+  // 模式筛选选项（联动游戏筛选）：选中游戏 → 仅该游戏模式；未选 → 全部
+  //（label 带游戏名前缀防跨游戏同名歧义）；「全局」成就无模式语义 → 不含
+  const modeOptions = useMemo(() => {
+    const list = gameFilter && gameFilter !== 'global'
+      ? modes.filter((m) => m.game_id === gameFilter)
+      : modes
+    return list.map((m) => {
+      const gameName = gameNameMap[m.game_id]?.split('（')[0]
+      return { value: m.code, label: gameName ? `${gameName}·${m.name}` : m.name }
+    })
+  }, [modes, gameFilter, gameNameMap])
+
+  // 游戏筛选变化时重置模式筛选（防跨游戏残留 mode code 空筛）
+  const handleGameFilterChange = (v: string | undefined) => {
+    setGameFilter(v)
+    if (v && modeFilter) {
+      const stillValid = modes.some(
+        (m) => m.code === modeFilter && (v === 'global' || m.game_id === v)
+      )
+      if (!stillValid) setModeFilter(undefined)
+    }
+    setPage(1)
+  }
+
   // 分组键选项：从数据动态提取去重排序（键体系随配置迭代增长，不硬编码）。
   // 无「独立」专项筛选——分组键没有独立的说法，全部成就都应归属分组键
   //（2026-09-11 用户拍板；group_key 为空的存量行由补键 SQL 修正）。
@@ -215,9 +251,15 @@ const GameAchievements: React.FC = () => {
       if (groupKeyFilter) {
         if ((it.group_key ?? '') !== groupKeyFilter) return false
       }
+      // 模式筛选：匹配 condition.mode（mode_tier / mode_score / all_modes_tier）
+      if (modeFilter) {
+        if (((it.condition as Record<string, any> | null)?.mode ?? '') !== modeFilter) {
+          return false
+        }
+      }
       return true
     })
-  }, [items, nameFilter, gameFilter, groupKeyFilter])
+  }, [items, nameFilter, gameFilter, groupKeyFilter, modeFilter])
 
   const columns: ColumnsType<DbGameAchievement> = [
     {
@@ -337,12 +379,22 @@ const GameAchievements: React.FC = () => {
               placeholder="按游戏筛选"
               allowClear
               value={gameFilter}
-              onChange={(v) => {
-                setGameFilter(v)
-                setPage(1)
-              }}
+              onChange={handleGameFilterChange}
               options={[{ value: 'global', label: '全局（无所属游戏）' }, ...gameOptions]}
               className={styles.gameSelect}
+              showSearch
+              optionFilterProp="label"
+            />
+            <Select
+              placeholder="按模式筛选"
+              allowClear
+              value={modeFilter}
+              onChange={(v) => {
+                setModeFilter(v)
+                setPage(1)
+              }}
+              options={modeOptions}
+              className={styles.groupKeySelect}
               showSearch
               optionFilterProp="label"
             />
