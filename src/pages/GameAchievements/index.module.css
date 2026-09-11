@@ -33,3 +33,8 @@
 .gameSelect {
   width: 220px;
 }
+
+/* 分组键筛选下拉固定宽（键编码较长，如 tier:match3:timed） */
+.groupKeySelect {
+  width: 240px;
+}

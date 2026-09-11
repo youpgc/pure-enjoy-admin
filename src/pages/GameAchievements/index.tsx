@@ -60,11 +60,19 @@ const GameAchievements: React.FC = () => {
   const [gameFilter, setGameFilter] = useState<string | undefined>(
     restoredFilters.gameFilter as string | undefined
   )
+  // 分组键筛选：'none' = 独立成就（无 group_key），其余为具体键值
+  const [groupKeyFilter, setGroupKeyFilter] = useState<string | undefined>(
+    restoredFilters.groupKeyFilter as string | undefined
+  )
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
 
   // 页签刷新筛选持久化（卸载时写回快照）
-  usePersistTabFilters('game_achievements', { nameFilter, gameFilter })
+  usePersistTabFilters('game_achievements', {
+    nameFilter,
+    gameFilter,
+    groupKeyFilter,
+  })
 
   const loadItems = async () => {
     setLoading(true)
@@ -176,7 +184,19 @@ const GameAchievements: React.FC = () => {
     [games]
   )
 
-  // 客户端筛选：名称模糊匹配 + 游戏（含「全局」）
+  // 分组键选项：从数据动态提取去重排序（键体系随配置迭代增长，不硬编码）；
+  // 追加「独立（无分组键）」筛选项（值 'none'，App 端独立成就框不合并展示）
+  const groupKeyOptions = useMemo(() => {
+    const keys = Array.from(
+      new Set(items.map((it) => it.group_key ?? '').filter((k) => k !== ''))
+    ).sort()
+    return [
+      { value: 'none', label: '独立（无分组键）' },
+      ...keys.map((k) => ({ value: k, label: k })),
+    ]
+  }, [items])
+
+  // 客户端筛选：名称模糊匹配 + 游戏（含「全局」）+ 分组键（含「独立」）
   const filteredItems = useMemo(() => {
     const kw = nameFilter.trim().toLowerCase()
     return items.filter((it) => {
@@ -186,9 +206,14 @@ const GameAchievements: React.FC = () => {
       } else if (gameFilter) {
         if (it.game_id !== gameFilter) return false
       }
+      if (groupKeyFilter === 'none') {
+        if (it.group_key) return false
+      } else if (groupKeyFilter) {
+        if ((it.group_key ?? '') !== groupKeyFilter) return false
+      }
       return true
     })
-  }, [items, nameFilter, gameFilter])
+  }, [items, nameFilter, gameFilter, groupKeyFilter])
 
   const columns: ColumnsType<DbGameAchievement> = [
     {
@@ -314,6 +339,19 @@ const GameAchievements: React.FC = () => {
               }}
               options={[{ value: 'global', label: '全局（无所属游戏）' }, ...gameOptions]}
               className={styles.gameSelect}
+              showSearch
+              optionFilterProp="label"
+            />
+            <Select
+              placeholder="按分组键筛选"
+              allowClear
+              value={groupKeyFilter}
+              onChange={(v) => {
+                setGroupKeyFilter(v)
+                setPage(1)
+              }}
+              options={groupKeyOptions}
+              className={styles.groupKeySelect}
               showSearch
               optionFilterProp="label"
             />
