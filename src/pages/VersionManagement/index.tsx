@@ -92,7 +92,14 @@ const VersionManagement: React.FC = () => {
               </div>
             </Col>
             <Col flex="auto">
-              <Descriptions size="small" column={2} bordered>
+              <Descriptions
+                size="small"
+                column={2}
+                bordered
+                // 更新说明过长时把 label 列挤压成一字一行竖排（2026-09-11 用户反馈），
+                // 锁定 label 列宽防挤压
+                labelStyle={{ width: 100, whiteSpace: 'nowrap' }}
+              >
                 <Descriptions.Item label="版本号">
                   <Text strong className={styles.versionNum}>
                     v{currentVersion.version}
@@ -110,7 +117,18 @@ const VersionManagement: React.FC = () => {
                   </Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="更新说明" span={2}>
-                  {currentVersion.release_notes || '-'}
+                  {/* 长说明：保留输入换行、正常断词，限高内滚动防撑乱卡片布局 */}
+                  <div
+                    style={{
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      maxHeight: 128,
+                      overflowY: 'auto',
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {currentVersion.release_notes || '-'}
+                  </div>
                 </Descriptions.Item>
                 <Descriptions.Item label="创建时间">
                   {dayjs(currentVersion.created_at).format('YYYY-MM-DD HH:mm:ss')}
