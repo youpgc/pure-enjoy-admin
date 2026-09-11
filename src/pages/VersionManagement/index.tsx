@@ -91,11 +91,14 @@ const VersionManagement: React.FC = () => {
                 />
               </div>
             </Col>
-            <Col flex="auto">
+            <Col flex="auto" style={{ minWidth: 0 }}>
+              {/* tableLayout fixed：锁死表格宽度为容器宽，长内容不再把 auto 列
+                  撑超剩余空间导致 Row 换行（二维码与表格上下错位，2026-09-11） */}
               <Descriptions
                 size="small"
                 column={2}
                 bordered
+                tableLayout="fixed"
                 // 更新说明过长时把 label 列挤压成一字一行竖排（2026-09-11 用户反馈），
                 // 锁定 label 列宽防挤压
                 labelStyle={{ width: 100, whiteSpace: 'nowrap' }}
