@@ -48,7 +48,14 @@ export function isV2ConditionOf(condition: unknown): boolean {
 export function condSummary(cond: Record<string, any>): string {
   const type = cond?.type ?? 'first_clear'
   if (type === 'score') {
-    return `${cond?.dimension ?? '?'} ≥ ${cond?.gte ?? '?'}`
+    const dim = cond?.dimension ?? '?'
+    // 方向按实际阈值键渲染：lte=用时类（≤ 速通）、gte=得分类（≥ 里程碑）、
+    // 双键=区间——此前硬编码 ≥ 把 lte 型显示成「duration_ms ≥ ?」（误导）
+    const gte = cond?.gte
+    const lte = cond?.lte
+    if (gte != null && lte != null) return `${dim} 在 ${gte} ~ ${lte} 之间`
+    if (lte != null) return `${dim} ≤ ${lte}`
+    return `${dim} ≥ ${gte ?? '?'}`
   }
   if (type === 'level') {
     return `通关第 ${cond?.min_level_no ?? '?'} 关及以上`
