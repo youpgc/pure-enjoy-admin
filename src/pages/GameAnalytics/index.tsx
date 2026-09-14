@@ -50,20 +50,24 @@ const { RangePicker } = DatePicker
 
 const COLORS = ['#ff4d4f', '#faad14', '#52c41a', '#1890ff', '#722ed1', '#13c2c2']
 
-/// 分批拉全量（不受分页影响，本地聚合；supabase 默认单次上限 1000）
+/// 分批拉全量（不受分页影响，本地聚合；supabase 默认单次上限 1000）。
+/// extra：把筛选条件下推数据库（如时间窗），避免全表拉取后客户端过滤。
 async function loadAllRows<T>(
-  svc: { findAll: (q?: any) => Promise<{ success: boolean; errorMessage?: string | null; data?: T[] | null }> }
+  svc: { findAll: (q?: any) => Promise<{ success: boolean; errorMessage?: string | null; data?: T[] | null }> },
+  extra?: (q: any) => any,
+  _context = 'GameAnalytics-批量加载'
 ): Promise<T[]> {
   const all: T[] = []
   let offset = 0
   const batch = 1000
   let hasMore = true
   while (hasMore) {
-    const res = await svc.findAll((q: any) => q.range(offset, offset + batch - 1))
-    if (!res.success) {
-      handleApiError(res.errorMessage, 'GameAnalytics-批量加载')
-      break
-    }
+    const res = await svc.findAll((q: any) => {
+      let b = q.range(offset, offset + batch - 1)
+      if (extra) b = extra(b)
+      return b
+    })
+    if (!res.success) break // 读失败：BaseService 内部已弹窗+记日志，静默中止避免双弹窗
     const rows = (res.data || []) as T[]
     if (rows.length === 0) hasMore = false
     else {
@@ -104,6 +108,11 @@ const GameAnalytics: React.FC = () => {
   const loadAll = useCallback(async () => {
     setLoading(true)
     try {
+      // 时间窗（本地时区起止）→ ISO 后下推数据库
+      const start = dateRange[0].startOf('day')
+      const end = dateRange[1].endOf('day')
+      const startISO = start.toISOString()
+      const endISO = end.toISOString()
       const gRes = await gameService.findAll()
       const aRes = await gameAchievementService.findAll()
       const rRes = await gameRewardRuleService.findAll()
@@ -115,19 +124,26 @@ const GameAnalytics: React.FC = () => {
       const rm: Record<string, DbGameRewardRule> = {}
       rRes.data?.forEach((r) => (rm[r.id] = r))
       const [scores, claims, achs] = await Promise.all([
-        loadAllRows<DbGameScore>(gameScoreService),
-        loadAllRows<DbGameRewardClaim>(gameRewardClaimService),
-        loadAllRows<DbUserGameAchievement>(userGameAchievementService),
+        loadAllRows<DbGameScore>(
+          gameScoreService,
+          (q) => q.gte('played_at', startISO).lte('played_at', endISO),
+          'GameAnalytics-对局流水'
+        ),
+        loadAllRows<DbGameRewardClaim>(
+          gameRewardClaimService,
+          (q) => q.gte('claimed_at', startISO).lte('claimed_at', endISO),
+          'GameAnalytics-发奖流水'
+        ),
+        loadAllRows<DbUserGameAchievement>(
+          userGameAchievementService,
+          (q) => q.gte('unlocked_at', startISO).lte('unlocked_at', endISO),
+          'GameAnalytics-成就解锁'
+        ),
       ])
 
-      // 日期窗口过滤（按 played_at）
-      const start = dateRange[0].startOf('day')
-      const end = dateRange[1].endOf('day')
-      const inRange = (iso: string) => {
-        const d = dayjs(iso)
-        return d.isAfter(start) && d.isBefore(end)
-      }
-      const windowScores = scores.filter((s) => inRange(s.played_at))
+      // 时间窗已在数据库侧过滤（played_at/claimed_at/unlocked_at 各按业务时间）；
+      // 积分/成就统计与对局同窗口，与说明文案「按所选日期范围」一致
+      const windowScores = scores
 
       if (!mountedRef.current) return
 
@@ -221,7 +237,7 @@ const GameAnalytics: React.FC = () => {
         showIcon
         className={common.mb16}
         message="游戏数据分析说明"
-        description="指标基于 game_scores / game_reward_claims 聚合（按所选日期范围）：参与用户数、对局数、通关率与奖励发放构成（claim_key 前缀分类：通关/每日首通/成绩区间/成就段位）。"
+        description="指标基于 game_scores / game_reward_claims / user_game_achievements 按所选日期范围（业务时间：开局/发奖/解锁）聚合：参与用户数、对局数、通关率、奖励发放构成（claim_key 前缀分类）与成就解锁 Top。"
       />
       <div className={styles.header}>
         <Title level={4} className={common.noMargin}>

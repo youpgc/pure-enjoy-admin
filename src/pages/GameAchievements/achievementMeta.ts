@@ -1,16 +1,41 @@
 /**
  * 成就管理 · 条件类型常量与摘要渲染
  * 条件类型口径与 App 端结算判定器（game_reward_picker.dart）一致：
- * first_clear / level(min_level_no) / score(dimension+gte) / mode_tier /
- * all_modes_tier / all_games_tier / mode_score。
+ * first_clear / level(min_level_no) / score(dimension+gte) / cumulative(metric+value) /
+ * mode_tier / all_modes_tier / all_games_tier / mode_score。
  */
 
 /// 后台可编辑的条件类型（v2 徽章条件只读展示、保存原样保留）
 export const COND_OPTIONS = [
   { value: 'first_clear', label: '任意通关（通关任意一关即达成）' },
   { value: 'score', label: '维度分数达到（通关时某维度值 ≥ 阈值）' },
-  { value: 'level', label: '通关关卡号达到（通关第 N 关及以上）' },
+  {
+    value: 'level',
+    label: '通关关卡号达到（全局关序 ≥ N，消消乐 = 前序模式实际关数之和 + 关内序）',
+  },
+  {
+    value: 'cumulative',
+    label: '终身累计达成（跨局累计某指标达到 N，如累计消除 8000 个方块）',
+  },
 ]
+
+/// 累计指标映射（condition.metric 为 App 端 GameCumulativeMetrics 编码）
+export const CUMULATIVE_METRIC_OPTIONS = [
+  { value: 'play', label: '累计游玩局数（每局完成结算 +1，含失败局）' },
+  { value: 'clear', label: '累计通关次数（通关 +1）' },
+  { value: 'merge', label: '累计合成次数（2048，当局引擎上报 merges 增量）' },
+  {
+    value: 'clear_blocks',
+    label: '累计消除方块数（消消乐，当局引擎上报 cleared_blocks 增量）',
+  },
+]
+
+export const CUMULATIVE_METRIC_LABELS: Record<string, string> = {
+  play: '累计游玩局数',
+  clear: '累计通关次数',
+  merge: '累计合成次数',
+  clear_blocks: '累计消除方块数',
+}
 
 /// 游戏名映射（condition.game 为引擎编码）
 export const GAME_LABELS: Record<string, string> = {
@@ -59,6 +84,10 @@ export function condSummary(cond: Record<string, any>): string {
   }
   if (type === 'level') {
     return `通关第 ${cond?.min_level_no ?? '?'} 关及以上`
+  }
+  if (type === 'cumulative') {
+    const metric = CUMULATIVE_METRIC_LABELS[cond?.metric] ?? cond?.metric ?? '?'
+    return `${metric}达到 ${cond?.value ?? '?'}`
   }
   if (type === 'mode_score') {
     const mode = MODE_LABELS[cond?.mode] ?? cond?.mode ?? '?'

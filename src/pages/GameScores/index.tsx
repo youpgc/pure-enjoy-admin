@@ -188,8 +188,9 @@ const GameScores: React.FC = () => {
   const [modeFilter, setModeFilter] = useState<string>(
     (restoredFilters.modeFilter as string) ?? 'all'
   )
+  // 默认排除「放弃」（aborted 仅诊断对局时长用，混入正常成绩列表易误导）
   const [statusFilter, setStatusFilter] = useState<string>(
-    (restoredFilters.statusFilter as string) ?? 'all'
+    (restoredFilters.statusFilter as string) ?? 'not_aborted'
   )
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(
     (restoredFilters.dateRange as [dayjs.Dayjs, dayjs.Dayjs] | null) ?? null
@@ -222,16 +223,15 @@ const GameScores: React.FC = () => {
           let builder = q
           if (gameFilter !== 'all') builder = builder.eq('game_id', gameFilter)
           if (modeFilter !== 'all') builder = builder.eq('mode_id', modeFilter)
-          if (statusFilter !== 'all') builder = builder.eq('status', statusFilter)
+          if (statusFilter === 'not_aborted') builder = builder.neq('status', 'aborted')
+          else if (statusFilter !== 'all') builder = builder.eq('status', statusFilter)
           if (dateRange?.[0]) builder = builder.gte('played_at', dateRange[0].format('YYYY-MM-DD'))
           if (dateRange?.[1]) builder = builder.lte('played_at', dateRange[1].format('YYYY-MM-DD') + 'T23:59:59')
           return builder
         }
       )
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'GameScores-加载')
-        return
-      }
+      // 读失败：BaseService 内部已统一弹窗+记日志，此处静默返回避免双弹窗
+      if (!result.success) return
       if (!mountedRef.current) return
       setScores(result.data?.data || [])
       pager.setTotal(result.data?.total || 0)
@@ -449,7 +449,7 @@ const GameScores: React.FC = () => {
         showIcon
         className={common.mb16}
         message="成绩看板说明"
-        description="成绩按对局记录展示（不含「放弃」）；「通关条件」列由关卡 config 自动生成中文描述（得分/步数/冰块/收集目标/方块类型等）。左侧「全部最佳成绩」为各游戏主维度全局最佳（服务端聚合）。无尽模式：每段会话一条主记录，展开查看「局明细」表（第N局/得分/步数/用时，App 端总结算时上传）；历史会话（未上传明细）展开为维度值。"
+        description="成绩按对局记录展示（默认不含「放弃」，可在状态筛选中切换）；「通关条件」列由关卡 config 自动生成中文描述（得分/步数/冰块/收集目标/方块类型等）。左侧「全部最佳成绩」为各游戏主维度全局最佳（服务端聚合）。无尽模式：每段会话一条主记录，展开查看「局明细」表（第N局/得分/步数/用时，App 端总结算时上传）；历史会话（未上传明细）展开为维度值。"
       />
       {/* 最佳成绩概览 */}
       <Card
@@ -545,6 +545,7 @@ const GameScores: React.FC = () => {
               pager.resetPage()
             }}
             options={[
+              { value: 'not_aborted', label: '不含放弃' },
               { value: 'all', label: '全部' },
               { value: 'cleared', label: '通关' },
               { value: 'failed', label: '失败' },

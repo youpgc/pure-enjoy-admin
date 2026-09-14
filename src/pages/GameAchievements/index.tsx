@@ -5,18 +5,20 @@ import {
   Input,
   Select,
   Card,
-  Popconfirm,
   message,
   Space,
   Tag,
   Alert,
   Typography,
 } from 'antd'
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
+import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { usePermission } from '../../hooks/usePermission'
+import { getActionColumn } from '../../components/common/ActionColumn'
 import { gameAchievementService, gameDimensionService, gameModeService, gameService } from '../../services/gameService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
+import { handleApiError } from '../../utils/apiClient'
+import { useMounted } from '../../hooks/useMounted'
 import type { Database, DbGameDimension, DbGameMode } from '../../types/database'
 import common from '../../styles/common.module.css'
 import styles from './index.module.css'
@@ -44,6 +46,7 @@ const GameAchievements: React.FC = () => {
   const { hasPermission } = usePermission()
   const canWrite = hasPermission('games:write')
   const canDelete = hasPermission('games:delete')
+  const mountedRef = useMounted()
 
   const [items, setItems] = useState<DbGameAchievement[]>([])
   const [games, setGames] = useState<{ id: string; code: string; name: string }[]>([])
@@ -83,46 +86,78 @@ const GameAchievements: React.FC = () => {
   const loadItems = async () => {
     setLoading(true)
     try {
-      // 经 BaseService（列清单在 service 构造器统一维护）
-      const res = await gameAchievementService.findAll()
-      if (!res.success) {
-        message.error('加载成就失败：' + (res.errorMessage ?? '未知错误'))
-        return
-      }
+      // 经 BaseService（列清单在 service 构造器统一维护）；
+      // 游戏/模式筛选下推数据库，避免全量拉取后客户端过滤
+      const res = await gameAchievementService.findAll((q) => {
+        let b = q
+        if (gameFilter === 'global') b = b.is('game_id', null)
+        else if (gameFilter) b = b.eq('game_id', gameFilter)
+        // condition 为 JSON 列：PostgREST 支持 condition->>mode 取值过滤
+        const modeCode = modeFilter ? modes.find((m) => m.id === modeFilter)?.code : undefined
+        if (modeFilter && modeCode) b = b.eq('condition->>mode', modeCode)
+        return b
+      })
+      if (!mountedRef.current) return
+      // 读失败：BaseService 内部已统一弹窗+记日志，此处静默返回避免双弹窗
+      if (!res.success) return
       setItems(res.data ?? [])
+    } catch (error) {
+      handleApiError(error, 'GameAchievements-加载成就')
     } finally {
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
   }
 
   const loadGames = async () => {
-    const res = await gameService.findAll((q) => q.eq('enabled', true))
-    if (res.success && res.data) {
-      const list = res.data.map((g) => ({ id: g.id, code: g.code, name: g.name }))
+    try {
+      const res = await gameService.findAll((q) => q.eq('enabled', true))
+      if (!mountedRef.current) return
+      if (!res.success) return // service 已弹窗
+      const list = (res.data ?? []).map((g) => ({ id: g.id, code: g.code, name: g.name }))
       setGames(list)
       const map: Record<string, string> = {}
       list.forEach((g) => (map[g.id] = `${g.name}（${g.code}）`))
       setGameNameMap(map)
+    } catch (error) {
+      handleApiError(error, 'GameAchievements-加载游戏')
     }
   }
 
   const loadDims = async () => {
-    const res = await gameDimensionService.findAll()
-    if (res.success && res.data) setDims(res.data)
+    try {
+      const res = await gameDimensionService.findAll()
+      if (!mountedRef.current) return
+      if (!res.success) return // service 已弹窗
+      setDims(res.data ?? [])
+    } catch (error) {
+      handleApiError(error, 'GameAchievements-加载维度')
+    }
   }
 
   const loadModes = async () => {
-    const res = await gameModeService.findAll()
-    if (res.success && res.data) setModes(res.data)
+    try {
+      const res = await gameModeService.findAll()
+      if (!mountedRef.current) return
+      if (!res.success) return // service 已弹窗
+      setModes(res.data ?? [])
+    } catch (error) {
+      handleApiError(error, 'GameAchievements-加载模式')
+    }
   }
 
+  // 挂载仅拉元数据（游戏/维度/模式）；列表由筛选变化 effect 统一驱动
   useEffect(() => {
-    loadItems()
     loadGames()
     loadDims()
     loadModes()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 游戏/模式筛选（已下推数据库）变化即重查；modes 就绪晚于首查时补查一次
+  useEffect(() => {
+    loadItems()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameFilter, modeFilter, modes])
 
   const openCreate = () => {
     setEditing(null)
@@ -151,6 +186,14 @@ const GameAchievements: React.FC = () => {
             : { type: 'score', dimension: values.condDimension, gte: Number(values.condValue) }
       } else if (values.condType === 'level') {
         condition = { type: 'level', min_level_no: Number(values.condValue) }
+      } else if (values.condType === 'cumulative') {
+        // 终身累计达成：metric 对应 App 端 GameCumulativeMetrics 编码，
+        // 由 App 每局结算累加并判定（达标档位全部发放，claim_key 幂等）
+        condition = {
+          type: 'cumulative',
+          metric: values.condMetric,
+          value: Number(values.condValue),
+        }
       } else {
         condition = { type: 'first_clear' }
       }
@@ -180,19 +223,21 @@ const GameAchievements: React.FC = () => {
             updated_at: new Date().toISOString(),
           } as any)
       if (!res.success) return // service 已统一弹窗 + 记日志
+      if (!mountedRef.current) return
       message.success(editing ? '已更新' : '已新增')
       setModalOpen(false)
       await loadItems()
-    } catch (e: any) {
-      message.error('保存失败：' + (e?.message ?? e))
+    } catch (error) {
+      handleApiError(error, 'GameAchievements-保存成就')
     } finally {
-      setSaving(false)
+      if (mountedRef.current) setSaving(false)
     }
   }
 
   const handleDelete = async (id: string) => {
     const res = await gameAchievementService.delete(id)
     if (!res.success) return // service 已统一弹窗 + 记日志
+    if (!mountedRef.current) return
     message.success('已删除')
     await loadItems()
   }
@@ -236,53 +281,28 @@ const GameAchievements: React.FC = () => {
     setPage(1)
   }
 
-  // 分组键选项：从数据动态提取去重排序（键体系随配置迭代增长，不硬编码）。
+  // 分组键选项：从当前数据动态提取去重排序（键体系随配置迭代增长，不硬编码）。
+  // 游戏/模式筛选已下推 → items 已按游戏/模式收窄，键选项天然随游戏范围变化；
   // 无「独立」专项筛选——分组键没有独立的说法，全部成就都应归属分组键
   //（2026-09-11 用户拍板；group_key 为空的存量行由补键 SQL 修正）。
-  // 三级关联：键首段=游戏编码（如 match3:jelly_clear）→ 选游戏后仅列该游戏
-  // 的键；不选游戏全量可独立筛选。键为「游戏:语义族」结构、与模式无可靠
-  // 映射（如 g2048:score_break 跨模式），故模式不再向下联动分组键——
-  // 游戏+模式+分组键三者 AND 叠加即可表达任意组合。
-  const gameCodeOfFilter =
-    gameFilter && gameFilter !== 'global'
-      ? games.find((g) => g.id === gameFilter)?.code
-      : undefined
-  const groupKeyOptions = useMemo(() => {
-    const keys = Array.from(
-      new Set(items.map((it) => it.group_key ?? '').filter((k) => k !== ''))
-    ).sort()
-    const narrowed = gameCodeOfFilter
-      ? keys.filter((k) => k.startsWith(`${gameCodeOfFilter}:`))
-      : keys
-    return narrowed.map((k) => ({ value: k, label: k }))
-  }, [items, gameCodeOfFilter])
+  // 键为「游戏:语义族」结构（如 match3:jelly_clear），与模式无可靠映射
+  //（如 g2048:score_break 跨模式），游戏+模式+分组键三者 AND 叠加即可表达任意组合。
+  const groupKeyOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(items.map((it) => it.group_key ?? '').filter((k) => k !== ''))
+      )
+        .sort()
+        .map((k) => ({ value: k, label: k })),
+    [items]
+  )
 
-  // 客户端筛选：名称模糊匹配 + 游戏（含「全局」）+ 分组键
+  // 客户端筛选仅保留名称模糊匹配（即时输入体验）；结构化筛选已下推数据库
   const filteredItems = useMemo(() => {
     const kw = nameFilter.trim().toLowerCase()
-    return items.filter((it) => {
-      if (kw && !(it.name ?? '').toLowerCase().includes(kw)) return false
-      if (gameFilter === 'global') {
-        if (it.game_id) return false
-      } else if (gameFilter) {
-        if (it.game_id !== gameFilter) return false
-      }
-      if (groupKeyFilter) {
-        if ((it.group_key ?? '') !== groupKeyFilter) return false
-      }
-      // 模式筛选：modeFilter 存 mode.id → 反查 code 匹配 condition.mode
-      //（mode_tier / mode_score / all_modes_tier 类成就）；id 失效（模式被删）时忽略
-      const filteredModeCode = modeFilter
-        ? modes.find((m) => m.id === modeFilter)?.code
-        : undefined
-      if (modeFilter && filteredModeCode) {
-        if (((it.condition as Record<string, any> | null)?.mode ?? '') !== filteredModeCode) {
-          return false
-        }
-      }
-      return true
-    })
-  }, [items, nameFilter, gameFilter, groupKeyFilter, modeFilter, modes])
+    if (!kw) return items
+    return items.filter((it) => (it.name ?? '').toLowerCase().includes(kw))
+  }, [items, nameFilter])
 
   const columns: ColumnsType<DbGameAchievement> = [
     {
@@ -332,26 +352,24 @@ const GameAchievements: React.FC = () => {
       render: (v: boolean) => (v ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
     },
     { title: '排序', dataIndex: 'sort_order', width: 70 },
-    {
-      title: '操作',
-      width: 140,
-      render: (_: unknown, record: DbGameAchievement) => (
-        <Space>
-          <Button size="small" disabled={!canWrite} onClick={() => openEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除该成就？"
-            onConfirm={() => handleDelete(record.id)}
-            disabled={!canDelete}
-          >
-            <Button size="small" danger disabled={!canDelete}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    getActionColumn<DbGameAchievement>((record) => [
+      {
+        key: 'edit',
+        label: '编辑',
+        icon: <EditOutlined />,
+        disabled: !canWrite,
+        onClick: () => openEdit(record),
+      },
+      {
+        key: 'delete',
+        label: '删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        disabled: !canDelete,
+        confirm: '确认删除该成就？',
+        onClick: () => handleDelete(record.id),
+      },
+    ], { width: 150 }),
   ]
 
   return (
@@ -373,7 +391,8 @@ const GameAchievements: React.FC = () => {
               <ul className={styles.bulletList}>
                 <li><b>任意通关 first_clear</b>：通关任意一关即达成；适合「首胜」类成就。</li>
                 <li><b>维度分数达到 score</b>：维度值 ≥ gte（或 ≤ lte）即达成，如「单局得分 ≥12000」「100 步内通关」；阈值须按当前难度曲线设置（计分单步约 400-1200 分）。</li>
-                <li><b>通关关卡号达到 level</b>：全局关序 ≥ min_level_no 即达成（消消乐关序 = 模式序 ×100 + 关内序，如 310 = 破冰第 10 关）。</li>
+                <li><b>通关关卡号达到 level</b>：全局关序 ≥ min_level_no 即达成。全局关序由 App 按后台实际关卡数据动态推导 = 前序各模式实际关数之和 + 关内序（如某模式前有 2×100 关，其第 10 关的全局关序为 210）；与 game_levels 实际数据同口径，修改模式关卡数后阈值自动跟随。</li>
+                <li><b>终身累计达成 cumulative</b>：跨局累计某指标达到 value 即达成（如「累计消除 8000 个方块」）；指标 play/clear 通用，merge 仅 2048、clear_blocks 仅消消乐，由 App 每局结算累加（按账号隔离，未登录不计）。同族多档位达标后逐档发放、终身各一次。</li>
                 <li><b>段位 mode_tier</b>：单局得分/关序达到 threshold 档位即解锁并发段位积分；该类型后台暂不支持编辑（保存时原样保留，防误改写）。</li>
               </ul>
             </div>

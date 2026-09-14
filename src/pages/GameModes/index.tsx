@@ -10,7 +10,6 @@ import {
   Tag,
   Tooltip,
   Select,
-  Popconfirm,
 } from 'antd'
 import {
   PlusOutlined,
@@ -24,6 +23,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import type { Database } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
+import { getActionColumn } from '../../components/common/ActionColumn'
 import { useGameMeta, refreshGameMeta } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../App'
 import { gameModeService, gameScoreService } from '../../services/gameService'
@@ -290,39 +290,32 @@ const GameModes: React.FC = () => {
         )
       },
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 190,
-      render: (_: unknown, record: DbGameMode) => (
-        <Space>
-          <Button
-            type="primary"
-            size="small"
-            icon={<EditOutlined />}
-            disabled={!canWrite}
-            onClick={() => openEdit(record)}
-          >
-            编辑
-          </Button>
-          <Button
-            size="small"
-            icon={<AppstoreOutlined />}
-            // 深链：关卡页直接定位到该游戏 + 该模式（keepalive 页签带参跳转）
-            onClick={() =>
-              setCurrentPage('game_levels', { gameId: record.game_id, modeId: record.id })
-            }
-          >
-            关卡
-          </Button>
-          <Popconfirm title="确认删除该模式？" onConfirm={() => handleDelete(record)}>
-            <Button danger size="small" icon={<DeleteOutlined />} disabled={!canDelete}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    getActionColumn<DbGameMode>((record) => [
+      {
+        key: 'edit',
+        label: '编辑',
+        icon: <EditOutlined />,
+        disabled: !canWrite,
+        onClick: () => openEdit(record),
+      },
+      {
+        key: 'levels',
+        label: '关卡',
+        icon: <AppstoreOutlined />,
+        // 深链：关卡页直接定位到该游戏 + 该模式（keepalive 页签带参跳转）
+        onClick: () =>
+          setCurrentPage('game_levels', { gameId: record.game_id, modeId: record.id }),
+      },
+      {
+        key: 'delete',
+        label: '删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        disabled: !canDelete,
+        confirm: '确认删除该模式？',
+        onClick: () => handleDelete(record),
+      },
+    ], { width: 220, maxVisible: 3 }),
   ]
 
   return (

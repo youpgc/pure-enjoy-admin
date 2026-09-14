@@ -11,7 +11,6 @@ import {
   Modal,
   Form,
   Select,
-  Popconfirm,
   Switch,
   Typography,
   Alert,
@@ -28,6 +27,7 @@ import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
+import { getActionColumn } from '../../components/common/ActionColumn'
 import {
   GAME_REWARD_RULE_TYPE_MAP,
   GAME_REWARD_RULE_TYPE_OPTIONS,
@@ -238,23 +238,24 @@ const GameRewardRules: React.FC = () => {
       key: 'updated_at',
       render: (d: string) => dayjs(d).format('YYYY-MM-DD HH:mm:ss'),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_, record) => (
-        <Space>
-          <Button type="primary" size="small" icon={<EditOutlined />} disabled={!canWrite} onClick={() => openEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确认删除" onConfirm={() => handleDelete(record.id)} okText="确认" cancelText="取消">
-            <Button danger size="small" icon={<DeleteOutlined />} disabled={!canDelete}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    getActionColumn<DbGameRewardRule>((record) => [
+      {
+        key: 'edit',
+        label: '编辑',
+        icon: <EditOutlined />,
+        disabled: !canWrite,
+        onClick: () => openEdit(record),
+      },
+      {
+        key: 'delete',
+        label: '删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        disabled: !canDelete,
+        confirm: '确认删除',
+        onClick: () => handleDelete(record.id),
+      },
+    ], { width: 150 }),
   ]
 
   return (

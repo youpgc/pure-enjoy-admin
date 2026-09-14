@@ -10,7 +10,6 @@ import {
   InputNumber,
   Select,
   Switch,
-  Popconfirm,
   message,
   Space,
   Tag,
@@ -20,6 +19,7 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { DbGameItem } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
+import { getActionColumn } from '../../components/common/ActionColumn'
 import { gameItemService } from '../../services/gameService'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import {
@@ -316,26 +316,22 @@ const GameItems: React.FC = () => {
       width: 80,
       render: (v: boolean) => (v ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
     },
-    {
-      title: '操作',
-      width: 140,
-      render: (_: unknown, record: DbGameItem) => (
-        <Space>
-          <Button size="small" disabled={!canWrite} onClick={() => openEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm
-            title="确认删除该道具？"
-            onConfirm={() => handleDelete(record.id)}
-            disabled={!canDelete}
-          >
-            <Button size="small" danger disabled={!canDelete}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    getActionColumn<DbGameItem>((record) => [
+      {
+        key: 'edit',
+        label: '编辑',
+        disabled: !canWrite,
+        onClick: () => openEdit(record),
+      },
+      {
+        key: 'delete',
+        label: '删除',
+        danger: true,
+        disabled: !canDelete,
+        confirm: '确认删除该道具？',
+        onClick: () => handleDelete(record.id),
+      },
+    ], { width: 140 }),
   ]
 
   return (

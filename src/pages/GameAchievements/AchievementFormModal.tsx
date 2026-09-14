@@ -2,7 +2,7 @@ import React from 'react'
 import { Modal, Form, Input, InputNumber, Select, Switch, Segmented } from 'antd'
 import type { Database } from '../../types/database'
 import { ACHIEVEMENT_ICON_OPTIONS } from '../../constants/game'
-import { COND_OPTIONS, isV2ConditionOf } from './achievementMeta'
+import { COND_OPTIONS, CUMULATIVE_METRIC_OPTIONS, isV2ConditionOf } from './achievementMeta'
 import common from '../../styles/common.module.css'
 
 type DbGameAchievement = Database['public']['Tables']['game_achievements']['Row']
@@ -36,7 +36,7 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
 }) => {
   const [form] = Form.useForm()
 
-  // condition JSON → 表单字段（类型 / 维度 / 阈值方向 / 阈值）。
+  // condition JSON → 表单字段（类型 / 维度 / 阈值方向 / 阈值 / 累计指标）。
   // 阈值方向：score 条件支持 ≥（得分/得物类，gte）与 ≤（用时/步数类，lte）——
   // 此前表单只认 gte，lte 型成就（如速通）回显空值、保存即被翻转成反向逻辑。
   const initialCond = (() => {
@@ -49,6 +49,13 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
         condDimension: String(cond?.dimension ?? 'score'),
         condDirection: hasLte ? ('lte' as const) : ('gte' as const),
         condValue: (hasLte ? cond?.lte : cond?.gte) as number | undefined,
+      }
+    }
+    if (type === 'cumulative') {
+      return {
+        condType: type as string,
+        condMetric: String(cond?.metric ?? 'play'),
+        condValue: cond?.value as number | undefined,
       }
     }
     return {
@@ -174,12 +181,32 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
         >
           {({ getFieldValue }) => {
             const type = getFieldValue('condType')
+            if (type === 'cumulative') {
+              return (
+                <>
+                  <Form.Item
+                    name="condMetric"
+                    label="累计指标"
+                    tooltip="指标由 App 端每局结算累加（登录用户按账号隔离）：play/clear 通用，merge 仅 2048，clear_blocks 仅消消乐"
+                    rules={[{ required: true, message: '请选择累计指标' }]}
+                  >
+                    <Select options={CUMULATIVE_METRIC_OPTIONS} />
+                  </Form.Item>
+                  <Form.Item
+                    name="condValue"
+                    label="累计达到"
+                    rules={[{ required: true, message: '请输入累计阈值' }]}
+                  >
+                    <InputNumber min={1} className={common.fullWidth} placeholder="如 8000（累计消除 8000 个方块）" />
+                  </Form.Item>
+                </>
+              )
+            }
             if (type === 'score') {
               const gameId = getFieldValue('game_id')
               const dimOptions = dims
                 .filter((d) => !gameId || d.game_id === gameId)
                 .map((d) => ({ value: d.code, label: `${d.name}（${d.code}）` }))
-              const isLte = getFieldValue('condDirection') === 'lte'
               return (
                 <>
                   <Form.Item name="condDirection" label="阈值方向">

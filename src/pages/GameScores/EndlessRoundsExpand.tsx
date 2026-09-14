@@ -36,7 +36,7 @@ const EndlessRoundsExpand: React.FC<{ rows: EndlessRoundRow[] }> = ({ rows }) =>
       title: '得分',
       dataIndex: 'score',
       key: 'score',
-      render: (v: number) => v?.toLocaleString?.() ?? v,
+      render: (v: number) => v.toLocaleString(),
     },
     {
       title: '步数',
@@ -67,7 +67,7 @@ const EndlessRoundsExpand: React.FC<{ rows: EndlessRoundRow[] }> = ({ rows }) =>
               <Text strong>合计（{rows.length} 局）</Text>
             </Table.Summary.Cell>
             <Table.Summary.Cell index={1}>
-              <Text strong>{totalScore.toLocaleString?.() ?? totalScore}</Text>
+              <Text strong>{totalScore.toLocaleString()}</Text>
             </Table.Summary.Cell>
             <Table.Summary.Cell index={2}>-</Table.Summary.Cell>
             <Table.Summary.Cell index={3}>

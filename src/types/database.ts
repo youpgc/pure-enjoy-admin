@@ -1122,6 +1122,8 @@ export interface Database {
           name: string
           icon: string | null
           description: string | null
+          intro: string | null
+          rules: string | null
           engine: string
           enabled: boolean
           sort_order: number
@@ -1129,6 +1131,7 @@ export interface Database {
           version: number
           level_selectable: boolean
           level_select_mode: string
+          test_only: boolean
           created_at: string
           updated_at: string
         }
@@ -1199,6 +1202,8 @@ export interface Database {
           name: string
           icon: string | null
           description: string | null
+          summary: string | null
+          guide: string | null
           play_kind: string
           config: Json
           sort_order: number
@@ -1296,6 +1301,28 @@ export interface Database {
           created_at?: string
         }
         Update: Partial<Database['public']['Tables']['game_score_values']['Row']>
+      }
+
+      // 55b. game_endless_rounds（2048 无尽模式局明细；一条 game_scores 会话主记录对应 N 局）
+      game_endless_rounds: {
+        Row: {
+          id: string
+          score_id: string
+          user_id: string
+          game_id: string
+          mode_id: string | null
+          round_no: number
+          score: number
+          moves: number | null
+          duration_ms: number | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['game_endless_rounds']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['game_endless_rounds']['Row']>
+        Relationships: []
       }
 
       // 56. user_game_achievements（用户成就，用户数据；唯一索引即防重复发奖核心）
@@ -1548,6 +1575,7 @@ export type DbGameScoreValue = Database['public']['Tables']['game_score_values']
 export type DbUserGameAchievement = Database['public']['Tables']['user_game_achievements']['Row']
 export type DbGameRewardClaim = Database['public']['Tables']['game_reward_claims']['Row']
 export type DbGameBestScore = Database['public']['Functions']['get_game_best_scores']['Returns'][number]
+export type DbGameEndlessRound = Database['public']['Tables']['game_endless_rounds']['Row']
 // 51c/58b 补充别名（2026-09-04 service 层统一：GameModes / GameItems 页）
 export type DbGameMode = Database['public']['Tables']['game_modes']['Row']
 export type DbGameItem = Database['public']['Tables']['game_items']['Row']

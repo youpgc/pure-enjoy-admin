@@ -77,10 +77,8 @@ const GameConfigs: React.FC = () => {
         }
         return q
       })
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'GameConfigs-加载游戏')
-        return
-      }
+      // 读失败：BaseService 内部已统一弹窗+记日志，此处静默返回避免双弹窗
+      if (!result.success) return
       if (!mountedRef.current) return
       setGames(result.data?.data || [])
       gamePager.setTotal(result.data?.total || 0)
@@ -101,10 +99,8 @@ const GameConfigs: React.FC = () => {
         dimPager.pagination.current,
         dimPager.pagination.pageSize
       )
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'GameConfigs-加载维度')
-        return
-      }
+      // 读失败：BaseService 内部已统一弹窗+记日志，此处静默返回避免双弹窗
+      if (!result.success) return
       if (!mountedRef.current) return
       setDimensions(result.data?.data || [])
       dimPager.setTotal(result.data?.total || 0)
@@ -246,20 +242,24 @@ const GameConfigs: React.FC = () => {
     const cur = games[idx]
     const other = games[targetIdx]
     if (!cur || !other) return
-    // sort_order 为 int，可能重复：值相等时按方向 ±1 兜底，保证交换后顺序一定变化
-    const nextCur =
-      other.sort_order === cur.sort_order
-        ? other.sort_order + (dir === 'down' ? 1 : -1)
-        : other.sort_order
-    const results = await Promise.all([
-      gameService.update(cur.id, { sort_order: nextCur }),
-      gameService.update(other.id, { sort_order: cur.sort_order }),
-    ])
-    const failed = results.find((r) => !r.success)
-    if (failed) {
-      handleApiError(failed.errorMessage, 'GameConfigs-调整排序')
-      loadGames()
-      return
+    // sort_order 相同值兜底：上移 → other+1、下移 → cur+1（改「不被移动行」，
+    // 避免 cur-1 在 sort_order=0 时产生负值）；值不同则正常互换。
+    const equal = other.sort_order === cur.sort_order
+    const nextCur = equal ? (dir === 'down' ? cur.sort_order + 1 : cur.sort_order) : other.sort_order
+    const nextOther = equal ? (dir === 'up' ? other.sort_order + 1 : other.sort_order) : cur.sort_order
+    // 顺序写 + 未变化跳过（禁并行）：并行双写同列会出现同值/竞争，
+    // 且首个失败即中止，避免两条更新各弹一次错（重复报错弹窗）
+    const updates: { id: string; sort_order: number }[] = []
+    if (nextCur !== cur.sort_order) updates.push({ id: cur.id, sort_order: nextCur })
+    if (nextOther !== other.sort_order) updates.push({ id: other.id, sort_order: nextOther })
+    for (const u of updates) {
+      const r = await gameService.update(u.id, { sort_order: u.sort_order } as any)
+      if (!r.success) {
+        // 写失败需此处弹窗：update 仅「0 行命中」分支不在 service 内弹（其余已弹）
+        handleApiError(new Error(r.errorMessage ?? '未知错误'), 'GameConfigs-调整排序')
+        loadGames()
+        return
+      }
     }
     message.success('排序已更新（App 端配置缓存 ≤30s 自动同步）')
     loadGames()

@@ -1,8 +1,9 @@
-import { Button, Space, Switch, Tag, Popconfirm, Typography } from 'antd'
+import { Button, Space, Switch, Tag, Typography } from 'antd'
 import { EditOutlined, DeleteOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { GAME_SHARED_ICON_BASE, GAME_ENGINE_MAP, GAME_DIMENSION_VALUE_TYPE_MAP, GAME_DIMENSION_AGGREGATE_MAP } from '../../constants'
+import { getActionColumn } from '../../components/common/ActionColumn'
 import type { DbGame, DbGameDimension } from '../../types/database'
 
 const { Text } = Typography
@@ -132,23 +133,25 @@ export function buildGameColumns(ops: GameConfigColumnsOps): ColumnsType<DbGame>
       key: 'updated_at',
       render: (d: string) => dayjs(d).format('YYYY-MM-DD HH:mm:ss'),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_, record) => (
-        <Space>
-          <Button type="primary" size="small" icon={<EditOutlined />} disabled={!ops.canWrite} onClick={() => ops.onEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确认删除" onConfirm={() => ops.onDelete(record.id)} okText="确认" cancelText="取消">
-            <Button danger size="small" icon={<DeleteOutlined />} disabled={!ops.canDelete}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    // 编辑/删除统一走公共操作列（删除带二次确认，M11）
+    getActionColumn<DbGame>((record) => [
+      {
+        key: 'edit',
+        label: '编辑',
+        icon: <EditOutlined />,
+        disabled: !ops.canWrite,
+        onClick: () => ops.onEdit(record),
+      },
+      {
+        key: 'delete',
+        label: '删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        disabled: !ops.canDelete,
+        confirm: '确认删除',
+        onClick: () => ops.onDelete(record.id),
+      },
+    ], { width: 150 }),
   ]
 }
 
@@ -192,22 +195,24 @@ export function buildDimColumns(ops: GameConfigColumnsOps): ColumnsType<DbGameDi
       width: 90,
       render: (v: boolean) => (v ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_, record) => (
-        <Space>
-          <Button type="primary" size="small" icon={<EditOutlined />} disabled={!ops.canWrite} onClick={() => ops.onEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确认删除" onConfirm={() => ops.onDelete(record.id)} okText="确认" cancelText="取消">
-            <Button danger size="small" icon={<DeleteOutlined />} disabled={!ops.canDelete}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    // 编辑/删除统一走公共操作列（删除带二次确认，M11）
+    getActionColumn<DbGameDimension>((record) => [
+      {
+        key: 'edit',
+        label: '编辑',
+        icon: <EditOutlined />,
+        disabled: !ops.canWrite,
+        onClick: () => ops.onEdit(record),
+      },
+      {
+        key: 'delete',
+        label: '删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        disabled: !ops.canDelete,
+        confirm: '确认删除',
+        onClick: () => ops.onDelete(record.id),
+      },
+    ], { width: 150 }),
   ]
 }

@@ -12,7 +12,6 @@ import {
   Modal,
   Form,
   Select,
-  Popconfirm,
   Switch,
   Typography,
   Empty,
@@ -29,8 +28,8 @@ import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
-import { gameService, gameLevelService } from '../../services/gameService'
-import { supabase } from '../../utils/supabase'
+import { getActionColumn } from '../../components/common/ActionColumn'
+import { gameService, gameLevelService, gameModeService } from '../../services/gameService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import { refreshGameMeta } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../App'
@@ -97,14 +96,15 @@ const GameLevels: React.FC = () => {
         return []
       }
       try {
-        const { data, error } = await supabase
-          .from('game_modes')
-          .select('id, code, name')
-          .eq('game_id', selectedGameId)
-          .order('sort_order', { ascending: true })
-        if (error) throw error
+        // 统一走 gameModeService（禁裸 supabase.from），service 已按 sort_order 升序
+        const res = await gameModeService.findAllModes(selectedGameId)
+        if (!res.success) return []
         if (!mountedRef.current) return []
-        const list = (data as { id: string; code: string; name: string }[]) || []
+        const list = (res.data ?? []).map((m) => ({
+          id: m.id,
+          code: m.code,
+          name: m.name,
+        }))
         setModes(list)
         return list
       } catch (error) {
@@ -273,6 +273,8 @@ const GameLevels: React.FC = () => {
         } else {
           delete payload.config.propUnlock
         }
+        // propUnlock 属 config 内嵌键，顶层残留会触发 42703（列不存在）
+        delete payload.propUnlock
       } catch {
         message.error('config / target / propUnlock 不是合法 JSON')
         setSaving(false)
@@ -357,23 +359,24 @@ const GameLevels: React.FC = () => {
       key: 'updated_at',
       render: (d: string) => dayjs(d).format('YYYY-MM-DD HH:mm:ss'),
     },
-    {
-      title: '操作',
-      key: 'action',
-      width: 150,
-      render: (_, record) => (
-        <Space>
-          <Button type="primary" size="small" icon={<EditOutlined />} disabled={!canWrite} onClick={() => openEdit(record)}>
-            编辑
-          </Button>
-          <Popconfirm title="确认删除" onConfirm={() => handleDelete(record.id)} okText="确认" cancelText="取消">
-            <Button danger size="small" icon={<DeleteOutlined />} disabled={!canDelete}>
-              删除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    getActionColumn<DbGameLevel>((record) => [
+      {
+        key: 'edit',
+        label: '编辑',
+        icon: <EditOutlined />,
+        disabled: !canWrite,
+        onClick: () => openEdit(record),
+      },
+      {
+        key: 'delete',
+        label: '删除',
+        icon: <DeleteOutlined />,
+        danger: true,
+        disabled: !canDelete,
+        confirm: '确认删除',
+        onClick: () => handleDelete(record.id),
+      },
+    ], { width: 150 }),
   ]
 
   return (

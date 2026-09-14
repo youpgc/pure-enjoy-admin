@@ -12,6 +12,7 @@ import type {
   DbUserGameAchievement,
   DbGameRewardClaim,
   DbGameBestScore,
+  DbGameEndlessRound,
   DbGameMode,
   DbGameItem,
   DbPointRecord,
@@ -248,7 +249,7 @@ class GameModeService extends BaseService<DbGameMode> {
 }
 
 // 58d. 无尽模式局明细（game_endless_rounds；GameScores 无尽展开表）
-class GameEndlessRoundService extends BaseService<any> {
+class GameEndlessRoundService extends BaseService<DbGameEndlessRound> {
   constructor() {
     super('game_endless_rounds', {
       defaultOrder: { column: 'round_no', ascending: true },
