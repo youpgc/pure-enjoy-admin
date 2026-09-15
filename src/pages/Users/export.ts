@@ -1,7 +1,7 @@
 // 用户列表导出（CSV / Excel），从 Users.tsx 抽取，行为保持
-import dayjs from 'dayjs'
 import { message } from 'antd'
 import { exportToCSV, exportToExcel } from '../../utils/export'
+import { formatDateTime } from '../../utils/format'
 import type { ExportColumn } from '../../utils/export'
 
 export function buildUserExportColumns(
@@ -24,7 +24,7 @@ export function buildUserExportColumns(
     { title: '会员等级', dataIndex: 'member_level', render: (v: unknown) => memberLevelOptions.find(opt => opt.value === v)?.label || String(v) },
     { title: '积分', dataIndex: 'points' },
     { title: '状态', dataIndex: 'status', render: (v: unknown) => statusOptions.find(opt => opt.value === v)?.label || String(v) },
-    { title: '注册时间', dataIndex: 'created_at', render: (v: unknown) => dayjs(String(v)).format('YYYY-MM-DD HH:mm:ss') },
+    { title: '注册时间', dataIndex: 'created_at', render: (v: unknown) => formatDateTime(String(v)) },
   ]
 }
 

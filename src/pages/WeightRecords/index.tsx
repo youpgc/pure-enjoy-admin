@@ -1,9 +1,9 @@
 import React from 'react'
 import type { ColumnsType } from 'antd/es/table'
 import EllipsisText from '../../components/common/EllipsisText'
-import dayjs from 'dayjs'
 import UserDimensionList from '../../components/user/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../../components/user/UserDimensionList'
+import { formatDate, formatDateTime } from '../../utils/format'
 
 // ==================== 详情弹窗列定义 ====================
 
@@ -35,14 +35,14 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'date',
     key: 'date',
     width: 110,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD') : '-',
+    render: (v: string) => v ? formatDate(v) : '-',
   },
   {
     title: '创建时间',
     dataIndex: 'created_at',
     key: 'created_at',
     width: 170,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
+    render: (v: string) => v ? formatDateTime(v) : '-',
   },
 ]
 

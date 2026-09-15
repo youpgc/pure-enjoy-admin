@@ -38,6 +38,7 @@ import type {
 } from '../../types/database'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
+import { formatDateTime } from '../../utils/format'
 
 const { Text } = Typography
 
@@ -414,7 +415,7 @@ const GameScores: React.FC = () => {
       title: '游玩时间',
       dataIndex: 'played_at',
       key: 'played_at',
-      render: (d: string) => dayjs(d).format('YYYY-MM-DD HH:mm:ss'),
+      render: (d: string) => formatDateTime(d),
     },
   ]
 
@@ -497,7 +498,7 @@ const GameScores: React.FC = () => {
                 title: '达成时间',
                 dataIndex: 'playedAt',
                 key: 'playedAt',
-                render: (d: string | null) => (d ? dayjs(d).format('YYYY-MM-DD HH:mm:ss') : '-'),
+                render: (d: string | null) => (d ? formatDateTime(d) : '-'),
               },
             ]}
           />

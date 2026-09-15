@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import { lunar } from 'lunar-ts'
 import UserDimensionList from '../../components/user/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../../components/user/UserDimensionList'
+import { formatDate, formatDateTimeMinute } from '../../utils/format'
 
 // ==================== 类型映射 ====================
 
@@ -85,7 +86,7 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'date',
     key: 'date',
     width: 110,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD') : '-',
+    render: (v: string) => v ? formatDate(v) : '-',
   },
   {
     title: '农历',
@@ -113,7 +114,7 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'created_at',
     key: 'created_at',
     width: 170,
-    render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm') : '-',
+    render: (v: string) => v ? formatDateTimeMinute(v) : '-',
   },
 ]
 

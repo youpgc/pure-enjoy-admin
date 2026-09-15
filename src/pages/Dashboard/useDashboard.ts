@@ -19,6 +19,7 @@ import type {
   GameStats,
   GameOverviewRow,
 } from './types'
+import { formatBeijing, formatBeijingNow, formatDate } from '../../utils/format'
 
 function safeCount(count: unknown): number {
   return typeof count === 'number' ? count : 0
@@ -239,11 +240,11 @@ export function useDashboard() {
       if (trendRes.success) {
         const counts: Record<string, number> = {}
         for (let i = 29; i >= 0; i--) {
-          counts[dayjs().subtract(i, 'day').format('YYYY-MM-DD')] = 0
+          counts[formatBeijing(dayjs().subtract(i, 'day'), 'YYYY-MM-DD')] = 0
         }
         for (const u of (trendRes.data || [])) {
           if (u.created_at) {
-            counts[dayjs(u.created_at).format('YYYY-MM-DD')] = (counts[dayjs(u.created_at).format('YYYY-MM-DD')] || 0) + 1
+            counts[formatDate(u.created_at)] = (counts[formatDate(u.created_at)] || 0) + 1
           }
         }
         setUserTrendData(Object.entries(counts).map(([date, count]) => ({ date, count })))
@@ -395,7 +396,7 @@ export function useDashboard() {
 
   // 统一刷新入口：初次加载与手动刷新按钮共用，避免逻辑重复
   const refreshAll = useCallback(() => {
-    setLastUpdated(dayjs().format('YYYY-MM-DD HH:mm:ss'))
+    setLastUpdated(formatBeijingNow('YYYY-MM-DD HH:mm:ss'))
     loadStats()
     loadGameRows()
     // loadNovels()   // 小说模块下线，注释保留可恢复

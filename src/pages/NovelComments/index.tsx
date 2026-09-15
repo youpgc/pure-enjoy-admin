@@ -7,9 +7,9 @@ import { BaseService, handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
-import dayjs from 'dayjs'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
+import { formatDateTimeMinute } from '../../utils/format'
 
 interface NovelComment {
   id: string
@@ -160,7 +160,7 @@ const NovelComments: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (text: string) => dayjs(text).format('YYYY-MM-DD HH:mm'),
+      render: (text: string) => formatDateTimeMinute(text),
     },
     {
       title: '操作',

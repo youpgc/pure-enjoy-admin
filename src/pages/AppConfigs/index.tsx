@@ -23,7 +23,6 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
@@ -32,6 +31,7 @@ import { CONFIG_TYPE_MAP } from '../../constants'
 import EllipsisText from '../../components/common/EllipsisText'
 import common from '../../styles/common.module.css'
 import styles from './index.module.css'
+import { formatDateTime } from '../../utils/format'
 
 const { Text } = Typography
 
@@ -242,7 +242,7 @@ const AppConfigs: React.FC = () => {
       title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      render: (date: string) => formatDateTime(date),
     },
     {
       title: '操作',

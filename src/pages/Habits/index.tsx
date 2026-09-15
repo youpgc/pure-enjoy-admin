@@ -9,6 +9,7 @@ import EllipsisText from '../../components/common/EllipsisText'
 import { BaseService, handleApiError } from '../../utils/apiClient'
 import { useMounted } from '../../hooks/useMounted'
 import styles from './index.module.css'
+import { beijingNow, formatBeijing, formatDate, formatDateTime } from '../../utils/format'
 
 // ==================== 打卡记录弹窗 ====================
 
@@ -69,13 +70,14 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
     }
 
     const total = checkins.length
-    const now = dayjs()
-    const thisMonth = checkins.filter(c => dayjs(c.checkin_at).format('YYYY-MM') === now.format('YYYY-MM')).length
+    // 「今天/本月」基准固定北京时区，与 formatDate/formatBeijing 派生的打卡日期串同口径
+    const now = beijingNow()
+    const thisMonth = checkins.filter(c => formatBeijing(c.checkin_at, 'YYYY-MM') === now.format('YYYY-MM')).length
     const thisWeek = checkins.filter(c => dayjs(c.checkin_at).diff(now.startOf('week')) >= 0).length
 
     // 计算连续打卡天数（从今天往前推）
     let currentStreak = 0
-    const sortedDates = [...checkins].map(c => dayjs(c.checkin_at).format('YYYY-MM-DD')).sort().reverse()
+    const sortedDates = [...checkins].map(c => formatDate(c.checkin_at)).sort().reverse()
     let checkDate = now.startOf('day')
     if (!sortedDates.includes(checkDate.format('YYYY-MM-DD'))) {
       checkDate = checkDate.subtract(1, 'day')
@@ -84,7 +86,8 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
       if (dateStr === checkDate.format('YYYY-MM-DD')) {
         currentStreak++
         checkDate = checkDate.subtract(1, 'day')
-      } else if (checkDate.isAfter(dayjs(dateStr))) {
+      // dateStr 是北京日期串（formatDate 派生），按日期串比较，避免再解析回本地时区产生错位
+      } else if (dateStr < checkDate.format('YYYY-MM-DD')) {
         break
       }
     }
@@ -92,7 +95,7 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
     // 计算最长连续打卡
     let longestStreak = 0
     let tempStreak = 1
-    const allDates = [...checkins].map(c => dayjs(c.checkin_at).format('YYYY-MM-DD')).sort()
+    const allDates = [...checkins].map(c => formatDate(c.checkin_at)).sort()
     for (let i = 1; i < allDates.length; i++) {
       const prev = dayjs(allDates[i - 1])
       const curr = dayjs(allDates[i])
@@ -112,7 +115,7 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
   const calendarData = useMemo(() => {
     const data: Record<string, CheckinRecord[]> = {}
     checkins.forEach(c => {
-      const date = dayjs(c.checkin_at).format('YYYY-MM-DD')
+      const date = formatDate(c.checkin_at)
       if (!data[date]) data[date] = []
       data[date].push(c)
     })
@@ -202,10 +205,10 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
                   <Descriptions.Item label="本月打卡">{stats.thisMonth} 次</Descriptions.Item>
                   <Descriptions.Item label="本周打卡">{stats.thisWeek} 次</Descriptions.Item>
                   <Descriptions.Item label="首次打卡">
-                    {checkins.length > 0 ? dayjs(checkins[checkins.length - 1]!.checkin_at).format('YYYY-MM-DD') : '-'}
+                    {checkins.length > 0 ? formatDate(checkins[checkins.length - 1]!.checkin_at) : '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="最近打卡" span={2}>
-                    {checkins.length > 0 ? dayjs(checkins[0]!.checkin_at).format('YYYY-MM-DD HH:mm:ss') : '-'}
+                    {checkins.length > 0 ? formatDateTime(checkins[0]!.checkin_at) : '-'}
                   </Descriptions.Item>
                 </Descriptions>
               )}
@@ -224,7 +227,7 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
                       color: 'green',
                       children: (
                         <div>
-                          <Typography.Text strong>{dayjs(c.checkin_at).format('YYYY-MM-DD HH:mm:ss')}</Typography.Text>
+                          <Typography.Text strong>{formatDateTime(c.checkin_at)}</Typography.Text>
                           {c.note && <Typography.Text type="secondary" className="ml-2">- {c.note}</Typography.Text>}
                         </div>
                       ),
@@ -295,7 +298,7 @@ const Habits: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
+      render: (v: string) => v ? formatDateTime(v) : '-',
     },
     {
       title: '操作',

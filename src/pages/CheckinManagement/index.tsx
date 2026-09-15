@@ -7,6 +7,7 @@ import { supabase } from '../../utils/supabase'
 import { userDisplayName } from '../../utils/userDisplay'
 import common from '../../styles/common.module.css'
 import styles from './CheckinManagement.module.css'
+import { formatDate } from '../../utils/format'
 
 // ==================== 类型 ====================
 
@@ -56,7 +57,7 @@ const CheckinCalendarDrawer: React.FC<{
       const set = new Set<string>()
       const makeup = new Set<string>()
       for (const r of (data || []) as Array<{ checkin_date: string; is_makeup: boolean }>) {
-        const key = dayjs(r.checkin_date).format('YYYY-MM-DD')
+        const key = formatDate(r.checkin_date)
         set.add(key)
         if (r.is_makeup) makeup.add(key)
       }
@@ -252,7 +253,7 @@ const CheckinManagement: React.FC = () => {
       title: '最近签到日期',
       dataIndex: 'last_checkin_date',
       key: 'last_checkin_date',
-      render: (v: string | null) => (v ? dayjs(v).format('YYYY-MM-DD') : '-'),
+      render: (v: string | null) => (v ? formatDate(v) : '-'),
     },
     {
       title: '操作',

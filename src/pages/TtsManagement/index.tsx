@@ -9,7 +9,6 @@ import {
   ReloadOutlined, SearchOutlined, FireOutlined,
   WarningOutlined, BarChartOutlined,
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { usePagination } from '../../hooks/usePagination'
 import { BaseService, handleApiError } from '../../utils/apiClient'
 import { supabase } from '../../utils/supabase'
@@ -17,6 +16,7 @@ import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import common from '../../styles/common.module.css'
 import styles from './index.module.css'
+import { formatMonthDayTime } from '../../utils/format'
 
 // ==================== 类型定义 ====================
 
@@ -171,7 +171,7 @@ const TtsManagement: React.FC = () => {
     },
     {
       title: '收听时间', dataIndex: 'created_at', key: 'created_at', width: 150,
-      render: (v: string) => dayjs(v).format('MM-DD HH:mm'),
+      render: (v: string) => formatMonthDayTime(v),
     },
   ]
 

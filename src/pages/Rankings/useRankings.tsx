@@ -13,6 +13,7 @@ import { PushpinOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
 import { type ActionButton } from '../../components/common/ActionColumn'
 import type { RankingItem, RankingType, Intervention, RankingRules } from './types'
 import { DEFAULT_RULES } from './types'
+import { formatBeijingNow } from '../../utils/format'
 
 export const useRankings = () => {
   const mountedRef = useMounted()
@@ -82,7 +83,7 @@ export const useRankings = () => {
         setData(list)
         setTotal(list.length)
       }
-      setLastRefresh(dayjs().format('YYYY-MM-DD HH:mm:ss'))
+      setLastRefresh(formatBeijingNow('YYYY-MM-DD HH:mm:ss'))
     } catch (error) {
       handleApiError(error, 'Rankings-加载榜单')
     } finally {
@@ -130,7 +131,7 @@ export const useRankings = () => {
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `排行榜_${rankingType}_${dayjs().format('YYYYMMDD')}.csv`
+    a.download = `排行榜_${rankingType}_${formatBeijingNow('YYYYMMDD')}.csv`
     a.click()
     URL.revokeObjectURL(a.href)
   }

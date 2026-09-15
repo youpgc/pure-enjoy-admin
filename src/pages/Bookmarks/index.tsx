@@ -9,7 +9,6 @@ import {
   BookOutlined, ReadOutlined, WarningOutlined,
   SearchOutlined, ReloadOutlined,
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { usePagination } from '../../hooks/usePagination'
 import { BaseService, apiQuery, handleApiError } from '../../utils/apiClient'
 import EllipsisText from '../../components/common/EllipsisText'
@@ -17,6 +16,7 @@ import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
+import { formatMonthDayTime } from '../../utils/format'
 
 // ==================== 类型定义 ====================
 
@@ -153,7 +153,7 @@ const Bookmarks: React.FC = () => {
     },
     { title: '最后章节', dataIndex: 'last_chapter', key: 'last_chapter', width: 100 },
     { title: '状态', dataIndex: 'reading_status', key: 'status', width: 100, render: statusTag },
-    { title: '最后阅读', dataIndex: 'last_read_at', key: 'last_read_at', width: 160, render: (v: string) => v ? dayjs(v).format('MM-DD HH:mm') : '-' },
+    { title: '最后阅读', dataIndex: 'last_read_at', key: 'last_read_at', width: 160, render: (v: string) => v ? formatMonthDayTime(v) : '-' },
   ]
 
   const completionColumns: ColumnsType<CompletionRate> = [

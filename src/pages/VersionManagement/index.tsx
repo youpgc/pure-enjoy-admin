@@ -22,7 +22,6 @@ import {
   DownloadOutlined,
 } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
-import dayjs from 'dayjs'
 import { VERSION_STATUS_OPTIONS, VERSION_PLATFORM_OPTIONS, VERSION_PLATFORM_MAP } from '../../constants'
 import { useVersions } from './versions/useVersions'
 import { buildVersionColumns } from './versions/columns'
@@ -31,6 +30,7 @@ import { VersionQrModal } from './versions/VersionQrModal'
 import type { AppVersion } from './versions/types'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
+import { formatDateTime } from '../../utils/format'
 
 const { Text } = Typography
 
@@ -137,7 +137,7 @@ const VersionManagement: React.FC = () => {
                   </div>
                 </Descriptions.Item>
                 <Descriptions.Item label="创建时间">
-                  {dayjs(currentVersion.created_at).format('YYYY-MM-DD HH:mm:ss')}
+                  {formatDateTime(currentVersion.created_at)}
                 </Descriptions.Item>
                 <Descriptions.Item label="操作">
                   <Button

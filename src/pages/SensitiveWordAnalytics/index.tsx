@@ -42,6 +42,7 @@ import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
+import { formatDateTime, formatMonthDay } from '../../utils/format'
 
 // ==================== 类型定义 ====================
 
@@ -159,11 +160,12 @@ const SensitiveWordAnalytics: React.FC = () => {
       const dateMap = new Map<string, number>()
       const days = dateRange[1].diff(dateRange[0], 'day') + 1
       for (let i = 0; i < days; i++) {
-        const date = dateRange[0].add(i, 'day').format('MM-DD')
+        // 轴标签与 formatMonthDay 派生的分桶 key 同口径（北京时区）
+        const date = formatMonthDay(dateRange[0].add(i, 'day'))
         dateMap.set(date, 0)
       }
       allHitData.forEach((hit) => {
-        const date = dayjs(hit.created_at).format('MM-DD')
+        const date = formatMonthDay(hit.created_at)
         if (dateMap.has(date)) {
           dateMap.set(date, (dateMap.get(date) || 0) + 1)
         }
@@ -260,7 +262,7 @@ const SensitiveWordAnalytics: React.FC = () => {
       title: '时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      render: (date: string) => formatDateTime(date),
     },
   ]
 

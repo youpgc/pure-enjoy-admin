@@ -28,11 +28,11 @@ import {
   GlobalOutlined,
 } from '@ant-design/icons'
 import type { User, UserStats, OperationLog } from '../../types/user'
-import dayjs from 'dayjs'
 import { ACTION_LABEL_MAP, getModuleLabel, getModuleColor } from '../../constants'
 import { useDictOptions, useDictColors } from '../../hooks/useDictOptions'
 import common from '../../styles/common.module.css'
 import styles from './UserDetailDrawer.module.css'
+import { formatDate, formatDateTime, formatMonthDayTime } from '../../utils/format'
 
 const { Text, Title } = Typography
 
@@ -160,7 +160,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
             {user.birthday ? (
               <>
                 <CalendarOutlined className={common.mr4} />
-                {dayjs(user.birthday).format('YYYY-MM-DD')}
+                {formatDate(user.birthday)}
               </>
             ) : (
               <Text type="secondary">未设置</Text>
@@ -220,7 +220,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
         </Title>
         <Descriptions column={1} size="small" bordered>
           <Descriptions.Item label="注册时间">
-            {dayjs(user.created_at).format('YYYY-MM-DD HH:mm:ss')}
+            {formatDateTime(user.created_at)}
           </Descriptions.Item>
           <Descriptions.Item label="注册IP">
             {user.register_ip ? (
@@ -234,7 +234,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
           </Descriptions.Item>
           <Descriptions.Item label="最后登录时间">
             {user.last_login_at
-              ? dayjs(user.last_login_at).format('YYYY-MM-DD HH:mm:ss')
+              ? formatDateTime(user.last_login_at)
               : <Text type="secondary">从未登录</Text>}
           </Descriptions.Item>
           <Descriptions.Item label="最后登录IP">
@@ -248,7 +248,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
             )}
           </Descriptions.Item>
           <Descriptions.Item label="更新时间">
-            {dayjs(user.updated_at).format('YYYY-MM-DD HH:mm:ss')}
+            {formatDateTime(user.updated_at)}
           </Descriptions.Item>
         </Descriptions>
 
@@ -330,7 +330,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
                       type="secondary"
                       className={`${common.ml8} ${common.smallText}`}
                     >
-                      {dayjs(log.created_at).format('MM-DD HH:mm')}
+                      {formatMonthDayTime(log.created_at)}
                     </Text>
                   </div>
                   {log.details && (

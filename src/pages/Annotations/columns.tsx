@@ -2,13 +2,13 @@
 // 列表列与审核列分别构建；通过参数注入 userMap 与行内操作，避免逻辑裸露在页面。
 import type { ColumnsType } from 'antd/es/table'
 import { Tag, Space } from 'antd'
-import dayjs from 'dayjs'
 import { getActionColumn, type ActionButton } from '../../components/common/ActionColumn'
 import EllipsisText from '../../components/common/EllipsisText'
 import { UserName } from '../../components/common/UserName'
 import { ColorDot, containsSensitive } from './constants'
 import type { UserInfo } from '../../hooks/useUsernames'
 import type { NovelAnnotation } from './types'
+import { formatMonthDayTime } from '../../utils/format'
 
 export type UserMap = Map<string, UserInfo>
 
@@ -71,7 +71,7 @@ export const buildAnnotationColumns = (params: {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 150,
-      render: (v: string) => dayjs(v).format('MM-DD HH:mm'),
+      render: (v: string) => formatMonthDayTime(v),
     },
     getActionColumn<NovelAnnotation>(renderActions, { width: 100 }),
   ]

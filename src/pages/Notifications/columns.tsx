@@ -3,12 +3,12 @@
 import type { ColumnsType } from 'antd/es/table'
 import { Tag, Badge } from 'antd'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { getActionColumn, type ActionButton } from '../../components/common/ActionColumn'
 import EllipsisText from '../../components/common/EllipsisText'
 import { NOTIFICATION_TYPE_MAP, NOTIFICATION_TYPE_TAG_MAP } from '../../constants'
 import type { Notification } from './types'
 import styles from './columns.module.css'
+import { formatDateTime } from '../../utils/format'
 
 export const buildNotificationColumns = (params: {
   hasPermission: (code: string) => boolean
@@ -57,7 +57,7 @@ export const buildNotificationColumns = (params: {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      render: (date: string) => formatDateTime(date),
     },
     getActionColumn<Notification>(
       (record): ActionButton[] => {

@@ -5,11 +5,11 @@ import { ACTION_MAP } from '../../constants'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { UserName } from '../../components/common/UserName'
 import EllipsisText from '../../components/common/EllipsisText'
-import dayjs from 'dayjs'
 import { getModuleInfo } from './constants'
 import { formatDetails } from './helpers'
 import type { OperationLog, UserMap } from './types'
 import styles from './columns.module.css'
+import { formatDateTime } from '../../utils/format'
 
 interface BuildColumnsArgs {
   hasPermission: (perm: string) => boolean
@@ -97,7 +97,7 @@ export function buildOperationLogColumns({
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      render: (date: string) => formatDateTime(date),
     },
     getActionColumn<OperationLog>(
       (record) => {

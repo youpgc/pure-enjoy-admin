@@ -2,7 +2,6 @@
 import { Typography, Tag } from 'antd'
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { getActionColumn, type ActionButton } from '../../../components/common/ActionColumn'
 import { Switch } from 'antd'
 import {
@@ -12,6 +11,7 @@ import {
 } from '../../../constants'
 import type { SensitiveWord } from './types'
 import styles from './columns.module.css'
+import { formatDateTime } from '../../../utils/format'
 
 const { Text } = Typography
 
@@ -102,7 +102,7 @@ export function buildSensitiveWordsColumns({ onEdit, onDelete, onToggleActive, c
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      render: (date: string) => formatDateTime(date),
     },
     getActionColumn<SensitiveWord>(
       (record) => {

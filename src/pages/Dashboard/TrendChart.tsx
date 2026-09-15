@@ -3,6 +3,7 @@ import { Empty, Typography, Tooltip } from 'antd'
 import dayjs from 'dayjs'
 import type { TrendPoint } from './types'
 import styles from './TrendChart.module.css'
+import { formatMonthDay } from '../../utils/format'
 
 const { Text } = Typography
 
@@ -30,7 +31,7 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
                 transition: 'height 0.3s',
               }} />
               <Text type="secondary" className={styles.barLabel}>
-                {dayjs(item.date).format('MM-DD')}
+                {formatMonthDay(item.date)}
               </Text>
             </div>
           </Tooltip>

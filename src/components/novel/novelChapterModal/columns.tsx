@@ -1,7 +1,6 @@
 // 章节表格列定义（从 NovelChapterModal.tsx 抽离，审查 P1 膨胀）
 // 通过参数注入 chapters（用于上/下移可用判定）与行内操作。
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import {
   ArrowUpOutlined,
   ArrowDownOutlined,
@@ -11,6 +10,7 @@ import {
 import { getActionColumn, type ActionButton } from '../../common/ActionColumn'
 import EllipsisText from '../../common/EllipsisText'
 import { toChineseNumber, type NovelChapter } from './helpers'
+import { formatDateTimeMinute } from '../../../utils/format'
 
 export const buildChapterColumns = (params: {
   chapters: NovelChapter[]
@@ -46,7 +46,7 @@ export const buildChapterColumns = (params: {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
+      render: (date: string) => formatDateTimeMinute(date),
     },
     getActionColumn<NovelChapter>(
       (record: NovelChapter): ActionButton[] => [

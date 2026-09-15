@@ -8,7 +8,6 @@ import {
   EyeOutlined, ReadOutlined, StarOutlined,
   ReloadOutlined, SaveOutlined,
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { usePagination } from '../../hooks/usePagination'
 import { BaseService, handleApiError } from '../../utils/apiClient'
 import { usePermission } from '../../hooks/usePermission'
@@ -19,6 +18,7 @@ import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import common from '../../styles/common.module.css'
 import styles from './Recommendations.module.css'
+import { formatMonthDayTime } from '../../utils/format'
 
 // ==================== 类型定义 ====================
 
@@ -137,7 +137,7 @@ const Recommendations: React.FC = () => {
     },
     {
       title: '时间', dataIndex: 'created_at', key: 'created_at', width: 150,
-      render: (v: string) => dayjs(v).format('MM-DD HH:mm'),
+      render: (v: string) => formatMonthDayTime(v),
     },
   ]
 

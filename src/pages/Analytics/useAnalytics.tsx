@@ -7,6 +7,7 @@ import { supabase } from '../../utils/supabase'
 import { apiQuery, handleApiError } from '../../utils/apiClient'
 import { useMounted } from '../../hooks/useMounted'
 import type { DailyStat, NovelStat, TopNovel } from './types'
+import { formatMonthDay } from '../../utils/format'
 
 export const useAnalytics = () => {
   const mountedRef = useMounted()
@@ -88,7 +89,8 @@ export const useAnalytics = () => {
       const dateMap = new Map<string, DailyStat>()
       const days = dateRange[1].diff(dateRange[0], 'day') + 1
       for (let i = 0; i < days; i++) {
-        const date = dateRange[0].add(i, 'day').format('MM-DD')
+        // 轴标签与 formatMonthDay 派生的分桶 key 同口径（北京时区）
+        const date = formatMonthDay(dateRange[0].add(i, 'day'))
         dateMap.set(date, {
           date,
           newUsers: 0,
@@ -100,28 +102,28 @@ export const useAnalytics = () => {
       }
 
       ;(usersRes.data as Array<{ created_at: string }>)?.forEach((item) => {
-        const date = dayjs(item.created_at).format('MM-DD')
+        const date = formatMonthDay(item.created_at)
         if (dateMap.has(date)) {
           dateMap.get(date)!.newUsers++
         }
       })
 
       ;(novelsRes.data as Array<{ created_at: string; category: string | null }>)?.forEach((item) => {
-        const date = dayjs(item.created_at).format('MM-DD')
+        const date = formatMonthDay(item.created_at)
         if (dateMap.has(date)) {
           dateMap.get(date)!.newNovels++
         }
       })
 
       ;(chaptersRes.data as Array<{ created_at: string }>)?.forEach((item) => {
-        const date = dayjs(item.created_at).format('MM-DD')
+        const date = formatMonthDay(item.created_at)
         if (dateMap.has(date)) {
           dateMap.get(date)!.newChapters++
         }
       })
 
       ;(feedbackRes.data as Array<{ created_at: string }>)?.forEach((item) => {
-        const date = dayjs(item.created_at).format('MM-DD')
+        const date = formatMonthDay(item.created_at)
         if (dateMap.has(date)) {
           dateMap.get(date)!.newFeedback++
         }

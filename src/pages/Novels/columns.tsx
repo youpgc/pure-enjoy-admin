@@ -6,7 +6,6 @@ import {
   LinkOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { getActionColumn, type ActionButton } from '../../components/common/ActionColumn'
 import NovelCover from '../../components/novel/NovelCover'
 import EllipsisText from '../../components/common/EllipsisText'
@@ -20,6 +19,7 @@ import {
 import type { DbNovel } from '../../types/database'
 import styles from './columns.module.css'
 import common from '../../styles/common.module.css'
+import { formatDateTime } from '../../utils/format'
 
 // 使用数据库生成的类型，确保与管理后台、App 端字段一致
 type Novel = DbNovel
@@ -123,7 +123,7 @@ export function buildNovelColumns(cb: NovelColumnCallbacks): ColumnsType<Novel> 
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      render: (date: string) => formatDateTime(date),
     },
     getActionColumn<Novel>(
       (record) => {

@@ -23,7 +23,6 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
@@ -36,6 +35,7 @@ import { useNavigation } from '../../App'
 import type { DbGame, DbGameLevel } from '../../types/database'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
+import { formatDateTime } from '../../utils/format'
 
 const { Text } = Typography
 
@@ -357,7 +357,7 @@ const GameLevels: React.FC = () => {
       title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      render: (d: string) => dayjs(d).format('YYYY-MM-DD HH:mm:ss'),
+      render: (d: string) => formatDateTime(d),
     },
     getActionColumn<DbGameLevel>((record) => [
       {

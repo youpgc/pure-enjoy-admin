@@ -20,6 +20,7 @@ import {
   type AnnotationStatus,
 } from '../../constants'
 import type { NovelAnnotation, TrendItem } from './types'
+import { beijingNow, formatBeijingNow, formatDate } from '../../utils/format'
 
 export const useAnnotations = () => {
   const mountedRef = useMounted()
@@ -82,12 +83,13 @@ export const useAnnotations = () => {
         const allData = result.data
         // 按日期分组统计
         const dateMap = new Map<string, number>()
-        const today = dayjs()
+        // 「今天」基准固定北京时区，与 formatDate 派生的 created_at 日期串同口径
+        const today = beijingNow()
         for (let i = 29; i >= 0; i--) {
           dateMap.set(today.subtract(i, 'day').format('YYYY-MM-DD'), 0)
         }
         allData.forEach((a) => {
-          const d = dayjs(a.created_at).format('YYYY-MM-DD')
+          const d = formatDate(a.created_at)
           if (dateMap.has(d)) {
             dateMap.set(d, (dateMap.get(d) || 0) + 1)
           }
@@ -161,7 +163,7 @@ export const useAnnotations = () => {
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `批注导出_${dayjs().format('YYYYMMDD')}.csv`
+    a.download = `批注导出_${formatBeijingNow('YYYYMMDD')}.csv`
     a.click()
     URL.revokeObjectURL(a.href)
     message.success('导出成功')

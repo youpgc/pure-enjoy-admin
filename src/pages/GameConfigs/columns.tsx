@@ -1,10 +1,10 @@
 import { Button, Space, Switch, Tag, Typography } from 'antd'
 import { EditOutlined, DeleteOutlined, ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { GAME_SHARED_ICON_BASE, GAME_ENGINE_MAP, GAME_DIMENSION_VALUE_TYPE_MAP, GAME_DIMENSION_AGGREGATE_MAP } from '../../constants'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import type { DbGame, DbGameDimension } from '../../types/database'
+import { formatDateTime } from '../../utils/format'
 
 const { Text } = Typography
 
@@ -131,7 +131,7 @@ export function buildGameColumns(ops: GameConfigColumnsOps): ColumnsType<DbGame>
       title: '更新时间',
       dataIndex: 'updated_at',
       key: 'updated_at',
-      render: (d: string) => dayjs(d).format('YYYY-MM-DD HH:mm:ss'),
+      render: (d: string) => formatDateTime(d),
     },
     // 编辑/删除统一走公共操作列（删除带二次确认，M11）
     getActionColumn<DbGame>((record) => [

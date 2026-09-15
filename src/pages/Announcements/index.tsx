@@ -23,13 +23,13 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { ANNOUNCEMENT_TYPE_MAP, ANNOUNCEMENT_TYPE_OPTIONS, PRIORITY_MAP, PRIORITY_OPTIONS } from '../../constants'
 import common from '../../styles/common.module.css'
 import styles from './index.module.css'
+import { formatDateTime } from '../../utils/format'
 
 // ==================== 类型定义 ====================
 
@@ -239,7 +239,7 @@ const Announcements: React.FC = () => {
       title: '创建时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      render: (date: string) => formatDateTime(date),
     },
     {
       title: '操作',

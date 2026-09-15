@@ -2,7 +2,6 @@
 import { Tag, Typography } from 'antd'
 import EllipsisText from '../../../components/common/EllipsisText'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import {
   DeleteOutlined,
   EditOutlined,
@@ -17,6 +16,7 @@ import type { ActionButton } from '../../../components/common/ActionColumn'
 import { VERSION_STATUS_MAP, VERSION_PLATFORM_MAP } from '../../../constants'
 import type { AppVersion } from './types'
 import common from '../../../styles/common.module.css'
+import { formatDateTime } from '../../../utils/format'
 
 const { Text } = Typography
 
@@ -125,7 +125,7 @@ export function buildVersionColumns(params: BuildVersionColumnsParams): ColumnsT
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      render: (date: string) => formatDateTime(date),
     },
     getActionColumn<AppVersion>(
       (record) => {

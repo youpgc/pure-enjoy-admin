@@ -44,6 +44,7 @@ import {
 import type { DbGame, DbGameScore, DbGameRewardClaim, DbUserGameAchievement, DbGameAchievement, DbGameRewardRule } from '../../types/database'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
+import { formatMonthDay } from '../../utils/format'
 
 const { Title } = Typography
 const { RangePicker } = DatePicker
@@ -177,10 +178,11 @@ const GameAnalytics: React.FC = () => {
       const days = end.diff(start, 'day') + 1
       const trendMap: Record<string, number> = {}
       for (let i = 0; i < days; i++) {
-        trendMap[start.add(i, 'day').format('MM-DD')] = 0
+        // 轴标签与 formatMonthDay 派生的分桶 key 同口径（北京时区）
+        trendMap[formatMonthDay(start.add(i, 'day'))] = 0
       }
       windowScores.forEach((s) => {
-        const key = dayjs(s.played_at).format('MM-DD')
+        const key = formatMonthDay(s.played_at)
         trendMap[key] = (trendMap[key] || 0) + 1
       })
       setTrendData(Object.entries(trendMap).map(([date, count]) => ({ date, count })))

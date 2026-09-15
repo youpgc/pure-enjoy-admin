@@ -9,12 +9,12 @@ import {
   SearchOutlined, WarningOutlined, ExportOutlined,
   RiseOutlined, LineChartOutlined,
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { useAnnotations } from './useAnnotations'
 import { buildAnnotationColumns, buildReviewColumns } from './columns'
 import { ColorDot } from './constants'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
+import { formatMonthDay } from '../../utils/format'
 
 const Annotations: React.FC = () => {
   const { token } = theme.useToken()
@@ -158,7 +158,7 @@ const Annotations: React.FC = () => {
                             title={`${item.date}: ${item.count} 条`}
                           />
                           <div style={{ fontSize: 10, color: token.colorTextTertiary, marginTop: 4, transform: 'rotate(-45deg)', transformOrigin: 'top left', whiteSpace: 'nowrap' }}>
-                            {dayjs(item.date).format('MM-DD')}
+                            {formatMonthDay(item.date)}
                           </div>
                         </div>
                       )

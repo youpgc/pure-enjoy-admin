@@ -32,6 +32,7 @@ import { UserName } from '../../components/common/UserName'
 import dayjs from 'dayjs'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
+import { formatDateTime } from '../../utils/format'
 
 type DbPointRecord = {
   id: string
@@ -55,7 +56,7 @@ type DbRewardRule = { id: string; name: string | null; rule_type: string }
 type DbAchievement = { code: string; name: string }
 
 const fmtLocal = (iso: string | null) =>
-  iso ? dayjs(iso).format('YYYY-MM-DD HH:mm:ss') : '-'
+  iso ? formatDateTime(iso) : '-'
 
 export default function GameRewardRecords() {
   const mountedRef = useMounted()

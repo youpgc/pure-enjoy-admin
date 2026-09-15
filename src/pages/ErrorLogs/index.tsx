@@ -15,7 +15,6 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
 import { BaseService, handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { usePermission } from '../../hooks/usePermission'
@@ -27,6 +26,7 @@ import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import common from '../../styles/common.module.css'
 import styles from './index.module.css'
+import { formatDateTime } from '../../utils/format'
 
 // ==================== 类型定义 ====================
 
@@ -205,7 +205,7 @@ const ErrorLogs: React.FC = () => {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (v: string) => v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : '-',
+      render: (v: string) => v ? formatDateTime(v) : '-',
     },
     getActionColumn<ErrorLog>(
       (record) => {

@@ -2,12 +2,12 @@
 import type { ColumnsType } from 'antd/es/table'
 import { Tag, Space, Typography } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { getActionColumn, type ActionButton } from '../../components/common/ActionColumn'
 import EllipsisText from '../../components/common/EllipsisText'
 import { getFileIcon, formatFileSize, type FileItem } from './helpers'
 import common from '../../styles/common.module.css'
 import styles from './columns.module.css'
+import { formatDateTime } from '../../utils/format'
 
 export const buildFileColumns = (params: {
   handleDelete: (record: FileItem) => void
@@ -51,7 +51,7 @@ export const buildFileColumns = (params: {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      render: (date: string) => formatDateTime(date),
     },
     getActionColumn<FileItem>(
       (record): ActionButton[] => [

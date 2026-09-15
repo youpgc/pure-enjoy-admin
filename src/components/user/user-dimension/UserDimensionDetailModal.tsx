@@ -3,10 +3,10 @@ import { useMemo } from 'react'
 import { Modal, Descriptions, Divider, Table, Tag, Popconfirm, Button } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import type { RecordItem, UserSummary } from './types'
 import styles from './UserDimensionDetailModal.module.css'
 import common from '../../../styles/common.module.css'
+import { formatDateTimeMinute } from '../../../utils/format'
 
 interface UserDimensionDetailModalProps {
   open: boolean
@@ -111,7 +111,7 @@ export function UserDimensionDetailModal({
               <Tag color="blue">{selectedUser.total_count}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="最近记录">
-              {selectedUser.latest_date ? dayjs(selectedUser.latest_date).format('YYYY-MM-DD HH:mm') : '-'}
+              {selectedUser.latest_date ? formatDateTimeMinute(selectedUser.latest_date) : '-'}
             </Descriptions.Item>
           </Descriptions>
 

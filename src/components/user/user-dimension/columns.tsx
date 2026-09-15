@@ -2,9 +2,9 @@
 import { Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { EyeOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { getActionColumn } from '../../../components/common/ActionColumn'
 import type { UserSummary } from './types'
+import { formatDateTimeMinute } from '../../../utils/format'
 
 interface UserDimensionColumnParams {
   userMap: Map<string, { nickname: string; username: string }>
@@ -52,7 +52,7 @@ export function buildUserDimensionColumns({ userMap, onViewDetail }: UserDimensi
         return new Date(b.latest_date).getTime() - new Date(a.latest_date).getTime()
       },
       render: (date: string) => (
-        date ? dayjs(date).format('YYYY-MM-DD HH:mm') : '-'
+        date ? formatDateTimeMinute(date) : '-'
       ),
     },
     getActionColumn<UserSummary>(
