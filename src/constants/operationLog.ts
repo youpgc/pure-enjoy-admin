@@ -102,7 +102,7 @@ export const OP_MODULE_LABEL_MAP: Record<string, string> = Object.fromEntries(
   Object.entries(OP_MODULE_MAP).map(([k, v]) => [k, v.label])
 )
 
-/** 全量 public 表名 → 中文名，与 src/types/database.ts 的 40 张表一一对应。
+/** 全量 public 表名 → 中文名（含游戏模块等后建表与物化视图，随建表同步登记）。
  *  供系统监控「数据规模 / 全表扫描热点」把真实表名翻译成中文释义；
  *  调用处对未命中项回退显示原始英文表名，不丢信息。
  *  注意：OP_MODULE_MAP 是「审计模块」映射（键名与真实表名有错位且不全），
@@ -148,6 +148,31 @@ export const TABLE_NAME_MAP: Record<string, string> = {
   user_recommendation_feedback: '推荐反馈',
   users: '用户管理',
   weight_records: '体重记录',
+
+  // ── 游戏模块（feature_create_games 系列，2026-09-15 补登记）──
+  games: '游戏',
+  game_modes: '游戏模式',
+  game_levels: '游戏关卡',
+  game_dimensions: '游戏成绩维度',
+  game_achievements: '游戏成就配置',
+  game_reward_rules: '游戏奖励规则',
+  game_reward_claims: '游戏奖励发放',
+  game_scores: '游戏成绩',
+  game_score_values: '游戏成绩明细',
+  user_game_achievements: '用户游戏成就',
+  game_endless_rounds: '无尽模式对局',
+  game_items: '游戏道具',
+  user_game_items: '用户游戏道具',
+  user_items: '用户道具',
+
+  // ── 其他后建业务表（同批补登记）──
+  login_logs: '登录日志',
+  user_avatars: '用户头像',
+  makeup_checkins: '补打卡记录',
+  ranking_interventions: '排行干预',
+  ranking_rules: '排行规则',
+  recommend_config: '推荐配置',
+  novel_ratings: '小说评分',
 
   // ── 物化视图（get_table_stats RPC 会把 MV 一并返回，需单独登记中文名）──
   mv_novel_chapters_index: '小说章节索引',
