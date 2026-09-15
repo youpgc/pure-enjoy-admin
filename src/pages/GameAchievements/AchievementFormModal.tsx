@@ -15,6 +15,8 @@ interface AchievementFormModalProps {
   gameOptions: { value: string; label: string }[]
   /** 维度列表（score 条件类型的维度下拉，按所属游戏过滤） */
   dims: { game_id: string; code: string; name: string }[]
+  /** 模式列表（score 条件类型的可选「限定模式」下拉，按所属游戏过滤） */
+  modes: { game_id: string; code: string; name: string }[]
   saving: boolean
   /** 校验通过后回传表单原始值（condition 由父级按 v2 保护规则组装） */
   onOk: (values: Record<string, any>) => void
@@ -30,15 +32,18 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
   editing,
   gameOptions,
   dims,
+  modes,
   saving,
   onOk,
   onCancel,
 }) => {
   const [form] = Form.useForm()
 
-  // condition JSON → 表单字段（类型 / 维度 / 阈值方向 / 阈值 / 累计指标）。
+  // condition JSON → 表单字段（类型 / 维度 / 阈值方向 / 阈值 / 限定模式 / 累计指标）。
   // 阈值方向：score 条件支持 ≥（得分/得物类，gte）与 ≤（用时/步数类，lte）——
   // 此前表单只认 gte，lte 型成就（如速通）回显空值、保存即被翻转成反向逻辑。
+  // 限定模式（mode）：不显示也不保留会导致「编辑一次就把模式限定抹掉」，
+  // 使「破冰模式单局得分」这类成就退化成全模式通用——与 lte 同类缺陷（2026-09-15）。
   const initialCond = (() => {
     const cond = (editing?.condition ?? {}) as Record<string, any>
     const type = cond?.type ?? 'first_clear'
@@ -49,6 +54,7 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
         condDimension: String(cond?.dimension ?? 'score'),
         condDirection: hasLte ? ('lte' as const) : ('gte' as const),
         condValue: (hasLte ? cond?.lte : cond?.gte) as number | undefined,
+        condMode: cond?.mode ? String(cond.mode) : undefined,
       }
     }
     if (type === 'cumulative') {
@@ -207,6 +213,12 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
               const dimOptions = dims
                 .filter((d) => !gameId || d.game_id === gameId)
                 .map((d) => ({ value: d.code, label: `${d.name}（${d.code}）` }))
+              const modeOptions = [
+                { value: '', label: '全模式（不限）' },
+                ...modes
+                  .filter((m) => !gameId || m.game_id === gameId)
+                  .map((m) => ({ value: m.code, label: `${m.name}（${m.code}）` })),
+              ]
               return (
                 <>
                   <Form.Item name="condDirection" label="阈值方向">
@@ -226,6 +238,13 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
                       placeholder="选择维度"
                       options={dimOptions.length > 0 ? dimOptions : [{ value: 'score', label: 'score' }]}
                     />
+                  </Form.Item>
+                  <Form.Item
+                    name="condMode"
+                    label="限定模式"
+                    tooltip="留空 = 全模式通用；选择后仅在该模式内判定（如「限时模式单局得分 ≥ 4096」）"
+                  >
+                    <Select placeholder="全模式（不限）" options={modeOptions} allowClear />
                   </Form.Item>
                   <Form.Item
                     noStyle

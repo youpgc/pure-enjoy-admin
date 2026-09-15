@@ -179,11 +179,14 @@ const GameAchievements: React.FC = () => {
         condition = (editing.condition as Record<string, any>) ?? {}
       } else if (values.condType === 'score') {
         // 阈值方向：≥ 写 gte（得分/得物类）、≤ 写 lte（用时/步数类，如速通）——
-        // 此前无条件写 gte，编辑 lte 型成就会把它翻转成反向逻辑
+        // 此前无条件写 gte，编辑 lte 型成就会把它翻转成反向逻辑。
+        // 限定模式（mode）：表单留空则不带该键（= 全模式通用）；带上时仅该模式内判定。
+        // 此前保存不写 mode，导致编辑一次就丢掉模式限定（2026-09-15 修复）。
+        const modePart = values.condMode ? { mode: values.condMode } : {}
         condition =
           values.condDirection === 'lte'
-            ? { type: 'score', dimension: values.condDimension, lte: Number(values.condValue) }
-            : { type: 'score', dimension: values.condDimension, gte: Number(values.condValue) }
+            ? { type: 'score', dimension: values.condDimension, lte: Number(values.condValue), ...modePart }
+            : { type: 'score', dimension: values.condDimension, gte: Number(values.condValue), ...modePart }
       } else if (values.condType === 'level') {
         condition = { type: 'level', min_level_no: Number(values.condValue) }
       } else if (values.condType === 'cumulative') {
@@ -497,6 +500,7 @@ const GameAchievements: React.FC = () => {
         editing={editing}
         gameOptions={formGameOptions}
         dims={dims}
+        modes={modes}
         saving={saving}
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}

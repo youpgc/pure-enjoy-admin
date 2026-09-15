@@ -78,9 +78,12 @@ export function condSummary(cond: Record<string, any>): string {
     // 双键=区间——此前硬编码 ≥ 把 lte 型显示成「duration_ms ≥ ?」（误导）
     const gte = cond?.gte
     const lte = cond?.lte
-    if (gte != null && lte != null) return `${dim} 在 ${gte} ~ ${lte} 之间`
-    if (lte != null) return `${dim} ≤ ${lte}`
-    return `${dim} ≥ ${gte ?? '?'}`
+    // 限定模式：带 mode 的成就仅在该模式内判定，摘要必须显式标注，
+    // 否则「破冰模式单局得分」看起来与全模式通用档没有区别（2026-09-15）
+    const mode = cond?.mode ? `｜限 ${cond.mode} 模式` : ''
+    if (gte != null && lte != null) return `${dim} 在 ${gte} ~ ${lte} 之间${mode}`
+    if (lte != null) return `${dim} ≤ ${lte}${mode}`
+    return `${dim} ≥ ${gte ?? '?'}${mode}`
   }
   if (type === 'level') {
     return `通关第 ${cond?.min_level_no ?? '?'} 关及以上`
