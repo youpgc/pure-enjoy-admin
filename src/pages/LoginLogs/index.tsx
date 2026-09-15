@@ -21,7 +21,8 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { LOGIN_SOURCE_APP, LOGIN_SOURCE_ADMIN, type LoginSource } from '../../constants/roles'
-import dayjs from 'dayjs'
+import type dayjs from 'dayjs'
+import { formatDateTime } from '../../utils/format'
 import { supabase } from '../../utils/supabase'
 import { BaseService, handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
@@ -250,7 +251,7 @@ const LoginLogs: React.FC = () => {
       dataIndex: 'login_at',
       key: 'login_at',
       width: 170,
-      render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+      render: (date: string) => formatDateTime(date),
     },
     {
       title: '状态',
