@@ -27,3 +27,11 @@
   display: flex;
   justify-content: space-between;
 }
+
+/* 锁死 Descriptions 表格宽度为容器宽：长内容不再把 auto 列撑超剩余空间
+   导致 Row 换行（二维码与表格上下错位，2026-09-11）。
+   Descriptions 无 tableLayout 直传 prop、styles 亦无 table 语义键，
+   只能经 CSS 覆写内层表格（2026-09-15 修复 TS2322 时落地）。 */
+.descFixedTable :global(.ant-descriptions-view > table) {
+  table-layout: fixed;
+}
