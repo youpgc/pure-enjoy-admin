@@ -52,7 +52,7 @@ export function buildUserColumns(params: BuildUserColumnsParams): ColumnsType<Us
       title: '用户ID',
       dataIndex: 'id',
       key: 'id',
-      width: 200,
+      width: 280,
       fixed: 'left',
       render: (id: string, record: User) => (
         <Tooltip title="点击查看详情">
