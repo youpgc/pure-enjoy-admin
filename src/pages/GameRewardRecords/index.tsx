@@ -131,6 +131,7 @@ export default function GameRewardRecords() {
         pager.pagination.pageSize,
         fromIso,
         toIso,
+        flowType === 'all' ? undefined : flowType,
       )
       if (!res.success) {
         handleApiError(res.errorMessage, 'GameRewardRecords-积分流水')
@@ -288,9 +289,10 @@ export default function GameRewardRecords() {
     },
   ]
 
-  const filteredFlow = flowType === 'all'
-    ? flow
-    : flow.filter((r) => r.type === (flowType === 'earn' ? 'game_earn' : 'game_spend'))
+  // 类型筛选已下推到查询（见 gamePointFlowService.paginateGameFlow 的 flowType 参数）：
+  // 此前在这里对「当前页」本地 filter，而分页 total 是两类合计 → 消费记录稀疏或不在
+  // 当前页时会显示空（2026-09-15 用户反馈根因）。现在列表直接用查询结果。
+  const filteredFlow = flow
 
   return (
     <div>

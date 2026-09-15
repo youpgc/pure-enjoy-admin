@@ -285,11 +285,25 @@ class GamePointFlowService extends BaseService<DbPointRecord> {
     })
   }
 
-  /// 游戏相关流水分页（type ∈ GAME_FLOW_TYPES，与 App 端发放/消费口径一致）；
+  /// 游戏相关流水分页（type ∈ GAME_FLOW_TYPES，与 App 端发放/消费口径一致）。
+  ///
+  /// [flowType]：类型筛选**必须下推到查询**（'earn'→game_earn / 'spend'→game_spend /
+  /// undefined→两类全取）。此前由页面在**当前页数据**上本地 filter，而分页 total 取的是
+  /// 「两类合计」→ 消费记录稀疏或不在当前页时列表显示空（2026-09-15 用户反馈
+  /// 「筛选消费数据无数据」的根因）。
   /// [fromIso]/[toIso] 时间窗（created_at，to 为开区间上界），与统计卡聚合同口径。
-  paginateGameFlow(page: number, pageSize: number, fromIso?: string, toIso?: string) {
+  paginateGameFlow(
+    page: number,
+    pageSize: number,
+    fromIso?: string,
+    toIso?: string,
+    flowType?: 'earn' | 'spend',
+  ) {
     return this.paginate(page, pageSize, (q) => {
-      let query = q.in('type', [...GAME_FLOW_TYPES])
+      const types: string[] = flowType
+        ? [flowType === 'earn' ? 'game_earn' : 'game_spend']
+        : [...GAME_FLOW_TYPES]
+      let query = q.in('type', types)
       if (fromIso) query = query.gte('created_at', fromIso)
       if (toIso) query = query.lt('created_at', toIso)
       return query
