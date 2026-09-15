@@ -67,7 +67,7 @@ export function buildOperationLogColumns({
       title: '目标ID',
       dataIndex: 'target_id',
       key: 'target_id',
-      width: 120,
+      width: 340,
       render: (v: string[] | null) => (v && v.length ? v.join(', ') : '-'),
     },
     {
