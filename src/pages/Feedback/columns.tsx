@@ -3,6 +3,8 @@ import { Tag } from 'antd'
 import EllipsisText from '../../components/common/EllipsisText'
 import type { ColumnsType } from 'antd/es/table'
 import { formatDateTime } from '../../utils/format'
+import type { UserInfo } from '../../hooks/useUsernames'
+import { UserName } from '../../components/common/UserName'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import type { ActionButton } from '../../components/common/ActionColumn'
 import {
@@ -17,6 +19,8 @@ interface FeedbackColumnParams {
   getStatusColor: (value: string) => string | undefined
   getCategoryColor: (value: string) => string | undefined
   buildActions: (record: FeedbackRecord) => ActionButton[]
+  /** 用户名解析结果（统一口径，见 utils/userDisplay.ts） */
+  userMap: Map<string, UserInfo>
 }
 
 export function buildFeedbackColumns({
@@ -25,6 +29,7 @@ export function buildFeedbackColumns({
   getStatusColor,
   getCategoryColor,
   buildActions,
+  userMap,
 }: FeedbackColumnParams): ColumnsType<FeedbackRecord> {
   return [
     {
@@ -57,7 +62,10 @@ export function buildFeedbackColumns({
       dataIndex: 'user_nickname',
       key: 'user_nickname',
       width: 120,
-      render: (nickname: string, record) => nickname || `用户${record.user_id?.substring(0, 6)}`,
+      // 统一口径（共享组件）：username → nickname → 未知用户。此前兜底为
+      // 「用户{id 前 6 位}」，与其它页面不一致，且把 ID 片段当人名展示。
+      render: (nickname: string, record) =>
+        nickname || <UserName userId={record.user_id} userMap={userMap} />,
     },
     {
       title: '分类',

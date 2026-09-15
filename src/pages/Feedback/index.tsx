@@ -4,6 +4,7 @@ import { Table, Tag, Space, Badge } from 'antd'
 import { usePermission } from '../../hooks/usePermission'
 import NoPermission from '../../components/common/NoPermission'
 import { FEEDBACK_STATUS_PENDING } from '../../constants'
+import { useUsernames } from '../../hooks/useUsernames'
 import { useFeedback } from './useFeedback'
 import { buildFeedbackColumns } from './columns'
 import { ActionModal } from './ActionModal'
@@ -34,13 +35,17 @@ const Feedback: React.FC = () => {
     closeFlowModal,
   } = useFeedback()
 
+  // 用户名映射（统一口径，见 utils/userDisplay.ts；与其它列表页同源）
+  const userMap = useUsernames(data.map((d) => d.user_id))
+
   const columns = useMemo(() => buildFeedbackColumns({
     statusOptions,
     categoryOptions,
     getStatusColor,
     getCategoryColor,
     buildActions,
-  }), [statusOptions, categoryOptions, getStatusColor, getCategoryColor, buildActions])
+    userMap,
+  }), [statusOptions, categoryOptions, getStatusColor, getCategoryColor, buildActions, userMap])
 
   // 权限检查
   if (!hasPermission('feedback:read')) {

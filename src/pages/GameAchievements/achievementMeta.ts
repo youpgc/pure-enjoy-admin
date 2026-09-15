@@ -63,12 +63,6 @@ export const DIMENSION_LABELS: Record<string, { name: string; unit: string }> = 
 /// `group_key` 是 `<域>:<游戏>:<主题>` / `<游戏>:<主题>` / `<域>:<游戏>` 形式的
 /// 内部编码（如 `score:match3:max_combo`）——列表列**必须转中文**，否则管理员
 /// 看到的是满屏英文码。规则拼接 + 词表，未收录主题回退原文（不隐藏信息）。
-const GROUP_SCOPE_LABELS: Record<string, string> = {
-  tier: '段位',
-  score: '得分',
-  first_clear: '首次通关',
-}
-
 const GROUP_TOPIC_LABELS: Record<string, string> = {
   score: '单局得分',
   duration_ms: '用时',
@@ -108,22 +102,27 @@ export const GAME_LABELS: Record<string, string> = {
 export function groupLabel(key?: string | null): string {
   if (!key) return '未分组'
   const parts = key.split(':')
+  // 显式取段：tsconfig 开启 noUncheckedIndexedAccess，下标访问结果为
+  // `string | undefined`，必须先归一化再比较/索引（否则 TS2538）。
+  const scope = parts[0] ?? ''
+  const second = parts[1] ?? ''
+  const third = parts[2] ?? ''
   const gameOf = (s: string) => GAME_LABELS[s] ?? s
-  if (parts[0] === 'tier' && parts.length >= 3) {
-    return `${gameOf(parts[1])} · ${MODE_LABELS[parts[2]] ?? parts[2]} · 段位`
+  if (scope === 'tier' && parts.length >= 3) {
+    return `${gameOf(second)} · ${MODE_LABELS[third] ?? third} · 段位`
   }
-  if (parts[0] === 'first_clear' && parts.length >= 2) {
-    return `${gameOf(parts[1])} · 首次通关`
+  if (scope === 'first_clear' && parts.length >= 2) {
+    return `${gameOf(second)} · 首次通关`
   }
   if (parts.length === 3) {
-    if (parts[1] === 'global' || parts[1] === 'all') {
-      return `全局 · ${GLOBAL_TOPIC_LABELS[parts[2]] ?? GROUP_TOPIC_LABELS[parts[2]] ?? parts[2]}`
+    if (second === 'global' || second === 'all') {
+      return `全局 · ${GLOBAL_TOPIC_LABELS[third] ?? GROUP_TOPIC_LABELS[third] ?? third}`
     }
-    const topic = MODE_LABELS[parts[2]] ?? GROUP_TOPIC_LABELS[parts[2]] ?? parts[2]
-    return `${gameOf(parts[1])} · ${topic}`
+    const topic = MODE_LABELS[third] ?? GROUP_TOPIC_LABELS[third] ?? third
+    return `${gameOf(second)} · ${topic}`
   }
   if (parts.length === 2) {
-    return `${gameOf(parts[0])} · ${GROUP_TOPIC_LABELS[parts[1]] ?? parts[1]}`
+    return `${gameOf(scope)} · ${GROUP_TOPIC_LABELS[second] ?? second}`
   }
   return key
 }

@@ -10,8 +10,10 @@ import {
   Select,
   DatePicker,
   Popconfirm,
+  Tooltip,
 } from 'antd'
 import EllipsisText from '../../components/common/EllipsisText'
+import { UNKNOWN_USER_LABEL, isAccountIdentifier } from '../../utils/userDisplay'
 import {
   SearchOutlined,
   ReloadOutlined,
@@ -190,15 +192,30 @@ const LoginLogs: React.FC = () => {
       key: 'username',
       width: 150,
       ellipsis: true,
-      render: (v: string | null) => v || '-',
+      // 归因失败的历史行会回落写入「登录账号」本身（手机号/邮箱）——那不是人名，
+      // 直接展示即用户反馈的「用户名列为手机号」。这里显示占位文案，
+      // 原始账号放悬停提示，审计信息不丢。
+      render: (v: string | null, record: LoginLog) => {
+        if (!record.user_id && isAccountIdentifier(v)) {
+          return (
+            <Tooltip title={`登录账号：${v}（该账号当前无法归属）`}>
+              <span>{UNKNOWN_USER_LABEL}</span>
+            </Tooltip>
+          )
+        }
+        return v || '-'
+      },
     },
     {
       title: '角色',
       dataIndex: 'role',
       key: 'role',
       width: 110,
+      // 未解析出用户时 role 为 null：给纯文本 '-'，不再套 Tag
+      // （Tag 会被误读成一个角色名，此前正是如此）
       render: (role: string | null) => {
-        const info = ROLE_MAP[role || ''] || { color: 'default', label: role || '-' }
+        const info = ROLE_MAP[role || '']
+        if (!info) return role || '-'
         return <Tag color={info.color}>{info.label}</Tag>
       },
     },
