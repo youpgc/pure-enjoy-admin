@@ -86,18 +86,23 @@ export function buildUpdateUser(formData: UserFormData): Partial<User> {
  * 该 key 会被 Vite 打进浏览器 bundle（泄露 + 绕过 RLS），已回滚多次。
  * 现改为数据库 RPC（create_auth_user，SECURITY DEFINER）创建 auth.users：
  *   - 密钥仅存在于数据库函数内，永不进前端 bundle；
- *   - 函数内部用 JWT 角色声明校验，非管理员拒绝（errcode 42501）；
+ *   - 函数内部用 public.is_admin() 校验角色（读表防 JWT 自改提权）；
  *   - 需先在 Supabase SQL Editor 执行 fix_create_auth_user_rpc.sql 迁移。
- * 调用失败仅告警、不抛错，保证 public.users 主流程不受影响（逻辑闭环、可灰度）。
+ * 调用失败仅告警、不抛错，返回 null；成功返回 auth uuid。
+ * 2026-09-14 双 ID 统一：云端触发器建号时会把 users.id 改写为该 uuid，
+ * 返回值即用户最终唯一 ID（后续积分流水/日志等关联一律用它，勿用占位 id）；
+ * metadata 不再写 app_user_id（旧口径已废弃）。
  */
-export async function createAuthUser(user: User, plainPassword: string) {
+export async function createAuthUser(
+  user: User,
+  plainPassword: string
+): Promise<string | null> {
   try {
-    const { error } = await supabase.rpc('create_auth_user', {
+    const { data, error } = await supabase.rpc('create_auth_user', {
       p_email: user.email,
       p_password: plainPassword,
       p_phone: user.phone || null,
       p_user_metadata: {
-        app_user_id: user.id,
         username: user.username || null,
         nickname: user.nickname || null,
         role: user.role,
@@ -105,8 +110,11 @@ export async function createAuthUser(user: User, plainPassword: string) {
     } as any)
     if (error) {
       console.warn('auth.users 同步失败（请确认已执行 create_auth_user RPC 迁移）:', error.message)
+      return null
     }
+    return ((data as { id?: string } | null)?.id) ?? null
   } catch (err) {
     console.warn('auth.users 同步异常:', err)
+    return null
   }
 }

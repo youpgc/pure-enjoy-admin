@@ -121,20 +121,12 @@ export async function reportError(
   }
 }
 
-// 解析当前登录用户的【业务 ID】(public.users.id)。
-// operation_logs / error_logs 的 user_id 外键指向 public.users.id（业务 ID，形如 U000...），
-// 而 supabase.auth.getUser() 返回的是 auth UUID，二者不同；直接写 UUID 会触发
-// 23503（operation_logs_user_id_fkey）。故须经 auth_id = auth.uid() 反查业务 ID，
-// 与 report_client_error RPC 口径一致。查不到（理论上不应发生）则回退 null（列允许 null）。
+// 解析当前登录用户的唯一 ID（public.users.id）。
+// 2026-09-14 双 ID 统一后 users.id ≡ auth uuid，免按 auth_id 反查；
+// 函数名保留（adminProfileService / rankingService / 本文件等 3 处调用方签名不变）。
 export async function getCurrentBusinessUserId(): Promise<string | null> {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', user.id)
-    .maybeSingle()
-  return (data as { id?: string } | null)?.id ?? null
+  return user?.id ?? null
 }
 
 // 操作日志记录函数（直接写入，不使用队列）

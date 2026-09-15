@@ -83,14 +83,12 @@ export function useFeedback() {
       // 无有效会话时显式标记为「未登录操作」，不得伪装成管理员/系统。
       const { data: { user: authUser } } = await supabase.auth.getUser()
       const meta = authUser?.user_metadata || {}
-      const operatorId = authUser
-        ? ((meta.app_user_id as string) || authUser.id)
-        : '__no_session__'
+      // 2026-09-14 双 ID 统一：users.id ≡ auth uuid，operatorId 直用 auth id
+      const operatorId = authUser ? authUser.id : '__no_session__'
       const operatorName = authUser
         ? ((meta.nickname as string) ||
             (meta.username as string) ||
             authUser.email?.split('@')[0] ||
-            (meta.app_user_id as string) ||
             '未命名用户')
         : '未登录操作'
 
