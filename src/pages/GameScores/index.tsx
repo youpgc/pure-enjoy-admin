@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Alert,
   Table,
@@ -7,6 +7,7 @@ import {
   Space,
   Button,
   Select,
+  Input,
   Typography,
   DatePicker,
   Spin,
@@ -24,6 +25,8 @@ import { useMounted } from '../../hooks/useMounted'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import { useGameMeta } from '../../utils/gameMetaCache'
+import { userService } from '../../services/userService'
+import { useNavigation } from '../../App'
 import { GAME_STATUS_MAP } from '../../constants'
 import {
   gameScoreService,
@@ -193,16 +196,41 @@ const GameScores: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>(
     (restoredFilters.statusFilter as string) ?? 'not_aborted'
   )
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(
-    (restoredFilters.dateRange as [dayjs.Dayjs, dayjs.Dayjs] | null) ?? null
+  // 用户名模糊筛选（2026-09-15）：关键字 → 先按 users 表 username/nickname ilike
+  // 定位业务 ID（接口查询），再以 id 集合过滤 game_scores
+  const [usernameFilter, setUsernameFilter] = useState<string>(
+    (restoredFilters.usernameFilter as string) ?? ''
   )
+  // 时间筛选：深链（数据概览「今日成绩」卡片带 { dateRange: 'today' }）优先于
+  // 页签恢复快照；首挂载直接初始化，避免「默认无筛选 → 今日」双重加载
+  const { pageParams } = useNavigation()
+  const initSig = pageParams?.['game_scores']
+  const initToday =
+    ((initSig?.data ?? {}) as { dateRange?: string }).dateRange === 'today'
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(
+    initToday
+      ? [dayjs(), dayjs()]
+      : ((restoredFilters.dateRange as [dayjs.Dayjs, dayjs.Dayjs] | null) ?? null)
+  )
+  // keepalive 复用页签时组件不重挂载：按信号 seq 消费新的带参跳转
+  const navSeqRef = useRef(initSig?.seq ?? 0)
+  useEffect(() => {
+    const sig = pageParams?.['game_scores']
+    if (!sig || sig.seq <= navSeqRef.current) return
+    navSeqRef.current = sig.seq
+    if (((sig.data ?? {}) as { dateRange?: string }).dateRange === 'today') {
+      setDateRange([dayjs(), dayjs()])
+      pager.resetPage()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageParams])
 
   const [scores, setScores] = useState<DbGameScore[]>([])
   const [loading, setLoading] = useState(false)
   const pager = usePagination()
 
   // 页签刷新筛选持久化（卸载时写回快照）
-  usePersistTabFilters('game_scores', { gameFilter, modeFilter, statusFilter, dateRange })
+  usePersistTabFilters('game_scores', { gameFilter, modeFilter, statusFilter, usernameFilter, dateRange })
 
   const [expandedValues, setExpandedValues] = useState<Record<string, DbGameScoreValue[]>>({})
   const [expandingId, setExpandingId] = useState<string | null>(null)
@@ -217,6 +245,23 @@ const GameScores: React.FC = () => {
   const loadScores = useCallback(async () => {
     setLoading(true)
     try {
+      // 用户名模糊筛选（2026-09-15）：两步接口查询——先按关键字在 users 表
+      // username/nickname ilike 定位业务 ID，再以 id 集合过滤 game_scores
+      //（game_scores.user_id 存业务 ID，无法直接按人名过滤）。
+      let userIds: string[] | null = null
+      const kw = usernameFilter.trim()
+      if (kw) {
+        const res = await userService.findUserIdsByKeyword(kw)
+        if (!res.success) return // service 已统一弹窗 + 记日志
+        userIds = res.data ?? []
+        if (userIds.length === 0) {
+          // 关键字无命中用户：直接空结果，跳过主查询
+          if (!mountedRef.current) return
+          setScores([])
+          pager.setTotal(0)
+          return
+        }
+      }
       const result = await gameScoreService.paginate(
         pager.pagination.current,
         pager.pagination.pageSize,
@@ -226,6 +271,7 @@ const GameScores: React.FC = () => {
           if (modeFilter !== 'all') builder = builder.eq('mode_id', modeFilter)
           if (statusFilter === 'not_aborted') builder = builder.neq('status', 'aborted')
           else if (statusFilter !== 'all') builder = builder.eq('status', statusFilter)
+          if (userIds) builder = builder.in('user_id', userIds)
           if (dateRange?.[0]) builder = builder.gte('played_at', dateRange[0].format('YYYY-MM-DD'))
           if (dateRange?.[1]) builder = builder.lte('played_at', dateRange[1].format('YYYY-MM-DD') + 'T23:59:59')
           return builder
@@ -241,7 +287,7 @@ const GameScores: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [gameFilter, modeFilter, statusFilter, dateRange, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
+  }, [gameFilter, modeFilter, statusFilter, usernameFilter, dateRange, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
 
   // ========== 最佳成绩概览（各游戏主维度全局最佳） ==========
   // 主维度直接取自全局缓存 meta.dimensions（不再额外请求接口）；
@@ -552,6 +598,24 @@ const GameScores: React.FC = () => {
               { value: 'failed', label: '失败' },
               { value: 'aborted', label: '放弃' },
             ]}
+          />
+          <Text>用户名：</Text>
+          <Input.Search
+            className={styles.selW200}
+            placeholder="模糊搜索用户名/昵称"
+            allowClear
+            value={usernameFilter}
+            onChange={(e) => {
+              // 清空即恢复全量（输入过程不触发查询，回车/点搜索才查询）
+              if (!e.target.value && usernameFilter) {
+                setUsernameFilter('')
+                pager.resetPage()
+              }
+            }}
+            onSearch={(v) => {
+              setUsernameFilter(v.trim())
+              pager.resetPage()
+            }}
           />
           <RangePicker value={dateRange} onChange={(d) => {
             setDateRange(d as [dayjs.Dayjs, dayjs.Dayjs] | null)

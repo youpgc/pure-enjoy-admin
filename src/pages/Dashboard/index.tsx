@@ -85,8 +85,11 @@ const Dashboard: React.FC = () => {
             </div>
           </Card>
 
-          {/* 最近活动 */}
-          <RecentActivities activities={recentActivities} />
+          {/* 最近活动：最多 10 条，「查看更多」跳转操作日志页 */}
+          <RecentActivities
+            activities={recentActivities}
+            onViewMore={() => setCurrentPage('operation_logs')}
+          />
 
           {/* 游戏数据概览（小说排行榜/最新评论已下线，见下方注释块） */}
           <Card

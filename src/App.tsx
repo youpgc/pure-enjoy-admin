@@ -217,9 +217,17 @@ const MainLayout: React.FC = () => {
   const [pageParams, setPageParamsState] = useState<Record<string, PageNavSignal>>({})
   const openPage = useCallback((page: PageKey, params?: Record<string, unknown>) => {
     setCurrentPage(page)
-    if (params) {
-      setPageParamsState((prev) => ({ ...prev, [page]: { seq: Date.now(), data: params } }))
-    }
+    setPageParamsState((prev) => {
+      if (params) {
+        return { ...prev, [page]: { seq: Date.now(), data: params } }
+      }
+      // 无参跳转清除该页残留信号：信号只在「最近一次进入该页带参」时存在，
+      // 防止目标页（keepalive 复用或关闭后重开）误消费过期的深链参数
+      if (!(page in prev)) return prev
+      const next = { ...prev }
+      delete next[page]
+      return next
+    })
     setOpenTabs((prev) => (prev.includes(page) ? prev : [...prev, page]))
   }, [])
 

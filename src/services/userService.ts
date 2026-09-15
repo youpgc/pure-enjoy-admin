@@ -1,4 +1,4 @@
-import { BaseService } from '../utils/apiClient'
+import { BaseService, apiQuery, type ApiResponse } from '../utils/apiClient'
 import { supabase, reportError } from '../utils/supabase'
 import type { User, OperationLog } from '../types/user'
 import { USER_STATUS_DISABLED, POINT_RECORD_STATUS_ACTIVE } from '../constants/roles'
@@ -48,6 +48,26 @@ class UserService extends BaseService<User> {
   /// 软删除用户（禁用）
   async softDelete(id: string): Promise<ReturnType<BaseService<User>['update']>> {
     return this.update(id, { status: USER_STATUS_DISABLED })
+  }
+
+  /// 按关键字模糊匹配用户（username / nickname ilike），返回命中的业务 ID 列表。
+  /// 供成绩看板等页面的「用户名筛选」两步查询：先按关键字定位用户，再以 id 集合
+  /// 过滤目标表（game_scores.user_id 存业务 ID）。上限 1000 个防全表拖回。
+  async findUserIdsByKeyword(keyword: string): Promise<ApiResponse<string[]>> {
+    const kw = keyword.trim().replace(/[,()%]/g, '')
+    if (!kw) return { success: true, data: [], errorMessage: null, statusCode: 200 }
+    const text = `%${kw}%`
+    const res = await apiQuery<Array<{ id: string }>>(
+      () =>
+        supabase
+          .from('users')
+          .select('id')
+          .or(`username.ilike.${text},nickname.ilike.${text}`)
+          .limit(1000),
+      'UserService-用户名模糊搜索'
+    )
+    if (!res.success) return { ...res, data: null }
+    return { ...res, data: (res.data ?? []).map((r) => r.id) }
   }
 
   /// 批量软删除

@@ -139,7 +139,8 @@ export function useDashboard() {
         // dashboardService.getNovelsCount(),      // 小说模块下线，注释保留可恢复
         // dashboardService.getNovelReadCounts(),  // 小说模块下线，注释保留可恢复
         dashboardService.getUserTrendData(trendStart),
-        dashboardService.getRecentLogs(),
+        // 最近活动最多展示 10 条（超出由「查看更多」跳操作日志页查看）
+        dashboardService.getRecentLogs(10),
         // 游戏模块统计
         dashboardService.getGamesList(),
         dashboardService.getGameScoresCount(),

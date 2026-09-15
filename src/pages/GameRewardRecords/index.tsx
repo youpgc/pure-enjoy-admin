@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Alert,
   Table,
@@ -28,6 +28,7 @@ import {
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { useUsernames } from '../../hooks/useUsernames'
+import { useNavigation } from '../../App'
 import { UserName } from '../../components/common/UserName'
 import dayjs from 'dayjs'
 import styles from './index.module.css'
@@ -87,10 +88,29 @@ export default function GameRewardRecords() {
 
   // 时间筛选（2026-09-11）：数据量巨大，聚合/明细统一按时间窗查询——
   // 默认近 1 个月，最大可查 3 个月（超出范围在选择时拦截）。
-  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().subtract(1, 'month'),
-    dayjs(),
-  ])
+  // 深链初始化（2026-09-15）：数据概览「今日积分发放」卡片带 { dateRange: 'today' }
+  // 跳入 → 初始范围直接今日（首挂载消费信号，避免先默认范围再今日的双重加载）。
+  const { pageParams } = useNavigation()
+  const initSig = pageParams?.['game_reward_records']
+  const initToday =
+    ((initSig?.data ?? {}) as { dateRange?: string }).dateRange === 'today'
+  const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(
+    initToday
+      ? [dayjs(), dayjs()]
+      : [dayjs().subtract(1, 'month'), dayjs()]
+  )
+  // keepalive 复用页签时组件不重挂载：按信号 seq 消费新的带参跳转
+  const navSeqRef = useRef(initSig?.seq ?? 0)
+  useEffect(() => {
+    const sig = pageParams?.['game_reward_records']
+    if (!sig || sig.seq <= navSeqRef.current) return
+    navSeqRef.current = sig.seq
+    if (((sig.data ?? {}) as { dateRange?: string }).dateRange === 'today') {
+      setRange([dayjs(), dayjs()])
+      pager.resetPage()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageParams])
   // 派生 ISO：from 含当天 00:00（闭）、to 为 end 当天次日 00:00（开区间上界），
   // 与 RPC get_game_flow_totals(p_from, p_to) 的 >= p_from / < p_to 口径一致。
   const fromIso = useMemo(() => range[0].startOf('day').toISOString(), [range])

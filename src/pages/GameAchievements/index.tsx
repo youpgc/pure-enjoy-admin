@@ -64,7 +64,7 @@ const GameAchievements: React.FC = () => {
   const [gameFilter, setGameFilter] = useState<string | undefined>(
     restoredFilters.gameFilter as string | undefined
   )
-  // 分组键筛选：'none' = 独立成就（无 group_key），其余为具体键值
+  // 成就族筛选（原分组键，2026-09-15 改为中文族标签）：value = 原始 group_key
   const [groupKeyFilter, setGroupKeyFilter] = useState<string | undefined>(
     restoredFilters.groupKeyFilter as string | undefined
   )
@@ -285,28 +285,32 @@ const GameAchievements: React.FC = () => {
     setPage(1)
   }
 
-  // 分组键选项：从当前数据动态提取去重排序（键体系随配置迭代增长，不硬编码）。
-  // 游戏/模式筛选已下推 → items 已按游戏/模式收窄，键选项天然随游戏范围变化；
-  // 无「独立」专项筛选——分组键没有独立的说法，全部成就都应归属分组键
-  //（2026-09-11 用户拍板；group_key 为空的存量行由补键 SQL 修正）。
-  // 键为「游戏:语义族」结构（如 match3:jelly_clear），与模式无可靠映射
-  //（如 g2048:score_break 跨模式），游戏+模式+分组键三者 AND 叠加即可表达任意组合。
+  // 成就族筛选选项（2026-09-15：分组键筛选改为按成就族）：label 走 groupLabel
+  // 中文标签（如 score:match3:max_combo → 「消消乐 · 最高连锁」），value 仍为原始
+  // group_key 供过滤匹配。选项从当前数据动态提取去重排序（键体系随配置迭代
+  // 增长，不硬编码）；游戏/模式筛选已下推 → items 已按范围收窄，族选项随之收敛。
   const groupKeyOptions = useMemo(
     () =>
       Array.from(
         new Set(items.map((it) => it.group_key ?? '').filter((k) => k !== ''))
       )
         .sort()
-        .map((k) => ({ value: k, label: k })),
+        .map((k) => ({ value: k, label: groupLabel(k) })),
     [items]
   )
 
-  // 客户端筛选仅保留名称模糊匹配（即时输入体验）；结构化筛选已下推数据库
+  // 客户端筛选：名称模糊匹配 + 成就族（group_key 精确匹配）。
+  // 成就族筛选留在客户端：若下推数据库，选中某族后 items 收窄为该族，
+  // 上方族选项会塌缩成单条、无法切换其它族。
   const filteredItems = useMemo(() => {
+    let list = items
+    if (groupKeyFilter) {
+      list = list.filter((it) => (it.group_key ?? '') === groupKeyFilter)
+    }
     const kw = nameFilter.trim().toLowerCase()
-    if (!kw) return items
-    return items.filter((it) => (it.name ?? '').toLowerCase().includes(kw))
-  }, [items, nameFilter])
+    if (!kw) return list
+    return list.filter((it) => (it.name ?? '').toLowerCase().includes(kw))
+  }, [items, nameFilter, groupKeyFilter])
 
   const columns: ColumnsType<DbGameAchievement> = [
     {
@@ -454,7 +458,7 @@ const GameAchievements: React.FC = () => {
               optionFilterProp="label"
             />
             <Select
-              placeholder="按分组键筛选"
+              placeholder="按成就族筛选"
               allowClear
               value={groupKeyFilter}
               onChange={(v) => {

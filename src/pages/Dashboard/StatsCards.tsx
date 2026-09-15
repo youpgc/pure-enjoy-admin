@@ -23,13 +23,15 @@ interface StatCard {
   changeLabel: string
   isPercentage?: boolean
   link: PageKey
+  /** 带参跳转：目标页按参数初始化筛选（如「今日成绩/今日发放」→ 时间范围=今日） */
+  navParams?: Record<string, unknown>
 }
 
 interface StatsCardsProps {
   userStats: UserStats
   // novelStats: NovelStats // 小说模块下线，注释保留可恢复
   gameStats: GameStats
-  onNavigate: (page: PageKey) => void
+  onNavigate: (page: PageKey, params?: Record<string, unknown>) => void
 }
 
 // 统计卡片图标装饰色（多色品牌调色板，集中定义避免内联 hex；无对应 antd token 故保留原值）
@@ -127,6 +129,8 @@ export function StatsCards({ userStats, gameStats, onNavigate }: StatsCardsProps
       change: gameStats.scoresTotal,
       changeLabel: '累计成绩',
       link: 'game_scores',
+      // 带参跳转：成绩看板时间筛选初始化为今日（2026-09-15 用户反馈）
+      navParams: { dateRange: 'today' },
     },
     {
       title: '今日活跃玩家',
@@ -142,6 +146,8 @@ export function StatsCards({ userStats, gameStats, onNavigate }: StatsCardsProps
       icon: <GoldOutlined style={{ fontSize: 24, color: STAT_CARD_ICON_COLORS[2] }} />,
       changeLabel: '',
       link: 'game_reward_records',
+      // 带参跳转：奖励记录时间范围初始化为今日（2026-09-15 用户反馈）
+      navParams: { dateRange: 'today' },
     },
   ], [gameStats])
 
@@ -149,7 +155,7 @@ export function StatsCards({ userStats, gameStats, onNavigate }: StatsCardsProps
     <Col xs={24} sm={12} lg={8} xl={6} key={index}>
       <Card
         hoverable
-        onClick={() => onNavigate(card.link)}
+        onClick={() => onNavigate(card.link, card.navParams)}
         styles={{ body: { padding: 16 } }}
       >
         <div className={styles.statHead}>

@@ -37,7 +37,8 @@ type DbGameMode = Database['public']['Tables']['game_modes']['Row']
 /**
  * 游戏模式管理（game_modes）。模式为关卡选关的「一级维度」：
  * 主界面模式网格、选关弹窗按模式过滤均依赖本表；play_kind 是模式 ↔ 引擎行为的唯一链接。
- * - 未选游戏时展示全部模式（分页 10 条/页），选择游戏后按游戏过滤；
+ * - 异步加载顺序：先加载游戏选项并默认选中第一个，再按选中游戏过滤查询
+ *   （未选中时不查询，消除先全量后收窄的闪现，2026-09-15）；
  * - 「关卡」按钮深链定位到关卡页的对应游戏 + 模式；
  * - 排序上移/下移仅在被游戏过滤视图内提供（全部视图跨游戏无相邻语义）。
  * 表单弹窗见 ModeFormModal（play_kind 联动过滤 + config 推荐模板）。
@@ -76,7 +77,8 @@ const GameModes: React.FC = () => {
   const loadModes = async () => {
     setLoading(true)
     try {
-      // 未选游戏 → 全部模式；已选 → 按游戏过滤（service 统一响应/错误处理）
+      // 按选中游戏过滤（service 统一响应/错误处理）；未选中游戏的情形
+      // 已被加载 effect 门禁拦截（先默认选中、再查列表），不会全量查询
       const res = await gameModeService.findAllModes(selectedGameId || undefined)
       if (!res.success) {
         message.error(res.errorMessage ?? '加载模式失败')
@@ -99,6 +101,10 @@ const GameModes: React.FC = () => {
   }, [games, selectedGameId])
 
   useEffect(() => {
+    // 异步加载顺序（2026-09-15 用户反馈）：先等游戏选项加载并默认选中，
+    // 再按选中游戏查询列表——未选中游戏时不发请求，消除「挂载即全量查
+    // 全部模式、选中后又被过滤结果覆盖」的先全量后收窄闪现。
+    if (!selectedGameId) return
     loadModes()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGameId])
@@ -349,7 +355,7 @@ const GameModes: React.FC = () => {
 
       <Table
         rowKey="id"
-        loading={loading}
+        loading={loading || !selectedGameId}
         columns={columns}
         dataSource={modes}
         pagination={{
