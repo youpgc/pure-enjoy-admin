@@ -25,9 +25,10 @@ import {
   gameService,
   getGameFlowTotals,
 } from '../../services/gameService'
-import { userService } from '../../services/userService'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
+import { useUsernames } from '../../hooks/useUsernames'
+import { UserName } from '../../components/common/UserName'
 import dayjs from 'dayjs'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
@@ -49,15 +50,12 @@ type DbRewardClaim = {
   points: number
   claimed_at: string
 }
-type DbUser = { id: string; nickname: string | null; phone: string | null }
 type DbGame = { id: string; name: string }
 type DbRewardRule = { id: string; name: string | null; rule_type: string }
 type DbAchievement = { code: string; name: string }
 
 const fmtLocal = (iso: string | null) =>
   iso ? dayjs(iso).format('YYYY-MM-DD HH:mm:ss') : '-'
-
-const userName = (id: string, map: Record<string, string>) => map[id] || id.slice(0, 8)
 
 export default function GameRewardRecords() {
   const mountedRef = useMounted()
@@ -67,16 +65,24 @@ export default function GameRewardRecords() {
   const pager = usePagination()
 
   const [gameMap, setGameMap] = useState<Record<string, string>>({})
-  const [userMap, setUserMap] = useState<Record<string, string>>({})
   const [ruleMap, setRuleMap] = useState<Record<string, string>>({})
   const [achievementMap, setAchievementMap] = useState<Record<string, string>>({})
 
-  const [flowType, setFlowType] = useState<string>('all')
+  // 类型筛选（all=两类合计；earn/spend 下推到查询，见 paginateGameFlow 的 flowType 参数）
+  const [flowType, setFlowType] = useState<'all' | 'earn' | 'spend'>('all')
 
   const [flow, setFlow] = useState<DbPointRecord[]>([])
   const [claims, setClaims] = useState<DbRewardClaim[]>([])
   const [earnTotal, setEarnTotal] = useState(0)
   const [spendTotal, setSpendTotal] = useState(0)
+
+  // 用户名解析改用全后台共享 Hook（统一口径：username → nickname → 未知用户，
+  // 不再回退原始 ID / 手机号）。此前本页自建 `nickname || phone || id.slice(0,8)`，
+  // 与其它页面的用户名列口径不一致，且会把手机号或截断 ID 当用户名显示。
+  const userMap = useUsernames([
+    ...flow.map((r) => r.user_id),
+    ...claims.map((r) => r.user_id),
+  ])
 
   // 时间筛选（2026-09-11）：数据量巨大，聚合/明细统一按时间窗查询——
   // 默认近 1 个月，最大可查 3 个月（超出范围在选择时拦截）。
@@ -93,10 +99,9 @@ export default function GameRewardRecords() {
   )
 
   const loadMaps = useCallback(async () => {
-    // 元数据映射经各 service（统一响应/错误处理）
-    const [gRes, uRes, rRes, aRes] = await Promise.all([
+    // 元数据映射经各 service（统一响应/错误处理）；用户名映射由 useUsernames 负责
+    const [gRes, rRes, aRes] = await Promise.all([
       gameService.findAll(),
-      userService.findAll(),
       gameRewardRuleService.findAll(),
       gameAchievementService.findAll(),
     ])
@@ -105,11 +110,6 @@ export default function GameRewardRecords() {
       const gm: Record<string, string> = {}
       gRes.data.forEach((g: DbGame) => (gm[g.id] = g.name))
       setGameMap(gm)
-    }
-    if (uRes.success && uRes.data) {
-      const um: Record<string, string> = {}
-      uRes.data.forEach((u: DbUser) => (um[u.id] = u.nickname || u.phone || u.id.slice(0, 8)))
-      setUserMap(um)
     }
     if (rRes.success && rRes.data) {
       const rm: Record<string, string> = {}
@@ -193,7 +193,7 @@ export default function GameRewardRecords() {
   }, [tab, loadFlow, loadClaims])
 
   const flowColumns: ColumnsType<DbPointRecord> = [
-    { title: '用户', dataIndex: 'user_id', key: 'user_id', render: (id: string) => userName(id, userMap) },
+    { title: '用户', dataIndex: 'user_id', key: 'user_id', render: (id: string) => <UserName userId={id} userMap={userMap} /> },
     {
       title: '类型',
       dataIndex: 'type',
@@ -260,7 +260,7 @@ export default function GameRewardRecords() {
   }
 
   const claimColumns: ColumnsType<DbRewardClaim> = [
-    { title: '用户', dataIndex: 'user_id', key: 'user_id', render: (id: string) => userName(id, userMap) },
+    { title: '用户', dataIndex: 'user_id', key: 'user_id', render: (id: string) => <UserName userId={id} userMap={userMap} /> },
     {
       title: '游戏',
       dataIndex: 'game_id',
@@ -360,7 +360,7 @@ export default function GameRewardRecords() {
                     <Col span={8}>
                       <Segmented
                         value={flowType}
-                        onChange={(v) => setFlowType(v as string)}
+                        onChange={(v) => setFlowType(v as 'all' | 'earn' | 'spend')}
                         options={[
                           { label: '全部', value: 'all' },
                           { label: '获取', value: 'earn' },

@@ -7,6 +7,8 @@ import { useMounted } from '../../hooks/useMounted'
 // import { usePagination } from '../../hooks/usePagination' // 小说模块下线，注释保留可恢复
 import { dashboardService } from '../../services/dashboardService'
 import { handleApiError } from '../../utils/apiClient'
+import { userDisplayName } from '../../utils/userDisplay'
+import type { UserDisplayInfo } from '../../utils/userDisplay'
 import type {
   // CommentItem,
   // NovelListItem,
@@ -252,17 +254,20 @@ export function useDashboard() {
         const userIds = [...new Set(logsRes.data.map(l => l.user_id).filter(Boolean))] as string[]
         if (userIds.length > 0) {
           const nickRes = await dashboardService.getUserNicknames(userIds)
-          // 双键：同时按下业务 ID 与 auth_id 建映射（双 ID 架构，历史数据可能存 UUID）
-          const nickMap = new Map<string, string>()
+          // 显示名统一走 userDisplayName（username → nickname → 未知用户）。
+          // 此前用 `nickname || u.id`，会把原始 ID 当显示名展示。
+          const nickMap = new Map<string, UserDisplayInfo>()
           for (const u of (nickRes.data || [])) {
-            const name = u.nickname || u.id
-            nickMap.set(u.id, name)
-            if (u.auth_id) nickMap.set(u.auth_id, name)
+            const info: UserDisplayInfo = { username: u.username, nickname: u.nickname }
+            nickMap.set(u.id, info)
+            if (u.auth_id) nickMap.set(u.auth_id, info)
           }
           setRecentActivities(
             logsRes.data.map(l => ({
               ...l,
-              user_nickname: l.user_id ? (nickMap.get(l.user_id) || l.user_id) : '系统',
+              user_nickname: l.user_id
+                ? userDisplayName(l.user_id, nickMap.get(l.user_id))
+                : '系统',
             }))
           )
         } else {

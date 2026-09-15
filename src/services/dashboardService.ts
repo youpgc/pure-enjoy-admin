@@ -145,18 +145,19 @@ class DashboardService {
     )
   }
 
-  /// 查询用户昵称
+  /// 查询用户显示名（预览/最近活动用）。
+  ///
+  /// 双键解析：历史数据里 user_id 可能存 auth UUID，仅凭 id 查不到，故同时按
+  /// id 与 auth_id 建映射（users.id ≠ auth_id 时两键都要）。
+  /// 注意：仅返回**文本列**，按 password/postgres 类型，uuid 形态值不得传给 auth_id
+  /// 之外的 uuid 列（否则 22P02）。
   async getUserNicknames(userIds: string[]) {
-    // 双键解析：业务存在双 ID 架构，部分历史数据（如早期 operation_logs/error_logs 的
-    // user_id 写入的是 auth UUID）仅能凭 UUID 命中，故同时按 id 与 auth_id 查询，
-    // 由调用方把两列都建入 nickMap，避免回退显示原始 ID。
-    // 注意：业务ID(U...) 只走 id 列，auth_id(uuid 类型) 仅接收 UUID 形态，否则报 22P02。
     const orFilter = buildUserLookupOr(userIds)
-    return apiQuery<{ id: string; auth_id: string | null; nickname: string | null }[]>(
+    return apiQuery<{ id: string; auth_id: string | null; username: string | null; nickname: string | null }[]>(
       () =>
         supabase
           .from('users')
-          .select('id, auth_id, nickname')
+          .select('id, auth_id, username, nickname')
           .or(orFilter),
       'Dashboard-用户昵称查询'
     )

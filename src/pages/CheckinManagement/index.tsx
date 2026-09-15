@@ -4,6 +4,7 @@ import { ReloadOutlined, CalendarOutlined, LeftOutlined, RightOutlined } from '@
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { supabase } from '../../utils/supabase'
+import { userDisplayName } from '../../utils/userDisplay'
 import common from '../../styles/common.module.css'
 import styles from './CheckinManagement.module.css'
 
@@ -147,7 +148,7 @@ const CheckinCalendarDrawer: React.FC<{
 
   return (
     <Drawer
-      title={user ? `签到日历 · ${user.nickname || user.username || user.user_id}` : '签到日历'}
+      title={user ? `签到日历 · ${userDisplayName(user.user_id, { username: user.username, nickname: user.nickname })}` : '签到日历'}
       width={420}
       open={open}
       onClose={onClose}
@@ -226,7 +227,9 @@ const CheckinManagement: React.FC = () => {
       key: 'user',
       render: (_: string, r: CheckinSummary) => (
         <Space direction="vertical" size={0}>
-          <span className={common.bold500}>{r.nickname || r.username || '未知用户'}</span>
+          <span className={common.bold500}>
+            {userDisplayName(r.user_id, { username: r.username, nickname: r.nickname })}
+          </span>
           <span className={styles.subId}>{r.user_id}</span>
         </Space>
       ),
