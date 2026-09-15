@@ -8,6 +8,7 @@ import {
   message,
   Space,
   Tag,
+  Tooltip,
   Alert,
   Typography,
 } from 'antd'
@@ -24,7 +25,7 @@ import common from '../../styles/common.module.css'
 import styles from './index.module.css'
 import AchievementIcon from './AchievementIcon'
 import AchievementFormModal from './AchievementFormModal'
-import { condSummary, isV2ConditionOf } from './achievementMeta'
+import { condSummary, groupLabel, isV2ConditionOf } from './achievementMeta'
 
 type DbGameAchievement = Database['public']['Tables']['game_achievements']['Row']
 
@@ -335,12 +336,20 @@ const GameAchievements: React.FC = () => {
         condSummary((record.condition ?? {}) as Record<string, any>),
     },
     {
-      title: '分组键',
+      title: '成就族',
       dataIndex: 'group_key',
       width: 160,
       ellipsis: true,
+      // 分组键是内部编码（score:match3:max_combo），列表转中文展示；
+      // 原始 key 放 tooltip，便于对数据时溯源（不再满屏英文码）。
       render: (v: string | null) =>
-        v ? <Tag color="blue">{v}</Tag> : <Tag color="orange">未分组</Tag>,
+        v ? (
+          <Tooltip title={v}>
+            <Tag color="blue">{groupLabel(v)}</Tag>
+          </Tooltip>
+        ) : (
+          <Tag color="orange">未分组</Tag>
+        ),
     },
     {
       title: '奖励积分',

@@ -2,7 +2,7 @@ import React from 'react'
 import { Modal, Form, Input, InputNumber, Select, Switch, Segmented } from 'antd'
 import type { Database } from '../../types/database'
 import { ACHIEVEMENT_ICON_OPTIONS } from '../../constants/game'
-import { COND_OPTIONS, CUMULATIVE_METRIC_OPTIONS, isV2ConditionOf } from './achievementMeta'
+import { COND_OPTIONS, CUMULATIVE_METRIC_OPTIONS, DIMENSION_LABELS, isV2ConditionOf } from './achievementMeta'
 import common from '../../styles/common.module.css'
 
 type DbGameAchievement = Database['public']['Tables']['game_achievements']['Row']
@@ -210,14 +210,28 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
             }
             if (type === 'score') {
               const gameId = getFieldValue('game_id')
+              const currentDim = String(getFieldValue('condDimension') ?? '')
+              // 维度/模式下拉一律显示**中文**（引擎维度码、模式码只是内部标识，
+              // 管理员不该在表单里读 score / jelly_cleared / max_combo）。
+              // 维度表可能缺后加维度（jelly_cleared / collect_done / layers / mistakes …），
+              // 故把当前维度兜底补进选项——否则编辑既有成就时下拉找不到匹配项，
+              // 保存会丢维度（与早前「丢 mode 键」同类缺陷）。
+              const dimLabel = (code: string, name?: string) => {
+                const meta = DIMENSION_LABELS[code]
+                const base = meta?.name ?? name ?? code
+                return meta?.unit ? `${base}（${meta.unit}）` : base
+              }
               const dimOptions = dims
                 .filter((d) => !gameId || d.game_id === gameId)
-                .map((d) => ({ value: d.code, label: `${d.name}（${d.code}）` }))
+                .map((d) => ({ value: d.code, label: dimLabel(d.code, d.name) }))
+              if (currentDim && !dimOptions.some((o) => o.value === currentDim)) {
+                dimOptions.push({ value: currentDim, label: dimLabel(currentDim) })
+              }
               const modeOptions = [
                 { value: '', label: '全模式（不限）' },
                 ...modes
                   .filter((m) => !gameId || m.game_id === gameId)
-                  .map((m) => ({ value: m.code, label: `${m.name}（${m.code}）` })),
+                  .map((m) => ({ value: m.code, label: m.name })),
               ]
               return (
                 <>
@@ -236,7 +250,7 @@ const AchievementFormModal: React.FC<AchievementFormModalProps> = ({
                   >
                     <Select
                       placeholder="选择维度"
-                      options={dimOptions.length > 0 ? dimOptions : [{ value: 'score', label: 'score' }]}
+                      options={dimOptions.length > 0 ? dimOptions : [{ value: 'score', label: dimLabel('score') }]}
                     />
                   </Form.Item>
                   <Form.Item
