@@ -48,5 +48,13 @@ export const PAGE_TITLES: Record<PageKey, string> = {
   game_reward_records: '游戏奖励记录',
   game_modes: '模式管理',
   game_items: '道具管理',
+  pet_species: '种属管理',
+  pet_items: '道具目录',
+  pet_egg_pools: '蛋池与概率',
+  pet_quests: '任务池',
+  pet_adventure_spots: '历险地',
+  pet_config: '宠物全局参数',
+  pet_wallets: '金币钱包',
+  pet_bag_adjust: '背包与客服调整',
   profile: '个人中心',
 }

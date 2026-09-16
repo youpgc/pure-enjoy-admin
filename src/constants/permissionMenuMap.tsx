@@ -45,6 +45,7 @@ import {
   ToolOutlined,
   FolderOutlined,
   AlertOutlined,
+  HeartOutlined,
 } from '@ant-design/icons'
 
 export interface PermissionPageInfo {
@@ -92,6 +93,8 @@ export const RESOURCE_PAGE_MAP: Record<string, PermissionPageInfo> = {
   error_logs: { group: '系统设置', page: '错误日志', icon: <AlertOutlined /> },
   // 游戏中心（games 模块：games:read/write/delete 统管 8 个游戏子页面，无独立子权限）
   games: { group: '游戏中心', page: '游戏管理', icon: <TrophyOutlined /> },
+  // 宠物管理（pets 模块：pets:read/write/delete 统管 8 个宠物子页面，同 games 模式）
+  pets: { group: '宠物管理', page: '宠物管理', icon: <HeartOutlined /> },
 }
 
 /** 菜单分组展示顺序（与侧边栏一致）；未分类放到最后 */
@@ -101,6 +104,7 @@ export const GROUP_ORDER = [
   '内容管理',
   '生活服务',
   '游戏中心',
+  '宠物管理',
   '运营管理',
   '系统设置',
   '未分类',
@@ -114,6 +118,8 @@ export const GROUP_COLORS: Record<string, string> = {
   生活服务: '#faad14',
   运营管理: '#722ed1',
   系统设置: '#f5222d',
+  游戏中心: '#eb2f96',
+  宠物管理: '#fa8c16',
   未分类: '#666666',
 }
 
