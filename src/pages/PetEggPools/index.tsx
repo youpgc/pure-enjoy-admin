@@ -73,7 +73,7 @@ const PetEggPools: React.FC = () => {
       title: '发布状态',
       dataIndex: 'published',
       width: 100,
-      render: (v: boolean) => (v ? <Tag color="green">已发布</Tag> : <Tag>草稿</Tag>),
+      render: (v: boolean) => (v ? <Tag color="green">已发布</Tag> : <Tag>未发布</Tag>),
     },
     {
       title: '权重概览',
@@ -86,7 +86,7 @@ const PetEggPools: React.FC = () => {
             ))}
           </Space>
         ) : (
-          <Tag>未配置</Tag>
+          <Tag>空</Tag>
         ),
     },
     getActionColumn<PetEggPoolRow>((record) => [
@@ -171,7 +171,7 @@ const PetEggPools: React.FC = () => {
           <>
             <Descriptions size="small" column={2} className={common.mb16}>
               <Descriptions.Item label="发布状态">
-                {preview.published ? <Tag color="green">已发布（App 可见）</Tag> : <Tag>草稿（App 不可见）</Tag>}
+                {preview.published ? <Tag color="green">已发布（App 可见）</Tag> : <Tag>未发布（App 不可见）</Tag>}
               </Descriptions.Item>
               <Descriptions.Item label="版本">v{preview.config_version}</Descriptions.Item>
             </Descriptions>

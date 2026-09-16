@@ -252,7 +252,7 @@ const PetWallets: React.FC = () => {
         showIcon
         className={common.mb16}
         message="金币钱包说明"
-        description="金币为宠物体系内货币（1 金币 = 10 积分，仅积分→金币单向兑换）；流水 append-only，来源五类：商城消费 / 系统发放 / 成就发放 / 积分兑换 / 客服调整。本页只读，客服调整在「背包与客服调整」页操作。"
+        description="金币为宠物体系内货币（1 金币 = 10 积分，仅积分→金币单向兑换）；流水 append-only，来源五类：商城消费 / 系统发放 / 成就发放 / 积分兑换 / 客服调整。本页只读，客服调整在「宠物运营」页操作。"
       />
       <Tabs
         defaultActiveKey="records"

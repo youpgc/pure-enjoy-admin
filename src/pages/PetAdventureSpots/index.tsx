@@ -92,7 +92,7 @@ const PetAdventureSpots: React.FC = () => {
             ))}
           </Space>
         ) : (
-          <Tag>未配置</Tag>
+          <Tag>空</Tag>
         ),
     },
     {

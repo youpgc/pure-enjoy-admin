@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Modal, Form, Input, InputNumber, Select, Switch, message } from 'antd'
 import type { PetItemRow } from '../../types/pet'
 import {
@@ -6,11 +6,18 @@ import {
   PET_ITEM_CHANNEL_OPTIONS,
   PET_LADDER_KEY_OPTIONS,
 } from '../../constants/pet'
+import { petEggPoolService } from '../../services/petService'
+import { EffectEditor } from '../../components/form/pet/editors/ItemEditors'
 import { JsonFormItem } from '../../components/form/pet/JsonFormItem'
-import { parseJsonText, stringifyJson } from '../../utils/petJson'
+import { asObject } from '../../components/form/pet/editors/shared'
 import common from '../../styles/common.module.css'
 
 // ==================== 道具编辑弹窗（pet_items，含扩容阶梯编辑器） ====================
+//
+// effect 按分类结构化（与 RPC 消费同源）：
+// - 蛋类：{pool, mode}（rpc_pet_hatch_instant）；
+// - 消耗品：{type: feed|clean|toy, hunger/mood/exp}（rpc_pet_use_item 白名单）；
+// - 工具/装备：开放结构（ladder/rescue 等）→ JSON 高级编辑。
 
 export interface ItemFormValues {
   item_code: string
@@ -18,7 +25,7 @@ export interface ItemFormValues {
   description: string | null
   category: string
   sub_type: string | null
-  effect: string
+  effect: Record<string, unknown>
   stack_limit: number
   price_coin: number
   price_points: number | null
@@ -42,8 +49,19 @@ interface Props {
 
 const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel }) => {
   const [form] = Form.useForm()
+  const [poolOptions, setPoolOptions] = useState<Array<{ value: string; label: string }>>([])
   // 阶梯编辑联动：选择阶梯 key 后 step / add_capacity 必填（与 DDL 三列同形 check 对齐）
   const ladderKey = Form.useWatch('ladder_key', form)
+  const category = Form.useWatch('category', form)
+
+  useEffect(() => {
+    if (!open) return
+    petEggPoolService.findAll().then((res) => {
+      if (res.success && res.data) {
+        setPoolOptions(res.data.map((p) => ({ value: p.pool_code, label: p.pool_code })))
+      }
+    })
+  }, [open])
 
   const initialValues = (): Record<string, unknown> => {
     if (editing) {
@@ -51,14 +69,14 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         ...editing,
         description: editing.description ?? '',
         sub_type: editing.sub_type ?? '',
-        effect: stringifyJson(editing.effect),
+        effect: asObject(editing.effect),
         price_points: editing.price_points ?? undefined,
         ladder_key: editing.ladder_key ?? '',
         purchase_limit: editing.purchase_limit ?? undefined,
       }
     }
     return {
-      effect: '{}',
+      effect: {},
       stack_limit: 99,
       price_coin: 0,
       points_purchasable: false,
@@ -71,9 +89,6 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
 
   const handleOk = async () => {
     const values = await form.validateFields()
-    const effect = parseJsonText(values.effect)
-    if (!effect.ok) return void message.error(`使用效果：${effect.error}`)
-
     // 阶梯三列同形校验（DDL pet_items_ladder_shape_chk 的应用层前置）
     const isLadder = !!values.ladder_key
     if (isLadder && (values.ladder_step == null || values.add_capacity == null)) {
@@ -86,11 +101,7 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
       // 阶梯道具每档限购 1 次（业务铁律），这里强制归一
       values.purchase_limit = 1
     }
-
-    onOk({
-      ...values,
-      effect: effect.value as unknown as string,
-    })
+    onOk({ ...values, effect: asObject(values.effect) })
   }
 
   return (
@@ -134,12 +145,21 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         <Form.Item name="sub_type" label="子类型" tooltip="food/clean/toy/evolution/rescue/exp/retake/unlock/expand 等，可留空">
           <Input allowClear placeholder="如 food" />
         </Form.Item>
-        <JsonFormItem
-          name="effect"
-          label="使用效果（jsonb，结构化）"
-          placeholder='{"type":"hunger","value":30}'
-          rows={3}
-        />
+
+        {category === 'egg' || category === 'consumable' ? (
+          <Form.Item name="effect" label="使用效果">
+            <EffectEditor category={category} poolOptions={poolOptions} />
+          </Form.Item>
+        ) : (
+          <JsonFormItem
+            name="effect"
+            label="使用效果（jsonb，高级）"
+            tooltip='工具/装备类为开放结构（如救援 {"type":"rescue"}、扩容 {"ladder":"backpack"}），保留 JSON 编辑'
+            placeholder='{"type":"rescue"}'
+            rows={3}
+          />
+        )}
+
         <Form.Item name="stack_limit" label="单格堆叠上限" tooltip="蛋固定 1（不可改小于 1）；普通道具默认 99">
           <InputNumber min={1} className={common.fullWidth} />
         </Form.Item>
@@ -200,7 +220,7 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         <Form.Item name="sort_order" label="排序号">
           <InputNumber min={0} className={common.fullWidth} />
         </Form.Item>
-        <Form.Item name="on_shelf" label="上架" valuePropName="checked" tooltip="关闭 = 商城不可见（预埋/下架）">
+        <Form.Item name="on_shelf" label="上架" valuePropName="checked" tooltip="关闭 = 商城不可见（下架）">
           <Switch checkedChildren="上架" unCheckedChildren="下架" />
         </Form.Item>
       </Form>

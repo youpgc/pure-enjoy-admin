@@ -54,7 +54,7 @@ export const PAGE_TITLES: Record<PageKey, string> = {
   pet_quests: '任务池',
   pet_adventure_spots: '历险地',
   pet_config: '宠物全局参数',
-  pet_wallets: '金币钱包',
-  pet_bag_adjust: '背包与客服调整',
+  pet_wallets: '金币流水',
+  pet_bag_adjust: '宠物运营',
   profile: '个人中心',
 }

@@ -11,7 +11,7 @@ import SpeciesFormModal, { type SpeciesFormValues } from './SpeciesFormModal'
 import common from '../../styles/common.module.css'
 
 // ==================== 种属/形态管理（pet_species） ====================
-// 素材灰度闸门：预埋行 enabled=false，素材到位+配置接线后再启用（App 仅展示启用种属）。
+// 启用状态即 App 展示闸门：新形态先完成素材接线（render2d/render3d）再启用。
 
 const RARITY_COLORS: Record<string, string> = {
   N: 'default',
@@ -123,14 +123,14 @@ const PetSpecies: React.FC = () => {
       dataIndex: 'render3d',
       width: 110,
       render: (v: Record<string, unknown>) =>
-        v && v.code ? <Tag color="geekblue">{String(v.code)}</Tag> : <Tag>未配置</Tag>,
+        v && v.code ? <Tag color="geekblue">{String(v.code)}</Tag> : <Tag>2D 展示</Tag>,
     },
     { title: '素材版本', dataIndex: 'asset_version', width: 90, render: (v: string | null) => v ?? '-' },
     {
       title: '状态',
       dataIndex: 'enabled',
       width: 80,
-      render: (v: boolean) => (v ? <Tag color="green">启用</Tag> : <Tag>预埋</Tag>),
+      render: (v: boolean) => (v ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
     },
     { title: '排序', dataIndex: 'sort_order', width: 70 },
     getActionColumn<PetSpeciesRow>((record) => [
@@ -161,7 +161,7 @@ const PetSpecies: React.FC = () => {
         showIcon
         className={common.mb16}
         message="种属管理说明"
-        description="命名即契约：species_code 同时是 App 与素材管线的引用键；预埋行保持「停用」，素材到位后编辑接线 render3d/render2d 并启用（灰度）。"
+        description="命名即契约：species_code 同时是 App 与素材管线的引用键；新形态先配置 2D/3D 素材接线，再切换启用状态对 App 生效。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>

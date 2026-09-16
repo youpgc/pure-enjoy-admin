@@ -1,19 +1,27 @@
-import React from 'react'
-import { Modal, Form, Input, InputNumber, Switch, message } from 'antd'
+import React, { useEffect, useState } from 'react'
+import { Modal, Form, Input, InputNumber, Switch } from 'antd'
 import type { PetAdventureSpotRow } from '../../types/pet'
-import { JsonFormItem } from '../../components/form/pet/JsonFormItem'
-import { parseJsonText, stringifyJson } from '../../utils/petJson'
+import { petItemService } from '../../services/petService'
+import { NumberMapEditor, UnlockListEditor } from '../../components/form/pet/editors/BasicEditors'
+import { DropTableEditor } from '../../components/form/pet/editors/AdventureEditors'
+import { asObject } from '../../components/form/pet/editors/shared'
 import common from '../../styles/common.module.css'
 
 // ==================== 历险地编辑弹窗（pet_adventure_spots） ====================
+//
+// jsonb 结构与 rpc_pet_adventure_claim 消费同源：
+// - unlock_conditions：[{type,value}]（App 侧解锁判定/展示；服务端仅校验 enabled）；
+// - result_weights：{play,danger,help,memory} 累计权重（和为 1 时 roll 覆盖全区间）；
+// - drop_table：<result>.gold[min,max] / exp[min,max] / items[{code,min,max,p}]；
+// - rescue_params：{self_window_minutes}（缺省 120）。
 
 export interface SpotFormValues {
   code: string
   name: string
-  unlock_conditions: string
-  result_weights: string
-  drop_table: string
-  rescue_params: string
+  unlock_conditions: Array<Record<string, unknown>>
+  result_weights: Record<string, unknown>
+  drop_table: Record<string, unknown>
+  rescue_params: Record<string, unknown>
   enabled: boolean
   sort_order: number
 }
@@ -26,63 +34,69 @@ interface Props {
   onCancel: () => void
 }
 
+const RESULT_WEIGHT_FIELDS = [
+  { key: 'play', label: '游玩（play）', min: 0, step: 0.05 },
+  { key: 'danger', label: '遇险（danger）', min: 0, step: 0.05 },
+  { key: 'help', label: '帮助（help）', min: 0, step: 0.05 },
+  { key: 'memory', label: '纪念（memory）', min: 0, step: 0.05 },
+]
+
 const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel }) => {
   const [form] = Form.useForm()
+  const [items, setItems] = useState<Array<{ item_code: string; name: string; category: string }>>([])
 
-  const initialValues = (): Record<string, unknown> => {
-    if (editing) {
-      return {
-        ...editing,
-        unlock_conditions: stringifyJson(editing.unlock_conditions, '[]'),
-        result_weights: stringifyJson(editing.result_weights),
-        drop_table: stringifyJson(editing.drop_table),
-        rescue_params: stringifyJson(editing.rescue_params),
+  useEffect(() => {
+    if (!open) return
+    petItemService.findAll().then((res) => {
+      if (res.success && res.data) {
+        setItems(res.data.map((i) => ({ item_code: i.item_code, name: i.name, category: i.category })))
       }
-    }
-    return {
-      unlock_conditions: '[]',
-      result_weights: '{}',
-      drop_table: '{}',
-      rescue_params: '{}',
-      enabled: false,
-      sort_order: 0,
-    }
-  }
-
-  const handleOk = async () => {
-    const values = await form.validateFields()
-    const unlock = parseJsonText(values.unlock_conditions)
-    if (!unlock.ok) return void message.error(`解锁条件：${unlock.error}`)
-    const weights = parseJsonText(values.result_weights)
-    if (!weights.ok) return void message.error(`结果权重：${weights.error}`)
-    const drops = parseJsonText(values.drop_table)
-    if (!drops.ok) return void message.error(`掉落包：${drops.error}`)
-    const rescue = parseJsonText(values.rescue_params)
-    if (!rescue.ok) return void message.error(`救助参数：${rescue.error}`)
-    onOk({
-      ...values,
-      unlock_conditions: unlock.value as unknown as string,
-      result_weights: weights.value as unknown as string,
-      drop_table: drops.value as unknown as string,
-      rescue_params: rescue.value as unknown as string,
     })
-  }
+  }, [open])
 
   return (
     <Modal
       title={editing ? '编辑历险地' : '新增历险地'}
       open={open}
-      onOk={handleOk}
+      onOk={async () => {
+        const values = await form.validateFields()
+        onOk({
+          ...values,
+          unlock_conditions: Array.isArray(values.unlock_conditions) ? values.unlock_conditions : [],
+          result_weights: asObject(values.result_weights),
+          drop_table: asObject(values.drop_table),
+          rescue_params: asObject(values.rescue_params),
+        })
+      }}
       confirmLoading={saving}
       afterOpenChange={(o) => {
         if (o) {
           form.resetFields()
-          form.setFieldsValue(initialValues())
+          form.setFieldsValue(
+            editing
+              ? {
+                  ...editing,
+                  unlock_conditions: Array.isArray(editing.unlock_conditions)
+                    ? (editing.unlock_conditions as Array<Record<string, unknown>>)
+                    : [],
+                  result_weights: asObject(editing.result_weights),
+                  drop_table: asObject(editing.drop_table),
+                  rescue_params: asObject(editing.rescue_params),
+                }
+              : {
+                  unlock_conditions: [],
+                  result_weights: {},
+                  drop_table: {},
+                  rescue_params: { self_window_minutes: 120 },
+                  enabled: false,
+                  sort_order: 0,
+                }
+          )
         }
       }}
       onCancel={onCancel}
       destroyOnHidden
-      width={680}
+      width={720}
     >
       <Form form={form} layout="vertical" preserve={false}>
         <Form.Item name="code" label="地点编码" rules={[{ required: true, message: '请输入地点编码' }]}>
@@ -91,34 +105,34 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
           <Input placeholder="如 云端花园" />
         </Form.Item>
-        <JsonFormItem
-          name="unlock_conditions"
-          label="解锁条件（jsonb 数组）"
-          tooltip="历险按等级/条件解锁（后台配置），不使用道具解锁"
-          placeholder='[{"type":"level","value":3}]'
-          rows={3}
-        />
-        <JsonFormItem
+
+        <Form.Item name="unlock_conditions" label="解锁条件" tooltip="历险按等级/条件解锁；type 如 level，value 为阈值">
+          <UnlockListEditor />
+        </Form.Item>
+
+        <Form.Item
           name="result_weights"
-          label="结果权重（jsonb）"
-          tooltip="play 游玩 / danger 遇险 / help 帮助 / memory 纪念 四类权重，服务端 RPC 按此判定并写审计"
-          placeholder='{"play":60,"danger":20,"help":10,"memory":10}'
-          rows={4}
-        />
-        <JsonFormItem
-          name="drop_table"
-          label="掉落包（jsonb）"
-          tooltip="各结果对应的掉落配置（金币/经验/道具）"
-          placeholder='{"play":{"gold":[5,15]},"danger":{"consolation_gold":2}}'
-          rows={5}
-        />
-        <JsonFormItem
+          label="结果权重"
+          tooltip="四类结果按累计权重与随机数比较判定；建议四项合计为 1"
+          rules={[{ required: true, message: '请配置结果权重' }]}
+        >
+          <NumberMapEditor fields={RESULT_WEIGHT_FIELDS} sumHint="四类权重建议合计 1" />
+        </Form.Item>
+
+        <Form.Item name="drop_table" label="掉落包">
+          <DropTableEditor items={items} />
+        </Form.Item>
+
+        <Form.Item
           name="rescue_params"
-          label="救助参数（jsonb）"
-          tooltip="自救窗口时长等；遇险后先自救，超时 NPC 兜底"
-          placeholder='{"rescue_window_minutes":120,"npc_consolation_gold":1}'
-          rows={3}
-        />
+          label="救助参数"
+          tooltip="自救窗口时长（分钟）；遇险后先自救，超时 NPC 兜底"
+        >
+          <NumberMapEditor
+            fields={[{ key: 'self_window_minutes', label: '自救窗口（分钟）', min: 1 }]}
+          />
+        </Form.Item>
+
         <Form.Item name="sort_order" label="排序号">
           <InputNumber min={0} className={common.fullWidth} />
         </Form.Item>

@@ -25,7 +25,7 @@ class PetConfigService extends BaseService<PetConfigRow> {
     super('pet_config', {
       defaultOrder: { column: 'id', ascending: true },
       select:
-        'id,pet_enabled,free_feed_daily,free_feed_cooldown_min,daily_task_draw_count,adventure_tiers,adventure_hunger_threshold,adventure_mood_threshold,breeding_cooldown_hours,points_per_gold,stack_limit_default,backpack_capacity_init,backpack_capacity_max,rearing_capacity_init,rearing_capacity_max,foster_capacity_init,foster_capacity_max,ssr_hatch_wait_hours,newbie_package,config_version,reserved,created_at,updated_at',
+        'id,pet_enabled,free_feed_daily,free_feed_cooldown_min,daily_task_draw_count,adventure_tiers,adventure_hunger_threshold,adventure_mood_threshold,breeding_cooldown_hours,points_per_gold,stack_limit_default,backpack_capacity_init,backpack_capacity_max,rearing_capacity_init,rearing_capacity_max,foster_capacity_init,foster_capacity_max,ssr_hatch_wait_hours,newbie_package,config_version,reserved,level_exp_base,level_exp_growth,free_feed_hunger,free_feed_exp,interact_mood,decay_hunger_per_hour,decay_mood_per_hour,rescue_consolation_gold,render3d_enabled,asset_manifest,created_at,updated_at',
     })
   }
 

@@ -5,7 +5,7 @@ import type { ColumnsType } from 'antd/es/table'
 import type { PetQuestRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
-import { petQuestService } from '../../services/petService'
+import { petQuestService, petItemService } from '../../services/petService'
 import { PET_QUEST_TYPE_LABELS, PET_QUEST_DIFFICULTY_LABELS, PET_QUEST_DIFFICULTY_COLORS, PET_QUEST_TYPE_OPTIONS, PET_QUEST_DIFFICULTY_OPTIONS } from '../../constants/pet'
 import QuestFormModal, { type QuestFormValues } from './QuestFormModal'
 import common from '../../styles/common.module.css'
@@ -22,6 +22,7 @@ const PetQuests: React.FC = () => {
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetQuestRow | null>(null)
+  const [items, setItems] = useState<Array<{ item_code: string; name: string; category: string }>>([])
   const [typeFilter, setTypeFilter] = useState('')
   const [difficultyFilter, setDifficultyFilter] = useState('')
 
@@ -33,8 +34,16 @@ const PetQuests: React.FC = () => {
     setLoading(false)
   }, [])
 
+  const loadItems = useCallback(async () => {
+    const res = await petItemService.findAll()
+    if (res.success && res.data) {
+      setItems(res.data.map((i) => ({ item_code: i.item_code, name: i.name, category: i.category })))
+    }
+  }, [])
+
   useEffect(() => {
     loadRows()
+    loadItems()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -97,7 +106,7 @@ const PetQuests: React.FC = () => {
       title: '条件',
       dataIndex: 'condition',
       render: (v: Record<string, unknown>) =>
-        v && v.type ? `${String(v.type)} · ${String(v.value ?? '-')}` : '-',
+        v && v.type ? `${String(v.type)} · 目标 ${String(v.target ?? 1)} 次` : '-',
       ellipsis: true,
     },
     {
@@ -142,7 +151,7 @@ const PetQuests: React.FC = () => {
         showIcon
         className={common.mb16}
         message="任务池说明"
-        description="每日任务由 App 端当日首次打开时按 pet_config.daily_task_draw_count 惰性抽取（启用中的任务池内随机）；周任务 P2 启用。奖励包 schema 与成就共用。"
+        description="每日任务由 App 端当日首次打开时按 pet_config.daily_task_draw_count 惰性抽取（启用中的任务池内随机）；奖励包 schema 与成就共用。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
@@ -188,6 +197,7 @@ const PetQuests: React.FC = () => {
         open={modalOpen}
         editing={editing}
         saving={saving}
+        items={items}
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
       />

@@ -11,6 +11,8 @@ import type { Json } from './database'
 export type PetJson = Json
 
 /// 1.1 全局参数（单行 id=1）
+/// 列清单 = feature_pet_tables + feature_pet_rpcs（等级曲线/喂养效果/互动/衰减/慰问金）
+/// + feature_pet_asset（render3d_enabled/asset_manifest）三波 DDL 合集。
 export interface PetConfigRow {
   id: number
   pet_enabled: boolean
@@ -33,6 +35,18 @@ export interface PetConfigRow {
   newbie_package: Json
   config_version: number
   reserved: Json
+  // —— rpcs 批补列（等级曲线 / 喂养效果 / 互动 / 离线衰减 / 慰问金）——
+  level_exp_base: number
+  level_exp_growth: number
+  free_feed_hunger: number
+  free_feed_exp: number
+  interact_mood: number
+  decay_hunger_per_hour: number
+  decay_mood_per_hour: number
+  rescue_consolation_gold: number
+  // —— asset 批补列（3D 渲染开关 / 资源包清单）——
+  render3d_enabled: boolean
+  asset_manifest: Json
   created_at: string
   updated_at: string
 }

@@ -40,7 +40,7 @@ export const PET_ITEM_CATEGORY_LABELS: Record<string, string> = {
   egg: '蛋',
   consumable: '消耗品',
   tool: '工具',
-  equip: '装备（P2）',
+  equip: '装备',
 }
 
 export const PET_ITEM_CATEGORY_COLORS: Record<string, string> = {
@@ -91,7 +91,7 @@ export const PET_LADDER_KEY_OPTIONS = [
 
 export const PET_QUEST_TYPE_LABELS: Record<string, string> = {
   daily: '每日',
-  weekly: '每周（P2）',
+  weekly: '每周',
 }
 
 export const PET_QUEST_TYPE_OPTIONS = Object.entries(PET_QUEST_TYPE_LABELS).map(
@@ -164,3 +164,51 @@ export const PET_PERMS = {
   WRITE: 'pets:write',
   DELETE: 'pets:delete',
 } as const
+
+// ---------- 结构化 jsonb 编辑器选项（结构以 RPC 真实消费为准，禁止臆测） ----------
+//
+// 消费点实证（feature_pet_rpcs_20260916.sql）：
+// - 道具 effect：rpc_pet_use_item / rpc_pet_feed 读 type(feed|clean|toy)+hunger/mood/exp；
+//   蛋类 effect 读 pool+mode（rpc_pet_hatch_instant）；
+// - 任务 condition：rpc_pet_daily_quests_draw 读 type + target（int，缺省 1）；
+// - 任务 rewards：rpc_pet_daily_quests_claim 读 gold + points + items[{code,count}]；
+// - 蛋池 weights：hatch 读 fixed_species / families / rarity(取首键) / gender.male(0~1 概率)；
+// - 历险 result_weights：claim 按 jsonb_each_text 累计权重与 random() 比较（和应为 1）；
+// - 历险 rescue_params：读 self_window_minutes（缺省 120）；
+// - 历险 drop_table：<result>.gold[min,max] / exp[min,max] / items[{code,min,max,p}]。
+
+/// 消耗品 effect.type（rpc_pet_use_item 白名单）
+export const PET_EFFECT_TYPE_LABELS: Record<string, string> = {
+  feed: '喂养（饱食）',
+  clean: '清洁（心情）',
+  toy: '玩耍（心情）',
+}
+
+export const PET_EFFECT_TYPE_OPTIONS = Object.entries(PET_EFFECT_TYPE_LABELS).map(
+  ([value, label]) => ({ value, label })
+)
+
+/// 任务条件 type（服务端 _pet_quest_bump 的 bump 键；feed/use_item、adventure/claim、hatch/孵化）
+export const PET_CONDITION_TYPE_LABELS: Record<string, string> = {
+  feed: '喂养次数',
+  adventure: '历险次数',
+  hatch: '孵化次数',
+}
+
+export const PET_CONDITION_TYPE_OPTIONS = Object.entries(PET_CONDITION_TYPE_LABELS).map(
+  ([value, label]) => ({ value, label })
+)
+
+/// 蛋池 rarity 单选（weights.rarity 取首键语义 → 单选归一为 {code:1}）
+export const PET_RARITY_CODE_OPTIONS = [
+  { value: 'N', label: 'N 普通' },
+  { value: 'R', label: 'R 稀有' },
+  { value: 'SR', label: 'SR 史诗' },
+  { value: 'SSR', label: 'SSR 传说' },
+]
+
+/// 蛋孵化 mode（item effect.mode / weights.mode）
+export const PET_EGG_MODE_OPTIONS = [
+  { value: 'instant', label: '即开' },
+  { value: 'wait', label: '等待' },
+]
