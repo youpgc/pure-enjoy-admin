@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { Table, Alert, Card, Button, Space, Tag, message, Modal, Descriptions } from 'antd'
+import { Table, Alert, Card, Button, Space, Tag, Typography, message, Modal, Descriptions } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { PetEggPoolRow } from '../../types/pet'
@@ -12,6 +12,36 @@ import common from '../../styles/common.module.css'
 
 // ==================== 蛋池与概率管理（pet_egg_pools） ====================
 // 铁律：概率服务端判定 + config_version 审计；App 公示与判定同源（同版本）。
+
+// weights 键结构与 PoolFormModal / rpc_pet_hatch_instant 消费同源
+const RARITY_LABELS: Record<string, string> = { N: 'N', R: 'R', SR: 'SR', SSR: 'SSR' }
+const FAMILY_LABELS: Record<string, string> = { cat: '猫', dog: '犬', rabbit: '兔', mouse: '鼠' }
+
+/** 权重概览 → 可读文本（替代纯键名 Tag） */
+function weightsSummaryText(v: Record<string, unknown>): string {
+  const parts: string[] = []
+  if (typeof v.fixed_species === 'string') parts.push(`固定产出 ${v.fixed_species}`)
+  if (typeof v.mode === 'string') parts.push(`方式 ${v.mode}`)
+  const rarity = v.rarity
+  if (rarity && typeof rarity === 'object') {
+    const code = Object.keys(rarity as Record<string, unknown>)[0]
+    if (code) parts.push(`锁定 ${RARITY_LABELS[code] ?? code}`)
+  }
+  const families = v.families
+  if (families && typeof families === 'object') {
+    const famText = Object.entries(families as Record<string, unknown>)
+      .map(([k, w]) => `${FAMILY_LABELS[k] ?? k}${String(w)}`)
+      .join('/')
+    if (famText) parts.push(famText)
+  }
+  const gender = v.gender
+  if (gender && typeof gender === 'object') {
+    const male = (gender as Record<string, unknown>).male
+    if (typeof male === 'number') parts.push(`公${Math.round(male * 100)}%`)
+  }
+  if (typeof v.note === 'string' && v.note) parts.push(v.note)
+  return parts.join(' · ')
+}
 
 const PetEggPools: React.FC = () => {
   const { hasPermission } = usePermission()
@@ -80,13 +110,11 @@ const PetEggPools: React.FC = () => {
       dataIndex: 'weights',
       render: (v: Record<string, unknown>) =>
         v && Object.keys(v).length > 0 ? (
-          <Space wrap size={4}>
-            {Object.keys(v).map((k) => (
-              <Tag key={k}>{k}</Tag>
-            ))}
-          </Space>
+          <Typography.Text style={{ fontSize: 13 }} ellipsis>
+            {weightsSummaryText(v)}
+          </Typography.Text>
         ) : (
-          <Tag>空</Tag>
+          <Typography.Text type="secondary">空</Typography.Text>
         ),
     },
     getActionColumn<PetEggPoolRow>((record) => [
