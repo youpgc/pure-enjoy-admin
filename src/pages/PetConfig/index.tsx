@@ -238,7 +238,8 @@ const PetConfig: React.FC = () => {
       if (!res.success) return
       message.success(`「${mod.title}」已保存`)
       setEditModule(null)
-      await loadConfig()
+      // 局部刷新：仅合并本模块字段到本地行，不整页重拉（其他模块不闪动、不受影响）
+      setRow((prev) => (prev ? { ...prev, ...(values as Partial<PetConfigRow>) } : prev))
     } finally {
       setSaving(false)
     }

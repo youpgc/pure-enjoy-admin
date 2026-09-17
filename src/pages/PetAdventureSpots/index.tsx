@@ -74,9 +74,26 @@ const PetAdventureSpots: React.FC = () => {
     {
       title: '解锁条件',
       dataIndex: 'unlock_conditions',
-      render: (v: unknown[]) =>
-        Array.isArray(v) && v.length > 0 ? JSON.stringify(v) : <Tag>无条件</Tag>,
-      ellipsis: true,
+      render: (v: unknown[]) => {
+        // 中文翻译展示：[{type:'level',value:N}] → 「宠物等级 ≥ N」；未知 type 回退原始串
+        if (!Array.isArray(v) || v.length === 0) return <Tag>无条件</Tag>
+        return (
+          <Space wrap size={4}>
+            {v.map((c, i) => {
+              const cond = (c ?? {}) as { type?: string; value?: unknown }
+              const text =
+                cond.type === 'level'
+                  ? `宠物等级 ≥ ${String(cond.value ?? '?')}`
+                  : JSON.stringify(c)
+              return (
+                <Tag key={i} color={cond.type === 'level' ? 'blue' : 'default'}>
+                  {text}
+                </Tag>
+              )
+            })}
+          </Space>
+        )
+      },
     },
     {
       title: '结果权重',
