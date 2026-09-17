@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import { Table, Alert, Card, Button, Select, Space, Tag, message, Input } from 'antd'
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Table, Alert, Card, Button, Select, Space, Tag, message, Input, Tooltip } from 'antd'
+import { PlusOutlined, ReloadOutlined, EyeOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { PetSpeciesRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
@@ -8,9 +8,15 @@ import { getActionColumn } from '../../components/common/ActionColumn'
 import { petSpeciesService, petRarityService } from '../../services/petService'
 import { PET_FAMILY_LABELS, PET_FAMILY_OPTIONS } from '../../constants/pet'
 import SpeciesFormModal, { type SpeciesFormValues } from './SpeciesFormModal'
+import SpeciesPreviewModal from './SpeciesPreviewModal'
 import common from '../../styles/common.module.css'
 
-// ==================== 种属/形态管理（pet_species） ====================
+// ==================== 种属/形态管理（pet_species，按进化链合并管理） ====================
+//
+// 2026-09-17 结构调整：同一种属不同阶（species_code 基础形 / _s1 / _s2，
+// 同 evolution_chain_id）合并为一条数据管理——列表行 = 进化链（或独立种属），
+// 形态列展示链内各阶；操作列新增「预览」：弹窗展示 3 阶段预览图（左右切换，默认基础形）。
+// 编辑/删除仍然以行（基础形）为单位操作对应 pet_species 行。
 // 启用状态即 App 展示闸门：新形态先完成素材接线（render2d/render3d）再启用。
 
 const RARITY_COLORS: Record<string, string> = {
@@ -18,6 +24,45 @@ const RARITY_COLORS: Record<string, string> = {
   R: 'blue',
   SR: 'purple',
   SSR: 'gold',
+}
+
+const STAGE_LABELS = ['基础形', '一阶', '二阶', '三阶', '四阶']
+
+/** species_code → 阶段号（cat_ssr1 = 0 基础形，cat_ssr1_s1 = 1） */
+const stageNum = (code: string): number => {
+  const m = /_s(\d+)$/.exec(code)
+  return m ? Number(m[1]) : 0
+}
+
+interface SpeciesGroup {
+  /** 分组键：进化链 id，未挂链的独立种属用 solo:<id> */
+  key: string
+  /** 代表行（基础形；缺基础形时取排序号最小行） */
+  base: PetSpeciesRow
+  /** 全阶段行，按 阶段号 → sort_order 升序 */
+  stages: PetSpeciesRow[]
+}
+
+const buildGroups = (rows: PetSpeciesRow[]): SpeciesGroup[] => {
+  const map = new Map<string, PetSpeciesRow[]>()
+  for (const r of rows) {
+    const key = r.evolution_chain_id || `solo:${r.id}`
+    const list = map.get(key) ?? []
+    list.push(r)
+    map.set(key, list)
+  }
+  const groups: SpeciesGroup[] = []
+  for (const [key, list] of map) {
+    const sorted = [...list].sort(
+      (a, b) => stageNum(a.species_code) - stageNum(b.species_code) || a.sort_order - b.sort_order
+    )
+    const base =
+      sorted.find((r) => stageNum(r.species_code) === 0) ?? sorted[0]
+    if (!base) continue
+    groups.push({ key, base, stages: sorted })
+  }
+  groups.sort((a, b) => a.base.sort_order - b.base.sort_order)
+  return groups
 }
 
 const PetSpecies: React.FC = () => {
@@ -31,6 +76,7 @@ const PetSpecies: React.FC = () => {
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetSpeciesRow | null>(null)
+  const [previewGroup, setPreviewGroup] = useState<SpeciesGroup | null>(null)
   const [familyFilter, setFamilyFilter] = useState('')
   const [rarityFilter, setRarityFilter] = useState('')
   const [codeFilter, setCodeFilter] = useState('')
@@ -57,12 +103,18 @@ const PetSpecies: React.FC = () => {
   const rarityOptions = rarities.map((r) => ({ value: r.code, label: `${r.name_cn}（${r.code}）` }))
   const rarityLabel = (code: string) => rarities.find((r) => r.code === code)?.name_cn ?? code
 
-  // 客户端过滤（配置表量级 ≤ 120 行 + 后续按需扩容）
-  const filtered = rows.filter(
-    (r) =>
-      (!familyFilter || r.family === familyFilter) &&
-      (!rarityFilter || r.rarity_code === rarityFilter) &&
-      (!codeFilter || r.species_code.toLowerCase().includes(codeFilter.trim().toLowerCase()))
+  // 客户端过滤（配置表量级 ≤ 120 行 + 后续按需扩容）后按链合并
+  const groups = useMemo(
+    () =>
+      buildGroups(
+        rows.filter(
+          (r) =>
+            (!familyFilter || r.family === familyFilter) &&
+            (!rarityFilter || r.rarity_code === rarityFilter) &&
+            (!codeFilter || r.species_code.toLowerCase().includes(codeFilter.trim().toLowerCase()))
+        )
+      ),
+    [rows, familyFilter, rarityFilter, codeFilter]
   )
 
   const handleSave = async (values: SpeciesFormValues) => {
@@ -101,45 +153,80 @@ const PetSpecies: React.FC = () => {
     await loadRows()
   }
 
-  const columns: ColumnsType<PetSpeciesRow> = [
-    { title: '编码', dataIndex: 'species_code', width: 140 },
+  const columns: ColumnsType<SpeciesGroup> = [
+    { title: '编码', dataIndex: ['base', 'species_code'], width: 140 },
     {
       title: '体系',
-      dataIndex: 'family',
+      dataIndex: ['base', 'family'],
       width: 80,
       render: (v: string) => PET_FAMILY_LABELS[v] ?? v,
     },
-    { title: '名称', dataIndex: 'name_cn', width: 120 },
+    {
+      title: '名称',
+      dataIndex: ['base', 'name_cn'],
+      width: 120,
+      render: (v: string, record) =>
+        record.stages.length > 1 ? `${v}（${record.stages.length} 阶）` : v,
+    },
     {
       title: '评级',
-      dataIndex: 'rarity_code',
+      dataIndex: ['base', 'rarity_code'],
       width: 90,
       render: (v: string) => (
         <Tag color={RARITY_COLORS[v] ?? 'default'}>{rarityLabel(v)}</Tag>
       ),
     },
     {
+      title: '形态',
+      dataIndex: 'stages',
+      width: 220,
+      render: (_: unknown, record: SpeciesGroup) => (
+        <Space size={4} wrap>
+          {record.stages.map((s) => (
+            <Tooltip key={s.id} title={s.species_code}>
+              <Tag color={s.enabled ? 'green' : 'default'}>
+                {STAGE_LABELS[stageNum(s.species_code)] ?? s.species_code}
+                {!s.enabled ? '·停用' : ''}
+              </Tag>
+            </Tooltip>
+          ))}
+          {record.stages.length === 1 ? <Tag>单形态</Tag> : null}
+        </Space>
+      ),
+    },
+    {
       title: '3D 配置',
-      dataIndex: 'render3d',
+      dataIndex: ['base', 'render3d'],
       width: 110,
       render: (v: Record<string, unknown>) =>
         v && v.code ? <Tag color="geekblue">{String(v.code)}</Tag> : <Tag>2D 展示</Tag>,
     },
-    { title: '素材版本', dataIndex: 'asset_version', width: 90, render: (v: string | null) => v ?? '-' },
+    {
+      title: '素材版本',
+      dataIndex: ['base', 'asset_version'],
+      width: 90,
+      render: (v: string | null) => v ?? '-',
+    },
     {
       title: '状态',
-      dataIndex: 'enabled',
+      dataIndex: ['base', 'enabled'],
       width: 80,
       render: (v: boolean) => (v ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
     },
-    { title: '排序', dataIndex: 'sort_order', width: 70 },
-    getActionColumn<PetSpeciesRow>((record) => [
+    { title: '排序', dataIndex: ['base', 'sort_order'], width: 70 },
+    getActionColumn<SpeciesGroup>((record) => [
+      {
+        key: 'preview',
+        label: '预览',
+        icon: <EyeOutlined />,
+        onClick: () => setPreviewGroup(record),
+      },
       {
         key: 'edit',
         label: '编辑',
         disabled: !canWrite,
         onClick: () => {
-          setEditing(record)
+          setEditing(record.base)
           setModalOpen(true)
         },
       },
@@ -149,7 +236,7 @@ const PetSpecies: React.FC = () => {
         danger: true,
         disabled: !canDelete,
         confirm: '确认删除该种属？关联资产配置将一并失效',
-        onClick: () => handleDelete(record.id),
+        onClick: () => handleDelete(record.base.id),
       },
     ]),
   ]
@@ -161,7 +248,7 @@ const PetSpecies: React.FC = () => {
         showIcon
         className={common.mb16}
         message="种属管理说明"
-        description="命名即契约：species_code 同时是 App 与素材管线的引用键；新形态先配置 2D/3D 素材接线，再切换启用状态对 App 生效。"
+        description="同一种属不同阶段（基础形/一阶/二阶，同进化链）合并为一条数据管理；「预览」查看该种属各阶段形象（默认基础形，可左右切换）。命名即契约：species_code 同时是 App 与素材管线的引用键；新形态先配置 2D/3D 素材接线，再切换启用状态对 App 生效。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
@@ -202,13 +289,13 @@ const PetSpecies: React.FC = () => {
         </div>
       </Card>
       <Table
-        rowKey="id"
+        rowKey="key"
         loading={loading}
         columns={columns}
-        dataSource={filtered}
+        dataSource={groups}
         pagination={{ pageSize: 20, showSizeChanger: false }}
         size="middle"
-        scroll={{ x: 900 }}
+        scroll={{ x: 1100 }}
       />
       <SpeciesFormModal
         open={modalOpen}
@@ -217,6 +304,11 @@ const PetSpecies: React.FC = () => {
         saving={saving}
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
+      />
+      <SpeciesPreviewModal
+        open={previewGroup !== null}
+        stages={previewGroup?.stages ?? []}
+        onCancel={() => setPreviewGroup(null)}
       />
     </div>
   )

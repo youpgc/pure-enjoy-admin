@@ -23,13 +23,12 @@ export interface ItemFormValues {
   item_code: string
   name: string
   description: string | null
+  icon: string | null
   category: string
   sub_type: string | null
   effect: Record<string, unknown>
   stack_limit: number
   price_coin: number
-  price_points: number | null
-  points_purchasable: boolean
   channels: string
   ladder_key: string
   ladder_step: number | null
@@ -70,7 +69,7 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         description: editing.description ?? '',
         sub_type: editing.sub_type ?? '',
         effect: asObject(editing.effect),
-        price_points: editing.price_points ?? undefined,
+        icon: editing.icon ?? '',
         ladder_key: editing.ladder_key ?? '',
         purchase_limit: editing.purchase_limit ?? undefined,
       }
@@ -79,7 +78,6 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
       effect: {},
       stack_limit: 99,
       price_coin: 0,
-      points_purchasable: false,
       channels: 'shop',
       ladder_key: '',
       on_shelf: false,
@@ -136,6 +134,13 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
           <Input.TextArea rows={2} placeholder="道具效果说明（App 商城/背包展示）" />
         </Form.Item>
         <Form.Item
+          name="icon"
+          label="图标键"
+          tooltip="素材引用键，双端资源路径 /pet-icons/<键>.svg；留空列表回退键名"
+        >
+          <Input allowClear placeholder="icon/food_basic" />
+        </Form.Item>
+        <Form.Item
           name="category"
           label="分类（背包四分区）"
           rules={[{ required: true, message: '请选择分类' }]}
@@ -170,18 +175,8 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         <Form.Item name="price_coin" label="金币价格" rules={[{ required: true, message: '请输入金币价格' }]}>
           <InputNumber min={0} className={common.fullWidth} addonAfter="金币" />
         </Form.Item>
-        <Form.Item name="points_purchasable" label="允许积分购买" valuePropName="checked" tooltip="积分购买白名单（价格走 price_points）；默认关闭——1 金币=10 积分，多数道具仅金币可得">
-          <Switch checkedChildren="白名单" unCheckedChildren="关闭" />
-        </Form.Item>
-        <Form.Item noStyle shouldUpdate={(p, c) => p.points_purchasable !== c.points_purchasable}>
-          {({ getFieldValue }) =>
-            getFieldValue('points_purchasable') ? (
-              <Form.Item name="price_points" label="积分价格">
-                <InputNumber min={0} className={common.fullWidth} addonAfter="积分" />
-              </Form.Item>
-            ) : null
-          }
-        </Form.Item>
+        {/* 积分购买已下线（2026-09-17）：价格走 price_points / points_purchasable 的入口移除，
+            保存时由目录页强制 price_points=null / points_purchasable=false */}
 
         <Form.Item
           name="ladder_key"

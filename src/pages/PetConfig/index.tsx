@@ -26,10 +26,13 @@ import common from '../../styles/common.module.css'
 
 // ==================== 宠物全局参数（pet_config 单行表） ====================
 //
-// 交互形态：每模块一张参数表（参数 / 当前值 / 说明），整卡只读；
-// 右上角「编辑」或点击任意行 → 弹窗表单修改 → 保存只提交本模块字段
+// 交互形态（2026-09-17 调整）：每模块一张参数表（参数 / 当前值 / 说明），整卡只读；
+// 仅模块卡片右上角「编辑」进入弹窗表单修改（取消表格行点击），保存只提交本模块字段
 // （PATCH 语义，互不干扰、失败可单独重试）。
-// 列全集 = tables + rpcs + asset 三波 DDL；结构化编辑器与 RPC 消费同源。
+// 回显：Form 挂 initialValues + Modal destroyOnHidden——每次打开重新挂载即回显，
+// 不再依赖 setFieldsValue 时序（Modal 内容异步挂载会丢值）。
+// 历险/任务拆分为两张卡片；历险档位按 adventure_tiers 逐档成行；初始资源包按内容拆行。
+// 列全集 = tables + rpcs + asset 三波 DDL + 互动冷却批补列；结构化编辑器与 RPC 消费同源。
 
 type ModuleKey =
   | 'master'
@@ -37,6 +40,7 @@ type ModuleKey =
   | 'feed'
   | 'decay'
   | 'adventure'
+  | 'quest'
   | 'hatch'
   | 'economy'
   | 'newbie'
@@ -48,6 +52,14 @@ interface FieldMeta {
   desc?: string
   /** 当前值列的展示格式化 */
   format?: (v: unknown) => string
+}
+
+/** 自定义行（历险档位/初始资源包拆行展示） */
+interface ValueRow {
+  key: string
+  label: string
+  value: string
+  desc?: string
 }
 
 const fmtBool = (v: unknown) => (v ? '开启' : '关闭')
@@ -84,6 +96,8 @@ const MODULES: { key: ModuleKey; title: string; fields: FieldMeta[] }[] = [
       { field: 'free_feed_cooldown_min', label: '免费喂养冷却（分钟）', format: fmtNum },
       { field: 'free_feed_hunger', label: '免费喂养饱食恢复', desc: 'rpc_pet_feed 免费档效果', format: fmtNum },
       { field: 'free_feed_exp', label: '免费喂养经验获得', format: fmtNum },
+      { field: 'interact_cooldown_min', label: '互动冷却（分钟）', desc: 'rpc_pet_interact 两次互动最小间隔', format: fmtNum },
+      { field: 'interact_daily', label: '互动次数 / 天', desc: 'rpc_pet_interact 每日上限', format: fmtNum },
       { field: 'interact_mood', label: '互动心情恢复', desc: 'rpc_pet_interact 单次效果', format: fmtNum },
     ],
   },
@@ -97,13 +111,19 @@ const MODULES: { key: ModuleKey; title: string; fields: FieldMeta[] }[] = [
   },
   {
     key: 'adventure',
-    title: '历险与任务',
+    title: '历险',
     fields: [
       { field: 'adventure_tiers', label: '历险档位', desc: 'tier 编码 / minutes 时长 / label 展示名', format: fmtJson },
-      { field: 'daily_task_draw_count', label: '每日任务抽取数', format: fmtNum },
       { field: 'adventure_hunger_threshold', label: '历险出发饱食阈值（/100）', format: fmtNum },
       { field: 'adventure_mood_threshold', label: '历险出发心情阈值（/100）', format: fmtNum },
       { field: 'rescue_consolation_gold', label: '遇险慰问金（金币）', desc: '超出自救窗口由 NPC 兜底救助时发放', format: fmtNum },
+    ],
+  },
+  {
+    key: 'quest',
+    title: '任务',
+    fields: [
+      { field: 'daily_task_draw_count', label: '每日任务抽取数', desc: 'rpc_pet_daily_quests_draw 每日随机抽取条数', format: fmtNum },
     ],
   },
   {
@@ -190,20 +210,10 @@ const PetConfig: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // 打开弹窗只记录模块；值同步放到 Modal 挂载后（下方 useEffect）执行——
-  // destroyOnHidden + preserve=false 下，Form.Item 未挂载时 setFieldsValue
-  // 会丢失（字段未注册），导致弹窗表单不回显。
   const openEdit = (key: ModuleKey) => {
     if (!row) return
     setEditModule(key)
   }
-
-  useEffect(() => {
-    if (!editModule || !row) return
-    editForm.resetFields()
-    editForm.setFieldsValue(row as unknown as Record<string, unknown>)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editModule])
 
   // 弹窗保存：只校验并提交本模块字段
   const handleSave = async () => {
@@ -233,6 +243,54 @@ const PetConfig: React.FC = () => {
       setSaving(false)
     }
   }
+
+  // ---------- 历险档位拆行（adventure_tiers 逐档成行） ----------
+  const tierRows = useMemo<ValueRow[]>(() => {
+    const raw = row?.adventure_tiers as Array<Record<string, unknown>> | null | undefined
+    if (!Array.isArray(raw)) return []
+    return raw
+      .map((t, i) => {
+        const tier = t.tier != null ? String(t.tier) : `tier-${i + 1}`
+        const minutes = t.minutes != null ? String(t.minutes) : '—'
+        const label = t.label != null ? String(t.label) : tier
+        return {
+          key: tier,
+          label: `档位 ${i + 1}`,
+          value: `${label} · ${minutes} 分钟`,
+          desc: `tier 编码：${tier}`,
+        }
+      })
+  }, [row])
+
+  // ---------- 初始资源包拆行（蛋/每种食物/金币各一行） ----------
+  const newbieRows = useMemo<ValueRow[]>(() => {
+    const pkg = (row?.newbie_package ?? {}) as Record<string, unknown>
+    const rows: ValueRow[] = []
+    const itemName = (code: unknown) => {
+      const c = code != null ? String(code) : ''
+      const found = itemOptions.find((i) => i.item_code === c)
+      return found ? `${found.name}（${c}）` : c || '—'
+    }
+    if (pkg.egg_item_code) {
+      rows.push({ key: 'egg', label: '初始蛋', value: `${itemName(pkg.egg_item_code)} × 1` })
+    }
+    const foods = Array.isArray(pkg.foods) ? (pkg.foods as Record<string, unknown>[]) : []
+    foods.forEach((f, i) => {
+      const count = f.count != null ? String(f.count) : '—'
+      rows.push({
+        key: `food-${i}`,
+        label: foods.length > 1 ? `初始食物 ${i + 1}` : '初始食物',
+        value: `${itemName(f.item_code)} × ${count}`,
+      })
+    })
+    rows.push({
+      key: 'gold',
+      label: '初始金币',
+      value: `${pkg.gold != null ? String(pkg.gold) : '0'} 金币`,
+      desc: '发放进宠物金币钱包',
+    })
+    return rows
+  }, [row, itemOptions])
 
   // ---------- 各模块弹窗表单控件（与 RPC 消费结构同源） ----------
   const renderControls = (key: ModuleKey): React.ReactNode => {
@@ -270,6 +328,12 @@ const PetConfig: React.FC = () => {
             <Form.Item name="free_feed_exp" label="免费喂养经验获得" rules={[{ required: true }]}>
               <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
             </Form.Item>
+            <Form.Item name="interact_cooldown_min" label="互动冷却（分钟）" rules={[{ required: true }]}>
+              <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+            </Form.Item>
+            <Form.Item name="interact_daily" label="互动次数 / 天" rules={[{ required: true }]}>
+              <InputNumber min={0} max={999} className={common.fullWidth} disabled={disabled} />
+            </Form.Item>
             <Form.Item name="interact_mood" label="互动心情恢复" rules={[{ required: true }]}>
               <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
             </Form.Item>
@@ -297,9 +361,6 @@ const PetConfig: React.FC = () => {
             >
               <TierListEditor disabled={disabled} />
             </Form.Item>
-            <Form.Item name="daily_task_draw_count" label="每日任务抽取数" rules={[{ required: true }]}>
-              <InputNumber min={1} max={20} className={common.fullWidth} disabled={disabled} />
-            </Form.Item>
             <Form.Item name="adventure_hunger_threshold" label="历险出发饱食阈值（/100）" rules={[{ required: true }]}>
               <InputNumber min={0} max={100} className={common.fullWidth} disabled={disabled} />
             </Form.Item>
@@ -310,6 +371,12 @@ const PetConfig: React.FC = () => {
               <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
             </Form.Item>
           </>
+        )
+      case 'quest':
+        return (
+          <Form.Item name="daily_task_draw_count" label="每日任务抽取数" rules={[{ required: true }]}>
+            <InputNumber min={1} max={20} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
         )
       case 'hatch':
         return (
@@ -378,6 +445,9 @@ const PetConfig: React.FC = () => {
     }
   }
 
+  // ---------- 展示表格列 ----------
+
+  // 通用参数表（fields 驱动）
   const valueColumns = useMemo<ColumnsType<FieldMeta>>(
     () => [
       { title: '参数', dataIndex: 'label', width: 260 },
@@ -405,6 +475,43 @@ const PetConfig: React.FC = () => {
     [row]
   )
 
+  // 自定义行表（历险档位 / 初始资源包）
+  const rowColumns = useMemo<ColumnsType<ValueRow>>(
+    () => [
+      { title: '内容', dataIndex: 'label', width: 260 },
+      {
+        title: '当前值',
+        dataIndex: 'value',
+        width: 300,
+        render: (v: string) => (
+          <Typography.Text style={{ fontSize: 13 }} ellipsis>
+            {v}
+          </Typography.Text>
+        ),
+      },
+      {
+        title: '说明',
+        dataIndex: 'desc',
+        render: (v: string | undefined) =>
+          v ? <Typography.Text type="secondary">{v}</Typography.Text> : '—',
+      },
+    ],
+    []
+  )
+
+  const fieldsToRows = (mod: (typeof MODULES)[number]): ValueRow[] =>
+    mod.fields
+      .filter((f) => f.field !== 'adventure_tiers' && f.field !== 'newbie_package')
+      .map((f) => {
+        const raw = row ? (row as unknown as Record<string, unknown>)[f.field] : undefined
+        return {
+          key: f.field,
+          label: f.label,
+          value: f.format ? f.format(raw) : fmtNum(raw),
+          desc: f.desc,
+        }
+      })
+
   if (loading)
     return (
       <div className={common.mt16} style={{ textAlign: 'center', padding: 80 }}>
@@ -431,7 +538,7 @@ const PetConfig: React.FC = () => {
         showIcon
         className={common.mb16}
         message="全局参数说明"
-        description="按模块查看参数表，点击「编辑」或参数行打开弹窗修改；保存只提交本模块字段。概率/审计版本锚点 config_version 只读（递增在蛋池页操作）。"
+        description="按模块查看参数表，点击模块卡片右上角「编辑」打开弹窗修改；保存只提交本模块字段。概率/审计版本锚点 config_version 只读（递增在蛋池页操作）。"
       />
       {MODULES.map((mod) => (
         <Card
@@ -449,19 +556,41 @@ const PetConfig: React.FC = () => {
             </Button>
           }
         >
-          <Table
-            rowKey="field"
-            size="small"
-            columns={valueColumns}
-            dataSource={mod.fields}
-            pagination={false}
-            onRow={() => ({
-              style: { cursor: canWrite ? 'pointer' : 'default' },
-              onClick: () => {
-                if (canWrite) openEdit(mod.key)
-              },
-            })}
-          />
+          {mod.key === 'adventure' ? (
+            <>
+              <Table
+                rowKey="key"
+                size="small"
+                columns={rowColumns}
+                dataSource={tierRows}
+                pagination={false}
+              />
+              <Table
+                rowKey="key"
+                size="small"
+                className={common.mt16}
+                columns={rowColumns}
+                dataSource={fieldsToRows(mod)}
+                pagination={false}
+              />
+            </>
+          ) : mod.key === 'newbie' ? (
+            <Table
+              rowKey="key"
+              size="small"
+              columns={rowColumns}
+              dataSource={newbieRows}
+              pagination={false}
+            />
+          ) : (
+            <Table
+              rowKey="field"
+              size="small"
+              columns={valueColumns}
+              dataSource={mod.fields}
+              pagination={false}
+            />
+          )}
         </Card>
       ))}
 
@@ -496,7 +625,14 @@ const PetConfig: React.FC = () => {
         destroyOnHidden
         width={620}
       >
-        <Form form={editForm} layout="vertical" preserve={false}>
+        {/* 回显方案：destroyOnHidden 每次打开重新挂载 → initialValues 挂载即生效，
+            规避「Modal 内容异步挂载导致 setFieldsValue 丢值」问题 */}
+        <Form
+          form={editForm}
+          layout="vertical"
+          preserve={false}
+          initialValues={(row ?? {}) as unknown as Record<string, unknown>}
+        >
           {editModule ? renderControls(editModule) : null}
         </Form>
       </Modal>
