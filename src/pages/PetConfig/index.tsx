@@ -190,12 +190,20 @@ const PetConfig: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // 打开弹窗只记录模块；值同步放到 Modal 挂载后（下方 useEffect）执行——
+  // destroyOnHidden + preserve=false 下，Form.Item 未挂载时 setFieldsValue
+  // 会丢失（字段未注册），导致弹窗表单不回显。
   const openEdit = (key: ModuleKey) => {
     if (!row) return
-    editForm.resetFields()
-    editForm.setFieldsValue(row as unknown as Record<string, unknown>)
     setEditModule(key)
   }
+
+  useEffect(() => {
+    if (!editModule || !row) return
+    editForm.resetFields()
+    editForm.setFieldsValue(row as unknown as Record<string, unknown>)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editModule])
 
   // 弹窗保存：只校验并提交本模块字段
   const handleSave = async () => {

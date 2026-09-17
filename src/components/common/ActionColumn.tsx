@@ -60,6 +60,7 @@ export const ActionColumn: React.FC<ActionColumnProps> = ({
         // 实际执行由 Popconfirm 的 onConfirm 触发
         const btn = (
           <Button
+            key={action.key}
             type={action.type || 'link'}
             size="small"
             icon={action.icon}
