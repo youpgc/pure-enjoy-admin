@@ -86,6 +86,7 @@ const MODULES: { key: ModuleKey; title: string; fields: FieldMeta[] }[] = [
     fields: [
       { field: 'level_exp_base', label: '升级基础经验（Lv1→2 所需）', format: fmtNum },
       { field: 'level_exp_growth', label: '经验增长系数（每级 ×N）', desc: '下一级所需 = 上一级 × 增长系数', format: fmtNum },
+      { field: 'levelup_attr_points', label: '每级加点数（属性系统）', desc: '升级发放可分配属性点（pending_attr_points），同时按种属/评级/潜力发洗练点', format: fmtNum },
     ],
   },
   {
@@ -116,6 +117,7 @@ const MODULES: { key: ModuleKey; title: string; fields: FieldMeta[] }[] = [
       { field: 'adventure_tiers', label: '历险档位', desc: 'tier 编码 / minutes 时长 / label 展示名', format: fmtJson },
       { field: 'adventure_hunger_threshold', label: '历险出发饱食阈值（/100）', format: fmtNum },
       { field: 'adventure_mood_threshold', label: '历险出发心情阈值（/100）', format: fmtNum },
+      { field: 'adventure_health_threshold', label: '历险出发健康阈值（/100）', desc: '健康为状态值：受伤扣减，药品/自然恢复；低于阈值不可出发', format: fmtNum },
       { field: 'rescue_consolation_gold', label: '遇险慰问金（金币）', desc: '超出自救窗口由 NPC 兜底救助时发放', format: fmtNum },
     ],
   },
@@ -312,6 +314,14 @@ const PetConfig: React.FC = () => {
             <Form.Item name="level_exp_growth" label="经验增长系数（每级 ×N）" rules={[{ required: true }]}>
               <InputNumber min={1} step={0.1} className={common.fullWidth} disabled={disabled} />
             </Form.Item>
+            <Form.Item
+              name="levelup_attr_points"
+              label="每级加点数（属性系统）"
+              tooltip="升级发放可分配属性点；洗练点同步按种属/评级/潜力三因子发放"
+              rules={[{ required: true }]}
+            >
+              <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+            </Form.Item>
           </>
         )
       case 'feed':
@@ -366,6 +376,14 @@ const PetConfig: React.FC = () => {
               <InputNumber min={0} max={100} className={common.fullWidth} disabled={disabled} />
             </Form.Item>
             <Form.Item name="adventure_mood_threshold" label="历险出发心情阈值（/100）" rules={[{ required: true }]}>
+              <InputNumber min={0} max={100} className={common.fullWidth} disabled={disabled} />
+            </Form.Item>
+            <Form.Item
+              name="adventure_health_threshold"
+              label="历险出发健康阈值（/100）"
+              tooltip="健康为状态值（/100）：受伤扣减，药品/自然恢复；低于阈值不可出发"
+              rules={[{ required: true }]}
+            >
               <InputNumber min={0} max={100} className={common.fullWidth} disabled={disabled} />
             </Form.Item>
             <Form.Item name="rescue_consolation_gold" label="遇险慰问金（金币）" rules={[{ required: true }]}>

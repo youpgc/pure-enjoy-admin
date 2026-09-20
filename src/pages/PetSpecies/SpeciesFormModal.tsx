@@ -2,15 +2,22 @@ import React from 'react'
 import { Modal, Form, Input, InputNumber, Select, Switch } from 'antd'
 import type { PetSpeciesRow } from '../../types/pet'
 import { PET_FAMILY_OPTIONS } from '../../constants/pet'
-import { NumberMapEditor } from '../../components/form/pet/editors/BasicEditors'
 import { Render2dEditor, Render3dEditor } from '../../components/form/pet/editors/RenderEditors'
+import {
+  SpeciesAttrEditor,
+  HatchConfigEditor,
+  RefineConfigEditor,
+} from '../../components/form/pet/editors/AttributeEditors'
 import { asObject } from '../../components/form/pet/editors/shared'
-import common from '../../styles/common.module.css'
 
 // ==================== 种属/形态编辑弹窗（pet_species） ====================
 //
-// jsonb 结构化：base_attributes（初始四维基准）/ render2d {code} / render3d {code,enabled,variants}。
-// base_attributes 当前为展示层基准（个体创建走 pet_pets 列默认值），预留渲染/展示引用。
+// jsonb 结构化（与 RPC 消费同源，2026-09-17 属性系统重构）：
+// - base_attributes：{ total, variance, base:{四维} }——孵化 roll 消费结构
+//   （此前误按旧展示层扁平结构 {hunger,mood,intimacy,exp} 编辑，已修正）；
+// - hatch_config：{ inherit_ratio, potential_min, potential_max }；
+// - refine_config：{ base, potential_bonus:[{min,max,bonus}] }；
+// - render2d {code} / render3d {code,enabled,variants}。
 
 export interface SpeciesFormValues {
   species_code: string
@@ -18,6 +25,8 @@ export interface SpeciesFormValues {
   name_cn: string
   rarity_code: string
   base_attributes: Record<string, unknown>
+  hatch_config: Record<string, unknown>
+  refine_config: Record<string, unknown>
   evolution_chain_id: string | null
   render2d: Record<string, unknown>
   render3d: Record<string, unknown>
@@ -34,13 +43,6 @@ interface Props {
   onOk: (values: SpeciesFormValues) => void
   onCancel: () => void
 }
-
-const BASE_ATTR_FIELDS = [
-  { key: 'hunger', label: '初始饱食度', min: 0, max: 100 },
-  { key: 'mood', label: '初始心情', min: 0, max: 100 },
-  { key: 'intimacy', label: '初始亲密度', min: 0 },
-  { key: 'exp', label: '初始经验', min: 0 },
-]
 
 const SpeciesFormModal: React.FC<Props> = ({
   open,
@@ -61,6 +63,8 @@ const SpeciesFormModal: React.FC<Props> = ({
         onOk({
           ...values,
           base_attributes: asObject(values.base_attributes),
+          hatch_config: asObject(values.hatch_config),
+          refine_config: asObject(values.refine_config),
           render2d: asObject(values.render2d),
           render3d: asObject(values.render3d),
         })
@@ -74,11 +78,15 @@ const SpeciesFormModal: React.FC<Props> = ({
               ? {
                   ...editing,
                   base_attributes: asObject(editing.base_attributes),
+                  hatch_config: asObject(editing.hatch_config),
+                  refine_config: asObject(editing.refine_config),
                   render2d: asObject(editing.render2d),
                   render3d: asObject(editing.render3d),
                 }
               : {
                   base_attributes: {},
+                  hatch_config: { inherit_ratio: 0.5, potential_min: 60, potential_max: 100 },
+                  refine_config: {},
                   render2d: {},
                   render3d: {},
                   enabled: false,
@@ -89,7 +97,7 @@ const SpeciesFormModal: React.FC<Props> = ({
       }}
       onCancel={onCancel}
       destroyOnHidden
-      width={660}
+      width={680}
     >
       <Form form={form} layout="vertical" preserve={false}>
         <Form.Item
@@ -110,8 +118,28 @@ const SpeciesFormModal: React.FC<Props> = ({
           <Select options={rarityOptions} placeholder="N / R / SR / SSR" />
         </Form.Item>
 
-        <Form.Item name="base_attributes" label="初始四维基准">
-          <NumberMapEditor fields={BASE_ATTR_FIELDS} />
+        <Form.Item
+          name="base_attributes"
+          label="初始属性（总点数 / 浮动 / 四维基准）"
+          tooltip="孵化 roll：每维 [基准±浮动] 随机，差值随机分摊守恒到总点数；总点数 0 = 该种属不启用属性"
+        >
+          <SpeciesAttrEditor />
+        </Form.Item>
+
+        <Form.Item
+          name="hatch_config"
+          label="孵化配置（繁育继承比 / 潜力区间）"
+          tooltip="潜力为隐藏属性不下发；繁育蛋按继承比混合父母均值与随机 roll"
+        >
+          <HatchConfigEditor />
+        </Form.Item>
+
+        <Form.Item
+          name="refine_config"
+          label="洗练配置（每级洗练点 / 潜力加成档）"
+          tooltip="升级发放：种属 base + 评级 refine_base + 潜力加成，三因子叠加"
+        >
+          <RefineConfigEditor />
         </Form.Item>
 
         <Form.Item
@@ -133,7 +161,7 @@ const SpeciesFormModal: React.FC<Props> = ({
           <Input allowClear placeholder="如 v1" />
         </Form.Item>
         <Form.Item name="sort_order" label="排序号">
-          <InputNumber min={0} className={common.fullWidth} />
+          <InputNumber min={0} style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item
           name="enabled"

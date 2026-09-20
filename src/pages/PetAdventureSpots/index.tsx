@@ -6,7 +6,7 @@ import type { PetAdventureSpotRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petAdventureSpotService } from '../../services/petService'
-import { PET_ADVENTURE_RESULT_LABELS } from '../../constants/pet'
+import { PET_ADVENTURE_RESULT_LABELS, PET_ATTR_LABELS } from '../../constants/pet'
 import SpotFormModal, { type SpotFormValues } from './SpotFormModal'
 import common from '../../styles/common.module.css'
 
@@ -43,9 +43,11 @@ const PetAdventureSpots: React.FC = () => {
         code: values.code,
         name: values.name,
         unlock_conditions: values.unlock_conditions as unknown as unknown[],
+        attr_requirements: values.attr_requirements as unknown as unknown[],
         result_weights: values.result_weights as unknown as Record<string, unknown>,
         drop_table: values.drop_table as unknown as Record<string, unknown>,
         rescue_params: values.rescue_params as unknown as Record<string, unknown>,
+        penalty: values.penalty as unknown as Record<string, unknown>,
         enabled: !!values.enabled,
         sort_order: Number(values.sort_order) || 0,
       }
@@ -96,6 +98,28 @@ const PetAdventureSpots: React.FC = () => {
       },
     },
     {
+      title: '属性要求',
+      dataIndex: 'attr_requirements',
+      width: 180,
+      render: (v: unknown[]) => {
+        // [{attr,value}] → 「力量 ≥ 20」；App 侧未达标红显「有风险」（可出发、结算判 failed）
+        if (!Array.isArray(v) || v.length === 0) return <Tag>无</Tag>
+        return (
+          <Space wrap size={4}>
+            {v.map((r, i) => {
+              const req = (r ?? {}) as { attr?: string; value?: unknown }
+              const label = PET_ATTR_LABELS[req.attr ?? ''] ?? req.attr ?? '?'
+              return (
+                <Tag key={i} color="volcano">
+                  {label} ≥ {String(req.value ?? '?')}
+                </Tag>
+              )
+            })}
+          </Space>
+        )
+      },
+    },
+    {
       title: '结果权重',
       dataIndex: 'result_weights',
       width: 260,
@@ -111,6 +135,23 @@ const PetAdventureSpots: React.FC = () => {
         ) : (
           <Tag>空</Tag>
         ),
+    },
+    {
+      title: '失败惩罚',
+      dataIndex: 'penalty',
+      width: 200,
+      render: (v: Record<string, unknown>) => {
+        if (!v || Object.keys(v).length === 0) return <Tag>无</Tag>
+        const lose = (v.lose_item ?? {}) as { p?: unknown }
+        return (
+          <Space wrap size={4}>
+            {v.health != null ? <Tag color="red">健康 {String(v.health)}</Tag> : null}
+            {v.mood != null ? <Tag color="red">心情 {String(v.mood)}</Tag> : null}
+            {v.gold != null ? <Tag color="red">金币 {String(v.gold)}</Tag> : null}
+            {lose.p != null ? <Tag color="orange">丢道具 {String(lose.p)}</Tag> : null}
+          </Space>
+        )
+      },
     },
     {
       title: '状态',
@@ -147,7 +188,7 @@ const PetAdventureSpots: React.FC = () => {
         showIcon
         className={common.mb16}
         message="历险地说明"
-        description="历险三档时长（短途/中途/长途）在「全局参数」页配置；本页配置各地点的解锁条件、四类结果权重（play/danger/help/memory）、掉落包与救助参数。遇险后先自救，超窗 NPC 兜底（rescue_params）。"
+        description="历险三档时长（短途/中途/长途）在「全局参数」页配置；本页配置各地点的解锁条件、属性要求（结算判据：不达标仍可出发，结算判失败）、四类结果权重（play/danger/help/memory）、掉落包、失败惩罚（健康/心情/金币/丢失道具）与救助参数。遇险后先自救，超窗 NPC 兜底（rescue_params）。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>

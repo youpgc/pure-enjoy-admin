@@ -195,6 +195,8 @@ export const buildMenuItems = (
       children: [
         { key: 'pet_config', icon: <SlidersOutlined />, label: '全局参数' },
         { key: 'pet_species', icon: <HeartOutlined />, label: '种属管理' },
+        { key: 'pet_rarities', icon: <StarOutlined />, label: '评级字典' },
+        { key: 'pet_personalities', icon: <SmileOutlined />, label: '性格字典' },
         { key: 'pet_items', icon: <ToolOutlined />, label: '道具目录' },
         { key: 'pet_egg_pools', icon: <ExperimentOutlined />, label: '蛋池与概率' },
         { key: 'pet_quests', icon: <FlagOutlined />, label: '任务池' },

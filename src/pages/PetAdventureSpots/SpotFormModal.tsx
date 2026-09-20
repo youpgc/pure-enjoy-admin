@@ -4,6 +4,10 @@ import type { PetAdventureSpotRow } from '../../types/pet'
 import { petItemService } from '../../services/petService'
 import { NumberMapEditor, UnlockListEditor } from '../../components/form/pet/editors/BasicEditors'
 import { DropTableEditor } from '../../components/form/pet/editors/AdventureEditors'
+import {
+  AttrRequirementsEditor,
+  PenaltyEditor,
+} from '../../components/form/pet/editors/AttributeEditors'
 import { asObject } from '../../components/form/pet/editors/shared'
 import common from '../../styles/common.module.css'
 
@@ -11,17 +15,21 @@ import common from '../../styles/common.module.css'
 //
 // jsonb 结构与 rpc_pet_adventure_claim 消费同源：
 // - unlock_conditions：[{type,value}]（App 侧解锁判定/展示；服务端仅校验 enabled）；
+// - attr_requirements：[{attr,value}]（属性结算判据：不达标 claim 判 failed，2026-09-17）；
 // - result_weights：{play,danger,help,memory} 累计权重（和为 1 时 roll 覆盖全区间）；
 // - drop_table：<result>.gold[min,max] / exp[min,max] / items[{code,min,max,p}]；
-// - rescue_params：{self_window_minutes}（缺省 120）。
+// - rescue_params：{self_window_minutes}（缺省 120）；
+// - penalty：{health,mood,gold（负值）, lose_item:{p}}（failed 时生效）。
 
 export interface SpotFormValues {
   code: string
   name: string
   unlock_conditions: Array<Record<string, unknown>>
+  attr_requirements: Array<Record<string, unknown>>
   result_weights: Record<string, unknown>
   drop_table: Record<string, unknown>
   rescue_params: Record<string, unknown>
+  penalty: Record<string, unknown>
   enabled: boolean
   sort_order: number
 }
@@ -63,9 +71,13 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         onOk({
           ...values,
           unlock_conditions: Array.isArray(values.unlock_conditions) ? values.unlock_conditions : [],
+          attr_requirements: Array.isArray(values.attr_requirements)
+            ? values.attr_requirements
+            : [],
           result_weights: asObject(values.result_weights),
           drop_table: asObject(values.drop_table),
           rescue_params: asObject(values.rescue_params),
+          penalty: asObject(values.penalty),
         })
       }}
       confirmLoading={saving}
@@ -79,15 +91,21 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
                   unlock_conditions: Array.isArray(editing.unlock_conditions)
                     ? (editing.unlock_conditions as Array<Record<string, unknown>>)
                     : [],
+                  attr_requirements: Array.isArray(editing.attr_requirements)
+                    ? (editing.attr_requirements as Array<Record<string, unknown>>)
+                    : [],
                   result_weights: asObject(editing.result_weights),
                   drop_table: asObject(editing.drop_table),
                   rescue_params: asObject(editing.rescue_params),
+                  penalty: asObject(editing.penalty),
                 }
               : {
                   unlock_conditions: [],
+                  attr_requirements: [],
                   result_weights: {},
                   drop_table: {},
                   rescue_params: { self_window_minutes: 120 },
+                  penalty: {},
                   enabled: false,
                   sort_order: 0,
                 }
@@ -111,6 +129,14 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         </Form.Item>
 
         <Form.Item
+          name="attr_requirements"
+          label="属性要求（结算判据）"
+          tooltip="属性不达标仍可出发；结算时判为失败并按下方惩罚扣减"
+        >
+          <AttrRequirementsEditor />
+        </Form.Item>
+
+        <Form.Item
           name="result_weights"
           label="结果权重"
           tooltip="四类结果按累计权重与随机数比较判定；建议四项合计为 1"
@@ -131,6 +157,14 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
           <NumberMapEditor
             fields={[{ key: 'self_window_minutes', label: '自救窗口（分钟）', min: 1 }]}
           />
+        </Form.Item>
+
+        <Form.Item
+          name="penalty"
+          label="失败惩罚"
+          tooltip="属性不达标结算失败时生效：健康/心情/金币按负值扣减，丢失道具按概率"
+        >
+          <PenaltyEditor />
         </Form.Item>
 
         <Form.Item name="sort_order" label="排序号">

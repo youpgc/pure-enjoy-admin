@@ -126,6 +126,8 @@ const PetSpecies: React.FC = () => {
         name_cn: values.name_cn,
         rarity_code: values.rarity_code,
         base_attributes: values.base_attributes as unknown as Record<string, unknown>,
+        hatch_config: values.hatch_config as unknown as Record<string, unknown>,
+        refine_config: values.refine_config as unknown as Record<string, unknown>,
         // 空串归一为 null（uuid 列不留空串脏数据）
         evolution_chain_id: values.evolution_chain_id || null,
         render2d: values.render2d as unknown as Record<string, unknown>,
@@ -195,6 +197,20 @@ const PetSpecies: React.FC = () => {
       ),
     },
     {
+      title: '初始属性',
+      dataIndex: ['base', 'base_attributes'],
+      width: 150,
+      render: (v: Record<string, unknown>) => {
+        if (!v || !v.total) return <Tag>未启用</Tag>
+        return (
+          <Space size={4} wrap>
+            <Tag color="cyan">总 {String(v.total)}</Tag>
+            {v.variance ? <Tag>±{String(v.variance)}</Tag> : null}
+          </Space>
+        )
+      },
+    },
+    {
       title: '3D 配置',
       dataIndex: ['base', 'render3d'],
       width: 110,
@@ -248,7 +264,7 @@ const PetSpecies: React.FC = () => {
         showIcon
         className={common.mb16}
         message="种属管理说明"
-        description="同一种属不同阶段（基础形/一阶/二阶，同进化链）合并为一条数据管理；「预览」查看该种属各阶段形象（默认基础形，可左右切换）。命名即契约：species_code 同时是 App 与素材管线的引用键；新形态先配置 2D/3D 素材接线，再切换启用状态对 App 生效。"
+        description="同一种属不同阶段（基础形/一阶/二阶，同进化链）合并为一条数据管理；「预览」查看该种属各阶段形象（默认基础形，可左右切换）。命名即契约：species_code 同时是 App 与素材管线的引用键；新形态先配置 2D/3D 素材接线，再切换启用状态对 App 生效。初始属性/孵化配置/洗练配置与 App 孵化及升级 RPC 消费同源：孵化 roll 守恒总点数、洗练点 = 种属 base + 评级 refine_base + 潜力加成。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>

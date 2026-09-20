@@ -12,6 +12,7 @@ export const PET_SOURCE_TYPES = {
   ACHIEVEMENT: 'pet_achievement',
   EXCHANGE: 'pet_exchange',
   ADMIN_GRANT: 'pet_admin_grant',
+  ADVENTURE_PENALTY: 'pet_adventure_penalty',
 } as const
 
 export const PET_SOURCE_TYPE_LABELS: Record<string, string> = {
@@ -20,6 +21,7 @@ export const PET_SOURCE_TYPE_LABELS: Record<string, string> = {
   pet_achievement: '成就发放',
   pet_exchange: '积分兑换',
   pet_admin_grant: '客服调整',
+  pet_adventure_penalty: '历险惩罚',
 }
 
 export const PET_SOURCE_TYPE_COLORS: Record<string, string> = {
@@ -28,6 +30,7 @@ export const PET_SOURCE_TYPE_COLORS: Record<string, string> = {
   pet_achievement: 'gold',
   pet_exchange: 'blue',
   pet_admin_grant: 'purple',
+  pet_adventure_penalty: 'red',
 }
 
 export const PET_SOURCE_TYPE_OPTIONS = Object.entries(PET_SOURCE_TYPE_LABELS).map(
@@ -212,3 +215,30 @@ export const PET_EGG_MODE_OPTIONS = [
   { value: 'instant', label: '即开' },
   { value: 'wait', label: '等待' },
 ]
+
+// ---------- 四维属性（2026-09-17 属性系统，与 App/SQL 对齐） ----------
+// 消费点实证（feature_pet_attributes_20260917.sql）：
+// - 种属 base_attributes.base 键 / hatch roll 维度；
+// - 历险 attr_requirements[].attr（claim 结算判据）；
+// - 性格 condition 键（{attr:阈值} 全维度 ≥ AND）；
+// - rpc_pet_allocate_attr 的 p_attr_key 白名单（前三维加点，末维收尾）。
+
+export const PET_ATTR_LABELS: Record<string, string> = {
+  intellect: '智力',
+  stamina: '体力',
+  strength: '力量',
+  agility: '敏捷',
+}
+
+export const PET_ATTR_OPTIONS = Object.entries(PET_ATTR_LABELS).map(([value, label]) => ({
+  value,
+  label: `${label}（${value}）`,
+}))
+
+/// 历险失败惩罚键（penalty jsonb；数值均为负值扣减）
+export const PET_PENALTY_LABELS: Record<string, string> = {
+  health: '健康',
+  mood: '心情',
+  gold: '金币',
+  lose_item: '丢失道具',
+}

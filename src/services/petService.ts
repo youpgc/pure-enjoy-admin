@@ -7,6 +7,7 @@ import type {
   PetItemRow,
   PetEggPoolRow,
   PetAdventureSpotRow,
+  PetPersonalityRow,
   PetQuestRow,
   PetWalletRow,
   PetWalletRecordRow,
@@ -25,7 +26,7 @@ class PetConfigService extends BaseService<PetConfigRow> {
     super('pet_config', {
       defaultOrder: { column: 'id', ascending: true },
       select:
-        'id,pet_enabled,free_feed_daily,free_feed_cooldown_min,daily_task_draw_count,adventure_tiers,adventure_hunger_threshold,adventure_mood_threshold,breeding_cooldown_hours,points_per_gold,stack_limit_default,backpack_capacity_init,backpack_capacity_max,rearing_capacity_init,rearing_capacity_max,foster_capacity_init,foster_capacity_max,ssr_hatch_wait_hours,newbie_package,config_version,reserved,level_exp_base,level_exp_growth,free_feed_hunger,free_feed_exp,interact_mood,decay_hunger_per_hour,decay_mood_per_hour,rescue_consolation_gold,render3d_enabled,asset_manifest,created_at,updated_at',
+        'id,pet_enabled,free_feed_daily,free_feed_cooldown_min,daily_task_draw_count,adventure_tiers,adventure_hunger_threshold,adventure_mood_threshold,adventure_health_threshold,levelup_attr_points,breeding_cooldown_hours,points_per_gold,stack_limit_default,backpack_capacity_init,backpack_capacity_max,rearing_capacity_init,rearing_capacity_max,foster_capacity_init,foster_capacity_max,ssr_hatch_wait_hours,newbie_package,config_version,reserved,level_exp_base,level_exp_growth,free_feed_hunger,free_feed_exp,interact_mood,decay_hunger_per_hour,decay_mood_per_hour,rescue_consolation_gold,render3d_enabled,asset_manifest,created_at,updated_at',
     })
   }
 
@@ -35,13 +36,25 @@ class PetConfigService extends BaseService<PetConfigRow> {
   }
 }
 
-// 评级字典
+// 评级字典（refine_base：洗练点评级基准，2026-09-17 属性系统）
 class PetRarityService extends BaseService<PetRarityRow> {
   constructor() {
     super('pet_rarities', {
       defaultOrder: { column: 'sort_order', ascending: true },
-      select: 'code,name_cn,growth_factor,sort_order,created_at,updated_at',
+      select: 'code,name_cn,growth_factor,refine_base,sort_order,created_at,updated_at',
     })
+  }
+
+  /// 主键为 code（非 id），BaseService.update 的 .eq('id',…) 不适用——按 code 更新
+  async updateByCode(code: string, data: Partial<PetRarityRow>) {
+    return apiExecute(
+      () =>
+        (supabase.from('pet_rarities') as any)
+          .update(data)
+          .eq('code', code)
+          .select(),
+      'PetRarity-按 code 更新'
+    )
   }
 }
 
@@ -51,7 +64,7 @@ class PetSpeciesService extends BaseService<PetSpeciesRow> {
     super('pet_species', {
       defaultOrder: { column: 'sort_order', ascending: true },
       select:
-        'id,species_code,family,name_cn,rarity_code,base_attributes,evolution_chain_id,render2d,render3d,asset_version,asset_sha,enabled,sort_order,created_at,updated_at',
+        'id,species_code,family,name_cn,rarity_code,base_attributes,hatch_config,refine_config,evolution_chain_id,render2d,render3d,asset_version,asset_sha,enabled,sort_order,created_at,updated_at',
     })
   }
 }
@@ -83,7 +96,17 @@ class PetAdventureSpotService extends BaseService<PetAdventureSpotRow> {
     super('pet_adventure_spots', {
       defaultOrder: { column: 'sort_order', ascending: true },
       select:
-        'id,code,name,unlock_conditions,result_weights,drop_table,rescue_params,enabled,sort_order,created_at,updated_at',
+        'id,code,name,unlock_conditions,attr_requirements,result_weights,drop_table,rescue_params,penalty,enabled,sort_order,created_at,updated_at',
+    })
+  }
+}
+
+// 性格字典（2026-09-17 属性系统；4 条种子默认停用，孵化时按条件加权随机）
+class PetPersonalityService extends BaseService<PetPersonalityRow> {
+  constructor() {
+    super('pet_personalities', {
+      defaultOrder: { column: 'code', ascending: true },
+      select: 'id,code,name_cn,description,condition,weight,enabled,created_at,updated_at',
     })
   }
 }
@@ -205,6 +228,7 @@ export {
   PetItemService,
   PetEggPoolService,
   PetAdventureSpotService,
+  PetPersonalityService,
   PetQuestService,
   PetWalletService,
   PetWalletRecordService,
@@ -218,6 +242,7 @@ export const petSpeciesService = new PetSpeciesService()
 export const petItemService = new PetItemService()
 export const petEggPoolService = new PetEggPoolService()
 export const petAdventureSpotService = new PetAdventureSpotService()
+export const petPersonalityService = new PetPersonalityService()
 export const petQuestService = new PetQuestService()
 export const petWalletService = new PetWalletService()
 export const petWalletRecordService = new PetWalletRecordService()

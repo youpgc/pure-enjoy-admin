@@ -47,21 +47,30 @@ export interface PetConfigRow {
   // —— asset 批补列（3D 渲染开关 / 资源包清单）——
   render3d_enabled: boolean
   asset_manifest: Json
+  // —— 属性系统批补列（feature_pet_attributes_20260917.sql）——
+  adventure_health_threshold: number
+  levelup_attr_points: number
   created_at: string
   updated_at: string
 }
 
 /// 1.2 评级字典
+/// refine_base：升级时洗练点发放的评级基准（三因子之一，2026-09-17 属性系统）
 export interface PetRarityRow {
   code: string
   name_cn: string
   growth_factor: number
+  refine_base: number
   sort_order: number
   created_at: string
   updated_at: string
 }
 
 /// 1.3 种属/形态
+/// base_attributes（孵化消费结构，rpc_pet_hatch_instant）：
+///   { total 总点数(守恒), variance 每维浮动, base: {四维基准} }
+/// hatch_config：{ inherit_ratio 繁育继承比(0~1), potential_min/max 潜力区间 }
+/// refine_config：{ base 每级洗练点, potential_bonus: [{min,max,bonus}] 潜力加成档 }
 export interface PetSpeciesRow {
   id: string
   species_code: string
@@ -69,6 +78,8 @@ export interface PetSpeciesRow {
   name_cn: string
   rarity_code: string
   base_attributes: Json
+  hatch_config: Json
+  refine_config: Json
   evolution_chain_id: string | null
   render2d: Json
   render3d: Json
@@ -119,16 +130,34 @@ export interface PetEggPoolRow {
 }
 
 /// 1.9 历险地
+/// attr_requirements：[{attr:'strength', value:20}]（结算判据：不达标 claim 判 failed）
+/// penalty：{health:-20, mood:-10, gold:-50, lose_item:{p:0.3}}（failed 时生效，负值）
 export interface PetAdventureSpotRow {
   id: string
   code: string
   name: string
   unlock_conditions: Json
+  attr_requirements: Json
   result_weights: Json
   drop_table: Json
   rescue_params: Json
+  penalty: Json
   enabled: boolean
   sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+/// 1.12 性格字典（pet_personalities，2026-09-17 属性系统）
+/// condition：{attr: 阈值} —— 四维全部 ≥ 阈值（AND）才候选，weight 加权随机
+export interface PetPersonalityRow {
+  id: string
+  code: string
+  name_cn: string
+  description: string | null
+  condition: Json
+  weight: number
+  enabled: boolean
   created_at: string
   updated_at: string
 }
