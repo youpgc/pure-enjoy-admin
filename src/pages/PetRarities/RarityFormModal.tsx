@@ -6,12 +6,15 @@ import type { PetRarityRow } from '../../types/pet'
 //
 // code 为主键语义（创建后不可改）；refine_base = 升级洗练点发放的评级基准
 // （三因子之一：种属 refine_config.base + 评级 refine_base + 潜力加成档）。
+// potential_min/max = 潜力区间评级覆盖（2026-09-20 P2-3），留空回退种属 hatch_config。
 
 export interface RarityFormValues {
   code: string
   name_cn: string
   growth_factor: number
   refine_base: number
+  potential_min?: number | null
+  potential_max?: number | null
   sort_order: number
 }
 
@@ -74,6 +77,20 @@ const RarityFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCance
           rules={[{ required: true, message: '请输入洗练点基准' }]}
         >
           <InputNumber min={0} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item
+          name="potential_min"
+          label="潜力下限（potential_min）"
+          tooltip="评级粒度潜力区间覆盖：孵化该评级宠物时优先采用；留空 = 用种属 hatch_config 的潜力区间"
+        >
+          <InputNumber min={1} max={100} style={{ width: '100%' }} placeholder="留空用种属默认" />
+        </Form.Item>
+        <Form.Item
+          name="potential_max"
+          label="潜力上限（potential_max）"
+          tooltip="评级粒度潜力区间覆盖：孵化该评级宠物时优先采用；留空 = 用种属 hatch_config 的潜力区间"
+        >
+          <InputNumber min={1} max={100} style={{ width: '100%' }} placeholder="留空用种属默认" />
         </Form.Item>
         <Form.Item name="sort_order" label="排序号">
           <InputNumber min={0} style={{ width: '100%' }} />

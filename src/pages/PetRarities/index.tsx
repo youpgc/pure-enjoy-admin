@@ -45,6 +45,8 @@ const PetRarities: React.FC = () => {
         name_cn: values.name_cn,
         growth_factor: Number(values.growth_factor) || 0,
         refine_base: Number(values.refine_base) || 0,
+        potential_min: values.potential_min ?? null,
+        potential_max: values.potential_max ?? null,
         sort_order: Number(values.sort_order) || 0,
       }
       const res = editing
@@ -74,6 +76,19 @@ const PetRarities: React.FC = () => {
       width: 150,
       render: (v: number) => (v > 0 ? <Tag color="gold">{v} 点/级</Tag> : <Tag>0</Tag>),
     },
+    {
+      title: '潜力区间覆盖',
+      dataIndex: 'potential_min',
+      width: 130,
+      render: (_: unknown, record: PetRarityRow) =>
+        record.potential_min == null && record.potential_max == null ? (
+          <Tag>种属默认</Tag>
+        ) : (
+          <Tag color="purple">
+            {record.potential_min ?? '…'}–{record.potential_max ?? '…'}
+          </Tag>
+        ),
+    },
     { title: '排序', dataIndex: 'sort_order', width: 80 },
     getActionColumn<PetRarityRow>((record) => [
       {
@@ -95,7 +110,7 @@ const PetRarities: React.FC = () => {
         showIcon
         className={common.mb16}
         message="评级字典说明"
-        description="评级为宠物稀有度字典：growth_factor 参与属性成长计算；refine_base 为升级洗练点发放的评级基准（洗练点 = 种属 base + 评级 refine_base + 潜力加成档，三因子在种属管理页配置）。code 为字典键，创建后不可修改。"
+        description="评级为宠物稀有度字典：growth_factor 参与属性成长计算；refine_base 为升级洗练点发放的评级基准（洗练点 = 种属 base + 评级 refine_base + 潜力加成档，三因子在种属管理页配置）；potential_min/max 可选覆盖孵化潜力区间（留空用种属 hatch_config 配置）。code 为字典键，创建后不可修改。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>

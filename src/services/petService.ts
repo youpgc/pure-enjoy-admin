@@ -41,7 +41,8 @@ class PetRarityService extends BaseService<PetRarityRow> {
   constructor() {
     super('pet_rarities', {
       defaultOrder: { column: 'sort_order', ascending: true },
-      select: 'code,name_cn,growth_factor,refine_base,sort_order,created_at,updated_at',
+      select:
+        'code,name_cn,growth_factor,refine_base,potential_min,potential_max,sort_order,created_at,updated_at',
     })
   }
 

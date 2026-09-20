@@ -56,11 +56,15 @@ export interface PetConfigRow {
 
 /// 1.2 评级字典
 /// refine_base：升级时洗练点发放的评级基准（三因子之一，2026-09-17 属性系统）
+/// potential_min/max：潜力区间评级粒度覆盖（2026-09-20 P2-3；
+///   null = 未配置，回退种属 hatch_config.potential_min/max）
 export interface PetRarityRow {
   code: string
   name_cn: string
   growth_factor: number
   refine_base: number
+  potential_min: number | null
+  potential_max: number | null
   sort_order: number
   created_at: string
   updated_at: string
