@@ -7,29 +7,22 @@ import {
   Card,
   message,
   Space,
-  Tag,
-  Tooltip,
   Alert,
-  Typography,
 } from 'antd'
-import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
+import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
-import { getActionColumn } from '../../components/common/ActionColumn'
 import { gameAchievementService, gameDimensionService, gameModeService, gameService } from '../../services/gameService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import { handleApiError } from '../../utils/apiClient'
 import { useMounted } from '../../hooks/useMounted'
-import type { Database, DbGameDimension, DbGameMode } from '../../types/database'
+import type { DbGameDimension, DbGameMode } from '../../types/database'
 import common from '../../styles/common.module.css'
 import styles from './index.module.css'
-import AchievementIcon from './AchievementIcon'
 import AchievementFormModal from './AchievementFormModal'
-import { condSummary, groupLabel, isV2ConditionOf } from './achievementMeta'
+import { groupLabel, isV2ConditionOf } from './achievementMeta'
+import { buildAchievementColumns, type DbGameAchievement } from './columns'
 
-type DbGameAchievement = Database['public']['Tables']['game_achievements']['Row']
-
-const { Text } = Typography
+// 列表列定义已抽离（审查 P1 单文件超 500 行）：./columns.tsx
 
 /**
  * 游戏成就配置（game_achievements）。
@@ -40,8 +33,9 @@ const { Text } = Typography
  * 纯荣誉徽章，reward_points 全 0 仅解锁不发分；段位（mode_tier）由
  * App 端 GameBadgeService 评估解锁，后台仅维护定义（v2 条件类型只读保护）。
  *
- * 文件结构（游戏组模板）：index.tsx 容器 + AchievementIcon（图标渲染）
- * + AchievementFormModal（编辑弹窗）+ achievementMeta（条件常量/摘要）。
+ * 文件结构（游戏组模板）：index.tsx 容器 + columns（列表列定义）
+ * + AchievementIcon（图标渲染）+ AchievementFormModal（编辑弹窗）
+ * + achievementMeta（条件常量/摘要）。
  */
 const GameAchievements: React.FC = () => {
   const { hasPermission } = usePermission()
@@ -312,81 +306,13 @@ const GameAchievements: React.FC = () => {
     return list.filter((it) => (it.name ?? '').toLowerCase().includes(kw))
   }, [items, nameFilter, groupKeyFilter])
 
-  const columns: ColumnsType<DbGameAchievement> = [
-    {
-      title: '游戏',
-      dataIndex: 'game_id',
-      width: 140,
-      render: (v: string | null) => (v ? (gameNameMap[v] ?? v) : <Tag>全局</Tag>),
-    },
-    { title: '编码', dataIndex: 'code', width: 140, render: (v: string) => <Tag>{v}</Tag> },
-    { title: '名称', dataIndex: 'name', width: 220, ellipsis: true },
-    {
-      title: '图标',
-      dataIndex: 'icon',
-      width: 90,
-      // 图标按 game_achievements.icon 令牌渲染（元素模板 + 进阶等级上色），与 App 端一致。
-      render: (_: unknown, record: DbGameAchievement) =>
-        record.icon ? (
-          <AchievementIcon icon={record.icon} size={30} />
-        ) : (
-          '-'
-        ),
-    },
-    {
-      title: '达成条件',
-      key: 'condition',
-      render: (_: unknown, record: DbGameAchievement) =>
-        condSummary((record.condition ?? {}) as Record<string, any>),
-    },
-    {
-      title: '成就族',
-      dataIndex: 'group_key',
-      width: 160,
-      ellipsis: true,
-      // 分组键是内部编码（score:match3:max_combo），列表转中文展示；
-      // 原始 key 放 tooltip，便于对数据时溯源（不再满屏英文码）。
-      render: (v: string | null) =>
-        v ? (
-          <Tooltip title={v}>
-            <Tag color="blue">{groupLabel(v)}</Tag>
-          </Tooltip>
-        ) : (
-          <Tag color="orange">未分组</Tag>
-        ),
-    },
-    {
-      title: '奖励积分',
-      dataIndex: 'reward_points',
-      width: 90,
-      render: (v: number) => (v > 0 ? <Tag color="gold">+{v}分</Tag> : <Text type="secondary">仅解锁</Text>),
-    },
-    {
-      title: '状态',
-      dataIndex: 'enabled',
-      width: 80,
-      render: (v: boolean) => (v ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
-    },
-    { title: '排序', dataIndex: 'sort_order', width: 70 },
-    getActionColumn<DbGameAchievement>((record) => [
-      {
-        key: 'edit',
-        label: '编辑',
-        icon: <EditOutlined />,
-        disabled: !canWrite,
-        onClick: () => openEdit(record),
-      },
-      {
-        key: 'delete',
-        label: '删除',
-        icon: <DeleteOutlined />,
-        danger: true,
-        disabled: !canDelete,
-        confirm: '确认删除该成就？',
-        onClick: () => handleDelete(record.id),
-      },
-    ], { width: 150 }),
-  ]
+  const columns = buildAchievementColumns({
+    gameNameMap,
+    canWrite,
+    canDelete,
+    onEdit: openEdit,
+    onDelete: handleDelete,
+  })
 
   return (
     <div>

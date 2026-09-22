@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Alert,
   Table,
-  Tag,
   Card,
   Space,
   Button,
@@ -14,20 +13,16 @@ import {
   Empty,
 } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { handleApiError } from '../../utils/apiClient'
-import { formatDurationSmart } from '../../utils/durationFormat'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import EndlessRoundsExpand, { type EndlessRoundRow } from './EndlessRoundsExpand'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { useUsernames } from '../../hooks/useUsernames'
-import { UserName } from '../../components/common/UserName'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import { userService } from '../../services/userService'
 import { useNavigation } from '../../App'
-import { GAME_STATUS_MAP } from '../../constants'
 import {
   gameScoreService,
   gameScoreValueService,
@@ -39,112 +34,16 @@ import type {
   DbGameMode,
   DbGameLevel,
 } from '../../types/database'
+import { buildBestColumns, buildScoreColumns, buildValueColumns } from './columns'
+import type { BestOverviewRow } from './types'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
-import { formatDateTime } from '../../utils/format'
 
-const { Text } = Typography
+// 列定义与通关条件描述已抽离（审查 P1 单文件超 500 行）：
+// ./columns.tsx（三张表格列）/ ./levelCondition.tsx（config → 中文描述）/ ./types.ts
 
-/// 收集目标颜色映射（type → 展示色/中文名），与 App 端 kCandyColors 同源
-const COLLECT_TYPE_COLORS: Record<number, string> = {
-  0: '#EF5350',
-  1: '#42A5F5',
-  2: '#66BB6A',
-  3: '#FFEE58',
-  4: '#AB47BC',
-  5: '#FFA726',
-}
-const COLLECT_TYPE_NAMES: Record<number, string> = {
-  0: '红',
-  1: '蓝',
-  2: '绿',
-  3: '黄',
-  4: '紫',
-  5: '橙',
-}
-
-/// 彩色圆点（按收集目标 type 实际颜色渲染，黑点无法辨识元素——2026-09-10）
-function collectDot(type: number) {
-  const t = ((type % 6) + 6) % 6
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        width: 10,
-        height: 10,
-        borderRadius: '50%',
-        background: COLLECT_TYPE_COLORS[t] ?? '#666',
-        border: '1px solid rgba(255,255,255,0.4)',
-        marginRight: 4,
-        verticalAlign: '-1px',
-      }}
-    />
-  )
-}
-
-/// 按关卡 config/target 生成通关条件中文描述（各模式键见游戏模块配置参考文档 §3.3/§6）
-///
-/// [gameCode] 用于区分语义：g2048 的 target 是「合成目标方块」而非得分。
-/// 注意：config 里的 types（方块种类数）/layers（堆叠深度）是难度旋钮而非
-/// 通关条件，不进入描述（2026-09-10 用户反馈展示内容不符）。
-/// 收集目标渲染为「彩色圆点 + 中文名×数量」（黑点 → 语义色，2026-09-10）。
-function levelConditionDesc(
-  lv: Record<string, any> | undefined,
-  gameCode?: string
-): React.ReactNode {
-  if (!lv) return '-'
-  const c = (lv.config ?? {}) as Record<string, any>
-  const parts: React.ReactNode[] = []
-  if (c.time_limit) parts.push(`限时 ${c.time_limit}s`)
-  else if (c.timeLimit) parts.push(`限时 ${c.timeLimit}s`)
-  if (c.moves || c.max_moves) parts.push(`限 ${c.moves ?? c.max_moves} 步`)
-  if (c.goal) parts.push(`得分≥${c.goal}`)
-  if (c.jelly || c.jelly_layers) parts.push(`果冻 ${c.jelly ?? c.jelly_layers} 层`)
-  // 颜色收集目标（新数组口径 → 彩色圆点 + 中文名；旧单值口径 → 纯文本）
-  const collectDesc = (arr: any[]): React.ReactNode[] =>
-    arr.map((g, i) => (
-      <React.Fragment key={i}>
-        {i > 0 && ' + '}
-        {collectDot(Number(g.type))}
-        {COLLECT_TYPE_NAMES[(Number(g.type) % 6 + 6) % 6] ?? g.type}×{g.count}
-      </React.Fragment>
-    ))
-  if (Array.isArray(c.collect) && c.collect.length) parts.push(collectDesc(c.collect))
-  else if (c.ingredients) parts.push(`收集 ${c.ingredients} 个`)
-  if (c.orders) parts.push(`收集 ${c.orders} 个`)
-  if (c.ice) parts.push(`冰块 ${c.ice}`)
-  if (Array.isArray(c.iceCollect) && c.iceCollect.length) parts.push(collectDesc(c.iceCollect))
-  if (typeof c.target === 'number') {
-    // g2048 的 target = 合成目标方块（256/512/…/2048），与得分无关
-    parts.push(gameCode === 'g2048' ? `合成 ${c.target}` : `目标 ${c.target}`)
-  }
-  const t = lv.target as Record<string, any> | null
-  if (!parts.length && t?.score) parts.push(`得分≥${t.score}`)
-  if (!parts.length && t?.type === 'none') parts.push('合成目标方块')
-  if (!parts.length) return '-'
-  // 各段以「·」分隔渲染
-  return parts.map((p, i) => (
-    <React.Fragment key={i}>
-      {i > 0 && ' · '}
-      {p}
-    </React.Fragment>
-  ))
-}
 const { RangePicker } = DatePicker
-
-// 毫秒类维度（value_type=duration_ms 或 unit=ms）统一按秒展示
-const isMsDim = (dim?: { value_type?: string; unit?: string | null }) =>
-  dim?.value_type === 'duration_ms' || dim?.unit === 'ms'
-
-interface BestOverviewRow {
-  gameId: string
-  gameName: string
-  dimName: string
-  unit: string | null
-  value: number
-  userId: string
-  playedAt: string | null
-}
+const { Text } = Typography
 
 const GameScores: React.FC = () => {
   const mountedRef = useMounted()
@@ -387,107 +286,16 @@ const GameScores: React.FC = () => {
   const isEndlessRow = (record: DbGameScore) =>
     record.mode_id != null && endlessModeIds.has(record.mode_id)
 
-  const columns: ColumnsType<DbGameScore> = [    {
-      title: '用户',
-      dataIndex: 'user_id',
-      key: 'user_id',
-      width: 140,
-      render: (v: string) => <UserName userId={v} userMap={userMap} />,
-    },
-    {
-      title: '游戏',
-      dataIndex: 'game_id',
-      key: 'game_id',
-      width: 140,
-      render: (v: string) => gameMap[v]?.name || v,
-    },
-    {
-      title: '关卡',
-      dataIndex: 'level_id',
-      key: 'level_id',
-      width: 200,
-      render: (v: string | null, record) => {
-        if (v) {
-          // 关卡名种子自带「游戏·模式」前缀（如「2048·经典模式 L001」），
-          // 「游戏」列已展示游戏名，此处剥掉前缀避免重复
-          const raw = levelMap[v]?.name
-          if (!raw) return '关卡'
-          const gameName = gameMap[record.game_id]?.name
-          const prefix = gameName ? `${gameName}·` : ''
-          return prefix && raw.startsWith(prefix) ? raw.slice(prefix.length) : raw
-        }
-        // 无 level_id（无尽会话 / 2048 等无关卡感对局）：回退模式名
-        return record.mode_id != null
-          ? modeById[record.mode_id]?.name ?? '-'
-          : '-'
-      },
-    },
-    {
-      title: '通关条件',
-      key: 'level_condition',
-      render: (_: unknown, record) => {
-        // 无尽会话主行：链式累计得分（每局目标随关卡阶梯上升，逐局见局明细展开表）
-        if (isEndlessRow(record)) return '无尽模式 · 累计得分'
-        const gameCode = gameMap[record.game_id]?.code
-        // 有 level_id 用该关 config；无 level_id 用该模式 L001 的 config 兜底
-        const lv = record.level_id
-          ? levelMap[record.level_id]
-          : record.mode_id != null
-            ? baseLevelByMode[record.mode_id]
-            : null
-        if (!lv) return '-'
-        return levelConditionDesc(lv, gameCode)
-      },
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      key: 'status',
-      width: 90,
-      render: (v: string) => {
-        const info = GAME_STATUS_MAP[v] || { color: 'default', label: v }
-        return <Tag color={info.color}>{info.label}</Tag>
-      },
-    },
-    {
-      title: '耗时',
-      dataIndex: 'duration_ms',
-      key: 'duration_ms',
-      width: 130,
-      // 进阶时间单位（2026-09-11）：秒→分秒→时分秒，与 App 端同口径
-      render: (v: number | null) => (v == null ? '-' : formatDurationSmart(v)),
-    },
-    {
-      title: '游玩时间',
-      dataIndex: 'played_at',
-      key: 'played_at',
-      render: (d: string) => formatDateTime(d),
-    },
-  ]
+  const columns = buildScoreColumns({
+    userMap,
+    gameMap,
+    levelMap,
+    modeById,
+    baseLevelByMode,
+    isEndlessRow,
+  })
 
-  const valueColumns = [
-    { title: '维度', dataIndex: 'dimension_id', key: 'dimension_id', render: (id: string) => dimMap[id]?.name || id },
-    {
-      title: '数值',
-      dataIndex: 'value',
-      key: 'value',
-      render: (v: number, row: DbGameScoreValue) => {
-        const dim = dimMap[row.dimension_id]
-        return isMsDim(dim) ? formatDurationSmart(v) : v
-      },
-    },
-    {
-      title: '单位',
-      dataIndex: 'dimension_id',
-      key: 'unit',
-      render: (id: string) => {
-        const dim = dimMap[id]
-        // 时间类维度值已带进阶单位，单位列不再重复标注
-        if (isMsDim(dim)) return '-'
-        return dim?.unit || '-'
-      },
-    },
-  ]
+  const valueColumns = buildValueColumns(dimMap)
 
   return (
     <div>
@@ -518,35 +326,7 @@ const GameScores: React.FC = () => {
             rowKey={(r) => `${r.gameId}-${r.dimName}`}
             pagination={false}
             size="small"
-            columns={[
-              { title: '游戏', dataIndex: 'gameName', key: 'gameName' },
-              { title: '主维度', dataIndex: 'dimName', key: 'dimName' },
-              {
-                title: '最佳值',
-                key: 'value',
-                render: (_, r) => {
-                  const ms = r.unit === 'ms'
-                  return (
-                    <Text strong>
-                      {ms ? formatDurationSmart(r.value) : r.value}{' '}
-                      {ms ? '' : r.unit || ''}
-                    </Text>
-                  )
-                },
-              },
-              {
-                title: '达成用户',
-                dataIndex: 'userId',
-                key: 'userId',
-                render: (v: string) => <UserName userId={v} userMap={userMap} />,
-              },
-              {
-                title: '达成时间',
-                dataIndex: 'playedAt',
-                key: 'playedAt',
-                render: (d: string | null) => (d ? formatDateTime(d) : '-'),
-              },
-            ]}
+            columns={buildBestColumns(userMap)}
           />
         ) : (
           <Empty description="暂无成绩数据" />
