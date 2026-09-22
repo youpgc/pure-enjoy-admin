@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Modal, Form, Input, InputNumber, Select, Switch, Typography } from 'antd'
 import type { PetEggPoolRow } from '../../types/pet'
 import { petSpeciesService } from '../../services/petService'
@@ -41,6 +41,8 @@ const FAMILY_FIELDS = Object.entries(PET_FAMILY_LABELS).map(([key, label]) => ({
 const PoolFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel }) => {
   const [form] = Form.useForm()
   const [speciesOptions, setSpeciesOptions] = useState<Array<{ value: string; label: string }>>([])
+  // weights 初始快照：保存时与当前值比对，有变更才递增 config_version
+  const weightsBaseline = useRef<string>('{}')
 
   useEffect(() => {
     if (!open) return
@@ -84,7 +86,15 @@ const PoolFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
 
   const handleOk = async () => {
     const values = await form.validateFields()
-    onOk({ ...values, weights: asObject(values.weights) })
+    const weights = asObject(values.weights)
+    if (editing) {
+      // 审计口径：历史流水记录旧版本号，config_version 只能递增；概率未变则原值提交
+      values.config_version =
+        JSON.stringify(weights) === weightsBaseline.current
+          ? editing.config_version
+          : editing.config_version + 1
+    }
+    onOk({ ...values, weights })
   }
 
   return (
@@ -96,15 +106,17 @@ const PoolFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
       afterOpenChange={(o) => {
         if (o) {
           form.resetFields()
+          const initialWeights = editing ? asObject(editing.weights) : {}
+          weightsBaseline.current = JSON.stringify(initialWeights)
           form.setFieldsValue(
             editing
               ? {
                   pool_code: editing.pool_code,
                   config_version: editing.config_version,
-                  weights: asObject(editing.weights),
+                  weights: initialWeights,
                   published: editing.published,
                 }
-              : { config_version: 1, weights: {}, published: false }
+              : { config_version: 1, weights: initialWeights, published: false }
           )
         }
       }}
@@ -124,10 +136,10 @@ const PoolFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         <Form.Item
           name="config_version"
           label="配置版本"
-          tooltip="概率变更必须递增版本：每次孵化审计记录判定所用版本，公示与判定同源"
+          tooltip="审计铁律：编辑既有池版本不可手改，保存时概率有变更自动 +1（只增不减）；新池默认 1 可填"
           rules={[{ required: true, message: '请输入配置版本' }]}
         >
-          <InputNumber min={1} style={{ width: '100%' }} />
+          <InputNumber min={1} style={{ width: '100%' }} disabled={!!editing} />
         </Form.Item>
 
         <Form.Item name="weights" label="概率权重" rules={[{ required: true, message: '请配置权重' }]}>

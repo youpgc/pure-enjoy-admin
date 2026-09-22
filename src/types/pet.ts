@@ -50,6 +50,11 @@ export interface PetConfigRow {
   // —— 属性系统批补列（feature_pet_attributes_20260917.sql）——
   adventure_health_threshold: number
   levelup_attr_points: number
+  // —— 互动冷却（feature_pet_interact_cooldown_20260917.sql）——
+  interact_cooldown_min: number
+  interact_daily: number
+  // —— 历险结算回血（fix_pet_review_20260920.sql）——
+  adventure_health_recover: number
   created_at: string
   updated_at: string
 }

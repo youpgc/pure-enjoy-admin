@@ -17,7 +17,8 @@ import common from '../../styles/common.module.css'
 // 同 evolution_chain_id）合并为一条数据管理——列表行 = 进化链（或独立种属），
 // 形态列展示链内各阶；操作列新增「预览」：弹窗展示 3 阶段预览图（左右切换，默认基础形）。
 // 编辑/删除仍然以行（基础形）为单位操作对应 pet_species 行。
-// 启用状态即 App 展示闸门：新形态先完成素材接线（render2d/render3d）再启用。
+// 启用状态即 App 展示闸门：新形态先完成素材接线（render2d）再启用。
+// 3D 一期已下线：render3d 列与存量数据保留，本页不再编辑/展示（后期迭代重写渲染层时恢复）。
 
 const RARITY_COLORS: Record<string, string> = {
   N: 'default',
@@ -131,7 +132,6 @@ const PetSpecies: React.FC = () => {
         // 空串归一为 null（uuid 列不留空串脏数据）
         evolution_chain_id: values.evolution_chain_id || null,
         render2d: values.render2d as unknown as Record<string, unknown>,
-        render3d: values.render3d as unknown as Record<string, unknown>,
         asset_version: values.asset_version || null,
         enabled: !!values.enabled,
         sort_order: Number(values.sort_order) || 0,
@@ -209,13 +209,6 @@ const PetSpecies: React.FC = () => {
           </Space>
         )
       },
-    },
-    {
-      title: '3D 配置',
-      dataIndex: ['base', 'render3d'],
-      width: 110,
-      render: (v: Record<string, unknown>) =>
-        v && v.code ? <Tag color="geekblue">{String(v.code)}</Tag> : <Tag>2D 展示</Tag>,
     },
     {
       title: '素材版本',

@@ -185,8 +185,9 @@ const DiscardFlowsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
           return
         }
       }
-      // 默认聚焦丢弃审计：biz_type in (discard, discard_batch)；选「全部」则不限
-      const bizTypes = bizType ? [bizType] : ['discard', 'discard_batch']
+      // 默认聚焦丢弃审计：biz_type in (discard, discard_batch)；选「全部」（'all' 哨兵值）不下发条件
+      const bizTypes =
+        bizType === 'all' ? undefined : bizType ? [bizType] : ['discard', 'discard_batch']
       const res = await petItemFlowService.paginateFlows(targetPage, PAGE_SIZE, {
         bizTypes,
         userIds,

@@ -9,6 +9,7 @@ import {
   PenaltyEditor,
 } from '../../components/form/pet/editors/AttributeEditors'
 import { asObject } from '../../components/form/pet/editors/shared'
+import { PET_ADVENTURE_RESULT_LABELS } from '../../constants/pet'
 import common from '../../styles/common.module.css'
 
 // ==================== 历险地编辑弹窗（pet_adventure_spots） ====================
@@ -42,12 +43,13 @@ interface Props {
   onCancel: () => void
 }
 
-const RESULT_WEIGHT_FIELDS = [
-  { key: 'play', label: '游玩（play）', min: 0, step: 0.05 },
-  { key: 'danger', label: '遇险（danger）', min: 0, step: 0.05 },
-  { key: 'help', label: '帮助（help）', min: 0, step: 0.05 },
-  { key: 'memory', label: '纪念（memory）', min: 0, step: 0.05 },
-]
+/// 四类结果权重行：键与文案派生自 constants（ENUM 单一源，禁止本地副本）
+const RESULT_WEIGHT_FIELDS = Object.entries(PET_ADVENTURE_RESULT_LABELS).map(([key, label]) => ({
+  key,
+  label: `${label}（${key}）`,
+  min: 0,
+  step: 0.05,
+}))
 
 const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel }) => {
   const [form] = Form.useForm()

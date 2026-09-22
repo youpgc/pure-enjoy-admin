@@ -2,7 +2,7 @@ import React from 'react'
 import { Modal, Form, Input, InputNumber, Select, Switch } from 'antd'
 import type { PetSpeciesRow } from '../../types/pet'
 import { PET_FAMILY_OPTIONS } from '../../constants/pet'
-import { Render2dEditor, Render3dEditor } from '../../components/form/pet/editors/RenderEditors'
+import { Render2dEditor } from '../../components/form/pet/editors/RenderEditors'
 import {
   SpeciesAttrEditor,
   HatchConfigEditor,
@@ -17,7 +17,7 @@ import { asObject } from '../../components/form/pet/editors/shared'
 //   （此前误按旧展示层扁平结构 {hunger,mood,intimacy,exp} 编辑，已修正）；
 // - hatch_config：{ inherit_ratio, potential_min, potential_max }；
 // - refine_config：{ base, potential_bonus:[{min,max,bonus}] }；
-// - render2d {code} / render3d {code,enabled,variants}。
+// - render2d {code}；render3d 编辑器随 3D 一期下线一并移除（列与存量数据保留，不再提交）。
 
 export interface SpeciesFormValues {
   species_code: string
@@ -29,7 +29,6 @@ export interface SpeciesFormValues {
   refine_config: Record<string, unknown>
   evolution_chain_id: string | null
   render2d: Record<string, unknown>
-  render3d: Record<string, unknown>
   asset_version: string | null
   enabled: boolean
   sort_order: number
@@ -66,7 +65,6 @@ const SpeciesFormModal: React.FC<Props> = ({
           hatch_config: asObject(values.hatch_config),
           refine_config: asObject(values.refine_config),
           render2d: asObject(values.render2d),
-          render3d: asObject(values.render3d),
         })
       }}
       confirmLoading={saving}
@@ -81,14 +79,12 @@ const SpeciesFormModal: React.FC<Props> = ({
                   hatch_config: asObject(editing.hatch_config),
                   refine_config: asObject(editing.refine_config),
                   render2d: asObject(editing.render2d),
-                  render3d: asObject(editing.render3d),
                 }
               : {
                   base_attributes: {},
                   hatch_config: { inherit_ratio: 0.5, potential_min: 60, potential_max: 100 },
                   refine_config: {},
                   render2d: {},
-                  render3d: {},
                   enabled: false,
                   sort_order: 0,
                 }
@@ -152,9 +148,6 @@ const SpeciesFormModal: React.FC<Props> = ({
 
         <Form.Item name="render2d" label="2D 素材配置">
           <Render2dEditor />
-        </Form.Item>
-        <Form.Item name="render3d" label="3D 素材配置">
-          <Render3dEditor />
         </Form.Item>
 
         <Form.Item name="asset_version" label="素材版本" tooltip="CDN 素材版本，可留空">

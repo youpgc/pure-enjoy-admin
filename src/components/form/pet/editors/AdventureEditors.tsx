@@ -13,7 +13,8 @@ import type { ItemOption } from './ItemEditors'
 //   - items.p 为掉落概率 0~1（缺省 1），min/max 数量区间；
 //   - 结果键缺省（空对象）→ 该结果无掉落。
 
-const ITEM_ITEM_KEYS = ['play', 'danger', 'help', 'memory']
+/// 四类结果键：派生自 constants（ENUM 单一源，禁止本地副本）
+const DROP_RESULT_KEYS = Object.keys(PET_ADVENTURE_RESULT_LABELS)
 
 interface DropTableEditorProps {
   value?: unknown
@@ -148,11 +149,11 @@ const ResultDropSection: React.FC<{
 
 export const DropTableEditor: React.FC<DropTableEditorProps> = ({ value, onChange, items, disabled }) => {
   const obj = asObject(value)
-  const extra = extraKeys(value, ITEM_ITEM_KEYS)
+  const extra = extraKeys(value, DROP_RESULT_KEYS)
 
   const items2 = (
     <>
-      {ITEM_ITEM_KEYS.map((rk) => (
+      {DROP_RESULT_KEYS.map((rk) => (
         <Collapse.Panel
           key={rk}
           header={`${PET_ADVENTURE_RESULT_LABELS[rk] ?? rk}（${rk}）`}

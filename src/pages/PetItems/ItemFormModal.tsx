@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Modal, Form, Input, InputNumber, Select, Switch, message } from 'antd'
 import type { PetItemRow } from '../../types/pet'
 import {
+  PET_ITEM_CATEGORY_TYPES,
   PET_ITEM_CATEGORY_OPTIONS,
   PET_ITEM_CHANNEL_OPTIONS,
   PET_LADDER_KEY_OPTIONS,
@@ -52,6 +53,15 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
   // 阶梯编辑联动：选择阶梯 key 后 step / add_capacity 必填（与 DDL 三列同形 check 对齐）
   const ladderKey = Form.useWatch('ladder_key', form)
   const category = Form.useWatch('category', form)
+  // DDL 口径：蛋不堆叠（stack_limit=1），选中蛋类时锁死；切回非蛋类目恢复可编辑
+  // 恢复值 99 = pet_items.stack_limit_default 的 DDL 默认（pet_config 同名列暂无服务端消费）
+  const eggLocked = category === PET_ITEM_CATEGORY_TYPES.EGG
+  const handleCategoryChange = (v: string) => {
+    form.setFieldValue(
+      'stack_limit',
+      v === PET_ITEM_CATEGORY_TYPES.EGG ? 1 : editing?.stack_limit ?? 99
+    )
+  }
 
   useEffect(() => {
     if (!open) return
@@ -99,6 +109,7 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
       // 阶梯道具每档限购 1 次（业务铁律），这里强制归一
       values.purchase_limit = 1
     }
+    if (values.category === PET_ITEM_CATEGORY_TYPES.EGG) values.stack_limit = 1
     onOk({ ...values, effect: asObject(values.effect) })
   }
 
@@ -145,7 +156,7 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
           label="分类（背包四分区）"
           rules={[{ required: true, message: '请选择分类' }]}
         >
-          <Select options={PET_ITEM_CATEGORY_OPTIONS} />
+          <Select options={PET_ITEM_CATEGORY_OPTIONS} onChange={handleCategoryChange} />
         </Form.Item>
         <Form.Item name="sub_type" label="子类型" tooltip="food/clean/toy/evolution/rescue/exp/retake/unlock/expand 等，可留空">
           <Input allowClear placeholder="如 food" />
@@ -165,8 +176,16 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
           />
         )}
 
-        <Form.Item name="stack_limit" label="单格堆叠上限" tooltip="蛋固定 1（不可改小于 1）；普通道具默认 99">
-          <InputNumber min={1} className={common.fullWidth} />
+        <Form.Item
+          name="stack_limit"
+          label="单格堆叠上限"
+          tooltip={
+            eggLocked
+              ? '蛋不堆叠：DDL 口径固定 stack_limit=1（切回非蛋类目可编辑）'
+              : '蛋固定 1（不可改小于 1）；普通道具默认 99'
+          }
+        >
+          <InputNumber min={1} className={common.fullWidth} disabled={eggLocked} />
         </Form.Item>
 
         <Form.Item name="channels" label="获取渠道">

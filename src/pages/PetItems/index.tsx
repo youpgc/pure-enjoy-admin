@@ -7,6 +7,7 @@ import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petItemService } from '../../services/petService'
 import {
+  PET_ITEM_CATEGORY_TYPES,
   PET_ITEM_CATEGORY_LABELS,
   PET_ITEM_CATEGORY_COLORS,
   PET_ITEM_CATEGORY_OPTIONS,
@@ -31,7 +32,9 @@ const iconKey = (icon: string | null): string | null => {
   return icon.startsWith('icon/') ? icon.slice(5) : icon
 }
 
-/** 图标单元格：双端资源（public/pet-icons/<key>.svg）缺失时回退键名 */
+/** 图标单元格：双端资源（public/pet-icons/<key>.svg）缺失时回退键名
+ *  ⚠️ 必须带 import.meta.env.BASE_URL 前缀：本工程 vite base 为 /pure-enjoy-admin/，
+ *  写绝对路径 /pet-icons/... 部署后 404（同 constants/game.ts 图标基址口径） */
 const PetItemIcon: React.FC<{ icon: string | null }> = ({ icon }) => {
   const [failed, setFailed] = useState(false)
   const key = iconKey(icon)
@@ -45,7 +48,7 @@ const PetItemIcon: React.FC<{ icon: string | null }> = ({ icon }) => {
   return (
     <img
       alt={key}
-      src={`/pet-icons/${key}.svg`}
+      src={`${import.meta.env.BASE_URL}pet-icons/${key}.svg`}
       width={32}
       height={32}
       onError={() => setFailed(true)}
@@ -54,22 +57,23 @@ const PetItemIcon: React.FC<{ icon: string | null }> = ({ icon }) => {
   )
 }
 
-/** 类型 → 子类型联动选项（value 前缀 ladder: 表示按扩容阶梯匹配） */
+/** 类型 → 子类型联动选项（value 前缀 ladder: 表示按扩容阶梯匹配）；
+ *  键一律取自 PET_ITEM_CATEGORY_TYPES 枚举码，禁止类目字面量副本 */
 const SUB_OPTIONS_BY_CATEGORY: Record<string, Array<{ value: string; label: string }>> = {
-  egg: [{ value: 'initial', label: '初始蛋' }],
-  consumable: [
+  [PET_ITEM_CATEGORY_TYPES.EGG]: [{ value: 'initial', label: '初始蛋' }],
+  [PET_ITEM_CATEGORY_TYPES.CONSUMABLE]: [
     { value: 'food', label: '食物' },
     { value: 'clean', label: '清洁' },
     { value: 'toy', label: '玩具' },
   ],
-  tool: [
+  [PET_ITEM_CATEGORY_TYPES.TOOL]: [
     { value: 'rescue', label: '救援' },
     ...Object.entries(PET_LADDER_KEY_LABELS).map(([value, label]) => ({
       value: `ladder:${value}`,
       label: `${label}扩容`,
     })),
   ],
-  equip: [],
+  [PET_ITEM_CATEGORY_TYPES.EQUIP]: [],
 }
 
 const PetItems: React.FC = () => {

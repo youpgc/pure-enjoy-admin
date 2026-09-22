@@ -38,12 +38,21 @@ export const PET_SOURCE_TYPE_OPTIONS = Object.entries(PET_SOURCE_TYPE_LABELS).ma
 )
 
 // ---------- 道具三大类（背包四分区） ----------
+//
+// 枚举码（*_TYPES）为判据/默认值唯一源，LABELS 的键由码派生（同 PET_SOURCE_TYPES 写法）。
+
+export const PET_ITEM_CATEGORY_TYPES = {
+  EGG: 'egg',
+  CONSUMABLE: 'consumable',
+  TOOL: 'tool',
+  EQUIP: 'equip',
+} as const
 
 export const PET_ITEM_CATEGORY_LABELS: Record<string, string> = {
-  egg: '蛋',
-  consumable: '消耗品',
-  tool: '工具',
-  equip: '装备',
+  [PET_ITEM_CATEGORY_TYPES.EGG]: '蛋',
+  [PET_ITEM_CATEGORY_TYPES.CONSUMABLE]: '消耗品',
+  [PET_ITEM_CATEGORY_TYPES.TOOL]: '工具',
+  [PET_ITEM_CATEGORY_TYPES.EQUIP]: '装备',
 }
 
 export const PET_ITEM_CATEGORY_COLORS: Record<string, string> = {
@@ -92,19 +101,30 @@ export const PET_LADDER_KEY_OPTIONS = [
 
 // ---------- 任务类型 / 难度 ----------
 
+export const PET_QUEST_TYPE_TYPES = {
+  DAILY: 'daily',
+  WEEKLY: 'weekly',
+} as const
+
 export const PET_QUEST_TYPE_LABELS: Record<string, string> = {
-  daily: '每日',
-  weekly: '每周',
+  [PET_QUEST_TYPE_TYPES.DAILY]: '每日',
+  [PET_QUEST_TYPE_TYPES.WEEKLY]: '每周',
 }
 
 export const PET_QUEST_TYPE_OPTIONS = Object.entries(PET_QUEST_TYPE_LABELS).map(
   ([value, label]) => ({ value, label })
 )
 
+export const PET_QUEST_DIFFICULTY_TYPES = {
+  NORMAL: 'normal',
+  ADVANCED: 'advanced',
+  HARD: 'hard',
+} as const
+
 export const PET_QUEST_DIFFICULTY_LABELS: Record<string, string> = {
-  normal: '普通',
-  advanced: '进阶',
-  hard: '困难',
+  [PET_QUEST_DIFFICULTY_TYPES.NORMAL]: '普通',
+  [PET_QUEST_DIFFICULTY_TYPES.ADVANCED]: '进阶',
+  [PET_QUEST_DIFFICULTY_TYPES.HARD]: '困难',
 }
 
 export const PET_QUEST_DIFFICULTY_COLORS: Record<string, string> = {
@@ -126,9 +146,7 @@ export const PET_ADVENTURE_RESULT_LABELS: Record<string, string> = {
   memory: '纪念',
 }
 
-export const PET_ADVENTURE_RESULT_OPTIONS = Object.entries(PET_ADVENTURE_RESULT_LABELS).map(
-  ([value, label]) => ({ value, label })
-)
+// 注：四类结果的表单键由此 LABELS 派生（Object.entries/keys），不再单列 OPTIONS。
 
 // ---------- 道具流水 biz_type（丢弃审计重点） ----------
 
@@ -180,20 +198,22 @@ export const PET_PERMS = {
 // - 历险 rescue_params：读 self_window_minutes（缺省 120）；
 // - 历险 drop_table：<result>.gold[min,max] / exp[min,max] / items[{code,min,max,p}]。
 
-/// 消耗品 effect.type（rpc_pet_use_item 白名单）
+/// 消耗品 effect.type（rpc_pet_use_item 白名单，fix_pet_review_20260920.sql：feed/clean/toy/heal）
 export const PET_EFFECT_TYPE_LABELS: Record<string, string> = {
   feed: '喂养（饱食）',
   clean: '清洁（心情）',
   toy: '玩耍（心情）',
+  heal: '疗伤（健康，effect.value）',
 }
 
 export const PET_EFFECT_TYPE_OPTIONS = Object.entries(PET_EFFECT_TYPE_LABELS).map(
   ([value, label]) => ({ value, label })
 )
 
-/// 任务条件 type（服务端 _pet_quest_bump 的 bump 键；feed/use_item、adventure/claim、hatch/孵化）
+/// 任务条件 type（服务端 _pet_quest_bump 的 bump 键；feed/use_item、interact/互动、adventure/claim、hatch/孵化）
 export const PET_CONDITION_TYPE_LABELS: Record<string, string> = {
   feed: '喂养次数',
+  interact: '互动次数',
   adventure: '历险次数',
   hatch: '孵化次数',
 }

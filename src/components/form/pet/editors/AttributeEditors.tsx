@@ -3,7 +3,7 @@ import { Button, InputNumber, Select, Space, Typography } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import { asObject, extraKeys, numOf } from './shared'
 import { NumberMapEditor } from './BasicEditors'
-import { PET_ATTR_OPTIONS, PET_ATTR_LABELS } from '../../../../constants/pet'
+import { PET_ATTR_OPTIONS, PET_ATTR_LABELS, PET_PENALTY_LABELS } from '../../../../constants/pet'
 
 // ==================== 属性系统结构化编辑器（2026-09-17 属性系统） ====================
 //
@@ -16,7 +16,8 @@ import { PET_ATTR_OPTIONS, PET_ATTR_LABELS } from '../../../../constants/pet'
 // - 历险 penalty：{health, mood, gold（负值扣减）, lose_item:{p 概率}}
 // 未知键一律保留（防覆写清空服务端写入的扩展键）。
 
-const ATTR_KEYS = ['intellect', 'stamina', 'strength', 'agility']
+/// 四维键：派生自 constants（ENUM 单一源，禁止本地副本）
+const ATTR_KEYS = Object.keys(PET_ATTR_LABELS)
 
 const labelWidth = 150
 
@@ -356,11 +357,13 @@ export const PenaltyEditor: React.FC<{
 
   return (
     <div>
-      {penaltyRow('health', '健康扣减')}
-      {penaltyRow('mood', '心情扣减')}
-      {penaltyRow('gold', '金币扣减')}
+      {(['health', 'mood', 'gold'] as const).map((k) =>
+        penaltyRow(k, `${PET_PENALTY_LABELS[k]}扣减`)
+      )}
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <Typography.Text style={{ width: labelWidth, flexShrink: 0 }}>丢失道具概率</Typography.Text>
+        <Typography.Text style={{ width: labelWidth, flexShrink: 0 }}>
+          {PET_PENALTY_LABELS.lose_item}概率
+        </Typography.Text>
         <InputNumber
           style={{ width: 160 }}
           min={0}

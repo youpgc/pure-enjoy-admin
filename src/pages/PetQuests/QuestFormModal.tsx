@@ -4,7 +4,9 @@ import type { PetQuestRow } from '../../types/pet'
 import {
   PET_CONDITION_TYPE_LABELS,
   PET_CONDITION_TYPE_OPTIONS,
+  PET_QUEST_TYPE_TYPES,
   PET_QUEST_TYPE_OPTIONS,
+  PET_QUEST_DIFFICULTY_TYPES,
   PET_QUEST_DIFFICULTY_OPTIONS,
 } from '../../constants/pet'
 import { RewardsEditor } from '../../components/form/pet/editors/QuestEditors'
@@ -72,8 +74,8 @@ const QuestFormModal: React.FC<Props> = ({ open, editing, saving, items, onOk, o
                   rewards: asObject(editing.rewards),
                 }
               : {
-                  type: 'daily',
-                  difficulty: 'normal',
+                  type: PET_QUEST_TYPE_TYPES.DAILY,
+                  difficulty: PET_QUEST_DIFFICULTY_TYPES.NORMAL,
                   condition: {},
                   rewards: {},
                   enabled: false,
