@@ -262,3 +262,104 @@ export const PET_PENALTY_LABELS: Record<string, string> = {
   gold: '金币',
   lose_item: '丢失道具',
 }
+
+// ---------- P2 进化链（pet_evo_stages，2026-09-23 rpc_pet_evolve 已上线） ----------
+//
+// pick_mode 键域三端对齐：App lib/constants/pet.dart 的 PetPickMode 已有同名两值。
+// 消费实证 feature_pet_p2_rpcs_20260923.sql：阶段候选 >1 时，
+// weighted_random 走 `order by random()*branch_weight desc limit 1` 自动选；
+// user_choice 则由客户端必须显式传 p_to_species_id，否则抛 PET_EVOLVE_PICK_REQUIRED。
+
+export const PET_PICK_MODE_TYPES = {
+  USER_CHOICE: 'user_choice',
+  WEIGHTED_RANDOM: 'weighted_random',
+} as const
+
+export const PET_PICK_MODE_LABELS: Record<string, string> = {
+  [PET_PICK_MODE_TYPES.USER_CHOICE]: '玩家抉择',
+  [PET_PICK_MODE_TYPES.WEIGHTED_RANDOM]: '加权随机',
+}
+
+export const PET_PICK_MODE_COLORS: Record<string, string> = {
+  user_choice: 'blue',
+  weighted_random: 'purple',
+}
+
+export const PET_PICK_MODE_OPTIONS = Object.entries(PET_PICK_MODE_LABELS).map(
+  ([value, label]) => ({ value, label })
+)
+
+/// 进化条件 type（pet_evo_stages.conditions = [{type, ...}]，全部满足才放行）
+/// 未知 type 服务端直接抛 PET_EVOLVE_COND_INVALID，故只允许下面四值。
+export const PET_EVO_COND_TYPE_LABELS: Record<string, string> = {
+  level: '等级达到',
+  intimacy: '亲密度达到',
+  gold: '消耗金币',
+  item: '消耗道具',
+}
+
+/// 各条件的键位说明（与服务端读取口径一致，配置写错键名即条件形同虚设）
+export const PET_EVO_COND_TYPE_HINTS: Record<string, string> = {
+  level: '读 value：宠物等级 ≥ value',
+  intimacy: '读 value：亲密度 ≥ value',
+  gold: '读 value：多条 gold 会累加后一次性扣钱包，不足报 PET_GOLD_INSUFFICIENT',
+  item: '读 item（item_code）或 item_id（uuid），cost = 消耗数量（缺省 1）；不足报 PET_EVOLVE_COND_NOT_MET',
+}
+
+export const PET_EVO_COND_TYPE_OPTIONS = Object.entries(PET_EVO_COND_TYPE_LABELS).map(
+  ([value, label]) => ({ value, label })
+)
+
+// ---------- P2 成就（pet_achievements，2026-09-23 rpc_pet_achievement_check 已上线） ----------
+//
+// condition_type 11 值 = rpc_pet_achievement_check 的 case 分支白名单；
+// 未列入的取值进度恒为 0（服务端不报错，靠后台配置自检发现拼写错误）。
+// 目标值读取优先级 condition_value.value → .target → 1（_pet_ach_target）。
+
+export const PET_ACH_CONDITION_TYPE_LABELS: Record<string, string> = {
+  feed_total: '累计喂养次数',
+  interact_total: '累计互动次数',
+  hatch_total: '累计孵化次数',
+  adventure_total: '累计历险次数',
+  rescue_total: '累计救助次数',
+  evolve_total: '累计进化次数',
+  breed_egg_total: '累计繁育产蛋次数',
+  level_max: '最高等级达到',
+  pets_owned: '拥有宠物数达到',
+  families_owned: '拥有系别数达到',
+  rarity_owned: '拥有指定评级宠物（condition_value.rarity）',
+}
+
+export const PET_ACH_CONDITION_TYPE_OPTIONS = Object.entries(
+  PET_ACH_CONDITION_TYPE_LABELS
+).map(([value, label]) => ({ value, label }))
+
+/// 需填 condition_value.rarity 的条件类型（其余类型只需目标值）
+export const PET_ACH_CONDITION_RARITY_KEYS = ['rarity_owned']
+
+/// 评级值域（pet_rarities.code 种子四档，与 App PetRarity 对齐）
+export const PET_RARITY_CODE_SELECT_OPTIONS = [
+  { value: 'N', label: 'N 普通' },
+  { value: 'R', label: 'R 稀有' },
+  { value: 'SR', label: 'SR 史诗' },
+  { value: 'SSR', label: 'SSR 传说' },
+]
+
+export const PET_ACH_TIER_TYPES = {
+  NORMAL: 'normal',
+  LEGENDARY: 'legendary',
+} as const
+
+export const PET_ACH_TIER_LABELS: Record<string, string> = {
+  [PET_ACH_TIER_TYPES.NORMAL]: '普通',
+  [PET_ACH_TIER_TYPES.LEGENDARY]: '传说',
+}
+
+export const PET_ACH_TIER_COLORS: Record<string, string> = {
+  normal: 'default',
+  legendary: 'gold',
+}
+
+export const PET_ACH_TIER_OPTIONS = Object.entries(PET_ACH_TIER_LABELS).map(
+  ([value, label]) => ({ value, label })
+)

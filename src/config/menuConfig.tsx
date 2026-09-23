@@ -40,6 +40,10 @@ import {
   GlobalOutlined,
   SlidersOutlined,
   AuditOutlined,
+  NodeIndexOutlined,
+  BulbOutlined,
+  ThunderboltOutlined,
+  PictureOutlined,
 } from '@ant-design/icons'
 
 type HasMenuPermission = (menu: string, perms: string[]) => boolean
@@ -186,7 +190,7 @@ export const buildMenuItems = (
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
-  // 宠物管理（pets 模块：pets:read/write/delete 统管 8 个宠物子页面，同 games 模式）
+  // 宠物管理（pets 模块：pets:read/write/delete 统管 15 个宠物子页面，同 games 模式）
   ...(hasMenuPermission('menu:pets', ['pets:read', 'pets:write', 'pets:delete']) ? [
     {
       key: 'pets',
@@ -201,6 +205,11 @@ export const buildMenuItems = (
         { key: 'pet_egg_pools', icon: <ExperimentOutlined />, label: '蛋池与概率' },
         { key: 'pet_quests', icon: <FlagOutlined />, label: '任务池' },
         { key: 'pet_adventure_spots', icon: <GlobalOutlined />, label: '历险地' },
+        { key: 'pet_evo_chains', icon: <NodeIndexOutlined />, label: '进化链' },
+        { key: 'pet_traits', icon: <BulbOutlined />, label: '特性池' },
+        { key: 'pet_events', icon: <ThunderboltOutlined />, label: '随机事件' },
+        { key: 'pet_achievements', icon: <TrophyOutlined />, label: '成就配置' },
+        { key: 'pet_scenes', icon: <PictureOutlined />, label: '场景管理' },
         { key: 'pet_wallets', icon: <AuditOutlined />, label: '金币流水' },
         { key: 'pet_bag_adjust', icon: <SaveOutlined />, label: '宠物运营' },
       ].filter((item): item is MenuItem => !!item),

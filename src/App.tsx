@@ -78,6 +78,11 @@ const PetWallets = lazy(() => import('./pages/PetWallets'))
 const PetBagAdjust = lazy(() => import('./pages/PetBagAdjust'))
 const PetRarities = lazy(() => import('./pages/PetRarities'))
 const PetPersonalities = lazy(() => import('./pages/PetPersonalities'))
+const PetEvoChains = lazy(() => import('./pages/PetEvoChains'))
+const PetTraits = lazy(() => import('./pages/PetTraits'))
+const PetEvents = lazy(() => import('./pages/PetEvents'))
+const PetAchievements = lazy(() => import('./pages/PetAchievements'))
+const PetScenes = lazy(() => import('./pages/PetScenes'))
 const Profile = lazy(() => import('./pages/Profile'))
 import { supabase } from './utils/supabase'
 import { buildMenuItems } from './config/menuConfig'
@@ -193,6 +198,7 @@ export type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'w
   | 'anniversaries' | 'points' | 'error_logs' | 'recommendations' | 'tts_management' | 'login_logs' | 'checkin'
   | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics' | 'game_items' | 'game_achievements' | 'game_reward_records' | 'game_modes'
   | 'pet_species' | 'pet_items' | 'pet_egg_pools' | 'pet_quests' | 'pet_adventure_spots' | 'pet_config' | 'pet_wallets' | 'pet_bag_adjust' | 'pet_rarities' | 'pet_personalities'
+  | 'pet_evo_chains' | 'pet_traits' | 'pet_events' | 'pet_achievements' | 'pet_scenes'
   | 'profile'
 
 /** 页签导航参数信号：keepalive 页签不重挂载，消费方按 seq 变化感知新参数 */
@@ -423,6 +429,11 @@ const MainLayout: React.FC = () => {
     pet_bag_adjust: PetBagAdjust,
     pet_rarities: PetRarities,
     pet_personalities: PetPersonalities,
+    pet_evo_chains: PetEvoChains,
+    pet_traits: PetTraits,
+    pet_events: PetEvents,
+    pet_achievements: PetAchievements,
+    pet_scenes: PetScenes,
     profile: Profile,
   }
 

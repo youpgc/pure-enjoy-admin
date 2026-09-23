@@ -12,9 +12,18 @@ import type {
   PetWalletRow,
   PetWalletRecordRow,
   PetItemFlowRow,
+  PetEvoChainRow,
+  PetEvoStageRow,
+  PetTraitRow,
+  PetRandomEventRow,
+  PetAchievementRow,
+  PetSceneRow,
+  PetAchievementProgressRow,
 } from '../types/pet'
 
-// ==================== 宠物系统数据服务（Admin P1，10 表各继承 BaseService 八法） ====================
+// ==================== 宠物系统数据服务（Admin，18 表各继承 BaseService 八法） ====================
+//
+// P1 十表 + P2 七表（进化链/阶段、特性、随机事件、成就、场景、成就进度）。
 //
 // 列清单 = feature_pet_tables_20260916.sql 真实 DDL（⚠️ 新加列必须同步 select 白名单，
 // 否则编辑回显空 + 保存覆写清空云端值——见 pure-enjoy-admin-dev §3 显式 select 红线）。
@@ -207,6 +216,102 @@ class PetItemFlowService extends BaseService<PetItemFlowRow> {
   }
 }
 
+// ==================== P2 配置表服务（2026-09-23 RPC 上线配套，7 表） ====================
+
+// 进化链主表
+class PetEvoChainService extends BaseService<PetEvoChainRow> {
+  constructor() {
+    super('pet_evo_chains', {
+      defaultOrder: { column: 'code', ascending: true },
+      select: 'id,code,family,max_stage,created_at,updated_at',
+    })
+  }
+}
+
+// 进化阶段（子表：按链过滤）
+class PetEvoStageService extends BaseService<PetEvoStageRow> {
+  constructor() {
+    super('pet_evo_stages', {
+      defaultOrder: { column: 'stage', ascending: true },
+      select:
+        'id,chain_id,stage,species_id,conditions,branch_key,branch_weight,pick_mode,created_at,updated_at',
+    })
+  }
+
+  /// 按链取全部阶段（链内阶段数很小，客户端排序/分组即可）
+  findByChain(chainId: string) {
+    return this.findAll((q) => q.eq('chain_id', chainId))
+  }
+}
+
+// 特性池
+class PetTraitService extends BaseService<PetTraitRow> {
+  constructor() {
+    super('pet_traits', {
+      defaultOrder: { column: 'code', ascending: true },
+      select:
+        'id,code,name,effect_type,effect_params,weight,family,species_code,enabled,created_at,updated_at',
+    })
+  }
+}
+
+// 随机事件
+class PetRandomEventService extends BaseService<PetRandomEventRow> {
+  constructor() {
+    super('pet_random_events', {
+      defaultOrder: { column: 'code', ascending: true },
+      select: 'id,code,context,weight,content,enabled,created_at,updated_at',
+    })
+  }
+}
+
+// 成就
+class PetAchievementService extends BaseService<PetAchievementRow> {
+  constructor() {
+    super('pet_achievements', {
+      defaultOrder: { column: 'sort_order', ascending: true },
+      select:
+        'id,code,title,icon,condition_type,condition_value,reward_package,tier,sort_order,enabled,created_at,updated_at',
+    })
+  }
+}
+
+// 场景/背景主题
+class PetSceneService extends BaseService<PetSceneRow> {
+  constructor() {
+    super('pet_scenes', {
+      defaultOrder: { column: 'scene_code', ascending: true },
+      select: 'id,scene_code,name,asset_ref,is_default,price_coin,on_shelf,created_at,updated_at',
+    })
+  }
+}
+
+// 成就用户进度（运营查看：嵌入成就编码/名称/档位，避免页面自建映射）
+class PetAchievementProgressService extends BaseService<PetAchievementProgressRow> {
+  constructor() {
+    super('pet_achievement_progress', {
+      defaultOrder: { column: 'created_at', ascending: false },
+      select:
+        'id,user_id,achievement_id,progress,completed_at,claimed_at,created_at,pet_achievements(code,title,tier,condition_value)',
+    })
+  }
+
+  paginateProgress(
+    page: number,
+    pageSize: number,
+    options?: { achievementId?: string; userIds?: string[] }
+  ) {
+    return this.paginate(page, pageSize, (q) => {
+      let builder = q
+      if (options?.achievementId) builder = builder.eq('achievement_id', options.achievementId)
+      if (options?.userIds && options.userIds.length > 0) {
+        builder = (builder as any).in('user_id', options.userIds)
+      }
+      return builder
+    })
+  }
+}
+
 // ==================== 客服金币调整（RPC：rpc_pet_admin_wallet_adjust） ====================
 // 调整逻辑在服务端 RPC 内完成（钱包行锁 + 流水双写 pet_admin_grant），前端只传参；
 // 调整后余额以页面重新拉取为准。RPC DDL 见 D:\workspace\sql\feature_pet_admin_20260916.sql。
@@ -234,6 +339,13 @@ export {
   PetWalletService,
   PetWalletRecordService,
   PetItemFlowService,
+  PetEvoChainService,
+  PetEvoStageService,
+  PetTraitService,
+  PetRandomEventService,
+  PetAchievementService,
+  PetSceneService,
+  PetAchievementProgressService,
   adminAdjustWallet,
 }
 
@@ -248,3 +360,10 @@ export const petQuestService = new PetQuestService()
 export const petWalletService = new PetWalletService()
 export const petWalletRecordService = new PetWalletRecordService()
 export const petItemFlowService = new PetItemFlowService()
+export const petEvoChainService = new PetEvoChainService()
+export const petEvoStageService = new PetEvoStageService()
+export const petTraitService = new PetTraitService()
+export const petRandomEventService = new PetRandomEventService()
+export const petAchievementService = new PetAchievementService()
+export const petSceneService = new PetSceneService()
+export const petAchievementProgressService = new PetAchievementProgressService()

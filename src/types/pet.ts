@@ -221,3 +221,105 @@ export interface PetItemFlowRow {
   ref_id: string | null
   created_at: string
 }
+
+// ==================== P2 配置表（2026-09-23 RPC 已上线，本段列清单 = 同一份 DDL） ====================
+
+/// 1.4 进化链主表（pet_evo_chains；种子 40 行 = 每种属一条 chain_<species_code>）
+export interface PetEvoChainRow {
+  id: string
+  code: string
+  family: string
+  max_stage: number
+  created_at: string
+  updated_at: string
+}
+
+/// 1.5 进化阶段（pet_evo_stages；unique(chain_id, stage, species_id)）
+/// conditions：[{type:level|intimacy|gold,value}] / [{type:item,item|item_id,cost}]
+/// pick_mode：user_choice（玩家抉择）/ weighted_random（按 branch_weight 掷）
+export interface PetEvoStageRow {
+  id: string
+  chain_id: string
+  stage: number
+  species_id: string
+  conditions: Json
+  branch_key: string
+  branch_weight: number
+  pick_mode: string
+  created_at: string
+  updated_at: string
+}
+
+/// 1.6 特性池（pet_traits；三级池优先级 species_code > family > 全局）
+/// ⚠️ effect_type/effect_params 值域 P2 未定版，服务端 _pet_trait_roll 只掷不读，
+/// 故后台按文本录入，不建枚举常量（不发明值域）。
+export interface PetTraitRow {
+  id: string
+  code: string
+  name: string
+  effect_type: string
+  effect_params: Json
+  weight: number
+  family: string | null
+  species_code: string | null
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+/// 1.10 随机事件（pet_random_events，单表；选项内嵌 content）
+/// ⚠️ content 结构（文案 + 2~3 选项 + 奖惩包）与 context 值域均未定版、暂无 RPC 消费，
+/// 后台走 JsonFormItem 编辑，不发明 schema 校验。
+export interface PetRandomEventRow {
+  id: string
+  code: string
+  context: string
+  weight: number
+  content: Json
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+/// 1.13 成就（pet_achievements；reward_package schema 与任务 rewards 同源）
+export interface PetAchievementRow {
+  id: string
+  code: string
+  title: string
+  icon: string | null
+  condition_type: string
+  condition_value: Json
+  reward_package: Json
+  tier: string
+  sort_order: number
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+/// 1.4b 场景/背景主题（pet_scenes；pet_items.bg_scene_id 无 FK，纯代码关联）
+export interface PetSceneRow {
+  id: string
+  scene_code: string
+  name: string
+  asset_ref: string | null
+  is_default: boolean
+  price_coin: number | null
+  on_shelf: boolean
+  created_at: string
+  updated_at: string
+}
+
+/// 2.x 成就用户进度（pet_achievement_progress，服务端 check 幂等重算、只增不减）
+/// 页面用 select('*, pet_achievements(code,title,tier,condition_value)') 取嵌入对象
+/// （外键多对一 → 对象而非数组），避免页面自建成就映射。
+export interface PetAchievementProgressRow {
+  id: string
+  user_id: string
+  achievement_id: string
+  progress: number
+  completed_at: string | null
+  claimed_at: string | null
+  created_at: string
+  pet_achievements?: { code: string; title: string; tier: string; condition_value: Json } | null
+}
