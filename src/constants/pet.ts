@@ -5,6 +5,9 @@
 // 页面禁止硬编码枚举值，一律从本文件导入。
 
 // ---------- 金币流水来源（蓝图 §六.2，双账本来源枚举） ----------
+//
+// 值域与 App `lib/constants/pet.dart` 的 PetWalletSourceType 一一对应（铁律 12）；
+// pet_feature_spend 由 feature_pet_p2_rpcs_20260923.sql 新增（金币档孵化加速花费）。
 
 export const PET_SOURCE_TYPES = {
   SHOP_BUY: 'pet_shop_buy',
@@ -13,6 +16,7 @@ export const PET_SOURCE_TYPES = {
   EXCHANGE: 'pet_exchange',
   ADMIN_GRANT: 'pet_admin_grant',
   ADVENTURE_PENALTY: 'pet_adventure_penalty',
+  FEATURE_SPEND: 'pet_feature_spend',
 } as const
 
 export const PET_SOURCE_TYPE_LABELS: Record<string, string> = {
@@ -22,6 +26,7 @@ export const PET_SOURCE_TYPE_LABELS: Record<string, string> = {
   pet_exchange: '积分兑换',
   pet_admin_grant: '客服调整',
   pet_adventure_penalty: '历险惩罚',
+  pet_feature_spend: '功能消耗',
 }
 
 export const PET_SOURCE_TYPE_COLORS: Record<string, string> = {
@@ -31,6 +36,7 @@ export const PET_SOURCE_TYPE_COLORS: Record<string, string> = {
   pet_exchange: 'blue',
   pet_admin_grant: 'purple',
   pet_adventure_penalty: 'red',
+  pet_feature_spend: 'cyan',
 }
 
 export const PET_SOURCE_TYPE_OPTIONS = Object.entries(PET_SOURCE_TYPE_LABELS).map(
@@ -198,17 +204,32 @@ export const PET_PERMS = {
 // - 历险 rescue_params：读 self_window_minutes（缺省 120）；
 // - 历险 drop_table：<result>.gold[min,max] / exp[min,max] / items[{code,min,max,p}]。
 
-/// 消耗品 effect.type（rpc_pet_use_item 白名单，fix_pet_review_20260920.sql：feed/clean/toy/heal）
+/// 道具效果类型（rpc_pet_use_item 认 feed/clean/toy/heal/refine_point；
+/// rescue 只用于历险自救（sub_type='rescue' 或 effect.type='rescue' 二者之一）；
+/// P2 三类各由专属 RPC 卡键——hatch_accel→rpc_pet_hatch_accelerate、
+/// trait_wash→rpc_pet_wash_trait（category 必须 consumable）、unlock→rpc_pet_unlock_feature；
+/// refine_reassign 是旧属性洗练语义，仅历史数据兜底展示，新配置不得再写。
+/// 值域与 App PetItemEffectType 一一对应（铁律 12））
 export const PET_EFFECT_TYPE_LABELS: Record<string, string> = {
   feed: '喂养（饱食）',
   clean: '清洁（心情）',
   toy: '玩耍（心情）',
   heal: '疗伤（健康，effect.value）',
+  rescue: '历险自救',
+  refine_point: '洗练点补给',
+  refine_reassign: '属性重掷（已下线）',
+  hatch_accel: '孵化加速（effect.minutes）',
+  trait_wash: '特性洗练',
+  unlock: '功能解锁（effect.feature，当前仅 breeding）',
 }
 
-export const PET_EFFECT_TYPE_OPTIONS = Object.entries(PET_EFFECT_TYPE_LABELS).map(
-  ([value, label]) => ({ value, label })
-)
+/// 消耗品「效果类型」下拉可选项：LABELS 的超集用于历史数据兜底展示，
+/// 这两类不许再新建（rescue 是工具类自救道具走 JSON 编辑；refine_reassign 语义已下线）。
+const PET_EFFECT_TYPE_NOT_CONFIGURABLE = ['rescue', 'refine_reassign']
+
+export const PET_EFFECT_TYPE_OPTIONS = Object.entries(PET_EFFECT_TYPE_LABELS)
+  .filter(([value]) => !PET_EFFECT_TYPE_NOT_CONFIGURABLE.includes(value))
+  .map(([value, label]) => ({ value, label }))
 
 /// 任务条件 type（服务端 _pet_quest_bump 的 bump 键；feed/use_item、interact/互动、adventure/claim、hatch/孵化）
 export const PET_CONDITION_TYPE_LABELS: Record<string, string> = {
