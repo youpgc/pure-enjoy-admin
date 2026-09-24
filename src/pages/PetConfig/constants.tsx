@@ -43,6 +43,7 @@ export const MODULES: ModuleMeta[] = [
       { field: 'free_feed_cooldown_min', label: '免费喂养冷却（分钟）', format: fmtNum },
       { field: 'free_feed_hunger', label: '免费喂养饱食恢复', desc: 'rpc_pet_feed 免费档效果', format: fmtNum },
       { field: 'free_feed_exp', label: '免费喂养经验获得', format: fmtNum },
+      { field: 'feed_full_hunger', label: '饱腹阈值（饱食度）', desc: '达到即停喂：App 喂食钮置灰与 rpc_pet_feed 的 PET_ALREADY_FULL 同源', format: fmtNum },
       { field: 'interact_cooldown_min', label: '互动冷却（分钟）', desc: 'rpc_pet_interact 两次互动最小间隔', format: fmtNum },
       { field: 'interact_daily', label: '互动次数 / 天', desc: 'rpc_pet_interact 每日上限', format: fmtNum },
       { field: 'interact_mood', label: '互动心情恢复', desc: 'rpc_pet_interact 单次效果', format: fmtNum },

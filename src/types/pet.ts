@@ -40,6 +40,8 @@ export interface PetConfigRow {
   level_exp_growth: number
   free_feed_hunger: number
   free_feed_exp: number
+  /// 饱腹阈值（2026-09-24）：App 喂食钮置灰与 rpc_pet_feed 的 PET_ALREADY_FULL 同源
+  feed_full_hunger: number
   interact_mood: number
   decay_hunger_per_hour: number
   decay_mood_per_hour: number

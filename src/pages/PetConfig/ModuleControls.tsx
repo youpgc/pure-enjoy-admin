@@ -54,6 +54,9 @@ export const renderModuleControls = (
           <Form.Item name="free_feed_exp" label="免费喂养经验获得" rules={[{ required: true }]}>
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
+          <Form.Item name="feed_full_hunger" label="饱腹阈值（饱食度）" rules={[{ required: true }]}>
+            <InputNumber min={0} max={100} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
           <Form.Item name="interact_cooldown_min" label="互动冷却（分钟）" rules={[{ required: true }]}>
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
