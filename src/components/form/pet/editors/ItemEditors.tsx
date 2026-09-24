@@ -9,9 +9,11 @@ import {
 
 // ==================== 道具相关结构化编辑器（effect / newbie_package） ====================
 //
-// effect 结构实证：
-// - 蛋类（category=egg）：{pool: 蛋池编码, mode: instant|wait}（rpc_pet_hatch_instant）；
-// - 消耗品：{type: feed|clean|toy, hunger?, mood?, exp?}（rpc_pet_use_item 白名单）；
+// effect 结构实证（以已执行 SQL 的服务端取数口径为准）：
+// - 蛋类（category=egg）：{pool: 蛋池编码, mode: instant|wait, wait_hours?: 小时}
+//   （rpc_pet_hatch_instant；wait_hours 仅 mode=wait 生效，留空回落 pet_config.ssr_hatch_wait_hours）；
+// - 消耗品：{type: feed|clean|toy|heal|refine_point, hunger?, mood?, exp?, value?}
+//   （rpc_pet_use_item 白名单；value = heal 恢复健康量 / refine_point 获得洗练点数）；
 // - 工具/其他：开放结构（ladder/rescue 等）→ 保留 JSON 高级编辑。
 
 export interface ItemOption {
@@ -37,10 +39,17 @@ export const EffectEditor: React.FC<EffectEditorProps> = ({
 }) => {
   const obj = asObject(value)
 
-  // —— 蛋类：pool + mode ——
+  // —— 蛋类：pool + mode（wait 时另有 wait_hours） ——
   if (category === 'egg') {
-    const known = ['pool', 'mode']
+    const known = ['pool', 'mode', 'wait_hours']
     const extra = extraKeys(value, known)
+    const mode = typeof obj.mode === 'string' ? obj.mode : 'instant'
+    const setField = (key: string, v: unknown) => {
+      const next = { ...obj }
+      if (v === null || v === undefined || v === '') delete next[key]
+      else next[key] = v
+      onChange?.(next)
+    }
     return (
       <div>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
@@ -59,12 +68,26 @@ export const EffectEditor: React.FC<EffectEditorProps> = ({
           <Typography.Text style={{ width: 110, flexShrink: 0 }}>孵化方式</Typography.Text>
           <Select
             style={{ width: 220 }}
-            value={typeof obj.mode === 'string' ? obj.mode : 'instant'}
+            value={mode}
             options={PET_EGG_MODE_OPTIONS}
             disabled={disabled}
-            onChange={(v) => onChange?.({ ...obj, mode: v })}
+            onChange={(v) => setField('mode', v)}
           />
         </div>
+        {(mode === 'wait' || obj.wait_hours !== undefined) && (
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 110, flexShrink: 0 }}>等待时长</Typography.Text>
+            <InputNumber
+              style={{ width: 160 }}
+              min={1}
+              addonAfter="小时"
+              value={numOf(obj.wait_hours, undefined) ?? undefined}
+              placeholder="留空用全局时长"
+              disabled={disabled}
+              onChange={(v) => setField('wait_hours', typeof v === 'number' ? v : null)}
+            />
+          </div>
+        )}
         {Object.keys(extra).length > 0 && (
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             其余扩展键已保留：{Object.keys(extra).join('、')}
@@ -74,10 +97,11 @@ export const EffectEditor: React.FC<EffectEditorProps> = ({
     )
   }
 
-  // —— 消耗品：type + hunger/mood/exp ——
+  // —— 消耗品：type + hunger/mood/exp + value ——
   if (category === 'consumable') {
-    const known = ['type', 'hunger', 'mood', 'exp']
+    const known = ['type', 'hunger', 'mood', 'exp', 'value']
     const extra = extraKeys(value, known)
+    const type = typeof obj.type === 'string' ? obj.type : ''
     const setField = (key: string, v: unknown) => {
       const next = { ...obj }
       if (v === null || v === undefined || v === '') delete next[key]
@@ -90,7 +114,7 @@ export const EffectEditor: React.FC<EffectEditorProps> = ({
           <Typography.Text style={{ width: 110, flexShrink: 0 }}>效果类型</Typography.Text>
           <Select
             style={{ width: 220 }}
-            value={typeof obj.type === 'string' ? obj.type : undefined}
+            value={type || undefined}
             placeholder="选择效果类型（服务端白名单）"
             options={PET_EFFECT_TYPE_OPTIONS}
             disabled={disabled}
@@ -112,6 +136,21 @@ export const EffectEditor: React.FC<EffectEditorProps> = ({
             />
           </div>
         ))}
+        {(type === 'heal' || type === 'refine_point' || obj.value !== undefined) && (
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 110, flexShrink: 0 }}>
+              {type === 'refine_point' ? '洗练点数' : '健康恢复'}
+            </Typography.Text>
+            <InputNumber
+              style={{ width: 160 }}
+              min={0}
+              value={numOf(obj.value, undefined) ?? undefined}
+              placeholder={type === 'refine_point' ? '留空 = 1 点' : '留空 = 不恢复'}
+              disabled={disabled}
+              onChange={(v) => setField('value', typeof v === 'number' ? v : null)}
+            />
+          </div>
+        )}
         {Object.keys(extra).length > 0 && (
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             其余扩展键已保留：{Object.keys(extra).join('、')}
