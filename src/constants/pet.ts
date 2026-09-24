@@ -4,6 +4,9 @@
 // 值域以线上 DDL check 约束为唯一真相源（feature_pet_tables_20260916.sql）。
 // 页面禁止硬编码枚举值，一律从本文件导入。
 
+/// 宠物模块所有后台表格统一默认每页条数（2026-09-24 定版）
+export const PET_TABLE_PAGE_SIZE = 10
+
 // ---------- 金币流水来源（蓝图 §六.2，双账本来源枚举） ----------
 //
 // 值域与 App `lib/constants/pet.dart` 的 PetWalletSourceType 一一对应（铁律 12）；

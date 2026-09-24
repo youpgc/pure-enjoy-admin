@@ -6,7 +6,11 @@ import type { PetAdventureSpotRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petAdventureSpotService } from '../../services/petService'
-import { PET_ADVENTURE_RESULT_LABELS, PET_ATTR_LABELS } from '../../constants/pet'
+import {
+  PET_ADVENTURE_RESULT_LABELS,
+  PET_ATTR_LABELS,
+  PET_TABLE_PAGE_SIZE,
+} from '../../constants/pet'
 import SpotFormModal, { type SpotFormValues } from './SpotFormModal'
 import common from '../../styles/common.module.css'
 
@@ -215,7 +219,7 @@ const PetAdventureSpots: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        pagination={false}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
         scroll={{ x: 1000 }}
       />

@@ -4,7 +4,7 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { PetAchievementRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { petAchievementService, petItemService } from '../../services/petService'
-import { PET_ACH_TIER_OPTIONS } from '../../constants/pet'
+import { PET_ACH_TIER_OPTIONS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { buildAchievementColumns } from './columns'
 import AchievementFormModal, { type AchievementFormValues } from './AchievementFormModal'
 import common from '../../styles/common.module.css'
@@ -17,7 +17,7 @@ export interface AchievementOption {
   title: string
 }
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = PET_TABLE_PAGE_SIZE
 
 const AchievementsTab: React.FC<{ onRowsChange: (rows: AchievementOption[]) => void }> = ({
   onRowsChange,

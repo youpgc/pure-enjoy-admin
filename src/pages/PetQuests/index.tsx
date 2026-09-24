@@ -6,7 +6,7 @@ import type { PetQuestRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petQuestService, petItemService } from '../../services/petService'
-import { PET_QUEST_TYPE_LABELS, PET_QUEST_DIFFICULTY_LABELS, PET_QUEST_DIFFICULTY_COLORS, PET_QUEST_TYPE_OPTIONS, PET_QUEST_DIFFICULTY_OPTIONS } from '../../constants/pet'
+import { PET_QUEST_TYPE_LABELS, PET_QUEST_DIFFICULTY_LABELS, PET_QUEST_DIFFICULTY_COLORS, PET_QUEST_TYPE_OPTIONS, PET_QUEST_DIFFICULTY_OPTIONS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import QuestFormModal, { type QuestFormValues } from './QuestFormModal'
 import common from '../../styles/common.module.css'
 
@@ -190,7 +190,7 @@ const PetQuests: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: 20, showSizeChanger: false }}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
       />
       <QuestFormModal

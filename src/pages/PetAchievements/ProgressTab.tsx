@@ -5,12 +5,13 @@ import type { PetAchievementProgressRow } from '../../types/pet'
 import { petAchievementProgressService } from '../../services/petService'
 import { userService } from '../../services/userService'
 import { useUsernames } from '../../hooks/useUsernames'
+import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { buildProgressColumns } from './progressColumns'
 import common from '../../styles/common.module.css'
 
 // ==================== 用户成就进度查询（Tab 2，只读） ====================
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = PET_TABLE_PAGE_SIZE
 
 const ProgressTab: React.FC<{
   achievements: Array<{ id: string; code: string; title: string }>

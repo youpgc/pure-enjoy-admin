@@ -21,7 +21,7 @@ import { petItemFlowService, adminAdjustWallet, petWalletService } from '../../s
 import { userService } from '../../services/userService'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
-import { PET_FLOW_BIZ_LABELS, PET_FLOW_BIZ_OPTIONS } from '../../constants/pet'
+import { PET_FLOW_BIZ_LABELS, PET_FLOW_BIZ_OPTIONS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { formatDateTime } from '../../utils/format'
 import common from '../../styles/common.module.css'
 
@@ -33,7 +33,7 @@ import common from '../../styles/common.module.css'
 //   是「误删申诉」的对账依据；道具增减本身可恢复与否以流水为准（丢弃不可恢复）。
 // 页面定位：宠物运营操作台（资金调整 + 流水审计）；金币流水查询在「金币流水」页。
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = PET_TABLE_PAGE_SIZE
 
 interface UserOption {
   value: string

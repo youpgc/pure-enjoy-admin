@@ -6,7 +6,7 @@ import type { PetEvoStageRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { petEvoStageService, petItemService, petSpeciesService } from '../../services/petService'
 import { getActionColumn } from '../../components/common/ActionColumn'
-import { PET_PICK_MODE_COLORS, PET_PICK_MODE_LABELS } from '../../constants/pet'
+import { PET_PICK_MODE_COLORS, PET_PICK_MODE_LABELS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { asArray } from '../../components/form/pet/editors/shared'
 import StageFormModal, { type StageFormValues } from './StageFormModal'
 import type { ChainOption } from './ChainsTab'
@@ -192,7 +192,7 @@ const StagesTab: React.FC<{
           loading={loading}
           columns={columns}
           dataSource={rows}
-          pagination={{ pageSize: 20, showSizeChanger: false }}
+          pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
           size="middle"
           scroll={{ x: 1000 }}
         />

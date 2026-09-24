@@ -6,7 +6,7 @@ import type { PetPersonalityRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petPersonalityService } from '../../services/petService'
-import { PET_ATTR_LABELS } from '../../constants/pet'
+import { PET_ATTR_LABELS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import PersonalityFormModal, { type PersonalityFormValues } from './PersonalityFormModal'
 import common from '../../styles/common.module.css'
 
@@ -159,7 +159,7 @@ const PetPersonalities: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        pagination={false}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
         scroll={{ x: 900 }}
       />

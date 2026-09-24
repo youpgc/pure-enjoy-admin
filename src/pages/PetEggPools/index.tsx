@@ -7,6 +7,7 @@ import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petEggPoolService } from '../../services/petService'
 import { stringifyJson } from '../../utils/petJson'
+import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import PoolFormModal, { type PoolFormValues } from './PoolFormModal'
 import common from '../../styles/common.module.css'
 
@@ -178,7 +179,7 @@ const PetEggPools: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        pagination={false}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
       />
       <PoolFormModal

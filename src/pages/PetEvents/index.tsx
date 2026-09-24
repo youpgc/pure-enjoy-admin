@@ -4,6 +4,7 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { PetRandomEventRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { petRandomEventService } from '../../services/petService'
+import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { buildEventColumns } from './columns'
 import EventFormModal, { type EventFormValues } from './EventFormModal'
 import common from '../../styles/common.module.css'
@@ -135,7 +136,7 @@ const PetEvents: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: 20, showSizeChanger: false }}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
       />
       <EventFormModal

@@ -14,6 +14,7 @@ import {
   PET_ITEM_CHANNEL_LABELS,
   PET_LADDER_KEY_LABELS,
   PET_LADDER_KEY_COLORS,
+  PET_TABLE_PAGE_SIZE,
 } from '../../constants/pet'
 import ItemFormModal, { type ItemFormValues } from './ItemFormModal'
 import common from '../../styles/common.module.css'
@@ -315,7 +316,7 @@ const PetItems: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: 20, showSizeChanger: false }}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
         scroll={{ x: 1100 }}
       />

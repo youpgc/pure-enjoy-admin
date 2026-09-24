@@ -6,7 +6,7 @@ import type { PetEvoChainRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { petEvoChainService } from '../../services/petService'
 import { getActionColumn } from '../../components/common/ActionColumn'
-import { PET_FAMILY_LABELS, PET_FAMILY_OPTIONS } from '../../constants/pet'
+import { PET_FAMILY_LABELS, PET_FAMILY_OPTIONS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import ChainFormModal, { type ChainFormValues } from './ChainFormModal'
 import common from '../../styles/common.module.css'
 
@@ -157,7 +157,7 @@ const ChainsTab: React.FC<{
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: 20, showSizeChanger: false }}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
       />
       <ChainFormModal

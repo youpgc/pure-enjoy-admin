@@ -4,7 +4,7 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { PetTraitRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { petSpeciesService, petTraitService } from '../../services/petService'
-import { PET_FAMILY_LABELS, PET_FAMILY_OPTIONS } from '../../constants/pet'
+import { PET_FAMILY_LABELS, PET_FAMILY_OPTIONS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { buildTraitColumns } from './columns'
 import TraitFormModal, { type TraitFormValues } from './TraitFormModal'
 import common from '../../styles/common.module.css'
@@ -167,7 +167,7 @@ const PetTraits: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: 20, showSizeChanger: false }}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
       />
       <TraitFormModal

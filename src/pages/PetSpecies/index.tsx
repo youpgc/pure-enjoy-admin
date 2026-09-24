@@ -6,7 +6,7 @@ import type { PetSpeciesRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petSpeciesService, petRarityService } from '../../services/petService'
-import { PET_FAMILY_LABELS, PET_FAMILY_OPTIONS } from '../../constants/pet'
+import { PET_FAMILY_LABELS, PET_FAMILY_OPTIONS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import SpeciesFormModal, { type SpeciesFormValues } from './SpeciesFormModal'
 import SpeciesPreviewModal from './SpeciesPreviewModal'
 import common from '../../styles/common.module.css'
@@ -302,7 +302,7 @@ const PetSpecies: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={groups}
-        pagination={{ pageSize: 20, showSizeChanger: false }}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
         scroll={{ x: 1100 }}
       />

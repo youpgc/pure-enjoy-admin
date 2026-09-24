@@ -10,6 +10,7 @@ import {
   PET_SOURCE_TYPE_LABELS,
   PET_SOURCE_TYPE_COLORS,
   PET_SOURCE_TYPE_OPTIONS,
+  PET_TABLE_PAGE_SIZE,
 } from '../../constants/pet'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
@@ -19,7 +20,7 @@ import common from '../../styles/common.module.css'
 // ==================== 金币钱包与流水（pet_wallets / pet_wallet_records） ====================
 // 流水按来源筛选（source_type 五枚举，蓝图 §六.2）；append-only 只读，不做增删改。
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = PET_TABLE_PAGE_SIZE
 
 /// 单条流水变动展示（正绿负红，与积分流水同口径）
 const DeltaText: React.FC<{ value: number }> = ({ value }) => (

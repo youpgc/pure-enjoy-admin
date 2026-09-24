@@ -6,6 +6,7 @@ import type { PetRarityRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petRarityService } from '../../services/petService'
+import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import RarityFormModal, { type RarityFormValues } from './RarityFormModal'
 import common from '../../styles/common.module.css'
 
@@ -137,7 +138,7 @@ const PetRarities: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        pagination={false}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
         scroll={{ x: 700 }}
       />

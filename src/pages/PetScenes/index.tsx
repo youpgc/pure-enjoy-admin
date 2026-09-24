@@ -4,6 +4,7 @@ import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { PetSceneRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { petSceneService } from '../../services/petService'
+import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { buildSceneColumns } from './columns'
 import SceneFormModal, { type SceneFormValues } from './SceneFormModal'
 import common from '../../styles/common.module.css'
@@ -138,7 +139,7 @@ const PetScenes: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: 20, showSizeChanger: false }}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
       />
       <SceneFormModal
