@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Card,
   Table,
@@ -48,6 +48,8 @@ const RolePermissionPage: React.FC = () => {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const [selectedPermissions, setSelectedPermissions] = useState<number[]>([])
+  // 编辑弹窗打开时的原始权限 id 快照：保存时做 diff（只增删变化项，审查报告 Admin#四.5）
+  const originalPermsRef = useRef<number[]>([])
   const { hasPermission } = usePermission()
 
   // 加载角色列表
@@ -92,7 +94,9 @@ const RolePermissionPage: React.FC = () => {
         .eq('role_id', roleId)
 
       if (error) throw error
-      setSelectedPermissions(data?.map((rp: { permission_id: number }) => rp.permission_id) || [])
+      const ids = data?.map((rp: { permission_id: number }) => rp.permission_id) || []
+      originalPermsRef.current = ids
+      setSelectedPermissions(ids)
     } catch (error) {
       handleApiError(error, 'RolePermission-加载角色权限')
     }
@@ -141,11 +145,23 @@ const RolePermissionPage: React.FC = () => {
 
         if (error) throw error
 
-        // 更新权限关联
-        await roleService.deleteRolePermissions(editingRole.id)
+        // ★ 权限关联 diff 更新（审查报告 Admin#四.5）：此前「全删再重插」非原子，
+        //   重插中途失败 = 该角色权限整体清空、在线用户瞬时失权。现只删移除项、
+        //   只插新增项，未变更项不受任何一步失败影响。
+        const original = originalPermsRef.current
+        const toRemove = original.filter(pid => !selectedPermissions.includes(pid))
+        const toAdd = selectedPermissions.filter(pid => !original.includes(pid))
 
-        if (selectedPermissions.length > 0) {
-          const rolePerms = selectedPermissions.map(pid => ({
+        if (toRemove.length > 0) {
+          const { error: delError } = await roleService.deleteRolePermissionsByIds(
+            editingRole.id,
+            toRemove,
+          )
+          if (delError) throw delError
+        }
+
+        if (toAdd.length > 0) {
+          const rolePerms = toAdd.map(pid => ({
             role_id: editingRole.id,
             permission_id: pid,
           }))
