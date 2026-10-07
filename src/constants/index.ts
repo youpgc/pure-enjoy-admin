@@ -6,7 +6,7 @@
  * 2. 页面组件和工具函数从对应子模块或本文件导入，禁止自行硬编码
  * 3. dictService.ts 的 fallback 值也必须与此保持一致
  *
- * 注意：本文件仅做 barrel 重导出，新增枚举请放到对应域子模块（roles/permissions/novel/...），
+ * 注意：本文件仅做 barrel 重导出，新增枚举请放到对应域子模块（roles/permissions/...），
  * 既有 `import { X } from '../constants'` 无需改动。
  */
 
@@ -14,10 +14,8 @@ export * from './roles'
 export * from './errors'
 export * from './permissions'
 export * from './operationLog'
-export * from './novel'
 export * from './feedback'
 export * from './announcement'
-export * from './annotations'
 export * from './notification'
 export * from './sensitive'
 export * from './version'

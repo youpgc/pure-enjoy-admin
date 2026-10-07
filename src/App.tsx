@@ -30,7 +30,6 @@ const Expenses = lazy(() => import('./pages/Expenses'))
 const MoodDiaries = lazy(() => import('./pages/MoodDiaries'))
 const WeightRecords = lazy(() => import('./pages/WeightRecords'))
 const Notes = lazy(() => import('./pages/Notes'))
-const Novels = lazy(() => import('./pages/Novels'))
 const VersionManagement = lazy(() => import('./pages/VersionManagement'))
 const RolePermission = lazy(() => import('./pages/RolePermission'))
 const Analytics = lazy(() => import('./pages/Analytics'))
@@ -41,7 +40,6 @@ const Reminders = lazy(() => import('./pages/Reminders'))
 const Habits = lazy(() => import('./pages/Habits'))
 const Anniversaries = lazy(() => import('./pages/Anniversaries'))
 const AppConfigs = lazy(() => import('./pages/AppConfigs'))
-const NovelBookshelves = lazy(() => import('./pages/NovelBookshelves'))
 const DictManagement = lazy(() => import('./pages/DictManagement'))
 const SensitiveWords = lazy(() => import('./pages/SensitiveWords'))
 const SensitiveWordAnalytics = lazy(() => import('./pages/SensitiveWordAnalytics'))
@@ -52,12 +50,6 @@ const Feedback = lazy(() => import('./pages/Feedback'))
 const PointsManagement = lazy(() => import('./pages/PointsManagement'))
 const CheckinManagement = lazy(() => import('./pages/CheckinManagement'))
 const ErrorLogs = lazy(() => import('./pages/ErrorLogs'))
-const NovelComments = lazy(() => import('./pages/NovelComments'))
-const Rankings = lazy(() => import('./pages/Rankings'))
-const Bookmarks = lazy(() => import('./pages/Bookmarks'))
-const Annotations = lazy(() => import('./pages/Annotations'))
-const Recommendations = lazy(() => import('./pages/Recommendations'))
-const TtsManagement = lazy(() => import('./pages/TtsManagement'))
 const LoginLogs = lazy(() => import('./pages/LoginLogs'))
 const GameConfigs = lazy(() => import('./pages/GameConfigs'))
 const GameLevels = lazy(() => import('./pages/GameLevels'))
@@ -192,10 +184,10 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 // ========== Navigation Context ==========
 export type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'weight' | 'notes' |
-  'novels' | 'novel_bookshelves' | 'novel_comments' | 'rankings' | 'bookmarks' | 'annotations' | 'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
+  'versions' | 'analytics' | 'operation_logs' | 'system_monitor' |
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
-  | 'anniversaries' | 'points' | 'error_logs' | 'recommendations' | 'tts_management' | 'login_logs' | 'checkin'
+  | 'anniversaries' | 'points' | 'error_logs' | 'login_logs' | 'checkin'
   | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics' | 'game_items' | 'game_achievements' | 'game_reward_records' | 'game_modes'
   | 'pet_species' | 'pet_items' | 'pet_egg_pools' | 'pet_quests' | 'pet_adventure_spots' | 'pet_config' | 'pet_wallets' | 'pet_bag_adjust' | 'pet_rarities' | 'pet_personalities'
   | 'pet_evo_chains' | 'pet_traits' | 'pet_events' | 'pet_achievements' | 'pet_scenes'
@@ -382,14 +374,6 @@ const MainLayout: React.FC = () => {
     mood: MoodDiaries,
     weight: WeightRecords,
     notes: Notes,
-    novels: Novels,
-    novel_comments: NovelComments,
-    novel_bookshelves: NovelBookshelves,
-    rankings: Rankings,
-    bookmarks: Bookmarks,
-    annotations: Annotations,
-    recommendations: Recommendations,
-    tts_management: TtsManagement,
     versions: VersionManagement,
     notifications: Notifications,
     analytics: Analytics,

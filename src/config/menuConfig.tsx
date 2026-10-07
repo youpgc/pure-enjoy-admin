@@ -92,42 +92,13 @@ export const buildMenuItems = (
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
-  // 内容管理（小说与内容）
-  // 听书管理 -> tts:read、推荐管理 -> recommendations:read（独立权限，已通过 SQL 补齐并授予相关角色）。
-  ...(hasMenuPermission('menu:content', ['novels:read', 'novels:write', 'novels:delete', 'sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete', 'tts:read', 'recommendations:read']) ? [
+  // 内容管理（敏感词）；小说系页面已随小说模块下线剥离至 novel-version 分支
+  ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
     {
       key: 'content',
       icon: <ReadOutlined />,
       label: '内容管理',
       children: [
-        ...(hasMenuPermission('menu:content', ['novels:read', 'novels:write', 'novels:delete']) ? [
-          { key: 'novels', icon: <ReadOutlined />, label: '小说管理' },
-        ] : []),
-        // 书架管理：用户书架（user_novels），与小说同域；此前漏加菜单入口，本次补回（novels:read 放行）
-        ...(hasMenuPermission('menu:content', ['novels:read']) ? [
-          { key: 'novel_bookshelves', icon: <BookOutlined />, label: '书架管理' },
-        ] : []),
-        ...(hasMenuPermission('menu:content', ['novels:read']) ? [
-          { key: 'novel_comments', icon: <MessageOutlined />, label: '评论管理' },
-        ] : []),
-        ...(hasMenuPermission('menu:content', ['novels:read']) ? [
-          { key: 'rankings', icon: <TrophyOutlined />, label: '排行榜管理' },
-        ] : []),
-        // 阅读进度：页面实为「完读率聚合统计」，改名以与书架管理区分
-        ...(hasMenuPermission('menu:content', ['novels:read']) ? [
-          { key: 'bookmarks', icon: <BookOutlined />, label: '阅读进度统计' },
-        ] : []),
-        ...(hasMenuPermission('menu:content', ['novels:read']) ? [
-          { key: 'annotations', icon: <MessageOutlined />, label: '批注管理' },
-        ] : []),
-        // 听书管理：小说有声阅读功能，独立权限 tts:read（配套 SQL 已补并授予相关角色）
-        ...(hasMenuPermission('menu:content', ['tts:read']) ? [
-          { key: 'tts_management', icon: <SoundOutlined />, label: '听书管理' },
-        ] : []),
-        // 推荐管理：内容推荐，独立权限 recommendations:read（页面写按钮沿用 recommendations:write）
-        ...(hasMenuPermission('menu:content', ['recommendations:read']) ? [
-          { key: 'recommendations', icon: <StarOutlined />, label: '推荐管理' },
-        ] : []),
         ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
           { key: 'sensitive_words', icon: <SafetyOutlined />, label: '敏感词管理' },
         ] : []),

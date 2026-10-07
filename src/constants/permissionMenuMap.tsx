@@ -9,12 +9,10 @@
 // 派生，菜单结构调整时同步更新此处即可，避免双向漂移。
 //
 // 说明：
-// - 一个资源前缀通常对应一个页面（如 novels -> 小说管理）。
-// - 少数前缀被多个子页面复用（如 novels:read 同时控制 书架/评论/排行/阅读进度统计/批注），
-//   这些子页面本就是「小说管理」的子功能，归到该页面下更直观。
-// - 听书管理(tss_management) 与 推荐管理(recommendations) 已按业务归入「内容管理」菜单组，
-//   并补齐独立权限 tts:read / recommendations:read（见 feature_admin_tts_recommendations_perms.sql），
-//   权限树与菜单现已 1:1 对齐。
+// - 一个资源前缀通常对应一个页面（资源前缀与菜单 1:1 对齐）。
+// - 小说系资源前缀（novels/user_novels/tts/recommendations/rankings 等）已随小说模块下线
+//   剥离至 novel-version 分支，此处映射同步移除；历史操作日志的相关值由 operationLog.ts 的
+//   标签映射兜底展示。
 // - dict 与 dict_management 并存（历史种子 SQL 用 dict，菜单用 dict_management），
 //   这里统一归到「字典管理」，避免拆成两项。
 
@@ -23,7 +21,6 @@ import {
   DashboardOutlined,
   UserOutlined,
   StarFilled,
-  ReadOutlined,
   SafetyOutlined,
   MessageOutlined,
   BookOutlined,
@@ -64,11 +61,6 @@ export const RESOURCE_PAGE_MAP: Record<string, PermissionPageInfo> = {
   points: { group: '用户中心', page: '积分管理', icon: <StarFilled /> },
   checkin: { group: '用户中心', page: '签到管理', icon: <CalendarOutlined /> },
   login_logs: { group: '用户中心', page: '登录日志', icon: <AlertOutlined /> },
-  novels: { group: '内容管理', page: '小说管理', icon: <ReadOutlined /> },
-  user_novels: { group: '内容管理', page: '书架管理', icon: <BookOutlined /> },
-  tts: { group: '内容管理', page: '听书管理', icon: <SoundOutlined /> },
-  recommendations: { group: '内容管理', page: '推荐管理', icon: <StarOutlined /> },
-  rankings: { group: '内容管理', page: '排行榜', icon: <TrophyOutlined /> },
   sensitive_words: { group: '内容管理', page: '敏感词管理', icon: <SafetyOutlined /> },
   expenses: { group: '生活服务', page: '消费记录', icon: <WalletOutlined /> },
   mood: { group: '生活服务', page: '心情日记', icon: <SmileOutlined /> },
