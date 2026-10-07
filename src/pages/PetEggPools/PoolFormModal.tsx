@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Modal, Form, Input, InputNumber, Select, Switch, Typography } from 'antd'
+import { Modal, Form, Input, InputNumber, Select, Switch, Typography, message } from 'antd'
 import type { PetEggPoolRow } from '../../types/pet'
 import { petSpeciesService } from '../../services/petService'
 import { NumberMapEditor } from '../../components/form/pet/editors/BasicEditors'
@@ -87,6 +87,13 @@ const PoolFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
   const handleOk = async () => {
     const values = await form.validateFields()
     const weights = asObject(values.weights)
+    // ★ 体系权重校验（审查报告 宠物 P2-4/SQL#4）：权重为比例语义（服务端按
+    //   总量归一），只要求均为正数；全 0/负数会导致体系分布失真，阻止提交
+    const familyVals = Object.values(asObject(weights.families ?? {})) as (number | string)[]
+    if (familyVals.length > 0 && familyVals.some((v) => Number(v) <= 0 || Number.isNaN(Number(v)))) {
+      message.error('体系权重必须为正数（服务端按总量归一，任意量纲均可，如 25/25/25/25）')
+      return
+    }
     if (editing) {
       // 审计口径：历史流水记录旧版本号，config_version 只能递增；概率未变则原值提交
       values.config_version =
@@ -236,6 +243,10 @@ const WeightsFields: React.FC<{
       <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 8 }}>
         <Typography.Text style={{ width: 130, flexShrink: 0, paddingTop: 4 }}>
           体系权重
+          {/* 概率语义提示（审查报告 宠物 P2-4/SQL#4）：服务端按总量归一，任意正数量纲皆可 */}
+          <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
+            比例语义，按总量归一
+          </Typography.Text>
         </Typography.Text>
         <div style={{ flex: 1 }}>
           <NumberMapEditor
