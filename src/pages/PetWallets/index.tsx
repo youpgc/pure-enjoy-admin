@@ -64,7 +64,7 @@ const WalletsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
   useEffect(() => {
     loadRows(page, searchText)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, refreshKey])
+  }, [page, refreshKey, searchText])
 
   const ids = rows.map((r) => r.user_id)
   const userMap = useUsernames(ids)
@@ -165,7 +165,7 @@ const RecordsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
   useEffect(() => {
     loadRows(page, sourceFilter, searchText)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, sourceFilter, refreshKey])
+  }, [page, sourceFilter, refreshKey, searchText])
 
   const ids = rows.map((r) => r.user_id)
   const userMap = useUsernames(ids)

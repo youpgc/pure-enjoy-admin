@@ -17,11 +17,11 @@ export interface ApiResponse<T> {
   statusCode: number | null
 }
 
-function successResponse<T>(data: T, statusCode?: number): ApiResponse<T> {
+export function successResponse<T>(data: T, statusCode?: number): ApiResponse<T> {
   return { success: true, data, errorMessage: null, statusCode: statusCode ?? 200 }
 }
 
-function errorResponse<T>(msg: string, statusCode?: number): ApiResponse<T> {
+export function errorResponse<T>(msg: string, statusCode?: number): ApiResponse<T> {
   return { success: false, data: null, errorMessage: msg, statusCode: statusCode ?? 500 }
 }
 

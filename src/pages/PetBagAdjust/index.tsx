@@ -203,7 +203,7 @@ const DiscardFlowsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
   useEffect(() => {
     loadRows(page, bizFilter, searchText)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, bizFilter, refreshKey])
+  }, [page, bizFilter, refreshKey, searchText])
 
   useEffect(() => {
     loadItemNames()
