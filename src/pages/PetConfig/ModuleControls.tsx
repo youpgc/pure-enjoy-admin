@@ -1,7 +1,7 @@
 // 各模块弹窗表单控件（从 PetConfig/index.tsx 抽离，审查 P2-16 单文件超 500 行）
 // 控件结构与服务端 RPC 消费的 jsonb 形状同源；只负责渲染，保存范围由 MODULES 决定。
 import type { ReactNode } from 'react'
-import { Form, InputNumber, Switch } from 'antd'
+import { Form, Input, InputNumber, Switch } from 'antd'
 import { TierListEditor } from '../../components/form/pet/editors/BasicEditors'
 import { NewbiePackageEditor } from '../../components/form/pet/editors/ItemEditors'
 import common from '../../styles/common.module.css'
@@ -172,6 +172,46 @@ export const renderModuleControls = (
         >
           <NewbiePackageEditor items={itemOptions} disabled={disabled} />
         </Form.Item>
+      )
+    case 'reserved_p2':
+      // P2 参数（reserved）：数组名走 antd 嵌套路径，initialValues(row) 自动回显；
+      // 保存由 index.tsx 深合并进 reserved，保留未在表单内的既有键（审查 P2 编辑入口）
+      return (
+        <>
+          <Form.Item name={['reserved', 'trait', 'chance']} label="孵化掷特性概率（0~1）" tooltip="0.3 = 30% 概率掷出特性" rules={[{ required: true }]}>
+            <InputNumber min={0} max={1} step={0.05} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'trait', 'wash_chance']} label="洗练命中概率（0~1）" tooltip="未命中保留原特性（口径 A）；道具可带 effect.chance 覆盖此兜底" rules={[{ required: true }]}>
+            <InputNumber min={0} max={1} step={0.05} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'hatch', 'accel_minutes']} label="加速孵化时长（分钟）" rules={[{ required: true }]}>
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'hatch', 'accel_gold']} label="加速孵化金币" rules={[{ required: true }]}>
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'breeding', 'intimacy_min']} label="繁育亲密度门槛" rules={[{ required: true }]}>
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'breeding', 'gestation_hours']} label="繁育孕期（小时）" rules={[{ required: true }]}>
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'breeding', 'fee_gold']} label="繁育手续费（金币，0=不收）" rules={[{ required: true }]}>
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'weekly', 'draw_count']} label="周任务抽取条数" tooltip="缺省回落 daily_task_draw_count" rules={[{ required: true }]}>
+            <InputNumber min={1} max={20} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item label="评级 → 蛋池映射" tooltip="缺省回落 egg_||lower(rarity)；留空走回落">
+            <Input.Group compact>
+              {(['N', 'R', 'SR', 'SSR'] as const).map((rank) => (
+                <Form.Item key={rank} name={['reserved', 'breeding', 'egg_pool', rank]} noStyle>
+                  <Input placeholder={rank} style={{ width: '25%' }} disabled={disabled} />
+                </Form.Item>
+              ))}
+            </Input.Group>
+          </Form.Item>
+        </>
       )
   }
 }

@@ -6,8 +6,15 @@ import type { PetConfigRow } from '../../types/pet'
 import { fmtNum } from './constants'
 import type { FieldMeta, ModuleMeta, ValueRow } from './types'
 
-const rawValue = (row: PetConfigRow | null, field: string): unknown =>
-  row ? (row as unknown as Record<string, unknown>)[field] : undefined
+const rawValue = (row: PetConfigRow | null, field: string): unknown => {
+  if (!row) return undefined
+  if (!field.includes('.')) return (row as unknown as Record<string, unknown>)[field]
+  // dotted path：reserved 卡的 jsonb 嵌套键（审查报告 宠物 P2 reserved 编辑入口）
+  return field.split('.').reduce<unknown>((acc, k) => {
+    if (acc && typeof acc === 'object') return (acc as Record<string, unknown>)[k]
+    return undefined
+  }, row as unknown as Record<string, unknown>)
+}
 
 const DescCell = (v: string | undefined) =>
   v ? <Typography.Text type="secondary">{v}</Typography.Text> : '—'

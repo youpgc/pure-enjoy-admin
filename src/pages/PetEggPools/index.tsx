@@ -78,11 +78,37 @@ const PetEggPools: React.FC = () => {
         weights: values.weights as unknown as Record<string, unknown>,
         published: !!values.published,
       }
+      // ★ 审计链版本化（审查报告 宠物 P2-5）：权重变更 = 插入新 config_version
+      // 行并下架旧行，绝不 update 历史版本行——pet_lottery_records.config_version
+      // 需可回溯当时概率内容（与 p2_seed「新增版本行」纪律对齐）。
+      // 权重未变（版本号不变）时仍走原行更新（如仅切换发布状态）。
+      const versionBumped = editing && Number(values.config_version) > editing.config_version
       const res = editing
-        ? await petEggPoolService.update(editing.id, payload as never)
+        ? await (async () => {
+            if (versionBumped) {
+              const created = await petEggPoolService.create({
+                ...payload,
+                pool_code: editing.pool_code,
+                config_version: Number(values.config_version),
+                published: !!values.published,
+              } as never)
+              if (!created.success) return created
+              const retired = await petEggPoolService.update(editing.id, {
+                published: false,
+              } as never)
+              return retired.success ? created : retired
+            }
+            return petEggPoolService.update(editing.id, payload as never)
+          })()
         : await petEggPoolService.create(payload as never)
       if (!res.success) return
-      message.success(editing ? '已更新' : '已新增')
+      message.success(
+        versionBumped
+          ? `已发布新版本 v${values.config_version}（旧版本已保留并下架）`
+          : editing
+            ? '已更新'
+            : '已新增',
+      )
       setModalOpen(false)
       await loadRows()
     } finally {

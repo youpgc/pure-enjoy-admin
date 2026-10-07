@@ -10,6 +10,7 @@ export type ModuleKey =
   | 'hatch'
   | 'economy'
   | 'newbie'
+  | 'reserved_p2'
 
 export interface FieldMeta {
   field: string

@@ -12,6 +12,7 @@ export const fmtBool = (v: unknown) => (v ? '开启' : '关闭')
 export const fmtNum = (v: unknown) => (v === null || v === undefined ? '—' : String(v))
 export const fmtJson = (v: unknown) =>
   v === null || v === undefined ? '—' : stringifyJson(v as Json)
+export const fmtStr = (v: unknown) => (v === null || v === undefined ? '—' : String(v))
 
 export const MODULES: ModuleMeta[] = [
   {
@@ -108,6 +109,26 @@ export const MODULES: ModuleMeta[] = [
         desc: '首次进入宠物系统幂等发放：初始蛋 + 食物 + 初始金币',
         format: fmtJson,
       },
+    ],
+  },
+  {
+    // P2 参数卡（审查报告 宠物 P2：reserved 无编辑入口，运营调整须手写 SQL）
+    // 键域与 p2_seed §1 种子 + 各 RPC 消费点同源；dotted field 由 rawValue 深取值
+    key: 'reserved_p2',
+    title: 'P2 参数（reserved）',
+    fields: [
+      { field: 'reserved.trait.chance', label: '孵化掷特性概率（0~1）', desc: 'rpc_pet_hatch_instant 孵化时是否掷特性', format: fmtNum },
+      { field: 'reserved.trait.wash_chance', label: '洗练命中概率（0~1）', desc: 'rpc_pet_wash_trait 道具无 effect.chance 时兜底；未命中保留原特性（口径 A）', format: fmtNum },
+      { field: 'reserved.hatch.accel_minutes', label: '加速孵化时长（分钟）', desc: 'rpc_pet_hatch_accelerate 道具无 effect.minutes 时兜底', format: fmtNum },
+      { field: 'reserved.hatch.accel_gold', label: '加速孵化金币', desc: 'rpc_pet_hatch_accelerate mode=gold 的花费', format: fmtNum },
+      { field: 'reserved.breeding.intimacy_min', label: '繁育亲密度门槛', desc: 'rpc_pet_breed_start 双亲亲密度门槛', format: fmtNum },
+      { field: 'reserved.breeding.gestation_hours', label: '繁育孕期（小时）', format: fmtNum },
+      { field: 'reserved.breeding.fee_gold', label: '繁育手续费（金币，0=不收）', format: fmtNum },
+      { field: 'reserved.weekly.draw_count', label: '周任务抽取条数', desc: '缺省回落 daily_task_draw_count', format: fmtNum },
+      { field: 'reserved.breeding.egg_pool.N', label: '评级蛋池映射 N', desc: '评级→蛋池 code，缺省回落 egg_||lower(rarity)', format: fmtStr },
+      { field: 'reserved.breeding.egg_pool.R', label: '评级蛋池映射 R', format: fmtStr },
+      { field: 'reserved.breeding.egg_pool.SR', label: '评级蛋池映射 SR', format: fmtStr },
+      { field: 'reserved.breeding.egg_pool.SSR', label: '评级蛋池映射 SSR', format: fmtStr },
     ],
   },
 ]

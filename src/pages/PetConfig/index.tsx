@@ -13,6 +13,7 @@ import { EditOutlined } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
 import { petConfigService, petItemService } from '../../services/petService'
 import type { PetConfigRow } from '../../types/pet'
+import type { Json } from '../../types/database'
 import { MODULES } from './constants'
 import {
   ROW_COLUMNS,
@@ -23,6 +24,39 @@ import {
 } from './columns'
 import { renderModuleControls } from './ModuleControls'
 import type { ItemOption, ModuleKey } from './types'
+
+/** reserved 卡表单的嵌套路径（与 ModuleControls 的数组名一一对应） */
+const RESERVED_NAME_PATHS: (string | (string | number)[])[] = [
+  ['reserved', 'trait', 'chance'],
+  ['reserved', 'trait', 'wash_chance'],
+  ['reserved', 'hatch', 'accel_minutes'],
+  ['reserved', 'hatch', 'accel_gold'],
+  ['reserved', 'breeding', 'intimacy_min'],
+  ['reserved', 'breeding', 'gestation_hours'],
+  ['reserved', 'breeding', 'fee_gold'],
+  ['reserved', 'weekly', 'draw_count'],
+  ['reserved', 'breeding', 'egg_pool', 'N'],
+  ['reserved', 'breeding', 'egg_pool', 'R'],
+  ['reserved', 'breeding', 'egg_pool', 'SR'],
+  ['reserved', 'breeding', 'egg_pool', 'SSR'],
+]
+
+/** 深合并：表单 patch 覆盖既有 reserved，未在表单内的键（运营手写/后续新增）原样保留 */
+const deepMergeReserved = (
+  base: unknown,
+  patch: Record<string, unknown>,
+): Record<string, unknown> => {
+  const out: Record<string, unknown> =
+    base && typeof base === 'object' ? { ...(base as Record<string, unknown>) } : {}
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) continue
+    out[k] =
+      v !== null && typeof v === 'object' && !Array.isArray(v)
+        ? deepMergeReserved(out[k], v as Record<string, unknown>)
+        : v
+  }
+  return out
+}
 import common from '../../styles/common.module.css'
 
 // ==================== 宠物全局参数（pet_config 单行表） ====================
@@ -85,6 +119,32 @@ const PetConfig: React.FC = () => {
     const mod = MODULES.find((m) => m.key === editModule)
     if (!mod) return
     const fields = mod.fields.map((f) => f.field)
+
+    // —— reserved 卡：数组名取嵌套值，深合并保留既有键（审查 P2 reserved 编辑入口）——
+    if (editModule === 'reserved_p2') {
+      const values = await editForm.validateFields(RESERVED_NAME_PATHS)
+      const patch = (values as { reserved?: Record<string, unknown> }).reserved ?? {}
+      const merged = deepMergeReserved(row.reserved, patch)
+      const trait = (merged.trait ?? {}) as Record<string, unknown>
+      for (const k of ['chance', 'wash_chance']) {
+        const v = Number(trait[k])
+        if (trait[k] !== null && trait[k] !== undefined && (Number.isNaN(v) || v <= 0 || v > 1)) {
+          return void message.error(`特性概率 ${k} 需在 0~1 之间`)
+        }
+      }
+      setSaving(true)
+      try {
+        const res = await petConfigService.update(row.id, { reserved: merged } as never)
+        if (!res.success) return
+        message.success('「P2 参数（reserved）」已保存')
+        setEditModule(null)
+        setRow((prev) => (prev ? { ...prev, reserved: merged as Json } : prev))
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
     const values = await editForm.validateFields(fields)
     if (editModule === 'economy') {
       const pairs: Array<[string, number, number]> = [
