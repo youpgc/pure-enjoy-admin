@@ -233,7 +233,14 @@ export const useUserTable = () => {
         const result = await userService.update(currentUser.id, updateData)
 
         if (!result.success) {
-          message.error('更新用户失败: ' + (result.errorMessage || '未知错误'))
+          // ★ 半成功提示（审查报告 Admin#用户#2）：积分/签到调整已在前面成功落库，
+          // 档案字段更新失败时如实告知，避免误以为整体失败而重试导致重复调整
+          message.warning(
+            '积分/签到调整已生效，但资料字段保存失败：' +
+              (result.errorMessage || '未知错误') +
+              '。请勿重复调整积分，仅修正资料后再试。',
+          )
+          await fetchUsers()
           return
         }
         await fetchUsers()

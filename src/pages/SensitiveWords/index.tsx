@@ -23,6 +23,7 @@ import { useMounted } from '../../hooks/useMounted'
 import {
   SENSITIVE_CATEGORY_OPTIONS,
   SENSITIVE_LEVEL_OPTIONS,
+  normalizeSensitiveLevel,
 } from '../../constants'
 import type { SensitiveWord, SensitiveWordFilters } from './sensitive-words/types'
 import { buildSensitiveWordsColumns } from './sensitive-words/columns'
@@ -181,6 +182,11 @@ const SensitiveWords: React.FC = () => {
     try {
       setSaving(true)
       const values = await form.validateFields()
+      // ★ 历史等级归一（审查报告 支撑#三.4）：low/medium/high 在 App 端无对应
+      //   动作（假防护），保存前统一为 warn/block
+      if (typeof values.level === 'string') {
+        values.level = normalizeSensitiveLevel(values.level)
+      }
       if (editingWord) {
         const result = await wordService.update(editingWord.id, values)
         if (!result.success) {

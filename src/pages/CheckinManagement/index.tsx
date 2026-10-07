@@ -7,7 +7,7 @@ import { supabase } from '../../utils/supabase'
 import { userDisplayName } from '../../utils/userDisplay'
 import common from '../../styles/common.module.css'
 import styles from './CheckinManagement.module.css'
-import { formatDate } from '../../utils/format'
+import { formatDate, beijingNow } from '../../utils/format'
 
 // ==================== 类型 ====================
 
@@ -33,13 +33,13 @@ const CheckinCalendarDrawer: React.FC<{
   onClose: () => void
 }> = ({ open, user, onClose }) => {
   const { token } = theme.useToken()
-  const [displayMonth, setDisplayMonth] = useState<Dayjs>(dayjs())
+  const [displayMonth, setDisplayMonth] = useState<Dayjs>(beijingNow())
   const [checkinDates, setCheckinDates] = useState<Set<string>>(new Set())
   const [makeupDates, setMakeupDates] = useState<Set<string>>(new Set())
   const [earliestMonth, setEarliestMonth] = useState<Dayjs | null>(null)
   const [loadingDates, setLoadingDates] = useState(false)
 
-  const today = dayjs()
+  const today = beijingNow()
   const canGoNext = displayMonth.isBefore(today, 'month')
   // 对齐 App _earliestDataMonth / canGoPrev：展示月到该用户最早签到月即禁用「上一月」
   const canGoPrev = earliestMonth == null || displayMonth.isAfter(earliestMonth, 'month')
@@ -84,7 +84,7 @@ const CheckinCalendarDrawer: React.FC<{
       setEarliestMonth(null)
       return
     }
-    setDisplayMonth(dayjs()) // 每切换用户从当前月看起
+    setDisplayMonth(beijingNow()) // 每切换用户从当前月看起
     let cancelled = false
     ;(async () => {
       try {

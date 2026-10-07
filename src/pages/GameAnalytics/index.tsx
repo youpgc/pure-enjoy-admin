@@ -44,7 +44,7 @@ import {
 import type { DbGame, DbGameScore, DbGameRewardClaim, DbUserGameAchievement, DbGameAchievement, DbGameRewardRule } from '../../types/database'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
-import { formatMonthDay } from '../../utils/format'
+import { formatMonthDay, beijingNow } from '../../utils/format'
 
 const { Title } = Typography
 const { RangePicker } = DatePicker
@@ -86,8 +86,8 @@ const GameAnalytics: React.FC = () => {
   // 首次加载完成前才全屏 Spin；之后局部更新避免闪烁
   const [loadedOnce, setLoadedOnce] = useState(false)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().subtract(29, 'day'),
-    dayjs(),
+    beijingNow().subtract(29, 'day'),
+    beijingNow(),
   ])
 
   // 指标

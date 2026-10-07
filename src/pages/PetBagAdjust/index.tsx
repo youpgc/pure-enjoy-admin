@@ -86,12 +86,17 @@ const AdjustCard: React.FC<{ onAdjusted: () => void }> = ({ onAdjusted }) => {
   }, [])
 
   const handleSubmit = async () => {
-    const values = await form.validateFields()
+    let values: { gold?: number; remark?: string }
+    try {
+      values = await form.validateFields()
+    } catch {
+      return // 表单校验失败：antd 已行内提示，无需额外处理
+    }
     if (!selectedUser) return void message.error('请先选择目标用户')
     if (Number(values.gold) === 0) return void message.error('调整金币数不能为 0')
     setSubmitting(true)
     try {
-      const res = await adminAdjustWallet(selectedUser, Number(values.gold), values.remark)
+      const res = await adminAdjustWallet(selectedUser, Number(values.gold), values.remark ?? '')
       if (!res.success) return // service 已统一弹窗 + 记日志
       message.success('调整成功（已写入 pet_admin_grant 流水）')
       form.resetFields(['gold', 'remark'])

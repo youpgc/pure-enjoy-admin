@@ -14,6 +14,7 @@ import {
 } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { beijingNow } from '../../utils/format'
 import { handleApiError } from '../../utils/apiClient'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import EndlessRoundsExpand, { type EndlessRoundRow } from './EndlessRoundsExpand'
@@ -108,7 +109,7 @@ const GameScores: React.FC = () => {
     ((initSig?.data ?? {}) as { dateRange?: string }).dateRange === 'today'
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(
     initToday
-      ? [dayjs(), dayjs()]
+      ? [beijingNow(), beijingNow()]
       : ((restoredFilters.dateRange as [dayjs.Dayjs, dayjs.Dayjs] | null) ?? null)
   )
   // keepalive 复用页签时组件不重挂载：按信号 seq 消费新的带参跳转
@@ -118,7 +119,7 @@ const GameScores: React.FC = () => {
     if (!sig || sig.seq <= navSeqRef.current) return
     navSeqRef.current = sig.seq
     if (((sig.data ?? {}) as { dateRange?: string }).dateRange === 'today') {
-      setDateRange([dayjs(), dayjs()])
+      setDateRange([beijingNow(), beijingNow()])
       pager.resetPage()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -172,7 +173,7 @@ const GameScores: React.FC = () => {
           else if (statusFilter !== 'all') builder = builder.eq('status', statusFilter)
           if (userIds) builder = builder.in('user_id', userIds)
           if (dateRange?.[0]) builder = builder.gte('played_at', dateRange[0].format('YYYY-MM-DD'))
-          if (dateRange?.[1]) builder = builder.lte('played_at', dateRange[1].format('YYYY-MM-DD') + 'T23:59:59')
+          if (dateRange?.[1]) builder = builder.lte('played_at', dateRange[1].format('YYYY-MM-DD') + 'T23:59:59+08:00')
           return builder
         }
       )

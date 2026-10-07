@@ -33,7 +33,7 @@ import { UserName } from '../../components/common/UserName'
 import dayjs from 'dayjs'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
-import { formatDateTime } from '../../utils/format'
+import { formatDateTime, beijingNow } from '../../utils/format'
 
 type DbPointRecord = {
   id: string
@@ -96,8 +96,8 @@ export default function GameRewardRecords() {
     ((initSig?.data ?? {}) as { dateRange?: string }).dateRange === 'today'
   const [range, setRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>(
     initToday
-      ? [dayjs(), dayjs()]
-      : [dayjs().subtract(1, 'month'), dayjs()]
+      ? [beijingNow(), beijingNow()]
+      : [beijingNow().subtract(1, 'month'), beijingNow()]
   )
   // keepalive 复用页签时组件不重挂载：按信号 seq 消费新的带参跳转
   const navSeqRef = useRef(initSig?.seq ?? 0)
@@ -106,7 +106,7 @@ export default function GameRewardRecords() {
     if (!sig || sig.seq <= navSeqRef.current) return
     navSeqRef.current = sig.seq
     if (((sig.data ?? {}) as { dateRange?: string }).dateRange === 'today') {
-      setRange([dayjs(), dayjs()])
+      setRange([beijingNow(), beijingNow()])
       pager.resetPage()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

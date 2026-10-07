@@ -155,11 +155,11 @@ export const logUserOperation = (entry: {
 /// 统计用户各模块数据量与最近操作日志（返回与页面 Promise.all 解构顺序一致的元组）
 export const fetchUserActivity = (userId: string) =>
   Promise.all([
-    supabase.from('expenses').select('id', { count: 'exact' }).eq('user_id', userId),
-    supabase.from('mood_diaries').select('id', { count: 'exact' }).eq('user_id', userId),
-    supabase.from('weight_records').select('id', { count: 'exact' }).eq('user_id', userId),
-    supabase.from('notes').select('id', { count: 'exact' }).eq('user_id', userId),
-    supabase.from('user_novels').select('id', { count: 'exact' }).eq('user_id', userId),
+    supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+    supabase.from('mood_diaries').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+    supabase.from('weight_records').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+    supabase.from('notes').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+    supabase.from('user_novels').select('id', { count: 'exact', head: true }).eq('user_id', userId),
     supabase
       .from('operation_logs')
       .select('id, user_id, action, module, target_id, details, ip, user_agent, created_at')

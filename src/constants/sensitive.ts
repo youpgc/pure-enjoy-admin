@@ -26,21 +26,30 @@ export const SENSITIVE_CATEGORY_OPTIONS = [
 ]
 
 export const SENSITIVE_LEVEL_MAP: Record<string, { color: string; label: string }> = {
-  low: { color: 'orange', label: '低' },
-  medium: { color: 'red', label: '中' },
-  high: { color: 'purple', label: '高' },
-  // 以下为 App 实际写入的等级（处理动作语义：replace=替换敏感词，block=拦截内容）
+  // ★ App 端只认 block/replace/warn 三级（审查报告 支撑#三.4）：low/medium/high
+  //   在 App 端不拦截不替换（原文照发）= 假防护。展示映射保留历史值兼容（low/
+  //   medium 视同 warn、high 视同 block），新增/编辑一律用三值。
+  low: { color: 'orange', label: '提示（历史·低）' },
+  medium: { color: 'orange', label: '提示（历史·中）' },
+  high: { color: 'red', label: '屏蔽（历史·高）' },
+  warn: { color: 'orange', label: '提示' },
   replace: { color: 'geekblue', label: '替换' },
   block: { color: 'red', label: '屏蔽' },
 }
 
 export const SENSITIVE_LEVEL_OPTIONS = [
-  { label: '低', value: 'low' },
-  { label: '中', value: 'medium' },
-  { label: '高', value: 'high' },
-  { label: '替换', value: 'replace' },
-  { label: '屏蔽', value: 'block' },
+  { label: '提示（不拦截）', value: 'warn' },
+  { label: '替换敏感词', value: 'replace' },
+  { label: '屏蔽（拦截提交）', value: 'block' },
 ]
+
+/// 历史等级归一：low/medium→warn、high→block（保存前调用，App 才有对应动作）
+export const normalizeSensitiveLevel = (level: string): string =>
+  level === 'low' || level === 'medium'
+    ? 'warn'
+    : level === 'high'
+      ? 'block'
+      : level
 
 export const SENSITIVE_MATCH_MODE_MAP: Record<string, { color: string; label: string }> = {
   exact: { color: 'blue', label: '精确' },
