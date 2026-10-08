@@ -57,6 +57,13 @@ export interface PetConfigRow {
   interact_daily: number
   // —— 历险结算回血（fix_pet_review_20260920.sql）——
   adventure_health_recover: number
+  // —— 亲密度累积三参 + 随机事件三闸（feature_pet_attr_baseline / random_events_20261008.sql）——
+  feed_intimacy: number
+  interact_intimacy: number
+  intimacy_daily_cap: number
+  event_rate_home_open: number
+  event_rate_action_done: number
+  event_daily_limit: number
   created_at: string
   updated_at: string
 }
@@ -281,6 +288,16 @@ export interface PetRandomEventRow {
   enabled: boolean
   created_at: string
   updated_at: string
+}
+
+export interface PetEventChoiceLogRow {
+  id: string
+  user_id: string
+  event_id: string
+  option_index: number
+  rewards: Json
+  created_at: string
+  event: { code: string; title: string; context: string } | null
 }
 
 /// 1.13 成就（pet_achievements；reward_package schema 与任务 rewards 同源）

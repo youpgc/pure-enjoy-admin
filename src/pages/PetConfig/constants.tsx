@@ -48,6 +48,9 @@ export const MODULES: ModuleMeta[] = [
       { field: 'interact_cooldown_min', label: '互动冷却（分钟）', desc: 'rpc_pet_interact 两次互动最小间隔', format: fmtNum },
       { field: 'interact_daily', label: '互动次数 / 天', desc: 'rpc_pet_interact 每日上限', format: fmtNum },
       { field: 'interact_mood', label: '互动心情恢复', desc: 'rpc_pet_interact 单次效果', format: fmtNum },
+      { field: 'feed_intimacy', label: '喂养亲密度 / 次', desc: 'rpc_pet_feed 每次成功加的亲密；受每日上限约束', format: fmtNum },
+      { field: 'interact_intimacy', label: '互动亲密度 / 次', desc: 'rpc_pet_interact 每次成功加的亲密', format: fmtNum },
+      { field: 'intimacy_daily_cap', label: '亲密度每日上限 / 宠', desc: '每宠每日从照料（喂养+互动）获得的亲密上限，北京日归零；事件奖励不受此限', format: fmtNum },
     ],
   },
   {
@@ -75,6 +78,15 @@ export const MODULES: ModuleMeta[] = [
     title: '任务',
     fields: [
       { field: 'daily_task_draw_count', label: '每日任务抽取数', desc: 'rpc_pet_daily_quests_draw 每日随机抽取条数', format: fmtNum },
+    ],
+  },
+  {
+    key: 'event',
+    title: '随机事件',
+    fields: [
+      { field: 'event_rate_home_open', label: '打开宠物页触发率（0~1）', desc: 'rpc_pet_event_roll 掷中概率；0.25 = 25%', format: fmtNum },
+      { field: 'event_rate_action_done', label: '照料动作后触发率（0~1）', desc: '喂养/抚摸成功后的掷中概率', format: fmtNum },
+      { field: 'event_daily_limit', label: '每日事件触发上限 / 人', desc: '按当日触发流水计数，放弃选择也占坑', format: fmtNum },
     ],
   },
   {

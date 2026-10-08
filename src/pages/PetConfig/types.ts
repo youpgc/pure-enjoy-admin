@@ -7,6 +7,7 @@ export type ModuleKey =
   | 'decay'
   | 'adventure'
   | 'quest'
+  | 'event'
   | 'hatch'
   | 'economy'
   | 'newbie'

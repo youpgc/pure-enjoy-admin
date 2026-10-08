@@ -1,18 +1,70 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import { Alert, Button, Card, Input, Select, Space, Table, message } from 'antd'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Alert, Button, Card, Input, Select, Space, Table, Tabs, message } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
-import type { PetRandomEventRow } from '../../types/pet'
+import type { ColumnsType } from 'antd/es/table'
+import type { PetRandomEventRow, PetEventChoiceLogRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
-import { petRandomEventService } from '../../services/petService'
-import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { useUsernames } from '../../hooks/useUsernames'
+import { UserName } from '../../components/common/UserName'
+import { petRandomEventService, petEventChoiceLogService } from '../../services/petService'
+import { PET_TABLE_PAGE_SIZE, PET_EVENT_CONTEXT_LABELS } from '../../constants/pet'
 import { buildEventColumns } from './columns'
 import EventFormModal, { type EventFormValues } from './EventFormModal'
 import common from '../../styles/common.module.css'
 
-// ==================== 随机事件管理（pet_random_events，P2 随机事件配置） ====================
+// ==================== 随机事件管理（pet_random_events + 选择流水审计） ====================
 //
-// 单表模型：选项与奖惩包内嵌在 content（无 pet_events / pet_event_choices 两表）。
-// 触发与结算 RPC 属 P2 未启动项，本页先行铺数据。
+// 2026-10-08 随机事件已实装（feature_pet_random_events_20261008.sql）：
+// - Tab1 事件配置：单表模型，选项与奖惩包内嵌 content.options（定版 schema）；
+// - Tab2 选择记录：pet_event_choice_logs 只读审计（RLS is_admin 全量），
+//   客诉「我选了没到账」按用户/事件编码排查。
+
+const fmtRewards = (v: unknown): string => {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return '-'
+  const r = v as Record<string, unknown>
+  const parts: string[] = []
+  const n = (k: string, unit: string) => {
+    const val = r[k]
+    if (typeof val === 'number' && val !== 0) parts.push(`${val > 0 ? '+' : ''}${val}${unit}`)
+  }
+  n('gold', '金币')
+  n('points', '积分')
+  n('exp', '经验')
+  n('mood', '心情')
+  n('intimacy', '亲密')
+  n('hunger', '饱食')
+  if (r.item_code) parts.push(`${r.item_code}×${typeof r.item_count === 'number' ? r.item_count : 1}`)
+  return parts.length ? parts.join('，') : '-'
+}
+
+const buildChoiceLogColumns = (): ColumnsType<PetEventChoiceLogRow> => [
+  {
+    title: '时间',
+    dataIndex: 'created_at',
+    width: 170,
+    render: (v: string) => new Date(v).toLocaleString('zh-CN', { hour12: false }),
+  },
+  { title: '用户', dataIndex: 'user_id', width: 200, ellipsis: true },
+  {
+    title: '事件',
+    key: 'event',
+    width: 220,
+    ellipsis: true,
+    render: (_, r) => (r.event ? `${r.event.code} · ${r.event.title}` : r.event_id),
+  },
+  {
+    title: '上下文',
+    key: 'context',
+    width: 130,
+    render: (_, r) => PET_EVENT_CONTEXT_LABELS[r.event?.context ?? ''] ?? r.event?.context ?? '-',
+  },
+  { title: '选项序', dataIndex: 'option_index', width: 80 },
+  {
+    title: '奖惩（公示包）',
+    dataIndex: 'rewards',
+    render: (v: unknown) => fmtRewards(v),
+  },
+]
 
 const PetEvents: React.FC = () => {
   const { hasPermission } = usePermission()
@@ -27,6 +79,11 @@ const PetEvents: React.FC = () => {
   const [keyword, setKeyword] = useState('')
   const [enabledFilter, setEnabledFilter] = useState('')
 
+  // —— 选择记录（Tab2）——
+  const [logs, setLogs] = useState<PetEventChoiceLogRow[]>([])
+  const [logLoading, setLogLoading] = useState(false)
+  const [logKeyword, setLogKeyword] = useState('')
+
   const loadRows = useCallback(async () => {
     setLoading(true)
     const res = await petRandomEventService.findAll()
@@ -35,9 +92,18 @@ const PetEvents: React.FC = () => {
     setRows(res.data ?? [])
   }, [])
 
+  const loadLogs = useCallback(async () => {
+    setLogLoading(true)
+    const res = await petEventChoiceLogService.recentLogs()
+    setLogLoading(false)
+    if (!res.success) return
+    setLogs(res.data ?? [])
+  }, [])
+
   useEffect(() => {
     loadRows()
-  }, [loadRows])
+    loadLogs()
+  }, [loadRows, loadLogs])
 
   const filtered = rows.filter((r) => {
     const kw = keyword.trim().toLowerCase()
@@ -45,6 +111,21 @@ const PetEvents: React.FC = () => {
     const hitEnabled = !enabledFilter || (enabledFilter === 'on' ? r.enabled : !r.enabled)
     return hitKeyword && hitEnabled
   })
+
+  const logKeywordTrim = logKeyword.trim().toLowerCase()
+  const filteredLogs = useMemo(
+    () =>
+      logs.filter((l) => {
+        if (!logKeywordTrim) return true
+        return `${l.user_id} ${l.event?.code ?? ''} ${l.event?.title ?? ''}`
+          .toLowerCase()
+          .includes(logKeywordTrim)
+      }),
+    [logs, logKeywordTrim]
+  )
+
+  const logUserIds = useMemo(() => filteredLogs.slice(0, 50).map((l) => l.user_id), [filteredLogs])
+  const logUserMap = useUsernames(logUserIds)
 
   const handleSave = async (values: EventFormValues) => {
     setSaving(true)
@@ -85,15 +166,8 @@ const PetEvents: React.FC = () => {
     onDelete: handleDelete,
   })
 
-  return (
-    <div>
-      <Alert
-        type="info"
-        showIcon
-        className={common.mb16}
-        message="随机事件说明"
-        description="事件为单表模型：文案、2~3 个选项与各选项奖惩包都存在「事件内容」JSON 里（无选项子表）。触发上下文的取值范围与内容结构尚未定版，且服务端结算 RPC 尚未实装——本页配置属于「先铺数据」，启用开关不代表 App 已会弹出事件。"
-      />
+  const configTab = (
+    <>
       <Card className={common.mb16}>
         <div className={common.toolbar}>
           <Space wrap>
@@ -138,6 +212,63 @@ const PetEvents: React.FC = () => {
         dataSource={filtered}
         pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
+      />
+    </>
+  )
+
+  const logColumns = buildChoiceLogColumns().map((c) =>
+    c.title === '用户'
+      ? {
+          ...c,
+          render: (v: string) => <UserName userId={v} userMap={logUserMap} />,
+        }
+      : c
+  )
+
+  const logsTab = (
+    <>
+      <Card className={common.mb16}>
+        <div className={common.toolbar}>
+          <Space wrap>
+            <Input
+              style={{ width: 260 }}
+              allowClear
+              placeholder="搜索用户 / 事件编码 / 标题"
+              value={logKeyword}
+              onChange={(e) => setLogKeyword(e.target.value)}
+            />
+            <Button icon={<ReloadOutlined />} loading={logLoading} onClick={loadLogs}>
+              刷新
+            </Button>
+          </Space>
+        </div>
+      </Card>
+      <Table
+        rowKey="id"
+        loading={logLoading}
+        columns={logColumns}
+        dataSource={filteredLogs}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        size="middle"
+      />
+    </>
+  )
+
+  return (
+    <div>
+      <Alert
+        type="info"
+        showIcon
+        className={common.mb16}
+        message="随机事件说明"
+        description="事件为单表模型：文案、2~3 个选项与各选项奖惩包存在「事件内容」里（定版 schema：content.options）。App 在打开宠物页 / 照料动作成功后按概率触发（触发率与每日上限在「全局参数 → 随机事件」卡调整）；奖惩在触发时原样公示、选择时按同包结算。「选择记录」页签为流水审计（只读）。"
+      />
+      <Tabs
+        defaultActiveKey="config"
+        items={[
+          { key: 'config', label: '事件配置', children: configTab },
+          { key: 'logs', label: '选择记录', children: logsTab },
+        ]}
       />
       <EventFormModal
         open={modalOpen}
