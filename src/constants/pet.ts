@@ -387,3 +387,32 @@ export const PET_ACH_TIER_COLORS: Record<string, string> = {
 export const PET_ACH_TIER_OPTIONS = Object.entries(PET_ACH_TIER_LABELS).map(
   ([value, label]) => ({ value, label })
 )
+
+// ---------- 随机事件（feature_pet_random_events_20261008.sql 定版） ----------
+//
+// context 值域 = 服务端 rpc_pet_event_roll 的代码枚举（两端同源，禁止私加）；
+// content schema：{title, text, options:[{label, rewards}]}，2~3 个选项。
+
+export const PET_EVENT_CONTEXTS = {
+  HOME_OPEN: 'home_open',
+  ACTION_DONE: 'action_done',
+} as const
+
+export const PET_EVENT_CONTEXT_LABELS: Record<string, string> = {
+  [PET_EVENT_CONTEXTS.HOME_OPEN]: '打开宠物页',
+  [PET_EVENT_CONTEXTS.ACTION_DONE]: '照料动作成功后',
+}
+
+export const PET_EVENT_CONTEXT_OPTIONS = Object.entries(
+  PET_EVENT_CONTEXT_LABELS
+).map(([value, label]) => ({ value, label }))
+
+/// 奖惩包数值键（choose 结算与 App 公示同源；hunger 允许负值=代价型选项）
+export const PET_EVENT_REWARD_FIELDS = [
+  { key: 'gold', label: '金币', min: 0 },
+  { key: 'points', label: '积分', min: 0 },
+  { key: 'exp', label: '经验', min: 0 },
+  { key: 'mood', label: '心情', min: 0 },
+  { key: 'intimacy', label: '亲密', min: 0 },
+  { key: 'hunger', label: '饱食', min: -100 },
+] as const
