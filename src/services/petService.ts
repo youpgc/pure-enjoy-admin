@@ -1,4 +1,11 @@
-import { BaseService, apiQuery, apiExecute } from '../utils/apiClient'
+import {
+  BaseService,
+  apiQuery,
+  apiExecute,
+  errorResponse,
+  successResponse,
+  type ApiResponse,
+} from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
 import type {
   PetConfigRow,
@@ -278,12 +285,11 @@ class PetEventChoiceLogService extends BaseService<PetEventChoiceLogRow> {
     })
   }
 
-  /// 最近流水（低量场景取前 N 条客户端过滤即可；keyword 命中 user_id / 事件编码）
-  async recentLogs(limit = 200) {
-    const res = await this.findAll()
-    if (!res.success) return res
-    const rows = (res.data ?? []).slice(0, limit)
-    return { ...res, data: rows }
+  /// 最近流水（服务端限量；审查 2026-10-08 修正——findAll 全表拉取会随数据增长劣化）
+  async recentLogs(limit = 200): Promise<ApiResponse<PetEventChoiceLogRow[]>> {
+    const res = await this.paginate(1, limit, (q) => q)
+    if (!res.success) return errorResponse(res.errorMessage ?? '查询失败')
+    return successResponse(res.data?.data ?? [])
   }
 }
 
@@ -312,13 +318,12 @@ class PetEventLotteryService extends BaseService<PetLotteryRecordRow> {
     })
   }
 
-  async recentEventRolls(limit = 200) {
-    const res = await this.findAll()
-    if (!res.success) return res
-    const rows = (res.data ?? [])
-      .filter((r) => r.biz === 'event')
-      .slice(0, limit)
-    return { ...res, data: rows }
+  async recentEventRolls(limit = 200): Promise<ApiResponse<PetLotteryRecordRow[]>> {
+    // biz 过滤必须下推服务端：pet_lottery_records 是全局审计大表（孵化/特性/历险/事件），
+    // findAll 全量拉取再客户端过滤会随数据增长线性劣化（审查 2026-10-08 修正）
+    const res = await this.paginate(1, limit, (q) => q.eq('biz', 'event'))
+    if (!res.success) return errorResponse(res.errorMessage ?? '查询失败')
+    return successResponse(res.data?.data ?? [])
   }
 }
 
