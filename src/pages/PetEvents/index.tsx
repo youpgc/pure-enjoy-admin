@@ -2,11 +2,19 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Card, Input, Select, Space, Table, Tabs, message } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import type { PetRandomEventRow, PetEventChoiceLogRow } from '../../types/pet'
+import type {
+  PetRandomEventRow,
+  PetEventChoiceLogRow,
+  PetLotteryRecordRow,
+} from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
-import { petRandomEventService, petEventChoiceLogService } from '../../services/petService'
+import {
+  petRandomEventService,
+  petEventChoiceLogService,
+  petEventLotteryService,
+} from '../../services/petService'
 import { PET_TABLE_PAGE_SIZE, PET_EVENT_CONTEXT_LABELS } from '../../constants/pet'
 import { buildEventColumns } from './columns'
 import EventFormModal, { type EventFormValues } from './EventFormModal'
@@ -83,6 +91,9 @@ const PetEvents: React.FC = () => {
   const [logs, setLogs] = useState<PetEventChoiceLogRow[]>([])
   const [logLoading, setLogLoading] = useState(false)
   const [logKeyword, setLogKeyword] = useState('')
+  const [rolls, setRolls] = useState<PetLotteryRecordRow[]>([])
+  const [rollLoading, setRollLoading] = useState(false)
+  const [rollKeyword, setRollKeyword] = useState('')
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -100,10 +111,19 @@ const PetEvents: React.FC = () => {
     setLogs(res.data ?? [])
   }, [])
 
+  const loadRolls = useCallback(async () => {
+    setRollLoading(true)
+    const res = await petEventLotteryService.recentEventRolls()
+    setRollLoading(false)
+    if (!res.success) return
+    setRolls(res.data ?? [])
+  }, [])
+
   useEffect(() => {
     loadRows()
     loadLogs()
-  }, [loadRows, loadLogs])
+    loadRolls()
+  }, [loadRows, loadLogs, loadRolls])
 
   const filtered = rows.filter((r) => {
     const kw = keyword.trim().toLowerCase()
@@ -254,6 +274,92 @@ const PetEvents: React.FC = () => {
     </>
   )
 
+  const rollKeywordTrim = rollKeyword.trim().toLowerCase()
+  const filteredRolls = useMemo(
+    () =>
+      rolls.filter((r) => {
+        if (!rollKeywordTrim) return true
+        const evt = (r.result as Record<string, unknown> | null)?.event_code ?? ''
+        const hay = [r.user_id, r.pool_code ?? '', String(evt)].join(' ').toLowerCase()
+        return hay.includes(rollKeywordTrim)
+      }),
+    [rolls, rollKeywordTrim]
+  )
+
+  const rollUserIds = useMemo(() => filteredRolls.slice(0, 50).map((r) => r.user_id), [filteredRolls])
+  const rollUserMap = useUsernames(rollUserIds)
+
+  const rollColumns: ColumnsType<PetLotteryRecordRow> = [
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      width: 170,
+      render: (v: string) => new Date(v).toLocaleString('zh-CN', { hour12: false }),
+    },
+    {
+      title: '用户',
+      dataIndex: 'user_id',
+      width: 160,
+      render: (v: string) => <UserName userId={v} userMap={rollUserMap} />,
+    },
+    {
+      title: '触发时机',
+      dataIndex: 'pool_code',
+      width: 130,
+      render: (v: string | null) => PET_EVENT_CONTEXT_LABELS[v ?? ''] ?? v ?? '-',
+    },
+    {
+      title: '触发率',
+      key: 'rate',
+      width: 90,
+      render: (_, r) => {
+        const rate = (r.input as Record<string, unknown> | null)?.rate
+        return typeof rate === 'number' ? Math.round(rate * 100) + '%' : '-'
+      },
+    },
+    {
+      title: '掷中事件',
+      key: 'event',
+      width: 180,
+      ellipsis: true,
+      render: (_, r) => String((r.result as Record<string, unknown> | null)?.event_code ?? '-'),
+    },
+    {
+      title: '配置版本',
+      dataIndex: 'config_version',
+      width: 90,
+    },
+  ]
+
+  const rollsTab = (
+    <>
+      <Card className={common.mb16}>
+        <div className={common.toolbar}>
+          <Space wrap>
+            <Input
+              style={{ width: 260 }}
+              allowClear
+              placeholder="搜索用户 / 触发时机 / 事件编码"
+              value={rollKeyword}
+              onChange={(e) => setRollKeyword(e.target.value)}
+            />
+            <Button icon={<ReloadOutlined />} loading={rollLoading} onClick={loadRolls}>
+              刷新
+            </Button>
+          </Space>
+        </div>
+      </Card>
+      <Table
+        rowKey="id"
+        loading={rollLoading}
+        columns={rollColumns}
+        dataSource={filteredRolls}
+        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        size="middle"
+      />
+    </>
+  )
+
   return (
     <div>
       <Alert
@@ -268,6 +374,7 @@ const PetEvents: React.FC = () => {
         items={[
           { key: 'config', label: '事件配置', children: configTab },
           { key: 'logs', label: '选择记录', children: logsTab },
+          { key: 'rolls', label: '触发记录', children: rollsTab },
         ]}
       />
       <EventFormModal

@@ -43,6 +43,7 @@ export const PAGE_TITLES: Record<PageKey, string> = {
   pet_species: '种属管理',
   pet_rarities: '评级字典',
   pet_personalities: '性格字典',
+  pet_pets: '宠物个体',
   pet_items: '道具目录',
   pet_egg_pools: '蛋池与概率',
   pet_quests: '任务池',

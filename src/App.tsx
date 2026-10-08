@@ -70,6 +70,7 @@ const PetWallets = lazy(() => import('./pages/PetWallets'))
 const PetBagAdjust = lazy(() => import('./pages/PetBagAdjust'))
 const PetRarities = lazy(() => import('./pages/PetRarities'))
 const PetPersonalities = lazy(() => import('./pages/PetPersonalities'))
+const PetPets = lazy(() => import('./pages/PetPets'))
 const PetEvoChains = lazy(() => import('./pages/PetEvoChains'))
 const PetTraits = lazy(() => import('./pages/PetTraits'))
 const PetEvents = lazy(() => import('./pages/PetEvents'))
@@ -189,7 +190,7 @@ export type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'w
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
   | 'anniversaries' | 'points' | 'error_logs' | 'login_logs' | 'checkin'
   | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics' | 'game_items' | 'game_achievements' | 'game_reward_records' | 'game_modes'
-  | 'pet_species' | 'pet_items' | 'pet_egg_pools' | 'pet_quests' | 'pet_adventure_spots' | 'pet_config' | 'pet_wallets' | 'pet_bag_adjust' | 'pet_rarities' | 'pet_personalities'
+  | 'pet_species' | 'pet_items' | 'pet_egg_pools' | 'pet_quests' | 'pet_adventure_spots' | 'pet_config' | 'pet_wallets' | 'pet_bag_adjust' | 'pet_rarities' | 'pet_personalities' | 'pet_pets'
   | 'pet_evo_chains' | 'pet_traits' | 'pet_events' | 'pet_achievements' | 'pet_scenes'
   | 'profile'
 
@@ -413,6 +414,7 @@ const MainLayout: React.FC = () => {
     pet_bag_adjust: PetBagAdjust,
     pet_rarities: PetRarities,
     pet_personalities: PetPersonalities,
+    pet_pets: PetPets,
     pet_evo_chains: PetEvoChains,
     pet_traits: PetTraits,
     pet_events: PetEvents,

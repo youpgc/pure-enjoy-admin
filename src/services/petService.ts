@@ -17,6 +17,8 @@ import type {
   PetTraitRow,
   PetRandomEventRow,
   PetEventChoiceLogRow,
+  PetPetRow,
+  PetLotteryRecordRow,
   PetAchievementRow,
   PetSceneRow,
   PetAchievementProgressRow,
@@ -285,6 +287,41 @@ class PetEventChoiceLogService extends BaseService<PetEventChoiceLogRow> {
   }
 }
 
+// 宠物个体（只读查询：客诉排查；RLS is_admin 全量读）
+class PetPetAdminService extends BaseService<PetPetRow> {
+  constructor() {
+    super('pet_pets', {
+      defaultOrder: { column: 'created_at', ascending: false },
+      select:
+        'id,user_id,show_no,nickname,stage,gender,level,exp,hunger,mood,intimacy,health,status,base_attributes,bonus_attributes,personality_code,created_at,species:pet_species(name_cn,rarity_code,family)',
+    })
+  }
+
+  /// 全量列表（客服查询量级小；用户过滤由页面用 findUserIdsByKeyword 客户端完成）
+  async listPets() {
+    return this.findAll()
+  }
+}
+
+// 事件触发审计（pet_lottery_records biz='event'：含放弃未选的触发占坑）
+class PetEventLotteryService extends BaseService<PetLotteryRecordRow> {
+  constructor() {
+    super('pet_lottery_records', {
+      defaultOrder: { column: 'created_at', ascending: false },
+      select: 'id,user_id,biz,pool_code,config_version,input,result,created_at',
+    })
+  }
+
+  async recentEventRolls(limit = 200) {
+    const res = await this.findAll()
+    if (!res.success) return res
+    const rows = (res.data ?? [])
+      .filter((r) => r.biz === 'event')
+      .slice(0, limit)
+    return { ...res, data: rows }
+  }
+}
+
 // 成就
 class PetAchievementService extends BaseService<PetAchievementRow> {
   constructor() {
@@ -385,6 +422,8 @@ export const petEvoStageService = new PetEvoStageService()
 export const petTraitService = new PetTraitService()
 export const petRandomEventService = new PetRandomEventService()
 export const petEventChoiceLogService = new PetEventChoiceLogService()
+export const petPetAdminService = new PetPetAdminService()
+export const petEventLotteryService = new PetEventLotteryService()
 export const petAchievementService = new PetAchievementService()
 export const petSceneService = new PetSceneService()
 export const petAchievementProgressService = new PetAchievementProgressService()

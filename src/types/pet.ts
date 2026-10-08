@@ -342,3 +342,35 @@ export interface PetAchievementProgressRow {
   created_at: string
   pet_achievements?: { code: string; title: string; tier: string; condition_value: Json } | null
 }
+
+export interface PetPetRow {
+  id: string
+  user_id: string
+  show_no: string
+  nickname: string | null
+  stage: number
+  gender: string | null
+  level: number
+  exp: number
+  hunger: number
+  mood: number
+  intimacy: number
+  health: number
+  status: string
+  base_attributes: Json
+  bonus_attributes: Json
+  personality_code: string | null
+  created_at: string
+  species: { name_cn: string; rarity_code: string; family: string } | null
+}
+
+export interface PetLotteryRecordRow {
+  id: string
+  user_id: string
+  biz: string
+  pool_code: string | null
+  config_version: number | null
+  input: Json
+  result: Json
+  created_at: string
+}
