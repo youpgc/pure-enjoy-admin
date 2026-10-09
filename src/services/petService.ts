@@ -25,6 +25,7 @@ import type {
   PetRandomEventRow,
   PetEventChoiceLogRow,
   PetPetRow,
+  PetTimelineLogRow,
   PetLotteryRecordRow,
   PetAchievementRow,
   PetSceneRow,
@@ -327,6 +328,24 @@ class PetEventLotteryService extends BaseService<PetLotteryRecordRow> {
   }
 }
 
+// 宠物时间线（pet_timeline_logs，只读审计；RLS is_admin 全量）
+class PetTimelineLogService extends BaseService<PetTimelineLogRow> {
+  constructor() {
+    super('pet_timeline_logs', {
+      defaultOrder: { column: 'created_at', ascending: false },
+      select:
+        'id,user_id,pet_id,event_type,payload,created_at,pet:pet_pets(show_no,nickname)',
+    })
+  }
+
+  /// 最近流水（服务端限量；审查口径同 choice_logs）
+  async listLogs(limit = 200): Promise<ApiResponse<PetTimelineLogRow[]>> {
+    const res = await this.paginate(1, limit, (q) => q)
+    if (!res.success) return errorResponse(res.errorMessage ?? '查询失败')
+    return successResponse(res.data?.data ?? [])
+  }
+}
+
 // 成就
 class PetAchievementService extends BaseService<PetAchievementRow> {
   constructor() {
@@ -429,6 +448,7 @@ export const petRandomEventService = new PetRandomEventService()
 export const petEventChoiceLogService = new PetEventChoiceLogService()
 export const petPetAdminService = new PetPetAdminService()
 export const petEventLotteryService = new PetEventLotteryService()
+export const petTimelineLogService = new PetTimelineLogService()
 export const petAchievementService = new PetAchievementService()
 export const petSceneService = new PetSceneService()
 export const petAchievementProgressService = new PetAchievementProgressService()

@@ -4,6 +4,7 @@ import PetPets from '../PetPets'
 import PetWallets from '../PetWallets'
 import PetBagAdjust from '../PetBagAdjust'
 import PetDashboard from '../PetDashboard'
+import PetTimelineLogs from '../PetTimelineLogs'
 
 // ==================== 运营工具（IA 整合：宠物个体 / 金币流水 / 客服调整 收拢） ====================
 
@@ -16,6 +17,7 @@ const PetOps: React.FC = () => (
       { key: 'wallets', label: '金币流水', children: <PetWallets /> },
       { key: 'adjust', label: '客服调整', children: <PetBagAdjust /> },
       { key: 'dashboard', label: '数据看板', children: <PetDashboard /> },
+      { key: 'timeline', label: '时间线', children: <PetTimelineLogs /> },
     ]}
   />
 )

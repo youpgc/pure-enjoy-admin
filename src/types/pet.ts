@@ -375,3 +375,13 @@ export interface PetLotteryRecordRow {
   result: Json
   created_at: string
 }
+
+export interface PetTimelineLogRow {
+  id: string
+  user_id: string
+  pet_id: string
+  event_type: string
+  payload: Json
+  created_at: string
+  pet: { show_no: string; nickname: string | null } | null
+}
