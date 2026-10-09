@@ -18,7 +18,7 @@ import common from '../../styles/common.module.css'
 // effect 按分类结构化（与 RPC 消费同源）：
 // - 蛋类：{pool, mode}（rpc_pet_hatch_instant）；
 // - 消耗品：{type: feed|clean|toy, hunger/mood/exp}（rpc_pet_use_item 白名单）；
-// - 工具/装备：开放结构（ladder/rescue 等）→ JSON 高级编辑。
+// - 工具类为开放结构（ladder/rescue 等）→ JSON 高级编辑。
 
 export interface ItemFormValues {
   item_code: string
@@ -170,7 +170,7 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
           <JsonFormItem
             name="effect"
             label="使用效果（jsonb，高级）"
-            tooltip='工具/装备类为开放结构（如救援 {"type":"rescue"}、扩容 {"ladder":"backpack"}），保留 JSON 编辑'
+            tooltip='工具类为开放结构（如救援 {"type":"rescue"}、扩容 {"ladder":"backpack"}），保留 JSON 编辑'
             placeholder='{"type":"rescue"}'
             rows={3}
           />

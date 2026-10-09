@@ -54,14 +54,12 @@ export const PET_ITEM_CATEGORY_TYPES = {
   EGG: 'egg',
   CONSUMABLE: 'consumable',
   TOOL: 'tool',
-  EQUIP: 'equip',
 } as const
 
 export const PET_ITEM_CATEGORY_LABELS: Record<string, string> = {
   [PET_ITEM_CATEGORY_TYPES.EGG]: '蛋',
   [PET_ITEM_CATEGORY_TYPES.CONSUMABLE]: '消耗品',
   [PET_ITEM_CATEGORY_TYPES.TOOL]: '工具',
-  [PET_ITEM_CATEGORY_TYPES.EQUIP]: '装备',
 }
 
 export const PET_ITEM_CATEGORY_COLORS: Record<string, string> = {

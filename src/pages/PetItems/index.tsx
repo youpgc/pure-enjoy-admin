@@ -74,7 +74,6 @@ const SUB_OPTIONS_BY_CATEGORY: Record<string, Array<{ value: string; label: stri
       label: `${label}扩容`,
     })),
   ],
-  [PET_ITEM_CATEGORY_TYPES.EQUIP]: [],
 }
 
 const PetItems: React.FC = () => {
@@ -256,7 +255,7 @@ const PetItems: React.FC = () => {
         showIcon
         className={common.mb16}
         message="道具目录说明"
-        description="三大类道具（蛋/消耗品/工具/装备）与三套扩容阶梯（背包/养育格/寄养格）统一在本页配置；扩容阶梯道具每档限购 1 次，App 商城按 ladder_step 有序展示，达上限后不再展示。道具仅支持金币购买，积分购买通道已下线。"
+        description="三大类道具（蛋/消耗品/工具）与三套扩容阶梯（背包/养育格/寄养格）统一在本页配置；扩容阶梯道具每档限购 1 次，App 商城按 ladder_step 有序展示，达上限后不再展示。道具仅支持金币购买，积分购买通道已下线。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
