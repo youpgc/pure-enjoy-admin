@@ -70,10 +70,6 @@ const PetPets: React.FC = () => {
     if (canRead) loadRows()
   }, [canRead, loadRows]);
 
-  if (!canRead) {
-    return <Alert type='warning' showIcon message='无访问权限' description='当前账号缺少 pets:read 权限，无法查看宠物个体数据。' />
-  }
-
   const keywordTrim = keyword.trim().toLowerCase()
   // 用户关键字 → 用户 ID 集（异步解析；空关键字为 null = 不过滤用户维度）
   const [resolvedIds, setResolvedIds] = useState<string[] | null>(null)
@@ -190,13 +186,17 @@ const PetPets: React.FC = () => {
     },
   ]
 
+  if (!canRead) {
+    return <Alert type='warning' showIcon message='无访问权限' description='当前账号缺少 pets:read 权限，无法查看宠物个体数据。' />
+  }
+
   return (
     <div>
       <Alert
-        type="info"
+        type='info'
         showIcon
         className={common.mb16}
-        message="宠物个体（只读查询）"
+        message='宠物个体（只读查询）'
         description="客诉排查用：昵称/等级/状态/四维/健康/性格。支持按用户（昵称/邮箱关键字）、宠物编号、昵称、种属名过滤。本页无写操作；四维为 base+bonus 合并值。"
       />
       <Card className={common.mb16}>
