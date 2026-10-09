@@ -28,6 +28,10 @@ export const CUMULATIVE_METRIC_OPTIONS = [
     value: 'clear_blocks',
     label: '累计消除方块数（消消乐，当局引擎上报 cleared_blocks 增量）',
   },
+  {
+    value: 'lines',
+    label: '累计消行数（俄罗斯方块，当局引擎上报 lines 增量）',
+  },
 ]
 
 export const CUMULATIVE_METRIC_LABELS: Record<string, string> = {
@@ -35,6 +39,7 @@ export const CUMULATIVE_METRIC_LABELS: Record<string, string> = {
   clear: '累计通关次数',
   merge: '累计合成次数',
   clear_blocks: '累计消除方块数',
+  lines: '累计消行数',
 }
 
 /// 成绩维度中文名 + 单位（condition.dimension → 中文）。
@@ -56,6 +61,14 @@ export const DIMENSION_LABELS: Record<string, { name: string; unit: string }> = 
   merges: { name: '合成次数', unit: '次' },
   streak_days: { name: '连续签到天数', unit: '天' },
   level: { name: '通关关卡', unit: '关' },
+  // 俄罗斯方块（2026-10-09）
+  lines: { name: '消行数', unit: '行' },
+  pieces: { name: '方块数', unit: '块' },
+  tetris_count: { name: '单局四消', unit: '次' },
+  tspin_count: { name: 'T-Spin', unit: '次' },
+  max_b2b: { name: '最长B2B链', unit: '次' },
+  perfect_clears: { name: '全清次数', unit: '次' },
+  level_reached: { name: '达到等级', unit: '级' },
 }
 
 /// 分组键（group_key）中文标签。
@@ -82,6 +95,12 @@ const GROUP_TOPIC_LABELS: Record<string, string> = {
   flawless: '无失误通关',
   streak: '连续签到',
   score_break: '分数突破',
+  // 俄罗斯方块（2026-10-09）
+  lines: '消行数',
+  b2b: 'B2B链',
+  pc: '全清',
+  combo: '连消',
+  lines_total: '消行累计',
 }
 
 /// `score:global:*` 的全局族有专属语义（跨游戏段位），单独列出避免被 generic 规则误读。
@@ -94,6 +113,7 @@ export const GAME_LABELS: Record<string, string> = {
   match3: '消消乐',
   g2048: '2048',
   sheep: '羊了个羊',
+  tetris: '俄罗斯方块',
   global: '全局',
   all: '全局',
 }
@@ -138,6 +158,10 @@ export const MODE_LABELS: Record<string, string> = {
   classic: '经典模式',
   challenge: '挑战模式',
   endless: '无尽模式',
+  // 俄罗斯方块（2026-10-09）
+  marathon: '马拉松模式',
+  sprint: '竞速模式',
+  blitz: '闪电模式',
 }
 
 /// 段位名映射（condition.tier 1..7）

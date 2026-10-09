@@ -24,6 +24,11 @@ export const PLAY_KIND_OPTIONS: PlayKindOption[] = [
   { value: 'timed', label: '消消乐 · 限时' },
   { value: 'boss', label: '消消乐 · Boss' },
   { value: 'merge', label: '羊了个羊 · 合成' },
+  // 俄罗斯方块（2026-10-09）
+  { value: 'tetris', label: '俄罗斯方块 · 马拉松' },
+  { value: 'tetris_sprint', label: '俄罗斯方块 · 竞速' },
+  { value: 'tetris_blitz', label: '俄罗斯方块 · 闪电' },
+  { value: 'tetris_challenge', label: '俄罗斯方块 · 挑战' },
 ]
 
 /** 各游戏允许的 play_kind（与 App 引擎分支一一对应，跨游戏不可混用） */
@@ -31,6 +36,7 @@ export const PLAY_KINDS_BY_GAME: Record<string, string[]> = {
   g2048: ['2048', '2048_timed', '2048_challenge', '2048_endless'],
   match3: ['score', 'clear', 'collect', 'obstacle', 'timed', 'boss'],
   sheep: ['merge'],
+  tetris: ['tetris', 'tetris_sprint', 'tetris_blitz', 'tetris_challenge'],
 }
 
 /** 按游戏编码过滤 play_kind 选项；gameCode 未知（未选游戏）时返回全量 */
@@ -67,4 +73,28 @@ export const CONFIG_TEMPLATES: Record<string, Record<string, unknown>> = {
   obstacle: { types: 4, steps: 40, ice: 20, iceCollect: [{ type: 0, count: 15 }] },
   timed: { types: 4, goal: 16560, time_limit: 90 },
   boss: { types: 4, steps: 30, bossHp: 220 },
+  // 俄罗斯方块（2026-10-09，曲线初稿见参考文档 §6.5）
+  tetris: {
+    lines: 10,
+    fall_ms: 1000,
+    fall_min: 60,
+    level_up_lines: 10,
+    speed_factor: 0.85,
+  },
+  tetris_sprint: { lines: 40, fall_ms: 800, fall_min: 800, level_up_lines: 0 },
+  tetris_blitz: {
+    score_target: 8000,
+    time_limit: 150,
+    fall_ms: 900,
+    fall_min: 80,
+    level_up_lines: 0,
+    frenzy: true,
+  },
+  tetris_challenge: {
+    score_target: 5000,
+    max_pieces: 60,
+    fall_ms: 900,
+    fall_min: 900,
+    level_up_lines: 0,
+  },
 }
