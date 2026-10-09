@@ -21,6 +21,7 @@ const STATUS_LABELS: Record<string, { text: string; color: string }> = {
   rearing: { text: '养育中', color: 'green' },
   adventuring: { text: '历险中', color: 'blue' },
   breeding: { text: '繁育中', color: 'purple' },
+  released: { text: '已放生', color: 'default' },
   fostered: { text: '寄养', color: 'orange' },
 }
 
