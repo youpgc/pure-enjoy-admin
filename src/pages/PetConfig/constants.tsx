@@ -105,6 +105,7 @@ export const MODULES: ModuleMeta[] = [
       { field: 'stack_limit_default', label: '默认单格堆叠上限', desc: '仅作道具目录未显式配置 stack_limit 时的兜底；每格实际上限以「宠物道具」页的 stack_limit 为准（App 背包据此显示 数量/上限 与满格角标）', format: fmtNum },
       { field: 'backpack_capacity_init', label: '背包初始格数', format: fmtNum },
       { field: 'backpack_capacity_max', label: '背包最高上限', format: fmtNum },
+      { field: 'release_gold_per_level', label: '放生补偿单价（金币/级）', desc: '放生补偿 = 等级 × 本值 × 评级倍率（倍率在 reserved 卡 release_gold_mult 按评级配置，缺省 1.0）', format: fmtNum },
       { field: 'rearing_capacity_init', label: '养育格初始', format: fmtNum },
       { field: 'rearing_capacity_max', label: '养育格上限', format: fmtNum },
       { field: 'foster_capacity_init', label: '寄养格初始', desc: '0 = 需扩容道具开启', format: fmtNum },

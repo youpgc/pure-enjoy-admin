@@ -64,6 +64,7 @@ export interface PetConfigRow {
   event_rate_home_open: number
   event_rate_action_done: number
   event_daily_limit: number
+  release_gold_per_level: number
   created_at: string
   updated_at: string
 }
