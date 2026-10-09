@@ -27,6 +27,16 @@ import common from '../../styles/common.module.css'
 // - Tab2 选择记录：pet_event_choice_logs 只读审计（RLS is_admin 全量），
 //   客诉「我选了没到账」按用户/事件编码排查。
 
+/** 事件标题从 content jsonb 提取（title 非独立列） */
+const eventTitle = (r: PetEventChoiceLogRow): string => {
+  const c = r.event?.content
+  const title =
+    c && typeof c === 'object' && !Array.isArray(c)
+      ? String((c as Record<string, unknown>).title ?? '')
+      : ''
+  return title ? `${title}（${r.event?.code ?? ''}）` : r.event?.code ?? '-'
+}
+
 const fmtRewards = (v: unknown): string => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return '-'
   const r = v as Record<string, unknown>
@@ -58,7 +68,7 @@ const buildChoiceLogColumns = (): ColumnsType<PetEventChoiceLogRow> => [
     key: 'event',
     width: 220,
     ellipsis: true,
-    render: (_, r) => (r.event ? `${r.event.code} · ${r.event.title}` : r.event_id),
+    render: (_, r) => (r.event ? eventTitle(r) : r.event_id),
   },
   {
     title: '上下文',
@@ -137,7 +147,7 @@ const PetEvents: React.FC = () => {
     () =>
       logs.filter((l) => {
         if (!logKeywordTrim) return true
-        return `${l.user_id} ${l.event?.code ?? ''} ${l.event?.title ?? ''}`
+        return `${l.user_id} ${eventTitle(l)}`
           .toLowerCase()
           .includes(logKeywordTrim)
       }),

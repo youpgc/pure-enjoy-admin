@@ -298,7 +298,7 @@ export interface PetEventChoiceLogRow {
   option_index: number
   rewards: Json
   created_at: string
-  event: { code: string; title: string; context: string } | null
+  event: { code: string; context: string; content: Json } | null
 }
 
 /// 1.13 成就（pet_achievements；reward_package schema 与任务 rewards 同源）

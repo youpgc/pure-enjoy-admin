@@ -281,7 +281,7 @@ class PetEventChoiceLogService extends BaseService<PetEventChoiceLogRow> {
     super('pet_event_choice_logs', {
       defaultOrder: { column: 'created_at', ascending: false },
       select:
-        'id,user_id,event_id,option_index,rewards,created_at,event:pet_random_events(code,title,context)',
+        'id,user_id,event_id,option_index,rewards,created_at,event:pet_random_events(code,context,content)',
     })
   }
 
