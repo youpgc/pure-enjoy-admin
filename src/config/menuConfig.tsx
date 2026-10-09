@@ -151,7 +151,7 @@ export const buildMenuItems = (
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
-  // 宠物管理（pets 模块：pets:read/write/delete 统管 15 个宠物子页面，同 games 模式）
+  // 宠物管理（pets 模块：pets:read/write/delete 统管 5 个容器页（2026-10-09 IA 整合），同 games 模式）
   ...(hasMenuPermission('menu:pets', ['pets:read', 'pets:write', 'pets:delete']) ? [
     {
       key: 'pets',

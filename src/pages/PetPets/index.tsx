@@ -68,7 +68,11 @@ const PetPets: React.FC = () => {
 
   useEffect(() => {
     if (canRead) loadRows()
-  }, [canRead, loadRows])
+  }, [canRead, loadRows]);
+
+  if (!canRead) {
+    return <Alert type='warning' showIcon message='无访问权限' description='当前账号缺少 pets:read 权限，无法查看宠物个体数据。' />
+  }
 
   const keywordTrim = keyword.trim().toLowerCase()
   // 用户关键字 → 用户 ID 集（异步解析；空关键字为 null = 不过滤用户维度）
