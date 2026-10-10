@@ -163,6 +163,10 @@ export const MODE_LABELS: Record<string, string> = {
   marathon: '马拉松模式',
   sprint: '竞速模式',
   blitz: '闪电模式',
+  // 俄罗斯方块二期（2026-10-10 查漏补缺——缺失时后台段位条件直出英文码）
+  dig: '挖掘模式',
+  survival: '生存模式',
+  daily: '每日挑战',
 }
 
 /// 段位名映射（condition.tier 1..7）
