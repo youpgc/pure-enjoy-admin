@@ -33,6 +33,7 @@ export const PLAY_KIND_OPTIONS: PlayKindOption[] = [
   { value: 'tetris_dig', label: '俄罗斯方块 · 挖掘' },
   { value: 'tetris_survival', label: '俄罗斯方块 · 生存' },
   { value: 'tetris_daily', label: '俄罗斯方块 · 每日挑战' },
+  { value: 'tetris_boss', label: '俄罗斯方块 · Boss' },
 ]
 
 /** 各游戏允许的 play_kind（与 App 引擎分支一一对应，跨游戏不可混用） */
@@ -48,6 +49,7 @@ export const PLAY_KINDS_BY_GAME: Record<string, string[]> = {
     'tetris_dig',
     'tetris_survival',
     'tetris_daily',
+    'tetris_boss',
   ],
 }
 
@@ -126,5 +128,15 @@ export const CONFIG_TEMPLATES: Record<string, Record<string, unknown>> = {
     level_up_lines: 10,
     speed_factor: 0.85,
     seed_daily: true,
+  },
+  // 俄罗斯方块三期（2026-10-10，Boss 战）
+  tetris_boss: {
+    boss_hp: 30,
+    garbage_interval: 15,
+    fall_ms: 1000,
+    fall_min: 80,
+    level_up_lines: 10,
+    speed_factor: 0.88,
+    special_chance: 0.05,
   },
 }

@@ -167,6 +167,7 @@ export const MODE_LABELS: Record<string, string> = {
   dig: '挖掘模式',
   survival: '生存模式',
   daily: '每日挑战',
+  boss: 'Boss 模式',
 }
 
 /// 段位名映射（condition.tier 1..7）
