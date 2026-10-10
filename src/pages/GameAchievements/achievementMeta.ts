@@ -69,6 +69,7 @@ export const DIMENSION_LABELS: Record<string, { name: string; unit: string }> = 
   max_b2b: { name: '最长B2B链', unit: '次' },
   perfect_clears: { name: '全清次数', unit: '次' },
   level_reached: { name: '达到等级', unit: '级' },
+  garbage_cleared: { name: '清除垃圾行', unit: '行' },
 }
 
 /// 分组键（group_key）中文标签。

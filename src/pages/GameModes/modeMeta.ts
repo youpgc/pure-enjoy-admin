@@ -29,6 +29,10 @@ export const PLAY_KIND_OPTIONS: PlayKindOption[] = [
   { value: 'tetris_sprint', label: '俄罗斯方块 · 竞速' },
   { value: 'tetris_blitz', label: '俄罗斯方块 · 闪电' },
   { value: 'tetris_challenge', label: '俄罗斯方块 · 挑战' },
+  // 俄罗斯方块二期（2026-10-10）
+  { value: 'tetris_dig', label: '俄罗斯方块 · 挖掘' },
+  { value: 'tetris_survival', label: '俄罗斯方块 · 生存' },
+  { value: 'tetris_daily', label: '俄罗斯方块 · 每日挑战' },
 ]
 
 /** 各游戏允许的 play_kind（与 App 引擎分支一一对应，跨游戏不可混用） */
@@ -36,7 +40,15 @@ export const PLAY_KINDS_BY_GAME: Record<string, string[]> = {
   g2048: ['2048', '2048_timed', '2048_challenge', '2048_endless'],
   match3: ['score', 'clear', 'collect', 'obstacle', 'timed', 'boss'],
   sheep: ['merge'],
-  tetris: ['tetris', 'tetris_sprint', 'tetris_blitz', 'tetris_challenge'],
+  tetris: [
+    'tetris',
+    'tetris_sprint',
+    'tetris_blitz',
+    'tetris_challenge',
+    'tetris_dig',
+    'tetris_survival',
+    'tetris_daily',
+  ],
 }
 
 /** 按游戏编码过滤 play_kind 选项；gameCode 未知（未选游戏）时返回全量 */
@@ -96,5 +108,23 @@ export const CONFIG_TEMPLATES: Record<string, Record<string, unknown>> = {
     fall_ms: 900,
     fall_min: 900,
     level_up_lines: 0,
+  },
+  // 俄罗斯方块二期（2026-10-10，曲线初稿见参考文档二期节）
+  tetris_dig: { dig_rows: 3, fall_ms: 800, fall_min: 800, level_up_lines: 0 },
+  tetris_survival: {
+    lines: 10,
+    garbage_interval: 20,
+    fall_ms: 1000,
+    fall_min: 60,
+    level_up_lines: 10,
+    speed_factor: 0.85,
+  },
+  tetris_daily: {
+    lines: 40,
+    fall_ms: 700,
+    fall_min: 60,
+    level_up_lines: 10,
+    speed_factor: 0.85,
+    seed_daily: true,
   },
 }
