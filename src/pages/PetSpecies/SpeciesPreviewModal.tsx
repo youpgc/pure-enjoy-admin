@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { Modal, Button, Tag, Typography } from 'antd'
 import { LeftOutlined, RightOutlined } from '@ant-design/icons'
 import type { PetSpeciesRow } from '../../types/pet'
+import { petBendForm } from '../../constants/petAnim/petBendManifest'
+import PetBendPreview from '../../components/pet/PetBendPreview'
 
 // ==================== 种属 3 阶段预览弹窗 ====================
 //
@@ -88,14 +90,16 @@ const SpeciesPreviewModal: React.FC<Props> = ({ open, stages, onCancel }) => {
                 overflow: 'hidden',
               }}
             >
-              {imgFailed ? (
+              {petBendForm(current.species_code) ? (
+                <PetBendPreview key={current.species_code} speciesCode={current.species_code} size={260} />
+              ) : imgFailed ? (
                 <Typography.Text type="secondary">
                   {current.species_code} 预览图未配置
                 </Typography.Text>
               ) : (
                 <img
                   alt={current.species_code}
-                  src={`/pet-art/${current.species_code}.png`}
+                  src={`${import.meta.env.BASE_URL}pet-art/${current.species_code}.png`}
                   style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
                   onError={() => setImgFailed(true)}
                 />

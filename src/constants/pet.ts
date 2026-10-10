@@ -414,3 +414,41 @@ export const PET_EVENT_REWARD_FIELDS = [
   { key: 'intimacy', label: '亲密', min: 0 },
   { key: 'hunger', label: '饱食', min: -100 },
 ] as const
+
+// ---------- 2D 表现动作（pet_species.render2d.frames 的键域） ----------
+//
+// 值域 = App 端 `lib/constants/pet_render.dart` 的 `PetAction.code` 全集（铁律 12 三端对齐），
+// 两族兼容值（walk/happy）虽不再被 App 触发，但仍是合法键（素材文件名契约依赖），故一并登记。
+//
+// 只管「整图补间」那条路：分层弯曲的 6 档表情帧由 App 编译期 `kPetBendGeo` 是否登记决定，
+// 不吃本键域，改帧数动不了弯曲形态（口径见 App `utils/pet_art_resolver.dart` 契约注释）。
+// 配置帧数超过已随包帧数时 App 按随包数裁剪——一期素材全随包，配置无权凭空造资源。
+
+export const PET_RENDER_ACTIONS = {
+  IDLE: 'idle',
+  EAT: 'eat',
+  PETTED: 'petted',
+  SAD: 'sad',
+  SLEEP: 'sleep',
+  EVOLVE: 'evolve',
+  WALK: 'walk',
+  HAPPY: 'happy',
+} as const
+
+export const PET_RENDER_ACTION_LABELS: Record<string, string> = {
+  [PET_RENDER_ACTIONS.IDLE]: '待机 idle',
+  [PET_RENDER_ACTIONS.EAT]: '进食 eat',
+  [PET_RENDER_ACTIONS.PETTED]: '被抚摸 petted',
+  [PET_RENDER_ACTIONS.SAD]: '委屈 sad',
+  [PET_RENDER_ACTIONS.SLEEP]: '睡觉 sleep',
+  [PET_RENDER_ACTIONS.EVOLVE]: '进化演出 evolve',
+  [PET_RENDER_ACTIONS.WALK]: '行走 walk（兼容保留）',
+  [PET_RENDER_ACTIONS.HAPPY]: '开心 happy（兼容保留）',
+}
+
+/// frames 编辑器行字段（数组顺序即展示顺序：定版集在前、兼容值垫底）
+///
+/// 不设上限：帧数上限的真相在「已随包帧数」（App 侧按包裁剪），后台写超只是被裁，不该被表单挡住。
+export const PET_RENDER_ACTION_FIELDS = Object.entries(PET_RENDER_ACTION_LABELS).map(
+  ([key, label]) => ({ key, label, min: 1, placeholder: '未配置=随包全放' })
+)

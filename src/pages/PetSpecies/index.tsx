@@ -17,7 +17,8 @@ import common from '../../styles/common.module.css'
 // 同 evolution_chain_id）合并为一条数据管理——列表行 = 进化链（或独立种属），
 // 形态列展示链内各阶；操作列新增「预览」：弹窗展示 3 阶段预览图（左右切换，默认基础形）。
 // 编辑/删除仍然以行（基础形）为单位操作对应 pet_species 行。
-// 启用状态即 App 展示闸门：新形态先完成素材接线（render2d）再启用。
+// 启用状态即 App 展示闸门：新形态先完成素材接线再启用——分层弯曲形态的接线是「帧随包 +
+// App 编译期 kPetBendGeo 登记」（不靠 render2d），只有走整图补间的形态才由 render2d 决定。
 // 3D 一期已下线：render3d 列与存量数据保留，本页不再编辑/展示（后期迭代重写渲染层时恢复）。
 
 const RARITY_COLORS: Record<string, string> = {

@@ -17,7 +17,9 @@ import { asObject } from '../../components/form/pet/editors/shared'
 //   （此前误按旧展示层扁平结构 {hunger,mood,intimacy,exp} 编辑，已修正）；
 // - hatch_config：{ inherit_ratio, potential_min, potential_max }；
 // - refine_config：{ base, potential_bonus:[{min,max,bonus}] }；
-// - render2d {code}；render3d 编辑器随 3D 一期下线一并移除（列与存量数据保留，不再提交）。
+// - render2d {base, frames:{动作 code: 帧数}}（App `pet_art_resolver.dart` 契约 v1；
+//   旧编辑器写的 {code} 是没人读的死键，已随本次键域对齐摘除）；
+//   render3d 编辑器随 3D 一期下线一并移除（列与存量数据保留，不再提交）。
 
 export interface SpeciesFormValues {
   species_code: string
@@ -146,7 +148,11 @@ const SpeciesFormModal: React.FC<Props> = ({
           <Input placeholder="留空 = 未挂载进化链" allowClear />
         </Form.Item>
 
-        <Form.Item name="render2d" label="2D 素材配置">
+        <Form.Item
+          name="render2d"
+          label="2D 素材配置"
+          tooltip="只对「整图补间」生效：底图素材码 base + 各动作整图真帧数 frames，未随包的素材码/超额帧数由 App 按包裁剪。已上分层弯曲的形态走包内弯曲帧，不受这里支配"
+        >
           <Render2dEditor />
         </Form.Item>
 
