@@ -103,25 +103,34 @@ const EventFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel
         onOk({ ...values, content: formToContent(values.content) })
       }}
       confirmLoading={saving}
-      afterOpenChange={(o) => {
-        if (o) {
-          form.resetFields()
-          form.setFieldsValue(
-            editing
-              ? { ...editing, content: contentToForm(editing.content) }
-              : {
-                  weight: 100,
-                  enabled: false,
-                  content: { title: '', text: '', options: [{}, {}] },
-                }
-          )
-        }
-      }}
       onCancel={onCancel}
-      destroyOnHidden
+      // 5.24 用旧名 destroyOnClose（5.25+ 才是 destroyOnHidden）：每次关闭真销毁，
+      // 重开时 Form 以 initialValues 重挂载——回显确定性，不赌 setFieldsValue 时序
+      destroyOnClose
       width={760}
     >
-      <Form form={form} layout="vertical" preserve={false}>
+      {/* key 随编辑对象变化：同弹窗内切换行也强制重挂载，initialValues 恒新鲜 */}
+      <Form
+        key={editing?.id ?? '__new__'}
+        form={form}
+        layout="vertical"
+        preserve={false}
+        initialValues={
+          editing
+            ? {
+                code: editing.code,
+                context: editing.context,
+                weight: editing.weight,
+                enabled: editing.enabled,
+                content: contentToForm(editing.content),
+              }
+            : {
+                weight: 100,
+                enabled: false,
+                content: { title: '', text: '', options: [{}, {}] },
+              }
+        }
+      >
         <Form.Item
           name="code"
           label="事件编码"
