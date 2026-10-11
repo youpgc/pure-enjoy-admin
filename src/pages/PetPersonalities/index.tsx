@@ -12,9 +12,10 @@ import common from '../../styles/common.module.css'
 
 // ==================== 性格字典（pet_personalities） ====================
 //
-// 孵化时按 condition（{attr:阈值} 全维度 ≥ AND）筛候选，weight 加权随机；
-// 种子 4 条（lively/calm/brave/timid）默认停用。App 端 summary 以
-// personality_code 关联展示性格名。
+// 孵化时按 condition 占比口径判定（2026-10-11 定版）：{attr: v}=该维占比 ≥v%、
+// {attr_max: v}=该维占比 ≤v%（占比 = 该维 ÷ 四维合计 × 100），全部满足才入候选；
+// 解析 = 条件键数 desc → 下界占比和 desc → weight desc → code asc 链式唯一。
+// App 端 summary 以 personality_code 关联展示性格名。
 
 const PetPersonalities: React.FC = () => {
   const { hasPermission } = usePermission()
@@ -132,7 +133,7 @@ const PetPersonalities: React.FC = () => {
         showIcon
         className={common.mb16}
         message="性格字典说明"
-        description="孵化时按属性条件匹配性格：condition 为 {维度: 阈值}，宠物四维全部 ≥ 阈值（AND）才进入候选，再按权重加权随机定一个。种子 4 条默认停用，属性系统稳定后再逐条放开。编码创建后不可修改。"
+        description="孵化时按属性占比匹配性格（2026-10-11 定版）：condition 为 {维度: 占比%}（该维占比 ≥ 值）或 {维度_max: 占比%}（该维占比 ≤ 值），占比 = 该维 ÷ 四维合计 × 100；全部满足才入候选，按条件键数、下界占比和降序取第一个（链式唯一解析）。全部 24 条已启用，档位为测试档、冒烟后调整。编码创建后不可修改。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
