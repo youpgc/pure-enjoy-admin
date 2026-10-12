@@ -21,7 +21,8 @@ export interface ChainOption {
 const ChainsTab: React.FC<{
   onRowsChange: (rows: ChainOption[]) => void
   onConfigureStages: (chainId: string) => void
-}> = ({ onRowsChange, onConfigureStages }) => {
+  onChainDeleted?: (chainId: string) => void
+}> = ({ onRowsChange, onConfigureStages, onChainDeleted }) => {
   const { hasPermission } = usePermission()
   const canWrite = hasPermission('pets:write')
   const canDelete = hasPermission('pets:delete')
@@ -78,6 +79,7 @@ const ChainsTab: React.FC<{
     const res = await petEvoChainService.delete(record.id)
     if (!res.success) return
     message.success('已删除')
+    onChainDeleted?.(record.id)
     await loadRows()
   }
 

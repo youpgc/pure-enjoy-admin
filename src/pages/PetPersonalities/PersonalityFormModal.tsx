@@ -7,8 +7,10 @@ import { PET_ATTR_LABELS } from '../../constants/pet'
 
 // ==================== 性格字典编辑弹窗（pet_personalities） ====================
 //
-// condition 结构与 rpc_pet_hatch_instant 消费同源：{attr: 阈值}，
-// 四维全部 ≥ 阈值（AND）才进入候选，按 weight 加权随机定一个。
+// condition 结构与 rpc_pet_hatch_instant 消费同源（2026-10-11 占比权重制定版）：
+// {attr: v}=该维占比 ≥v%（下界）、{attr_max: v}=该维占比 ≤v%（上界），
+// 占比 = 该维 ÷ 四维合计 × 100；全部满足才入候选，
+// 解析 = 条件键数 desc → 下界占比和 desc → weight desc → code asc（链式唯一）。
 
 export interface PersonalityFormValues {
   code: string
@@ -27,11 +29,20 @@ interface Props {
   onCancel: () => void
 }
 
-const CONDITION_FIELDS = Object.entries(PET_ATTR_LABELS).map(([key, label]) => ({
-  key,
-  label: `${label} ≥`,
-  min: 0,
-}))
+const CONDITION_FIELDS = [
+  ...Object.entries(PET_ATTR_LABELS).map(([key, label]) => ({
+    key,
+    label: `${label}占比 ≥ (%)`,
+    min: 0,
+    max: 100,
+  })),
+  ...Object.entries(PET_ATTR_LABELS).map(([key, label]) => ({
+    key: `${key}_max`,
+    label: `${label}占比 ≤ (%)`,
+    min: 0,
+    max: 100,
+  })),
+]
 
 const PersonalityFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel }) => {
   const [form] = Form.useForm()
@@ -76,15 +87,15 @@ const PersonalityFormModal: React.FC<Props> = ({ open, editing, saving, onOk, on
         </Form.Item>
         <Form.Item
           name="condition"
-          label="属性条件（{维度: 阈值}，全维度 ≥ AND）"
-          tooltip="孵化时四维全部 ≥ 对应阈值才进入候选；留空 = 无条件（任何宠物都候选）"
+          label="属性条件（四维占比 %，全部满足才入候选）"
+          tooltip="占比 = 该维 ÷ 四维合计 × 100；{维度: v}=该维占比 ≥v%，{维度_max: v}=该维占比 ≤v%（「均衡无突出/外冷内热」的上界语义靠 _max 表达）。留空 = 无条件（docile 温顺乖巧兜底）"
         >
           <NumberMapEditor fields={CONDITION_FIELDS} />
         </Form.Item>
         <Form.Item
           name="weight"
           label="权重"
-          tooltip="候选性格按权重加权随机取一个；默认 100"
+          tooltip="同属性组合有多个候选时按解析序取一：条件键数 desc → 下界占比和 desc → weight desc → code asc（非随机）；默认 100"
           rules={[{ required: true, message: '请输入权重' }]}
         >
           <InputNumber min={1} style={{ width: '100%' }} />
@@ -93,7 +104,7 @@ const PersonalityFormModal: React.FC<Props> = ({ open, editing, saving, onOk, on
           name="enabled"
           label="启用"
           valuePropName="checked"
-          tooltip="关闭后孵化匹配跳过该性格（种子 4 条默认停用，验证属性系统稳定后再放开）"
+          tooltip="关闭后孵化匹配跳过该性格（当前 24 条全量启用，2026-10-08 起）"
         >
           <Switch checkedChildren="启用" unCheckedChildren="停用" />
         </Form.Item>

@@ -3,6 +3,7 @@ import { Alert, Button, Card, Col, Progress, Row, Statistic, Tag } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import { supabase } from '../../utils/supabase'
 import common from '../../styles/common.module.css'
+import { apiQuery } from '../../utils/apiClient'
 
 // ==================== 宠物数据看板（rpc_pet_admin_dashboard，运营工具第 4 签） ====================
 //
@@ -57,13 +58,20 @@ const PetDashboard: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
-    const { data: res, error: err } = await supabase.rpc('rpc_pet_admin_dashboard')
+    // 走 apiQuery 统一错误处理（此前裸 supabase.rpc 错误不进 error_logs，
+    // is_admin 闸门拒绝时缺排查线索——审计批 20261012。
+    // ⚠️ 必须用 apiQuery 带 data 的助手：apiExecute 恒返回 data=true，
+    // setData(true) 后渲染 data.eggs 必崩——本批自查发现的 P0 回归）
+    const result = await apiQuery<DashboardData>(
+      () => supabase.rpc('rpc_pet_admin_dashboard'),
+      'PetDashboard-看板',
+    )
     setLoading(false)
-    if (err) {
-      setError(err.message)
+    if (!result.success) {
+      setError(result.errorMessage ?? '加载失败')
       return
     }
-    setData(res as unknown as DashboardData)
+    setData(result.data as DashboardData)
   }, [])
 
   useEffect(() => {

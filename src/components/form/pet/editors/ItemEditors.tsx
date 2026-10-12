@@ -61,7 +61,13 @@ export const EffectEditor: React.FC<EffectEditorProps> = ({
             options={poolOptions}
             allowClear
             disabled={disabled}
-            onChange={(v) => onChange?.({ ...obj, pool: v ?? null })}
+            onChange={(v) => {
+              // 清空即删键（pool:null 死键会让服务端 ->>'pool' 读到 NULL 走报错分支）
+              const next = { ...obj }
+              if (v == null) delete next.pool
+              else next.pool = v
+              onChange?.(next)
+            }}
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>

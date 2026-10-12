@@ -84,7 +84,9 @@ export const EvoConditionsEditor: React.FC<Props> = ({ value, onChange, items, d
                 placeholder="目标值"
                 value={numOf(row.value)}
                 disabled={disabled}
-                onChange={(v) => patch(index, { value: v })}
+                onChange={(v) =>
+                  patch(index, v === null ? { value: undefined } : { value: v })
+                }
               />
             )}
             {!disabled && (

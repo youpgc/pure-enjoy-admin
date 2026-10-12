@@ -66,6 +66,30 @@ export const renderModuleControls = (
           <Form.Item name="interact_mood" label="互动心情恢复" rules={[{ required: true }]}>
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
+          <Form.Item
+            name="feed_intimacy"
+            label="喂养亲密度 / 次"
+            tooltip="rpc_pet_feed 每次成功加的亲密；受每日上限约束"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item
+            name="interact_intimacy"
+            label="互动亲密度 / 次"
+            tooltip="rpc_pet_interact 每次成功加的亲密"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item
+            name="intimacy_daily_cap"
+            label="亲密度每日上限 / 宠"
+            tooltip="每宠每日从照料（喂养+互动）获得的亲密上限，北京日归零；事件奖励不受此限"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
         </>
       )
     case 'decay':
@@ -159,6 +183,14 @@ export const renderModuleControls = (
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
           <Form.Item name="foster_capacity_max" label="寄养格上限" rules={[{ required: true }]}>
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item
+            name="release_gold_per_level"
+            label="放生补偿单价（金币/级）"
+            tooltip="放生补偿 = 等级 × 本值 × 评级倍率（倍率在 reserved 卡 release_gold_mult 按评级配置，缺省 1.0）"
+            rules={[{ required: true }]}
+          >
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
         </>

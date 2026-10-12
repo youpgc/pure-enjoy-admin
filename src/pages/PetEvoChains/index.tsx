@@ -37,6 +37,10 @@ const PetEvoChains: React.FC = () => {
                   setChainId(id)
                   setActiveKey('stages')
                 }}
+                onChainDeleted={(id) => {
+                  // 删除当前选中链后清空选择，防 Tab2 残留裸 uuid（审计批 20261012）
+                  setChainId((prev) => (prev === id ? '' : prev))
+                }}
               />
             ),
           },

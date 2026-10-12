@@ -89,11 +89,16 @@ const PetPersonalities: React.FC = () => {
         if (entries.length === 0) return <Tag>无条件</Tag>
         return (
           <Space wrap size={4}>
-            {entries.map(([k, val]) => (
-              <Tag key={k} color="cyan">
-                {PET_ATTR_LABELS[k] ?? k} ≥ {String(val)}
-              </Tag>
-            ))}
+            {entries.map(([k, val]) => {
+              // {attr_max: v}=占比上界（≤），此前一律画成 ≥ 会被误读（审计批 20261012）
+              const isMax = k.endsWith('_max')
+              const attr = isMax ? k.slice(0, -4) : k
+              return (
+                <Tag key={k} color={isMax ? 'orange' : 'cyan'}>
+                  {PET_ATTR_LABELS[attr] ?? attr} {isMax ? '≤' : '≥'} {String(val)}%
+                </Tag>
+              )
+            })}
           </Space>
         )
       },

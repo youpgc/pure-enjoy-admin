@@ -39,10 +39,16 @@ interface Props {
 const EventFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel }) => {
   const [form] = Form.useForm()
 
-  // content(jsonb) → 表单结构（缺键兜零值，旧手填数据容忍解析）
+  // content(jsonb) → 表单结构（缺键兜零值，旧手填数据容忍解析；
+  // choices = 2026-10-08 结构化定版前的旧手填结构，与 columns.tsx 同款兜底，
+  // 旧行打开可回显选项、保存时完成迁移为 options 并移除旧键）
   const contentToForm = (raw: unknown) => {
     const c = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
-    const optionsRaw = Array.isArray(c.options) ? c.options : []
+    const optionsRaw = Array.isArray(c.options)
+      ? c.options
+      : Array.isArray(c.choices)
+        ? c.choices
+        : []
     const options: OptionFormValue[] = optionsRaw.map((o) => {
       const opt = (o && typeof o === 'object' ? o : {}) as Record<string, unknown>
       const rewardsRaw =
@@ -68,19 +74,37 @@ const EventFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel
     }
   }
 
-  // 表单结构 → content(jsonb)；数值键零值剔除，item_code 空剔除
-  const formToContent = (vals: {
-    title: string
-    text: string
-    options: OptionFormValue[]
-  }) => ({
-    title: (vals.title || '').trim(),
-    text: (vals.text || '').trim(),
-    options: (vals.options || []).map((o) => {
-      const rewards: Record<string, unknown> = {}
+  // 表单结构 → content(jsonb)；数值键零值剔除，item_code 空剔除。
+  // 未知键保留（审计批 20261012）：浅拷贝原始 content/选项/rewards 后仅覆盖
+  // 白名单键——此前整体重构属有损回写，运营或后续版本写入的其它键会被洗掉。
+  const formToContent = (
+    vals: {
+      title: string
+      text: string
+      options: OptionFormValue[]
+    },
+    raw?: unknown,
+  ) => {
+    const base =
+      raw && typeof raw === 'object'
+        ? { ...(raw as Record<string, unknown>) }
+        : {}
+    const rawOptions = Array.isArray(base.options) ? base.options : []
+    base.title = (vals.title || '').trim()
+    base.text = (vals.text || '').trim()
+    base.options = (vals.options || []).map((o, i) => {
+      const prev =
+        rawOptions[i] && typeof rawOptions[i] === 'object'
+          ? { ...(rawOptions[i] as Record<string, unknown>) }
+          : {}
+      const rewards: Record<string, unknown> =
+        prev.rewards && typeof prev.rewards === 'object'
+          ? { ...(prev.rewards as Record<string, unknown>) }
+          : {}
       for (const f of PET_EVENT_REWARD_FIELDS) {
         const v = o.rewards?.[f.key]
         if (typeof v === 'number' && v !== 0) rewards[f.key] = v
+        else delete rewards[f.key]
       }
       const itemCode = o.rewards?.item_code
       if (typeof itemCode === 'string' && itemCode.trim()) {
@@ -89,10 +113,17 @@ const EventFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel
           typeof o.rewards?.item_count === 'number' && (o.rewards.item_count as number) > 0
             ? o.rewards.item_count
             : 1
+      } else {
+        delete rewards.item_code
+        delete rewards.item_count
       }
-      return { label: (o.label || '').trim(), rewards }
-    }),
-  })
+      prev.label = (o.label || '').trim()
+      prev.rewards = rewards
+      return prev
+    })
+    delete base.choices // 旧手填结构迁移完成，防双结构并存
+    return base
+  }
 
   return (
     <Modal
@@ -100,13 +131,14 @@ const EventFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel
       open={open}
       onOk={async () => {
         const values = await form.validateFields()
-        onOk({ ...values, content: formToContent(values.content) })
+        // 传入原始 content：保存保留未知键（见 formToContent 注释）
+        onOk({ ...values, content: formToContent(values.content, editing?.content) })
       }}
       confirmLoading={saving}
       onCancel={onCancel}
-      // 5.24 用旧名 destroyOnClose（5.25+ 才是 destroyOnHidden）：每次关闭真销毁，
+      // destroyOnHidden（antd 5.25+；实装 5.29）：每次关闭真销毁，
       // 重开时 Form 以 initialValues 重挂载——回显确定性，不赌 setFieldsValue 时序
-      destroyOnClose
+      destroyOnHidden
       width={760}
     >
       {/* key 随编辑对象变化：同弹窗内切换行也强制重挂载，initialValues 恒新鲜 */}

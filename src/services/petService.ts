@@ -308,6 +308,30 @@ class PetPetAdminService extends BaseService<PetPetRow> {
   async listPets() {
     return this.findAll()
   }
+
+  /// 服务端分页（审计批 20261012：pet_pets 是按用户增长的个体大表，
+  /// findAll 全量拉取随数据量线性劣化——与 pet_event_choice_logs 同口径下推）。
+  /// 过滤二选一：userIds（用户关键字解析结果，命中即只看该批用户）；
+  /// 否则 text 对 编号/昵称 ilike 模糊下推（PostgREST 通配符需清洗）。
+  paginatePets(
+    page: number,
+    pageSize: number,
+    options?: { userIds?: string[] | null; text?: string }
+  ) {
+    return this.paginate(page, pageSize, (q) => {
+      let builder = q
+      if (options?.userIds && options.userIds.length > 0) {
+        return (builder as any).in('user_id', options.userIds)
+      }
+      // id 次排序键:新手包批量发宠同 created_at 时页界不稳(复审 P3)
+      builder = (builder as any).order('id', { ascending: true })
+      const t = (options?.text ?? '').replace(/[,()%\\`:"]/g, '')
+      if (t) {
+        builder = (builder as any).or(`show_no.ilike.*${t}*,nickname.ilike.*${t}*`)
+      }
+      return builder
+    })
+  }
 }
 
 // 事件触发审计（pet_lottery_records biz='event'：含放弃未选的触发占坑）

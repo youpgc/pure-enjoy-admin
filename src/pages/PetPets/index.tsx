@@ -52,58 +52,62 @@ const PetPets: React.FC = () => {
   const [rows, setRows] = useState<PetPetRow[]>([])
   const [personalities, setPersonalities] = useState<PetPersonalityRow[]>([])
   const [loading, setLoading] = useState(false)
-  const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  // 检索词：Input.Search 触发才生效（此前 onChange 每击键即发一次用户解析请求）
+  const [searchText, setSearchText] = useState('')
+  const searchTrim = searchText.trim().toLowerCase()
 
-  const loadRows = useCallback(async () => {
-    setLoading(true)
-    const [petsRes, perRes] = await Promise.all([
-      petPetAdminService.listPets(),
-      petPersonalityService.findAll(),
-    ])
-    setLoading(false)
-    if (!petsRes.success) return
-    setRows(petsRes.data ?? [])
-    if (perRes.success) setPersonalities(perRes.data ?? [])
-  }, [])
-
-  useEffect(() => {
-    if (canRead) loadRows()
-  }, [canRead, loadRows]);
-
-  const keywordTrim = keyword.trim().toLowerCase()
-  // 用户关键字 → 用户 ID 集（异步解析；空关键字为 null = 不过滤用户维度）
+  // 用户关键字 → 用户 ID 集（异步解析；null = 无用户维度检索）
   const [resolvedIds, setResolvedIds] = useState<string[] | null>(null)
   useEffect(() => {
     let alive = true
-    if (!keywordTrim) {
+    if (!searchTrim) {
       setResolvedIds(null)
       return
     }
-    userService.findUserIdsByKeyword(keywordTrim).then((res) => {
+    userService.findUserIdsByKeyword(searchTrim).then((res) => {
       if (alive) setResolvedIds(res.success ? res.data ?? [] : [])
     })
     return () => {
       alive = false
     }
-  }, [keywordTrim])
+  }, [searchTrim])
 
-  const filtered = useMemo(
-    () =>
-      rows.filter((r) => {
-        const hitUser =
-          resolvedIds === null || (resolvedIds.length > 0 && resolvedIds.includes(r.user_id))
-        const hitText =
-          !keywordTrim ||
-          `${r.show_no} ${r.nickname ?? ''} ${r.species?.name_cn ?? ''}`
-            .toLowerCase()
-            .includes(keywordTrim)
-        // 关键字只在"用户命中 或 文本命中"时任一满足即可
-        return (resolvedIds !== null && hitUser) || hitText
-      }),
-    [rows, keywordTrim, resolvedIds]
+  // 服务端分页（审计批 20261012：pet_pets 全量 findAll 随用户量线性劣化）。
+  // 检索语义：解析到用户 → 仅按该批用户；未解析到用户 → 编号/昵称模糊下推
+  // （种属名为嵌入表字段不下推，客服场景以用户/编号/昵称为主）。
+  const loadRows = useCallback(
+    async (opts?: { page?: number; userIds?: string[] | null; text?: string }) => {
+      setLoading(true)
+      const target = opts?.page ?? page
+      const [petsRes, perRes] = await Promise.all([
+        petPetAdminService.paginatePets(target, PET_TABLE_PAGE_SIZE, {
+          userIds: opts && 'userIds' in opts ? (opts.userIds ?? null) : undefined,
+          text: opts?.text,
+        }),
+        petPersonalityService.findAll(),
+      ])
+      setLoading(false)
+      if (!petsRes.success) return
+      setRows(petsRes.data?.data ?? [])
+      setTotal(petsRes.data?.total ?? 0)
+      setPage(target)
+      if (perRes.success) setPersonalities(perRes.data ?? [])
+    },
+    [page]
   )
 
-  const ids = filtered.slice(0, 50).map((r) => r.user_id)
+  useEffect(() => {
+    if (canRead) loadRows()
+  }, [canRead]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 检索词/用户解析结果变化 → 重查第 1 页
+  useEffect(() => {
+    if (canRead) loadRows({ page: 1, userIds: resolvedIds, text: searchTrim || undefined })
+  }, [canRead, resolvedIds, searchTrim]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const ids = rows.slice(0, 50).map((r) => r.user_id)
   const userMap = useUsernames(ids)
   const perMap = useMemo(() => {
     const m = new Map<string, string>()
@@ -197,19 +201,19 @@ const PetPets: React.FC = () => {
         showIcon
         className={common.mb16}
         message='宠物个体（只读查询）'
-        description="客诉排查用：昵称/等级/状态/四维/健康/性格。支持按用户（昵称/邮箱关键字）、宠物编号、昵称、种属名过滤。本页无写操作；四维为 base+bonus 合并值。"
+        description="客诉排查用：昵称/等级/状态/四维/健康/性格。按用户（用户名/昵称关键字，回车搜索）、宠物编号、昵称过滤（服务端分页）。本页无写操作；四维为 base+bonus 合并值。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
           <Space wrap>
-            <Input
+            <Input.Search
               style={{ width: 260 }}
               allowClear
-              placeholder="搜索用户 / 编号 / 昵称 / 种属"
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              enterButton
+              placeholder="搜索用户 / 编号 / 昵称"
+              onSearch={(v) => setSearchText(v)}
             />
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={loadRows}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRows()}>
               刷新
             </Button>
           </Space>
@@ -219,8 +223,14 @@ const PetPets: React.FC = () => {
         rowKey="id"
         loading={loading}
         columns={columns}
-        dataSource={filtered}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        dataSource={rows}
+        pagination={{
+          current: page,
+          total,
+          pageSize: PET_TABLE_PAGE_SIZE,
+          showSizeChanger: false,
+          onChange: (p) => loadRows({ page: p, userIds: resolvedIds, text: searchTrim || undefined }),
+        }}
         size="middle"
       />
     </div>

@@ -96,7 +96,17 @@ const PetEggPools: React.FC = () => {
               const retired = await petEggPoolService.update(editing.id, {
                 published: false,
               } as never)
-              return retired.success ? created : retired
+              if (!retired.success) {
+                // 两步写无事务包裹（审计批 20261012）：新版本行已落库、旧版本
+                // 下架失败时若不显式警告，用户盲目重试会在同一
+                // (pool_code, config_version) 再插一行或撞唯一约束
+                message.error(
+                  `新版本 v${values.config_version} 行已创建，但旧版本下架失败（${retired.errorMessage ?? '未知错误'}）。请勿重复提交：刷新后请手动下架旧版本。`,
+                  6,
+                )
+                return { success: false, errorMessage: retired.errorMessage } as never
+              }
+              return created
             }
             return petEggPoolService.update(editing.id, payload as never)
           })()
