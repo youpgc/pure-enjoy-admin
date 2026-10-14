@@ -57,14 +57,14 @@ const FileManagement: React.FC = () => {
             allowClear
           />
           <Select
-            placeholder='存储桶'
+            placeholder='类目'
             value={filters.bucket}
             onChange={(value) => setFilters((prev) => ({ ...prev, bucket: value }))}
             className={styles.filterSelect}
             allowClear
             options={[
-              { label: 'public', value: 'public' },
-              { label: 'private', value: 'private' },
+              { label: 'avatar（头像）', value: 'avatar' },
+              { label: 'doc（文档）', value: 'doc' },
             ]}
           />
           <Button type='primary' icon={<SearchOutlined />} onClick={handleSearch}>

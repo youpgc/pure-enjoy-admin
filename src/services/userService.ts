@@ -1,145 +1,130 @@
-import { BaseService, apiQuery, type ApiResponse } from '../utils/apiClient'
-import { supabase, reportError } from '../utils/supabase'
+// 用户管理数据访问层 —— 本地后端 /admin/users + /admin/points
+// 创建/更新/列表/状态/模糊搜索/活动统计；积分调整走 /admin/points/adjust（服务端单事务
+// 同步写 point_records 流水与 users 展示列，无需前端两段式重算）。
+// 兼容层：旧调用方（Pet 系列页等）依赖 ApiResponse{success,data} 形态，wrap() 统一包装。
+import { apiRequest } from '../utils/adminHttp'
+import { apiRequestLoose } from '../utils/adminHttp'
+import type { ApiResponse } from '../utils/apiClient'
 import type { User, OperationLog } from '../types/user'
-import { USER_STATUS_DISABLED, POINT_RECORD_STATUS_ACTIVE } from '../constants/roles'
 
-/// 用户管理服务（封装 users 表的 CRUD，替代页面层直接调用 supabase）
-class UserService extends BaseService<User> {
-  constructor() {
-    super('users', {
-      defaultOrder: { column: 'created_at', ascending: false },
-      select: 'id,username,email,phone,nickname,avatar_url,bio,gender,birthday,height,location,occupation,company,website,role,member_level,points,effective_points,available_points,expiring_points,consecutive_checkin_days,last_checkin_date,tts_speech_rate,tts_timer_minutes,tts_playback_mode,tts_enabled,status,register_ip,last_login_ip,last_login_at,login_count,created_at,updated_at,is_deleted',
-    })
+/// 后端 AdminUserVO 形态（snake_case 出参，不含 password_hash）
+export type UserVO = User
+
+/// 后端 PageResult 形态
+interface PageResultVO {
+  list: User[]
+  total: number
+}
+
+/// 旧分页兼容形态（{ data: 行数组, total }）
+interface LegacyPaged<T> {
+  data: T[]
+  total: number
+}
+
+/// 将 apiRequest 异常包装为旧 ApiResponse 形态
+async function wrap<T>(fn: () => Promise<T>): Promise<ApiResponse<T>> {
+  try {
+    return { success: true, data: await fn(), errorMessage: null, statusCode: 200 }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '请求失败'
+    return { success: false, data: null, errorMessage: msg, statusCode: null }
   }
+}
 
-  /// 分页查询用户列表（带搜索和过滤）
+export interface UserListOptions {
+  searchText?: string
+  role?: string
+  status?: string
+  memberLevel?: string
+  dateRange?: [string, string] | null
+}
+
+/// 用户管理服务（本地后端实现）
+class UserService {
+  /// 分页查询用户列表（keyword 命中 username/nickname/email/phone）
   async paginateUsers(
     page: number,
     pageSize: number,
-    options?: {
-      searchText?: string
-      role?: string
-      status?: string
-      memberLevel?: string
-      dateRange?: [string, string] | null
-    }
-  ) {
-    return this.paginate(page, pageSize, (q) => {
-      let builder = q.eq('is_deleted', false)
-      if (options?.searchText) {
-        const text = `%${options.searchText}%`
-        builder = builder.or(
-          `email.ilike.${text},username.ilike.${text},nickname.ilike.${text},phone.ilike.${text}`
-        )
-      }
-      if (options?.role) builder = builder.eq('role', options.role)
-      if (options?.status) builder = builder.eq('status', options.status)
-      if (options?.memberLevel) builder = builder.eq('member_level', options.memberLevel)
-      if (options?.dateRange?.[0]) {
-        builder = builder.gte('created_at', options.dateRange[0])
-      }
-      if (options?.dateRange?.[1]) {
-        builder = builder.lte('created_at', options.dateRange[1])
-      }
-      return builder
+    options?: UserListOptions,
+  ): Promise<ApiResponse<LegacyPaged<User>>> {
+    return wrap(async () => {
+      const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+      if (options?.searchText) params.set('keyword', options.searchText)
+      if (options?.role) params.set('role', options.role)
+      if (options?.status) params.set('status', options.status)
+      if (options?.memberLevel) params.set('member_level', options.memberLevel)
+      if (options?.dateRange?.[0]) params.set('date_from', options.dateRange[0])
+      if (options?.dateRange?.[1]) params.set('date_to', options.dateRange[1])
+      const result = await apiRequest<PageResultVO>('GET', `/admin/users?${params.toString()}`)
+      return { data: result.list, total: result.total }
     })
   }
 
-  /// 软删除用户（禁用）
-  async softDelete(id: string): Promise<ReturnType<BaseService<User>['update']>> {
-    return this.update(id, { status: USER_STATUS_DISABLED })
-  }
-
-  /// 按关键字模糊匹配用户（username / nickname ilike），返回命中的业务 ID 列表。
-  /// 供成绩看板等页面的「用户名筛选」两步查询：先按关键字定位用户，再以 id 集合
-  /// 过滤目标表（game_scores.user_id 存业务 ID）。上限 1000 个防全表拖回。
+  /// 按关键字模糊匹配用户（username/nickname，后端 keyword 同样命中 email/phone，
+  /// 语义为旧版的超集），返回命中的业务 ID 列表（上限 1000）
   async findUserIdsByKeyword(keyword: string): Promise<ApiResponse<string[]>> {
-    const kw = keyword.trim().replace(/[,()%]/g, '')
+    const kw = keyword.trim()
     if (!kw) return { success: true, data: [], errorMessage: null, statusCode: 200 }
-    const text = `%${kw}%`
-    const res = await apiQuery<Array<{ id: string }>>(
-      () =>
-        supabase
-          .from('users')
-          .select('id')
-          .or(`username.ilike.${text},nickname.ilike.${text}`)
-          .limit(1000),
-      'UserService-用户名模糊搜索'
-    )
-    if (!res.success) return { ...res, data: null }
-    return { ...res, data: (res.data ?? []).map((r) => r.id) }
+    return wrap(async () => {
+      const params = new URLSearchParams({ page: '1', page_size: '1000', keyword: kw })
+      const result = await apiRequest<PageResultVO>('GET', `/admin/users?${params.toString()}`)
+      return result.list.map((u) => u.id)
+    })
   }
 
-  /// 批量软删除
-  async batchSoftDelete(ids: string[]): Promise<ReturnType<BaseService<User>['batchUpdate']>> {
-    return this.batchUpdate(ids, { status: USER_STATUS_DISABLED })
+  /// 更新用户资料（白名单字段；密码可选重置）
+  async update(id: string, data: Record<string, unknown>): Promise<ApiResponse<User>> {
+    return wrap(() => apiRequest<User>('PUT', `/admin/users/${id}`, data))
+  }
+
+  /// 禁用用户（与旧「软删除=置 disabled」语义一致）
+  async softDelete(id: string): Promise<ApiResponse<User>> {
+    return this.toggleStatus(id, 'disabled')
+  }
+
+  /// 批量禁用
+  async batchSoftDelete(ids: string[]): Promise<ApiResponse<null>> {
+    return wrap(async () => {
+      for (const id of ids) {
+        await apiRequest<unknown>('PUT', `/admin/users/${id}/status`, { status: 'disabled' })
+      }
+      return null
+    })
   }
 
   /// 切换用户状态
-  async toggleStatus(id: string, newStatus: import('../types/user').UserStatus) {
-    return this.update(id, { status: newStatus })
+  async toggleStatus(id: string, status: string): Promise<ApiResponse<User>> {
+    return wrap(() => apiRequest<User>('PUT', `/admin/users/${id}/status`, { status }))
   }
 }
 
 export const userService = new UserService()
 
-// ==================== 以下为 #66 抽出的写操作/统计查询（替代页面层裸 supabase.from） ====================
-
-/// 创建用户记录（public.users），返回含 id 的记录。
-/// 审计闭环：由调用方（useUsers.handleCreate）在创建成功后调 logUserOperation('create_user', ...)
-/// 负责，本函数不重复审计（避免双重审计；且 users 在 BaseService.AUDIT_EXCLUDED）。审查报告 P2-3。
+/// 创建用户（密码明文交由服务端 BCrypt 编码；初始积分请随后调用 addPointRecordWithRecalc）
 export const createUser = (data: Record<string, unknown>) =>
-  (supabase.from('users') as any).insert(data).select().single()
+  apiRequest<User>('POST', '/admin/users', data)
 
-/// 新增积分流水（仅插入 point_records；云端无 point_records→users 同步触发器，
-/// 写入后须由调用方主动调用 recalcUserPoints 重算回写 users 展示列，详见 points skill §5.3）
-export const addPointRecord = (record: {
+/// 调整用户积分（服务端单事务：point_records 流水 + users 展示列同步回写；
+/// 操作人由后端从 JWT 解析。amount 正负均可，0 会被后端拒绝）
+export const addPointRecordWithRecalc = async (record: {
   user_id: string
-  type: string
   amount: number
   remark: string
-  operator_name?: string | null
-  operator_id?: string | null
-  status?: string
-}) =>
-  (supabase.from('point_records') as any)
-    .insert({ status: POINT_RECORD_STATUS_ACTIVE, ...record })
-    .select()
-
-/// 原子化：新增积分流水并主动重算回写 users 展示列（替代不存在的触发器，审查 P1-3）。
-/// 内部串联 addPointRecord + recalcUserPoints，杜绝调用方遗漏导致 users.points 与真实流水漂移；
-/// recalc 失败写入 error_logs 告警（不回滚主流水，避免二次复杂度）。
-export const addPointRecordWithRecalc = async (
-  record: Parameters<typeof addPointRecord>[0]
-): Promise<{ success: boolean; errorMessage?: string }> => {
-  const { data, error } = await addPointRecord(record)
-  if (error) {
-    return { success: false, errorMessage: error.message }
+}): Promise<{ success: boolean; errorMessage?: string }> => {
+  try {
+    await apiRequest<unknown>('POST', '/admin/points/adjust', {
+      user_id: record.user_id,
+      amount: record.amount,
+      remark: record.remark,
+    })
+    return { success: true }
+  } catch (e) {
+    return { success: false, errorMessage: e instanceof Error ? e.message : '积分调整失败' }
   }
-  if (!data || data.length === 0) {
-    return { success: false, errorMessage: '积分流水未写入（可能 RLS 策略阻止）' }
-  }
-  const ok = await recalcUserPoints(record.user_id)
-  if (!ok) {
-    await reportError('warning', 'points', `积分重算失败 user=${record.user_id}（流水已写入，需后台核对）`)
-  }
-  return { success: true }
 }
 
-/// 后台主动重算回写 users 积分展示列（替代不存在的触发器）。
-/// 调用 recalc_user_points RPC（SECURITY DEFINER + JWT 管理员校验，与 create_auth_user 同策略）。
-/// 失败仅告警不抛错，保证主流程（用户创建/积分调整）不受影响。
-export const recalcUserPoints = async (userId: string): Promise<boolean> => {
-  const { error } = await (supabase.rpc as any)('recalc_user_points', { p_user_id: userId })
-  if (error) {
-    console.warn('recalc_user_points 失败（请确认已在 Supabase SQL Editor 部署该 RPC）:', error.message)
-    return false
-  }
-  return true
-}
-
-/// 记录操作日志（写 operation_logs）
-/// 审查 P3-3：target_id 存储为数组，单值包成 [v]
+/// 记录操作日志（写本地后端 operation_logs；target_id 存储为数组，单值包成 [v]）
 export const logUserOperation = (entry: {
   user_id?: string | null
   action: string
@@ -147,32 +132,23 @@ export const logUserOperation = (entry: {
   target_id: string | string[]
   details: Record<string, unknown>
 }) =>
-  (supabase.from('operation_logs') as any).insert({
-    ...entry,
+  apiRequestLoose('POST', '/admin/audit/operation-logs', {
+    action: entry.action,
+    module: entry.module,
     target_id: Array.isArray(entry.target_id) ? entry.target_id : [entry.target_id],
+    details: entry.details,
   })
 
-/// 统计用户各模块数据量与最近操作日志（返回与页面 Promise.all 解构顺序一致的元组）
+/// 后端用户活动统计形态
+export interface UserActivityVO {
+  expense_count: number
+  mood_count: number
+  weight_count: number
+  note_count: number
+  novel_count: number
+  logs: OperationLog[]
+}
+
+/// 用户活动统计（5 张生活/小说域表行数 + 最近 10 条操作日志）
 export const fetchUserActivity = (userId: string) =>
-  Promise.all([
-    supabase.from('expenses').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-    supabase.from('mood_diaries').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-    supabase.from('weight_records').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-    supabase.from('notes').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-    supabase.from('user_novels').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-    supabase
-      .from('operation_logs')
-      .select('id, user_id, action, module, target_id, details, ip, user_agent, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(10),
-  ]) as unknown as Promise<
-    [
-      { count: number | null },
-      { count: number | null },
-      { count: number | null },
-      { count: number | null },
-      { count: number | null },
-      { data: OperationLog[] | null },
-    ]
-  >
+  apiRequest<UserActivityVO>('GET', `/admin/users/${userId}/activity`)

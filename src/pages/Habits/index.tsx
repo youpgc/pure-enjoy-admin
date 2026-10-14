@@ -6,7 +6,8 @@ import UserDimensionList from '../../components/user/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../../components/user/UserDimensionList'
 import type { ColumnsType } from 'antd/es/table'
 import EllipsisText from '../../components/common/EllipsisText'
-import { BaseService, handleApiError } from '../../utils/apiClient'
+import { LocalBaseService } from '../../services/tableService'
+import { handleApiError } from '../../utils/apiClient'
 import { useMounted } from '../../hooks/useMounted'
 import styles from './index.module.css'
 import { beijingNow, formatBeijing, formatDate, formatDateTime } from '../../utils/format'
@@ -34,7 +35,7 @@ const CheckinModal: React.FC<CheckinModalProps> = ({ visible, habitId, habitName
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'stats' | 'calendar' | 'timeline'>('stats')
 
-  const checkinService = useMemo(() => new BaseService<CheckinRecord>('habit_checkins'), [])
+  const checkinService = useMemo(() => new LocalBaseService<CheckinRecord>('habit_checkins'), [])
 
   const loadCheckins = useCallback(async () => {
     if (!habitId) return

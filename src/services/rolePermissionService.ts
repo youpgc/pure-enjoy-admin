@@ -1,67 +1,85 @@
-import { BaseService } from '../utils/apiClient'
-import { supabase } from '../utils/supabase'
-import type { Database } from '../types/database'
+import { apiRequest } from '../utils/adminHttp'
+import type { Permission, Role } from '../types/permission'
+import type { RoleVO } from './roleService'
 
-type RoleRow = Database['public']['Tables']['roles']['Row']
-type PermissionRow = Database['public']['Tables']['permissions']['Row']
+/// 后端 PermissionTreeVO 形态（children 递归）
+interface PermissionTreeVO {
+  id: number
+  name: string
+  display_name: string
+  type: string
+  parent_id: number | null
+  module: string | null
+  sort_order: number
+  description: string | null
+  children: PermissionTreeVO[]
+}
 
-/// 角色权限管理服务（封装 roles / permissions / role_permissions 的 CRUD）
+/// 树结构拍平为页面所需的扁平权限列表（保持服务端排序语义：父先子后）
+function flattenTree(nodes: PermissionTreeVO[], out: Permission[]): void {
+  for (const n of nodes) {
+    out.push({
+      id: n.id,
+      name: n.name,
+      display_name: n.display_name,
+      type: n.type,
+      parent_id: n.parent_id,
+      module: n.module,
+      sort_order: n.sort_order,
+      description: n.description,
+    } as Permission)
+    if (n.children?.length) flattenTree(n.children, out)
+  }
+}
+
+/// 角色权限管理服务 —— 本地后端 rbac 端点
 class RolePermissionService {
-  private roleService = new BaseService<RoleRow>('roles', {
-    defaultOrder: { column: 'created_at', ascending: false },
-  })
-  private permissionService = new BaseService<PermissionRow>('permissions', {
-    defaultOrder: { column: 'created_at', ascending: false },
-  })
-
-  /// 查询角色列表
+  /// 查询角色列表（按 id 升序，与后端排序一致）
   async findAllRoles() {
-    return this.roleService.findAll()
+    try {
+      const roles = await apiRequest<RoleVO[]>('GET', '/admin/roles')
+      return { success: true as const, data: (roles || []) as unknown as Role[] }
+    } catch (err) {
+      return { success: false as const, data: [] as unknown as Role[], errorMessage: String(err) }
+    }
   }
 
-  /// 查询权限列表
+  /// 查询权限列表（服务端树拍平）
   async findAllPermissions() {
-    return this.permissionService.findAll()
+    try {
+      const tree = await apiRequest<PermissionTreeVO[]>('GET', '/admin/permissions/tree')
+      const flat: Permission[] = []
+      flattenTree(tree || [], flat)
+      return { success: true as const, data: flat }
+    } catch (err) {
+      return { success: false as const, data: [] as Permission[], errorMessage: String(err) }
+    }
   }
 
-  /// 查询角色的权限列表
+  /// 查询角色的权限 ID 列表
   async findRolePermissions(roleId: number) {
     try {
-      const { data, error } = await supabase
-        .from('role_permissions')
-        .select('permission_id')
-        .eq('role_id', roleId)
-      if (error) throw error
-      return { success: true as const, data: ((data || []) as Array<{ permission_id: number }>).map(r => String(r.permission_id)) }
-    } catch (err) {
+      const detail = await apiRequest<{ permission_ids: number[] }>(
+        'GET',
+        `/admin/roles/${roleId}/permissions`
+      )
+      return {
+        success: true as const,
+        data: (detail?.permission_ids ?? []).map((id) => String(id)),
+      }
+    } catch {
       return { success: false as const, data: [] as string[] }
     }
   }
 
-  /// 更新角色的权限（先删除再插入）
+  /// 更新角色的权限（服务端单事务整体替换，替代旧「先删后插」两段式）
   async updateRolePermissions(roleId: number, permissionIds: string[]) {
     try {
-      // 删除旧权限
-      const { error: deleteError } = await supabase
-        .from('role_permissions')
-        .delete()
-        .eq('role_id', roleId)
-      if (deleteError) throw deleteError
-
-      // 插入新权限
-      if (permissionIds.length > 0) {
-        const records = permissionIds.map((pid) => ({
-          role_id: roleId,
-          permission_id: Number(pid),
-        }))
-        // 已知类型坑：generated database.ts 对 role_permissions 的 Insert 解析为 never，
-        // 故用 as any 绕过类型检查（运行时正常），非遗留 TODO。
-        const { error: insertError } = await (supabase.from('role_permissions') as any)
-          .insert(records)
-        if (insertError) throw insertError
-      }
+      await apiRequest('PUT', `/admin/roles/${roleId}/permissions`, {
+        permission_ids: permissionIds.map((pid) => Number(pid)),
+      })
       return { success: true as const }
-    } catch (err) {
+    } catch {
       return { success: false as const }
     }
   }

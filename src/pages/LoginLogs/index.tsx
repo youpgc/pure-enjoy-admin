@@ -23,8 +23,9 @@ import type { ColumnsType } from 'antd/es/table'
 import { LOGIN_SOURCE_APP, LOGIN_SOURCE_ADMIN, type LoginSource } from '../../constants/roles'
 import type dayjs from 'dayjs'
 import { formatDateTime } from '../../utils/format'
-import { supabase } from '../../utils/supabase'
-import { BaseService, handleApiError } from '../../utils/apiClient'
+import { apiRequest } from '../../utils/adminHttp'
+import { fetchAdminMe } from '../../utils/adminSession'
+import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
@@ -86,49 +87,37 @@ const LoginLogs: React.FC = () => {
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const { isSuperAdmin, isAdmin } = usePermission()
 
-  // 取当前登录者 id（用于禁止强退自己）
+  // 取当前登录者 id（用于禁止强退自己）——本地后端 /auth/me 为权威
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) setCallerId(data.user.id)
+    fetchAdminMe().then((me) => {
+      if (me) setCallerId(me.id)
     }).catch(() => {})
   }, [])
 
-  const logService = React.useMemo(() => new BaseService<LoginLog>('login_logs', {
-    defaultOrder: { column: 'login_at', ascending: false },
-  }), [])
-
-  // 加载日志列表
+  // 加载日志列表（本地后端 GET /admin/audit/login-logs，keyword 服务端 OR 三列）
   const loadLogs = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await logService.paginate(pagination.current, pagination.pageSize, (q) => {
-        let query = q
-        if (filters.keyword) {
-          query = query.or(`username.ilike.%${filters.keyword}%,ip.ilike.%${filters.keyword}%,location.ilike.%${filters.keyword}%`)
-        }
-        if (filters.status) {
-          query = query.eq('status', filters.status)
-        }
-        if (filters.userType) {
-          query = query.eq('user_type', filters.userType)
-        }
-        if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
-          query = query
-            .gte('login_at', filters.dateRange[0].format('YYYY-MM-DD'))
-            .lte('login_at', filters.dateRange[1].format('YYYY-MM-DD') + 'T23:59:59')
-        }
-        return query
+      const params = new URLSearchParams({
+        page: String(pagination.current),
+        page_size: String(pagination.pageSize),
       })
-
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'LoginLogs-加载日志')
-        return
+      if (filters.keyword) params.set('keyword', filters.keyword)
+      if (filters.status) params.set('status', filters.status)
+      if (filters.userType) params.set('user_type', filters.userType)
+      if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
+        params.set('from', filters.dateRange[0].format('YYYY-MM-DD[T]00:00:00'))
+        params.set('to', filters.dateRange[1].format('YYYY-MM-DD[T]23:59:59'))
       }
+      const result = await apiRequest<{ list: LoginLog[]; total: number }>(
+        'GET',
+        `/admin/audit/login-logs?${params.toString()}`,
+      )
 
       if (!mountedRef.current) return
 
-      setLogs(result.data?.data || [])
-      setTotal(result.data?.total || 0)
+      setLogs(result.list || [])
+      setTotal(result.total || 0)
     } catch (error) {
       handleApiError(error, 'LoginLogs-加载日志')
     } finally {
@@ -151,18 +140,18 @@ const LoginLogs: React.FC = () => {
     resetPage()
   }
 
-  // 强退：调用 RPC 撤销目标用户全部会话
+  // 强退：调用本地后端吊销目标用户全部 refresh token
   const handleRevoke = async (record: LoginLog) => {
     if (!record.user_id) {
       message.warning('该记录无对应用户，无法强退')
       return
     }
     try {
-      const { error } = await supabase.rpc('admin_revoke_user', {
-        p_target_user_id: record.user_id,
-      } as any)
-      if (error) throw error
-      message.success('已强退该用户，其会话将立即失效')
+      const result = await apiRequest<{ revoked: number }>(
+        'POST',
+        `/admin/audit/login-logs/revoke?user_id=${encodeURIComponent(record.user_id)}&realm=${encodeURIComponent(record.user_type)}`,
+      )
+      message.success(`已强退该用户（吊销 ${result.revoked} 个会话），其将无法再续期`)
       loadLogs()
     } catch (error: any) {
       const msg = error?.message || '强退失败'

@@ -15,7 +15,8 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { BaseService, handleApiError } from '../../utils/apiClient'
+import { LocalBaseService } from '../../services/tableService'
+import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
@@ -60,7 +61,7 @@ const ErrorLogs: React.FC = () => {
   const { pagination, resetPage, setTotal, tablePagination } = usePagination()
   const { hasPermission } = usePermission()
 
-  const errorLogService = React.useMemo(() => new BaseService<ErrorLog>('error_logs', {
+  const errorLogService = React.useMemo(() => new LocalBaseService<ErrorLog>('error_logs', {
     defaultOrder: { column: 'created_at', ascending: false },
   }), [])
 

@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { Alert, Button, Card, Col, Progress, Row, Statistic, Tag } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
-import { supabase } from '../../utils/supabase'
+import { apiRequest } from '../../utils/adminHttp'
 import common from '../../styles/common.module.css'
-import { apiQuery } from '../../utils/apiClient'
+import { handleApiError } from '../../utils/apiClient'
 
 // ==================== 宠物数据看板（rpc_pet_admin_dashboard，运营工具第 4 签） ====================
 //
@@ -58,20 +58,16 @@ const PetDashboard: React.FC = () => {
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
-    // 走 apiQuery 统一错误处理（此前裸 supabase.rpc 错误不进 error_logs，
-    // is_admin 闸门拒绝时缺排查线索——审计批 20261012。
-    // ⚠️ 必须用 apiQuery 带 data 的助手：apiExecute 恒返回 data=true，
-    // setData(true) 后渲染 data.eggs 必崩——本批自查发现的 P0 回归）
-    const result = await apiQuery<DashboardData>(
-      () => supabase.rpc('rpc_pet_admin_dashboard'),
-      'PetDashboard-看板',
-    )
-    setLoading(false)
-    if (!result.success) {
-      setError(result.errorMessage ?? '加载失败')
-      return
+    // 通道：本地后端 /admin/pet/dashboard（透传 rpc_pet_admin_dashboard，统一错误处理进 error_logs）
+    try {
+      const data = await apiRequest<DashboardData>('GET', '/admin/pet/dashboard')
+      setData(data)
+    } catch (err) {
+      handleApiError(err, 'PetDashboard-看板')
+      setError(err instanceof Error ? err.message : '加载失败')
+    } finally {
+      setLoading(false)
     }
-    setData(result.data as DashboardData)
   }, [])
 
   useEffect(() => {

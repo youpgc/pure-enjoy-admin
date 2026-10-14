@@ -20,13 +20,13 @@ import {
   DeleteOutlined,
   SafetyOutlined,
 } from '@ant-design/icons'
-import { supabase } from '../../utils/supabase'
 import { handleApiError } from '../../utils/apiClient'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import type { Role, Permission } from '../../types/permission'
 import { ROLE_STATUS_LABELS, ROLE_STATUS_COLORS, ROLE_STATUS } from '../../types/permission'
 import { roleService } from '../../services/roleService'
+import { rolePermissionService } from '../../services/rolePermissionService'
 import EllipsisText from '../../components/common/EllipsisText'
 import { resolvePermissionPage, GROUP_ORDER } from '../../constants/permissionMenuMap'
 import styles from './index.module.css'
@@ -52,17 +52,12 @@ const RolePermissionPage: React.FC = () => {
   const originalPermsRef = useRef<number[]>([])
   const { hasPermission } = usePermission()
 
-  // 加载角色列表
+  // 加载角色列表（本地后端 /admin/roles，按 id 升序）
   const loadRoles = useCallback(async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('roles')
-        .select('id, name, code, description, is_system, status, created_at, updated_at')
-        .order('id')
-
-      if (error) throw error
-      setRoles((data as Role[]) || [])
+      const roles = await roleService.listRoles()
+      setRoles((roles as unknown as Role[]) || [])
     } catch (error) {
       handleApiError(error, 'RolePermission-加载角色')
     } finally {
@@ -70,16 +65,12 @@ const RolePermissionPage: React.FC = () => {
     }
   }, [])
 
-  // 加载权限列表
+  // 加载权限列表（本地后端 /admin/permissions/tree，拍平为扁平列表）
   const loadPermissions = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('permissions')
-        .select('id, name, display_name, type, parent_id, sort_order, module, description, created_at')
-        .order('sort_order')
-
-      if (error) throw error
-      setPermissions((data as Permission[]) || [])
+      const result = await rolePermissionService.findAllPermissions()
+      if (!result.success) throw new Error(result.errorMessage || '权限列表加载失败')
+      setPermissions(result.data || [])
     } catch (error) {
       handleApiError(error, 'RolePermission-加载权限')
     }
@@ -88,13 +79,7 @@ const RolePermissionPage: React.FC = () => {
   // 加载角色的权限
   const loadRolePermissions = useCallback(async (roleId: number) => {
     try {
-      const { data, error } = await supabase
-        .from('role_permissions')
-        .select('permission_id')
-        .eq('role_id', roleId)
-
-      if (error) throw error
-      const ids = data?.map((rp: { permission_id: number }) => rp.permission_id) || []
+      const ids = await roleService.getRolePermissions(roleId)
       originalPermsRef.current = ids
       setSelectedPermissions(ids)
     } catch (error) {
@@ -145,29 +130,9 @@ const RolePermissionPage: React.FC = () => {
 
         if (error) throw error
 
-        // ★ 权限关联 diff 更新（审查报告 Admin#四.5）：此前「全删再重插」非原子，
-        //   重插中途失败 = 该角色权限整体清空、在线用户瞬时失权。现只删移除项、
-        //   只插新增项，未变更项不受任何一步失败影响。
-        const original = originalPermsRef.current
-        const toRemove = original.filter(pid => !selectedPermissions.includes(pid))
-        const toAdd = selectedPermissions.filter(pid => !original.includes(pid))
-
-        if (toRemove.length > 0) {
-          const { error: delError } = await roleService.deleteRolePermissionsByIds(
-            editingRole.id,
-            toRemove,
-          )
-          if (delError) throw delError
-        }
-
-        if (toAdd.length > 0) {
-          const rolePerms = toAdd.map(pid => ({
-            role_id: editingRole.id,
-            permission_id: pid,
-          }))
-          const { error: rpError } = await roleService.createRolePermissions(rolePerms)
-          if (rpError) throw rpError
-        }
+        // ★ 权限关联整体替换：后端 /admin/roles/{id}/permissions 为单事务
+        //   「清空再插入」，原子性由服务端保证（替代旧前端 diff 删插两段式）
+        await roleService.replaceRolePermissions(editingRole.id, selectedPermissions)
 
         message.success('角色更新成功')
       } else {
@@ -178,11 +143,10 @@ const RolePermissionPage: React.FC = () => {
 
         // 添加权限关联
         if (selectedPermissions.length > 0 && data) {
-          const rolePerms = selectedPermissions.map(pid => ({
-            role_id: (data as Role).id,
-            permission_id: pid,
-          }))
-          const { error: rpError } = await roleService.createRolePermissions(rolePerms)
+          const { error: rpError } = await roleService.replaceRolePermissions(
+            (data as Role).id,
+            selectedPermissions,
+          )
           if (rpError) throw rpError
         }
 
@@ -206,10 +170,7 @@ const RolePermissionPage: React.FC = () => {
         return
       }
 
-      const { error } = await supabase
-        .from('roles')
-        .delete()
-        .eq('id', role.id)
+      const { error } = await roleService.deleteRole(role.id)
 
       if (error) throw error
       message.success('角色删除成功')

@@ -2,7 +2,8 @@
 // 页面只负责组合渲染，所有状态/数据/处理器/表单集中此处。
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { message, Form } from 'antd'
-import { BaseService, handleApiError } from '../../utils/apiClient'
+import { LocalBaseService } from '../../services/tableService'
+import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
@@ -28,7 +29,7 @@ export const useNotifications = () => {
 
   const notificationService = useMemo(
     () =>
-      new BaseService<Notification>('notifications', {
+      new LocalBaseService<Notification>('notifications', {
         defaultOrder: { column: 'created_at', ascending: false },
       }),
     [],

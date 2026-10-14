@@ -1,6 +1,6 @@
 // ==================== Supabase 错误码 ====================
 
-export const SUPABASE_ERROR_CODE_MAP: Record<string, string> = {
+export const API_ERROR_CODE_MAP: Record<string, string> = {
   PGRST116: '数据不存在或已被删除',
   PGRST301: '没有权限执行此操作',
   '23505': '数据已存在（唯一性冲突）',

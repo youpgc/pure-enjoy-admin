@@ -66,7 +66,7 @@ const PetPlay = lazy(() => import('./pages/PetPlay'))
 const PetOps = lazy(() => import('./pages/PetOps'))
 const PetConfig = lazy(() => import('./pages/PetConfig'))
 const Profile = lazy(() => import('./pages/Profile'))
-import { supabase } from './utils/supabase'
+import { fetchAdminMe, logoutAdmin } from './utils/adminSession'
 import { buildMenuItems } from './config/menuConfig'
 import { PAGE_TITLES } from './config/pageTitles'
 
@@ -93,39 +93,25 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [user, setUser] = useState<AdminUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // 从 Supabase Auth 会话构建 AdminUser
-  // 注意：Supabase Auth 的 role 字段在 app_metadata 中，user_metadata 中的是自定义角色
-  // ⚠️ 此处 role 取自 JWT metadata，仅供展示（如顶栏），严禁用于权限/角色判定！
-  //    权限判定必须走 usePermission（get_my_role RPC）或 AuthGuard（is_admin RPC），
-  //    以数据库 public.users.role 为准（JWT metadata 可被用户自改，见审查报告 P1b）。
-  const buildAdminUser = useCallback((authUser: any): AdminUser | null => {
-    if (!authUser) return null
-    const metadata = authUser.user_metadata || {}
-    const appMetadata = authUser.app_metadata || {}
-    // 优先读取 user_metadata.role（自定义管理员角色），其次 app_metadata.role（Supabase 默认角色）
-    const role = metadata.role || appMetadata.role || 'viewer'
-    return {
-      id: authUser.id,
-      email: authUser.email || '',
-      role: role,
-      nickname: metadata.nickname || metadata.name || '',
-      avatar_url: metadata.avatar_url,
-      username: metadata.username || '',
-      phone: metadata.phone || '',
-      gender: metadata.gender || '',
-      height: typeof metadata.height === 'number' ? metadata.height : undefined,
-      created_at: authUser.created_at,
-    }
-  }, [])
+  // 从本地后端 /auth/me 构建 AdminUser（仅展示用途：顶栏昵称/头像/角色标签）
+  // ⚠️ role 来自服务端实时判定（LoginUserVO），但权限判定必须走 usePermission；
+  //    本地后端 JWT 是唯一会话权威源，Supabase 已完全退役。
+  const buildAdminUser = (me: NonNullable<Awaited<ReturnType<typeof fetchAdminMe>>>): AdminUser => ({
+    id: me.id,
+    email: me.email || '',
+    role: me.role,
+    nickname: me.nickname || '',
+    avatar_url: me.avatar_url || undefined,
+    username: me.username || '',
+  })
 
-  // 监听 Supabase Auth 状态变化
+  // 初始化：读取本地后端会话主体；无会话保持 null（AuthGuard 负责跳登录页）
   useEffect(() => {
-    // 初始化时获取当前会话
     const initSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          setUser(buildAdminUser(session.user))
+        const me = await fetchAdminMe()
+        if (me) {
+          setUser(buildAdminUser(me))
         }
       } catch (e) {
         if (import.meta.env.DEV) {
@@ -137,23 +123,7 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     initSession()
-
-    // 订阅 Auth 状态变化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session?.user) {
-          setUser(buildAdminUser(session.user))
-        } else {
-          setUser(null)
-        }
-        setIsLoading(false)
-      }
-    )
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [buildAdminUser])
+  }, [])
 
   const login = useCallback(async (_username: string, _password: string) => {
     // 登录逻辑在 Login.tsx 中处理，此处仅作为占位
@@ -161,7 +131,7 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [])
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut()
+    await logoutAdmin()
     setUser(null)
   }, [])
 

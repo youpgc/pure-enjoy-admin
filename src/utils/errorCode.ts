@@ -1,10 +1,10 @@
-import { SUPABASE_ERROR_CODE_MAP } from '../constants'
+import { API_ERROR_CODE_MAP } from '../constants'
 
 /// 统一 Supabase 错误文案提取（单一源）
-// apiClient.mapSupabaseError 与 supabase.handleSupabaseError 共用本函数，
-// 消除两处重复的 SUPABASE_ERROR_CODE_MAP + JWT/network 文案逻辑（审查报告 P2-4）。
-export function formatSupabaseErrorMessage(error: unknown): string {
-  const codeMap = SUPABASE_ERROR_CODE_MAP
+// apiClient.mapApiError 与 supabase.handleSupabaseError 共用本函数，
+// 消除两处重复的 API_ERROR_CODE_MAP + JWT/network 文案逻辑（审查报告 P2-4）。
+export function formatApiErrorMessage(error: unknown): string {
+  const codeMap = API_ERROR_CODE_MAP
   const code = (error as { code?: string } | null)?.code
   if (code && codeMap[code]) return codeMap[code]
   const message = (error as { message?: string } | null)?.message || ''

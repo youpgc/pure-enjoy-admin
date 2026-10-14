@@ -1,7 +1,5 @@
 import type { Dayjs } from 'dayjs'
-import sha256 from 'crypto-js/sha256'
-import type { User, UserFormData } from '../../types/user'
-import { supabase } from '../../utils/supabase'
+import type { UserFormData } from '../../types/user'
 
 // 处理 birthday：string 或 Dayjs -> YYYY-MM-DD 字符串；空返回 null
 export function formatBirthday(birthday: Dayjs | string | null | undefined): string | null {
@@ -10,21 +8,19 @@ export function formatBirthday(birthday: Dayjs | string | null | undefined): str
   return birthday.format('YYYY-MM-DD')
 }
 
-// 构造新建用户对象（不含 id/created_at/updated_at）
-export function buildNewUser(formData: UserFormData): Omit<User, 'id' | 'created_at' | 'updated_at'> {
-  const birthdayValue = formatBirthday(formData.birthday)
-  const passwordHash = sha256(formData.password ?? '').toString()
+// 构造创建用户入参（密码明文，由后端 BCrypt 编码；初始积分创建后走积分调整接口）
+export function buildNewUser(formData: UserFormData): Record<string, unknown> {
   return {
     email: formData.email,
+    password: formData.password,
     phone: formData.phone || null,
-    password_hash: passwordHash,
     nickname: formData.nickname || null,
     avatar_url: formData.avatar_url || null,
     // 扩展资料字段
     username: formData.username || null,
     bio: formData.bio || null,
     gender: formData.gender || null,
-    birthday: birthdayValue,
+    birthday: formatBirthday(formData.birthday),
     location: formData.location || null,
     occupation: formData.occupation || null,
     company: formData.company || null,
@@ -32,37 +28,20 @@ export function buildNewUser(formData: UserFormData): Omit<User, 'id' | 'created
     height: formData.height ?? null,
     role: formData.role,
     member_level: formData.member_level,
-    // 新建用户展示列默认 0；若设置初始积分，下方 addPointRecord + recalcUserPoints 会重算回写（无触发器）
-    points: 0,
-    effective_points: 0,
-    available_points: 0,
-    expiring_points: 0,
-    consecutive_checkin_days: 0,
-    last_checkin_date: null,
-    tts_speech_rate: null,
-    tts_timer_minutes: null,
-    tts_playback_mode: null,
-    tts_enabled: true,
     status: formData.status,
-    register_ip: null,
-    last_login_ip: null,
-    last_login_at: null,
-    login_count: 0,
   }
 }
 
-// 构造更新用户对象（不含 id；密码哈希按需追加）
-export function buildUpdateUser(formData: UserFormData): Partial<User> {
-  const birthdayValue = formatBirthday(formData.birthday)
-  const updateData: Partial<User> = {
+// 构造更新用户入参（白名单字段直传后端；密码可选重置）
+export function buildUpdateUser(formData: UserFormData): Record<string, unknown> {
+  const updateData: Record<string, unknown> = {
     phone: formData.phone || null,
     nickname: formData.nickname || null,
     avatar_url: formData.avatar_url || null,
-    // 扩展资料字段
-    username: formData.username || null,
+    // 扩展资料字段（username 为登录标识不可改，后端白名单亦不含）
     bio: formData.bio || null,
     gender: formData.gender || null,
-    birthday: birthdayValue,
+    birthday: formatBirthday(formData.birthday),
     location: formData.location || null,
     occupation: formData.occupation || null,
     company: formData.company || null,
@@ -73,48 +52,7 @@ export function buildUpdateUser(formData: UserFormData): Partial<User> {
     status: formData.status,
   }
   if (formData.password) {
-    updateData.password_hash = sha256(formData.password).toString()
+    updateData.password = formData.password
   }
   return updateData
-}
-
-/**
- * 同步创建 Supabase Auth 用户（仅管理员操作，确保 App 端可用邮箱+密码登录）
- *
- * 安全说明（治理红线）：service_role 绝不下发到前端。原实现用
- * import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY 直调 /auth/v1/admin/users，
- * 该 key 会被 Vite 打进浏览器 bundle（泄露 + 绕过 RLS），已回滚多次。
- * 现改为数据库 RPC（create_auth_user，SECURITY DEFINER）创建 auth.users：
- *   - 密钥仅存在于数据库函数内，永不进前端 bundle；
- *   - 函数内部用 public.is_admin() 校验角色（读表防 JWT 自改提权）；
- *   - 需先在 Supabase SQL Editor 执行 fix_create_auth_user_rpc.sql 迁移。
- * 调用失败仅告警、不抛错，返回 null；成功返回 auth uuid。
- * 2026-09-14 双 ID 统一：云端触发器建号时会把 users.id 改写为该 uuid，
- * 返回值即用户最终唯一 ID（后续积分流水/日志等关联一律用它，勿用占位 id）；
- * metadata 不再写 app_user_id（旧口径已废弃）。
- */
-export async function createAuthUser(
-  user: User,
-  plainPassword: string
-): Promise<string | null> {
-  try {
-    const { data, error } = await supabase.rpc('create_auth_user', {
-      p_email: user.email,
-      p_password: plainPassword,
-      p_phone: user.phone || null,
-      p_user_metadata: {
-        username: user.username || null,
-        nickname: user.nickname || null,
-        role: user.role,
-      },
-    } as any)
-    if (error) {
-      console.warn('auth.users 同步失败（请确认已执行 create_auth_user RPC 迁移）:', error.message)
-      return null
-    }
-    return ((data as { id?: string } | null)?.id) ?? null
-  } catch (err) {
-    console.warn('auth.users 同步异常:', err)
-    return null
-  }
 }

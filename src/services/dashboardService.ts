@@ -1,245 +1,125 @@
-import { supabase } from '../utils/supabase'
-import { apiQuery, type ApiResponse } from '../utils/apiClient'
-import { buildUserLookupOr } from '../utils/userId'
+// Dashboard 聚合数据访问层 —— 本地后端 /admin/dashboard（批 2-6）
+// 原实现为 Supabase 多请求 + 分页循环（用户统计 5 连查、活跃事件 6 表并行、
+// 游戏统计分页循环），现收敛为 4 个服务端聚合端点：
+//   · user-stats    用户统计（总数/新增/活跃/留存，活跃事件服务端聚合，小说域表逐源容错）
+//   · trend         用户增长趋势（按北京日预聚合）
+//   · recent-logs   最近操作日志（LEFT JOIN users 直出操作人显示名，免二次昵称查询）
+//   · game-overview 游戏概览（按游戏行 + 全局汇总，关联子查询避免笛卡尔积）
+import { apiRequest } from '../utils/adminHttp'
+import type { ApiResponse } from '../utils/apiClient'
 
-/// Dashboard 统计查询服务
-/// 注意：Dashboard 涉及大量跨表聚合和 count 查询，不适合 BaseService，
-/// 因此使用 apiQuery + 专用方法封装。
+/// 将 apiRequest 异常包装为旧 ApiResponse 形态（调用方 success/data 判定习惯不变）
+async function wrap<T>(fn: () => Promise<T>): Promise<ApiResponse<T>> {
+  try {
+    return { success: true, data: await fn(), errorMessage: null, statusCode: 200 }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '请求失败'
+    return { success: false, data: null, errorMessage: msg, statusCode: null }
+  }
+}
 
-/// 活跃用户事件（单条行为记录，未去重）
-/// source 标记行为来源（read/comment/bookmark/annotation/tts/feedback），
-/// 供 Dashboard 复用阅读事件计算「活跃读者」而无需额外请求。
-type ActiveEvent = { user_id: string; created_at: string; source: string }
+/// /admin/dashboard/user-stats 出参
+export interface DashboardUserStats {
+  total: number
+  new_today: number
+  new_week: number
+  new_month: number
+  new_last_week: number
+  active_today: number
+  active_week: number
+  active_month: number
+  retention: number
+}
+
+/// 最近操作日志行（含操作人显示名来源）
+export interface RecentLogRow {
+  id: string
+  user_id: string | null
+  action: string
+  module: string | null
+  created_at: string
+  username: string | null
+  nickname: string | null
+}
+
+/// 游戏概览行（按游戏聚合）
+export interface GameOverviewRowVO {
+  id: string
+  name: string
+  code: string
+  engine: string
+  enabled: boolean
+  sort_order: number
+  scores_total: number
+  scores_today: number
+  players_today: number
+  points_today: number
+}
+
+/// 游戏概览全局汇总
+export interface GameSummary {
+  scores_total: number
+  scores_today: number
+  players_today: number
+  players_week: number
+  points_today: number
+}
+
+/// 用户统计时间窗参数（均为 ISO-8601 UTC 字符串，前端 toISOString 产出）
+export interface UserStatsWindow {
+  todayStart: string
+  weekStart: string
+  monthStart: string
+  lastWeekStart: string
+  lastMonthStart: string
+  lastMonthEnd: string
+}
 
 class DashboardService {
-  /// 总用户数
-  async getTotalUsers() {
-    return apiQuery(
-      () => supabase.from('users').select('*', { count: 'exact', head: true }).eq('is_deleted', false),
-      'Dashboard-总用户数'
-    )
-  }
-
-  /// 今日新增用户
-  async getTodayNewUsers(todayStart: string) {
-    return apiQuery(
-      () => supabase.from('users').select('id', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', todayStart),
-      'Dashboard-今日新增用户'
-    )
-  }
-
-  /// 指定时间后新增用户
-  async getNewUsersSince(since: string) {
-    return apiQuery(
-      () => supabase.from('users').select('id', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', since),
-      'Dashboard-新增用户统计'
-    )
-  }
-
-  /// 时间段内新增用户（用于上周对比）
-  async getNewUsersInRange(from: string, to: string) {
-    return apiQuery(
-      () => supabase.from('users').select('id', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', from).lt('created_at', to),
-      'Dashboard-时间段新增用户'
-    )
-  }
-
-  /// 时间段内新增用户 ID 列表（用于留存率交集计算）
-  async getNewUserIdsInRange(from: string, to: string) {
-    return apiQuery<{ id: string }[]>(
-      () => supabase.from('users').select('id').eq('is_deleted', false).gte('created_at', from).lt('created_at', to),
-      'Dashboard-时间段新增用户ID'
-    )
-  }
-
-  /// 活跃用户事件（未去重），用于计算日/周/月活跃用户与留存率。
-  /// 数据来源为真实用户行为：阅读(user_novels.last_read_at) + 评论 + 书签 +
-  /// 批注(未删除) + 听书(TTS) + 推荐反馈。不再依赖 operation_logs
-  /// （该表仅记录后台管理操作，不含用户阅读等行为）。
-  /// 注意：各表上限 limit 行，数据量大时为近似值。
-  async getActiveUserEvents(from: string, limit = 5000): Promise<ApiResponse<ActiveEvent[]>> {
-    const [rRead, rComment, rBookmark, rAnnotation, rTts, rFeedback] = await Promise.all([
-      // 阅读：用 last_read_at 作为活跃时间，别名映射为 created_at 以统一结构
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('user_novels').select('user_id, created_at:last_read_at').gte('last_read_at', from).limit(limit),
-        'Dashboard-活跃事件-阅读'
+  /// 用户统计（含活跃与留存，服务端聚合）
+  async getUserStats(w: UserStatsWindow): Promise<ApiResponse<DashboardUserStats>> {
+    return wrap(() =>
+      apiRequest<DashboardUserStats>(
+        'GET',
+        `/admin/dashboard/user-stats?today_start=${encodeURIComponent(w.todayStart)}` +
+          `&week_start=${encodeURIComponent(w.weekStart)}` +
+          `&month_start=${encodeURIComponent(w.monthStart)}` +
+          `&last_week_start=${encodeURIComponent(w.lastWeekStart)}` +
+          `&last_month_start=${encodeURIComponent(w.lastMonthStart)}` +
+          `&last_month_end=${encodeURIComponent(w.lastMonthEnd)}`,
       ),
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('novel_comments').select('user_id, created_at').gte('created_at', from).limit(limit),
-        'Dashboard-活跃事件-评论'
+    )
+  }
+
+  /// 用户增长趋势（{rows:[{date,count}]}，按北京日预聚合）
+  async getTrend(since: string): Promise<ApiResponse<{ rows: { date: string; count: number }[] }>> {
+    return wrap(() =>
+      apiRequest<{ rows: { date: string; count: number }[] }>(
+        'GET',
+        `/admin/dashboard/trend?since=${encodeURIComponent(since)}`,
       ),
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('novel_bookmarks').select('user_id, created_at').gte('created_at', from).limit(limit),
-        'Dashboard-活跃事件-书签'
+    )
+  }
+
+  /// 最近操作日志（含操作人显示名来源列）
+  async getRecentLogs(limit = 10): Promise<ApiResponse<{ rows: RecentLogRow[] }>> {
+    return wrap(() =>
+      apiRequest<{ rows: RecentLogRow[] }>('GET', `/admin/dashboard/recent-logs?limit=${limit}`),
+    )
+  }
+
+  /// 游戏概览（按游戏行 + 全局汇总）
+  async getGameOverview(
+    todayStart: string,
+    weekStart: string,
+  ): Promise<ApiResponse<{ rows: GameOverviewRowVO[]; summary: GameSummary }>> {
+    return wrap(() =>
+      apiRequest<{ rows: GameOverviewRowVO[]; summary: GameSummary }>(
+        'GET',
+        `/admin/dashboard/game-overview?today_start=${encodeURIComponent(todayStart)}` +
+          `&week_start=${encodeURIComponent(weekStart)}`,
       ),
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('novel_annotations').select('user_id, created_at').gte('created_at', from).neq('is_deleted', true).limit(limit),
-        'Dashboard-活跃事件-批注'
-      ),
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('tts_playback_logs').select('user_id, created_at').gte('created_at', from).limit(limit),
-        'Dashboard-活跃事件-TTS'
-      ),
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('user_recommendation_feedback').select('user_id, created_at').gte('created_at', from).limit(limit),
-        'Dashboard-活跃事件-推荐反馈'
-      ),
-    ])
-
-    const events: ActiveEvent[] = []
-    const sources: Array<{ res: ApiResponse<ActiveEvent[]>; source: string }> = [
-      { res: rRead, source: 'read' },
-      { res: rComment, source: 'comment' },
-      { res: rBookmark, source: 'bookmark' },
-      { res: rAnnotation, source: 'annotation' },
-      { res: rTts, source: 'tts' },
-      { res: rFeedback, source: 'feedback' },
-    ]
-    for (const { res, source } of sources) {
-      for (const row of (res.data || [])) {
-        if (row.user_id && row.created_at) {
-          events.push({ user_id: row.user_id, created_at: row.created_at, source })
-        }
-      }
-    }
-    return { success: true, data: events, errorMessage: null, statusCode: 200 }
-  }
-
-  /// 用户增长趋势数据
-  async getUserTrendData(since: string, limit = 1000) {
-    return apiQuery<{ created_at: string }[]>(
-      () => supabase.from('users').select('created_at').eq('is_deleted', false).gte('created_at', since).limit(limit),
-      'Dashboard-用户增长趋势'
     )
-  }
-
-  /// 最近操作日志
-  async getRecentLogs(limit = 20) {
-    return apiQuery<{ id: string; user_id: string | null; action: string; module: string | null; created_at: string }[]>(
-      () => supabase.from('operation_logs').select('id, user_id, action, module, created_at').order('created_at', { ascending: false }).limit(limit),
-      'Dashboard-最近操作日志'
-    )
-  }
-
-  /// 小说总数
-  async getNovelsCount() {
-    return apiQuery(
-      () => supabase.from('novels').select('id', { count: 'exact', head: true }),
-      'Dashboard-小说总数'
-    )
-  }
-
-  /// 小说阅读量列表
-  async getNovelReadCounts(limit = 1000) {
-    return apiQuery<{ read_count: number | null }[]>(
-      () => supabase.from('novels').select('read_count').limit(limit),
-      'Dashboard-小说阅读量'
-    )
-  }
-
-  /// 活跃读者
-  async getActiveReaders(since: string, limit = 1000) {
-    return apiQuery<{ user_id: string | null; last_read_at: string | null }[]>(
-      () => supabase.from('user_novels').select('user_id, last_read_at').gte('last_read_at', since).limit(limit),
-      'Dashboard-活跃读者'
-    )
-  }
-
-  /// 查询用户显示名（预览/最近活动用）。
-  ///
-  /// 双键解析：历史数据里 user_id 可能存 auth UUID，仅凭 id 查不到，故同时按
-  /// id 与 auth_id 建映射（users.id ≠ auth_id 时两键都要）。
-  /// 注意：仅返回**文本列**，按 password/postgres 类型，uuid 形态值不得传给 auth_id
-  /// 之外的 uuid 列（否则 22P02）。
-  async getUserNicknames(userIds: string[]) {
-    const orFilter = buildUserLookupOr(userIds)
-    return apiQuery<{ id: string; auth_id: string | null; username: string | null; nickname: string | null }[]>(
-      () =>
-        supabase
-          .from('users')
-          .select('id, auth_id, username, nickname')
-          .or(orFilter),
-      'Dashboard-用户昵称查询'
-    )
-  }
-
-  // ==================== 游戏模块（Dashboard 概览） ====================
-
-  /// 游戏列表（概览表行基础数据，按 sort_order 升序与 App 大厅一致）
-  async getGamesList() {
-    return apiQuery<{ id: string; name: string; code: string; engine: string; enabled: boolean }[]>(
-      () =>
-        supabase
-          .from('games')
-          .select('id,name,code,engine,enabled,sort_order')
-          .order('sort_order', { ascending: true }),
-      'Dashboard-游戏列表'
-    )
-  }
-
-  /// 游戏成绩数（gameId 缺省 = 全部游戏；since 缺省 = 不限时间；head count 不受 1000 行钳制影响）
-  async getGameScoresCount(gameId?: string, since?: string) {
-    return apiQuery(
-      () => {
-        let q = supabase.from('game_scores').select('id', { count: 'exact', head: true })
-        if (gameId) q = q.eq('game_id', gameId)
-        if (since) q = q.gte('created_at', since)
-        return q
-      },
-      'Dashboard-游戏成绩数'
-    )
-  }
-
-  /// 游戏活跃玩家（time 窗口内去重 user_id 集合）。
-  /// PostgREST 服务端 db-max-rows=1000 钳制：单请求最多返回 1000 行，
-  /// 必须 range 分页循环；maxRows 为上限，超出即视为近似值（与 getActiveUserEvents 同口径）。
-  async getGameActivePlayers(since: string, gameId?: string, maxRows = 5000): Promise<ApiResponse<string[]>> {
-    const userIds = new Set<string>()
-    const pageSize = 1000
-    for (let offset = 0; offset < maxRows; offset += pageSize) {
-      const res = await apiQuery<{ user_id: string | null }[]>(
-        () => {
-          let q = supabase
-            .from('game_scores')
-            .select('user_id')
-            .gte('created_at', since)
-            .range(offset, offset + pageSize - 1)
-          if (gameId) q = q.eq('game_id', gameId)
-          return q
-        },
-        'Dashboard-游戏活跃玩家'
-      )
-      if (!res.success) return { ...res, data: [] }
-      const rows = res.data || []
-      for (const r of rows) if (r.user_id) userIds.add(r.user_id)
-      if (rows.length < pageSize) break
-    }
-    return { success: true, data: [...userIds], errorMessage: null, statusCode: 200 }
-  }
-
-  /// 游戏积分发放合计（game_reward_claims.points 求和，分页循环规避 1000 行钳制）
-  async getGamePointsSum(since: string, gameId?: string): Promise<ApiResponse<number>> {
-    let total = 0
-    const pageSize = 1000
-    for (let offset = 0; offset < 10000; offset += pageSize) {
-      const res = await apiQuery<{ points: number | null }[]>(
-        () => {
-          let q = supabase
-            .from('game_reward_claims')
-            .select('points')
-            .gte('created_at', since)
-            .range(offset, offset + pageSize - 1)
-          if (gameId) q = q.eq('game_id', gameId)
-          return q
-        },
-        'Dashboard-游戏积分发放'
-      )
-      if (!res.success) return { ...res, data: 0 }
-      const rows = res.data || []
-      for (const r of rows) total += r.points || 0
-      if (rows.length < pageSize) break
-    }
-    return { success: true, data: total, errorMessage: null, statusCode: 200 }
   }
 }
 

@@ -4,8 +4,7 @@ import { message } from 'antd'
 import { HistoryOutlined, DeleteOutlined } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
-import { supabase } from '../../utils/supabase'
-import { handleApiError, logApiError } from '../../utils/apiClient'
+import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useDictOptions, useDictColors } from '../../hooks/useDictOptions'
 import { feedbackService } from '../../services/feedbackService'
@@ -46,17 +45,11 @@ export function useFeedback() {
     setLoading(true)
     try {
       const result = await feedbackService.paginateFeedback(page, pageSize)
-      if (!result.success) {
-        logApiError(result.errorMessage, 'Feedback-获取反馈列表')
-        message.error('获取反馈列表失败')
-        return
-      }
       if (!mountedRef.current) return
-      setData(result.data?.data || [])
-      setTotal(result.data?.total || 0)
+      setData(result.list)
+      setTotal(result.total)
     } catch (error) {
-      logApiError(error, 'Feedback-获取反馈列表')
-      message.error('获取反馈列表失败')
+      handleApiError(error, 'Feedback-获取反馈列表')
     } finally {
       setLoading(false)
     }
@@ -78,41 +71,11 @@ export function useFeedback() {
 
     setActionLoading(true)
     try {
-      // 获取操作人信息：从 Supabase Auth 服务端校验的当前会话获取，
-      // 禁止读 localStorage（可被篡改，且切换账号后可能残留旧管理员信息）。
-      // 无有效会话时显式标记为「未登录操作」，不得伪装成管理员/系统。
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      const meta = authUser?.user_metadata || {}
-      // 2026-09-14 双 ID 统一：users.id ≡ auth uuid，operatorId 直用 auth id
-      const operatorId = authUser ? authUser.id : '__no_session__'
-      const operatorName = authUser
-        ? ((meta.nickname as string) ||
-            (meta.username as string) ||
-            authUser.email?.split('@')[0] ||
-            '未命名用户')
-        : '未登录操作'
-
-      let result
+      // 操作人由后端从 JWT 解析（LoginUser），前端不再传递身份信息
       if (selectedAction === FEEDBACK_ACTION_DELETED) {
-        result = await feedbackService.softDelete(
-          selectedRecord.id,
-          remark.trim() || '删除反馈记录',
-          operatorId,
-          operatorName
-        )
+        await feedbackService.softDelete(selectedRecord.id, remark.trim() || '删除反馈记录')
       } else {
-        result = await feedbackService.updateStatus(
-          selectedRecord.id,
-          selectedAction,
-          remark.trim(),
-          operatorId,
-          operatorName
-        )
-      }
-
-      if (!result.success) {
-        message.error(result.errorMessage || '操作失败')
-        return
+        await feedbackService.updateStatus(selectedRecord.id, selectedAction, remark.trim())
       }
 
       const actionLabel = (() => {

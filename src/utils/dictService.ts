@@ -1,9 +1,10 @@
 /**
- * 字典服务 - 从Supabase字典表获取动态配置数据
+ * 字典服务 - 从本地后端字典端点获取动态配置数据
  * 替代硬编码的分类/选项数据
+ * 数据源：GET /dict/items?typeCode=（公开端点，服务端返回启用态字典项并按 sort_order 排序）
  */
 
-import { supabase } from './supabase'
+import { apiRequest } from './adminHttp'
 
 export interface DictItem {
   code: string
@@ -11,6 +12,26 @@ export interface DictItem {
   value: string | null
   sort_order: number
   extra: Record<string, any> | null
+}
+
+/// 后端 DictItemVO 形态（extra 为 jsonb 序列化的字符串，需解析为对象）
+interface DictItemRaw {
+  code: string
+  label: string
+  value: string | null
+  sort_order: number
+  extra: string | null
+}
+
+/// 解析后端 extra（JSON 字符串）为对象；空/非法返回 null
+function parseExtra(raw: string | null): Record<string, any> | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch {
+    return null
+  }
 }
 
 // 字典数据缓存
@@ -46,42 +67,16 @@ export async function getDictItems(typeCode: string, useCache = true): Promise<D
 
   const inflight = (async (): Promise<DictItem[]> => {
     try {
-      // 第1步：查询 dict_types 获取 type_id
-      const { data: typeData, error: typeError } = await (supabase as any)
-        .from('dict_types')
-        .select('id')
-        .eq('code', typeCode)
-        .eq('is_active', true)
-        .single()
-
-      if (typeError || !typeData) {
-        console.warn(`字典类型未找到(${typeCode}):`, typeError?.message)
-        return []
-      }
-
-      const typeId = typeData.id as string
-
-      // 第2步：查询 dict_items 获取字典项
-      const { data, error } = await (supabase as any)
-        .from('dict_items')
-        // dict_items 真实列：code/label/value/extra/sort_order/is_default/status/...
-        // 不含 item_code/item_name/item_value/extra_data（旧字段已移除），select 越列会触发 42703
-        .select('code, label, value, sort_order, extra')
-        .eq('type_id', typeId)
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true })
-
-      if (error) {
-        console.warn(`字典项查询失败(${typeCode}):`, error.message)
-        return []
-      }
-
-      const items: DictItem[] = ((data || []) as any[]).map((item: any) => ({
+      const rows = await apiRequest<DictItemRaw[]>(
+        'GET',
+        `/dict/items?typeCode=${encodeURIComponent(typeCode)}`
+      )
+      const items: DictItem[] = ((rows || []) as DictItemRaw[]).map((item) => ({
         code: item.code ?? '',
         label: item.label ?? '',
         value: item.value ?? null,
         sort_order: item.sort_order ?? 0,
-        extra: item.extra ?? null,
+        extra: parseExtra(item.extra ?? null),
       }))
 
       // 更新缓存
@@ -90,7 +85,10 @@ export async function getDictItems(typeCode: string, useCache = true): Promise<D
 
       return items
     } catch (err) {
-      console.error(`获取字典数据异常(${typeCode}):`, err)
+      // 类型不存在/网络异常：空列表回退（调用方有硬编码默认项兜底）
+      if (import.meta.env.DEV) {
+        console.warn(`获取字典数据失败(${typeCode}):`, err)
+      }
       return []
     } finally {
       delete dictInflight[typeCode]

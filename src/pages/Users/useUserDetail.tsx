@@ -21,20 +21,19 @@ export const useUserDetail = () => {
     setDetailLoading(true)
 
     try {
-      // 获取用户统计数据
-      const [expensesResult, moodsResult, weightsResult, notesResult, novelsResult, logsResult] =
-        await fetchUserActivity(user.id)
+      // 后端单端点聚合：5 张生活/小说域表行数 + 最近 10 条操作日志
+      const activity = await fetchUserActivity(user.id)
 
       if (!mountedRef.current) return
 
       setUserStats({
-        expense_count: expensesResult.count || 0,
-        mood_count: moodsResult.count || 0,
-        weight_count: weightsResult.count || 0,
-        note_count: notesResult.count || 0,
-        novel_count: novelsResult.count || 0,
+        expense_count: activity.expense_count,
+        mood_count: activity.mood_count,
+        weight_count: activity.weight_count,
+        note_count: activity.note_count,
+        novel_count: activity.novel_count,
       })
-      setUserLogs((logsResult.data || []) as unknown as OperationLog[])
+      setUserLogs(activity.logs || [])
     } catch (err) {
       logApiError(err, 'Users-获取用户详情')
       setUserStats(null)

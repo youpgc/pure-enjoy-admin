@@ -23,7 +23,8 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { BaseService, handleApiError } from '../../utils/apiClient'
+import { LocalBaseService } from '../../services/tableService'
+import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
@@ -67,7 +68,7 @@ const AppConfigs: React.FC = () => {
   const canWrite = hasPermission('app_configs:write')
   const canDelete = hasPermission('app_configs:delete')
 
-  const service = React.useMemo(() => new BaseService<AppConfig>('app_configs', { defaultOrder: { column: 'sort_order', ascending: true } }), [])
+  const service = React.useMemo(() => new LocalBaseService<AppConfig>('app_configs', { defaultOrder: { column: 'sort_order', ascending: true } }), [])
 
   // 加载数据
   const loadData = useCallback(async () => {

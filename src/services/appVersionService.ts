@@ -1,28 +1,18 @@
-// 应用版本管理的写操作数据访问层
-// 集中管理 app_versions 的特殊写操作（批量回滚/发布/强制更新），避免在页面组件中裸写 supabase.from
-// 注：列表/分页/删除等标准 CRUD 仍走 VersionManagement 内的 versionService（BaseService 实例）
-import { supabase } from '../utils/supabase'
+// 应用版本管理写操作数据访问层 —— 本地后端 /admin/app-versions
+// 状态机：release（发布并自动降级同平台其他 released）/ revoke（下架当前发布）/ rollback（已下架版本回滚）
+// 强制更新开关独立端点；列表/分页/创建/更新/删除由 useVersions 直接调后端标准端点
+import { apiRequest } from '../utils/adminHttp'
 
 export const appVersionService = {
-  /// 将所有 released 版本标记为 revoked
-  revokeAllReleased: () =>
-    (supabase.from('app_versions') as any).update({
-      status: 'revoked',
-      revoked_at: new Date().toISOString(),
-    }).eq('status', 'released'),
+  /// 状态流转：action = release | revoke | rollback
+  changeStatus: (id: number | string, action: 'release' | 'revoke' | 'rollback') =>
+    apiRequest<unknown>('PUT', `/admin/app-versions/${id}/status`, { action }),
 
-  /// 将目标版本标记为 released
-  releaseVersion: (id: string | number) =>
-    (supabase.from('app_versions') as any).update({
-      status: 'released',
-      released_at: new Date().toISOString(),
-      revoked_at: null,
-    }).eq('id', id),
-
-  /// 切换强制更新标志与发布类型
-  setForceUpdate: (id: string | number, newForceUpdate: boolean) =>
-    (supabase.from('app_versions') as any).update({
+  /// 强制更新开关（is_force_update 切换，release_type 与之正交）
+  setForceUpdate: async (id: number | string, newForceUpdate: boolean) => {
+    await apiRequest<unknown>('PUT', `/admin/app-versions/${id}/force-update`, {
       is_force_update: newForceUpdate,
-      release_type: newForceUpdate ? 'force' : 'feature',
-    }).eq('id', id),
+    })
+    return { error: null }
+  },
 }

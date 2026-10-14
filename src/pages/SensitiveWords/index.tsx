@@ -17,7 +17,8 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
-import { BaseService, handleApiError } from '../../utils/apiClient'
+import { LocalBaseService } from '../../services/tableService'
+import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import {
@@ -52,7 +53,7 @@ const SensitiveWords: React.FC = () => {
   const canWrite = hasPermission('sensitive_words:write')
   const canDelete = hasPermission('sensitive_words:delete')
 
-  const wordService = React.useMemo(() => new BaseService<SensitiveWord>('sensitive_words', { defaultOrder: { column: 'created_at', ascending: false } }), [])
+  const wordService = React.useMemo(() => new LocalBaseService<SensitiveWord>('sensitive_words', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
   // 加载敏感词列表
   const loadWords = useCallback(async () => {
@@ -146,7 +147,7 @@ const SensitiveWords: React.FC = () => {
       return
     }
     try {
-      const result = await new BaseService('sensitive_words').batchDelete(selectedRowKeys as string[])
+      const result = await new LocalBaseService('sensitive_words').batchDelete(selectedRowKeys as string[])
       if (!result.success) {
         handleApiError(result.errorMessage, 'SensitiveWords-批量删除')
         return

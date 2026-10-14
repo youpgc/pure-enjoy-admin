@@ -1,10 +1,11 @@
 // UserDimensionList 数据/操作逻辑 Hook（从 components/UserDimensionList.tsx 抽取，行为保持）
+// 数据面已切本地后端：/admin/user-data/{table}/stats|list|delete（表名服务端白名单），
+// 用户信息解析走 /admin/users/by-ids（本地单 ID 体系，无 auth_id 双键）
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { TablePaginationConfig } from 'antd/es/table'
 import { message } from 'antd'
-import { supabase } from '../../../utils/supabase'
-import { BaseService, handleApiError, apiQuery, logApiError } from '../../../utils/apiClient'
-import { buildUserLookupOr } from '../../../utils/userId'
+import { apiRequest } from '../../../utils/adminHttp'
+import { handleApiError } from '../../../utils/apiClient'
 import type { RecordItem, UserSummary } from './types'
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from './constants'
 
@@ -54,9 +55,6 @@ export function useUserDimension({
   // 用 ref 防止重复请求
   const detailFetchingRef = useRef(false)
 
-  const recordService = new BaseService<RecordItem>(tableName, { defaultOrder: { column: 'user_id', ascending: true } })
-  const detailService = new BaseService<RecordItem>(tableName, { defaultOrder: { column: 'created_at', ascending: false } })
-
   // 用户信息缓存（从users表关联）
   const [userMap, setUserMap] = useState<Map<string, { nickname: string; username: string }>>(new Map())
 
@@ -65,33 +63,25 @@ export function useUserDimension({
     if (userIds.length === 0) return
     try {
       const uniqueIds = [...new Set(userIds)]
-      // 分批查询，每批最多100个ID
-      const batchSize = 100
+      // 后端单端点批量解析（上限 100）；本地单 ID 体系，直接按 id 建入 map
       const map = new Map<string, { nickname: string; username: string }>()
-      for (let i = 0; i < uniqueIds.length; i += batchSize) {
-        const batch = uniqueIds.slice(i, i + batchSize)
-        // 双键解析：业务存在双 ID 架构，部分历史数据（如早期日志的 user_id 写入的是
-        // auth UUID）仅能凭 UUID 命中，故同时按 id 与 auth_id 查询并都建入 map；
-        // 但业务ID(U...) 只走 id 列，auth_id(uuid 类型) 仅接收 UUID 形态，否则报 22P02。
-        const orFilter = buildUserLookupOr(batch)
-        const { data, error } = await supabase
-          .from('users' as any)
-          .select('id, auth_id, nickname, username')
-          .or(orFilter) as any
-        if (error) throw error
-        for (const u of data || []) {
-          const val = { nickname: u.nickname || '', username: u.username || '' }
-          map.set(u.id, val)
-          if (u.auth_id) map.set(u.auth_id, val)
+      for (let i = 0; i < uniqueIds.length; i += 100) {
+        const batch = uniqueIds.slice(i, i + 100)
+        const rows = await apiRequest<Array<{ id: string; nickname: string | null; username: string | null }>>(
+          'GET',
+          `/admin/users/by-ids?ids=${encodeURIComponent(batch.join(','))}`,
+        )
+        for (const u of rows) {
+          map.set(u.id, { nickname: u.nickname || '', username: u.username || '' })
         }
       }
       setUserMap(map)
     } catch (error) {
-      logApiError(error, 'UserDimension-加载用户信息')
+      handleApiError(error, 'UserDimension-加载用户信息')
     }
   }, [])
 
-  // ==================== 数据加载（优先使用 RPC 后端聚合，降级为全量拉取） ====================
+  // ==================== 数据加载（后端聚合：服务端分页） ====================
 
   const fetchData = useCallback(async (page?: number, pageSize?: number) => {
     const curPage = page ?? pagination.current ?? 1
@@ -99,133 +89,27 @@ export function useUserDimension({
     setLoading(true)
     setDataLimitWarning(null)
     try {
-      // 优先尝试 RPC 后端聚合（服务端分页：返回 {rows, total_users, total_records}）
-      const rpcResult = await apiQuery<
-        Array<{ rows: Array<{ user_id: string; count: number; latest_record_at: string }>; total_users: number; total_records: number }>
-      >(
-        () => (supabase.rpc('get_user_dimension_stats', {
-          p_table_name: tableName,
-          p_user_ids: null,
-          p_limit: curSize,
-          p_offset: (curPage - 1) * curSize,
-        } as any) as any),
-        `UserDimensionList-${title}-RPC聚合`
-      )
+      // 后端聚合：按用户分组行数倒序，返回 {rows, total_users, total_records}
+      const payload = await apiRequest<{
+        rows: Array<{ user_id: string; count: number; latest_record_at: string }>
+        total_users: number
+        total_records: number
+      }>('GET', `/admin/user-data/${tableName}/stats?page=${curPage}&page_size=${curSize}`)
 
-      if (rpcResult.success && rpcResult.data) {
-        // 兼容旧版 RPC（直接返回数组）与新版（单行 {rows, total_users, total_records}）
-        type AggRow = { user_id: string; count: number; latest_record_at: string }
-        const raw = Array.isArray(rpcResult.data) ? rpcResult.data : [rpcResult.data]
-        const payload = (raw[0] ?? {}) as { rows?: AggRow[]; total_users?: number; total_records?: number }
-        const rows: AggRow[] = Array.isArray(payload.rows) ? payload.rows : (raw as unknown as AggRow[])
-        // RPC 调用成功，直接使用后端聚合结果
-        const result: UserSummary[] = rows.map((row) => ({
-          user_id: row.user_id,
-          user_nickname: undefined,
-          total_count: row.count,
-          latest_date: row.latest_record_at,
-          categories: [],
-          stats: {},
-        }))
-        result.sort((a, b) => b.total_count - a.total_count)
+      const result: UserSummary[] = payload.rows.map((row) => ({
+        user_id: row.user_id,
+        user_nickname: undefined,
+        total_count: row.count,
+        latest_date: row.latest_record_at,
+        categories: [],
+        stats: {},
+      }))
 
-        setData(result)
-        const totalUsers = typeof payload.total_users === 'number' ? payload.total_users : result.length
-        const totalRecords =
-          typeof payload.total_records === 'number'
-            ? payload.total_records
-            : result.reduce((s, i) => s + i.total_count, 0)
-        setTotal(totalUsers)
-        setTotalRecords(totalRecords)
-        setPagination((prev) => ({ ...prev, current: curPage, pageSize: curSize, total: totalUsers }))
-        fetchUserInfo(result.map((u) => u.user_id))
-        return
-      }
-
-      // RPC 调用失败（函数不存在等），降级为原来的分批拉取逻辑
-      console.warn(
-        `[UserDimensionList] RPC 调用失败，降级为全量拉取。`,
-        `请确保已创建 get_user_dimension_stats 函数。错误: ${rpcResult.errorMessage}`
-      )
-
-      // --- 降级逻辑：分批拉取全部数据 ---
-      const MAX_RECORDS = 10000
-      const allItems: Record<string, unknown>[] = []
-      let offset = 0
-      const batchSize = 1000
-      let hasMore = true
-
-      while (hasMore) {
-        const batchResult = await recordService.findAll((q) => q.range(offset, offset + batchSize - 1))
-        if (!batchResult.success) {
-          handleApiError(batchResult.errorMessage, `UserDimensionList-${title}-数据加载`)
-          break
-        }
-        const batch = batchResult.data || []
-        if (batch.length === 0) {
-          hasMore = false
-        } else {
-          allItems.push(...batch)
-          if (batch.length < batchSize) {
-            hasMore = false
-          }
-          offset += batchSize
-
-          // 超过最大限制时停止拉取并显示警告
-          if (allItems.length >= MAX_RECORDS) {
-            setDataLimitWarning(`数据量超过 ${MAX_RECORDS} 条限制，仅加载了前 ${MAX_RECORDS} 条记录，统计结果可能不完整`)
-            hasMore = false
-          }
-        }
-      }
-
-      // 按用户聚合
-      const aggregatedMap = new Map<string, UserSummary>()
-
-      for (const item of allItems) {
-        const uid = item.user_id as string
-        if (!uid) continue
-
-        if (!aggregatedMap.has(uid)) {
-          const displayName = (item.user_nickname as string) || `用户${uid.substring(0, 6)}`
-
-          aggregatedMap.set(uid, {
-            user_id: uid,
-            user_nickname: displayName,
-            total_count: 0,
-            latest_date: (item.created_at as string) || (item.updated_at as string),
-            categories: [],
-            stats: {},
-          })
-        }
-
-        const summary = aggregatedMap.get(uid)!
-        summary.total_count++
-
-        // 更新最新日期
-        const itemDate = (item.created_at as string) || (item.updated_at as string)
-        if (itemDate && (!summary.latest_date || itemDate > summary.latest_date)) {
-          summary.latest_date = itemDate
-          summary.latest_data = item
-        }
-
-        // 收集分类
-        const cat = item.category as string
-        if (cat && !summary.categories?.includes(cat)) {
-          summary.categories = [...(summary.categories || []), cat]
-        }
-      }
-
-      // 转换为数组并排序
-      const fallbackResult = Array.from(aggregatedMap.values())
-      fallbackResult.sort((a, b) => b.total_count - a.total_count)
-
-      setData(fallbackResult)
-      setTotal(fallbackResult.length)
-      setTotalRecords(fallbackResult.reduce((s, i) => s + i.total_count, 0))
-      setPagination((prev) => ({ ...prev, current: curPage, pageSize: curSize, total: fallbackResult.length }))
-      // 加载用户信息
-      fetchUserInfo(fallbackResult.map(u => u.user_id))
+      setData(result)
+      setTotal(payload.total_users)
+      setTotalRecords(payload.total_records)
+      setPagination((prev) => ({ ...prev, current: curPage, pageSize: curSize, total: payload.total_users }))
+      fetchUserInfo(result.map((u) => u.user_id))
     } catch (error) {
       handleApiError(error, `UserDimensionList-${title}-数据加载`)
     } finally {
@@ -246,13 +130,12 @@ export function useUserDimension({
     detailFetchingRef.current = true
     setDetailLoading(true)
     try {
-      const result = await detailService.paginate(page, pageSize, (q) => q.eq('user_id', userId))
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'UserDimensionList-详情数据')
-        return
-      }
-      setDetailData((result.data?.data || []) as RecordItem[])
-      setDetailTotal(result.data?.total || 0)
+      const result = await apiRequest<{ list: RecordItem[]; total: number }>(
+        'GET',
+        `/admin/user-data/${tableName}?user_id=${encodeURIComponent(userId)}&page=${page}&page_size=${pageSize}`,
+      )
+      setDetailData(result.list || [])
+      setDetailTotal(result.total || 0)
     } catch (error) {
       handleApiError(error, 'UserDimensionList-详情数据')
     } finally {
@@ -312,36 +195,16 @@ export function useUserDimension({
     }
     if (!selectedUser) return
     try {
-      // habits 删除前先清理子表 habit_checkins，避免 FK 约束阻断（P1-6 续·级联删除）
-      if (tableName === 'habits') {
-        const checkinService = new BaseService<{ id: string }>('habit_checkins')
-        const checkinsRes = await checkinService.findAll((q) => q.eq('habit_id', recordId))
-        if (!checkinsRes.success) {
-          handleApiError(checkinsRes.errorMessage, 'UserDimensionList-加载习惯打卡记录')
-          return
-        }
-        const checkinIds = (checkinsRes.data || []).map((c) => c.id)
-        if (checkinIds.length > 0) {
-          const delRes = await checkinService.batchDelete(checkinIds)
-          if (!delRes.success) {
-            handleApiError(delRes.errorMessage, 'UserDimensionList-删除习惯打卡记录')
-            return
-          }
-        }
-      }
-      const result = await detailService.delete(recordId)
-      if (result.success) {
-        message.success('已删除该记录')
-        // 重新加载详情（保留当前页）并刷新主表统计
-        fetchDetailData(selectedUser.user_id, detailPage, detailPageSize)
-        fetchData(pagination.current, pagination.pageSize)
-      } else {
-        handleApiError(result.errorMessage, 'UserDimensionList-删除记录')
-      }
+      // 删除走后端 /admin/user-data/{table}/{id}：habits 的 habit_checkins 级联清理由服务端同事务处理
+      await apiRequest<unknown>('DELETE', `/admin/user-data/${tableName}/${recordId}`)
+      message.success('已删除该记录')
+      // 重新加载详情（保留当前页）并刷新主表统计
+      fetchDetailData(selectedUser.user_id, detailPage, detailPageSize)
+      fetchData(pagination.current, pagination.pageSize)
     } catch (error) {
       handleApiError(error, 'UserDimensionList-删除记录')
     }
-  }, [canDelete, selectedUser, tableName, detailService, detailPage, detailPageSize, fetchDetailData, fetchData, pagination.current, pagination.pageSize])
+  }, [canDelete, selectedUser, tableName, detailPage, detailPageSize, fetchDetailData, fetchData, pagination.current, pagination.pageSize])
 
   return {
     loading,

@@ -1,12 +1,10 @@
-// ==================== 系统监控服务层 ====================
+// ==================== 系统监控服务层（批 2-7：本地后端化） ====================
 //
-// 对应 SQL：/d/workspace/sql/feature_admin_system_monitor.sql（5 个只读统计 RPC）
-// 各方法独立返回 ApiResponse，单 RPC 失败不影响其它分区（best-effort）。
-// 权限：页面已按 system_monitor:read（仅 admin/super_admin）门控；RPC 为 security definer
-//       只读 pg_catalog + 自家日志，无敏感行数据暴露。
-
-import { supabase } from '../utils/supabase'
-import { apiQuery } from '../utils/apiClient'
+// 原实现为云端 5 个 RPC（get_db_health 等），现改为本地后端 /admin/system-monitor/**：
+// 全部只读 pg_catalog 统计视图 + 自家日志表；出参保持「单元素数组」形态与原 RPC 一致。
+// 各方法独立返回 ApiResponse，单分区失败不影响其它分区（best-effort）。
+import { apiRequest } from '../utils/adminHttp'
+import type { ApiResponse } from '../utils/apiClient'
 
 export interface DbHealth {
   db_size_bytes: number
@@ -48,25 +46,29 @@ export interface SeqScanHotspot {
   idx_scan: number
 }
 
+/// 将 apiRequest 异常包装为旧 ApiResponse 形态（页面 res.success 判定习惯不变）
+async function wrap<T>(fn: () => Promise<T>): Promise<ApiResponse<T>> {
+  try {
+    return { success: true, data: await fn(), errorMessage: null, statusCode: 200 }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '请求失败'
+    return { success: false, data: null, errorMessage: msg, statusCode: null }
+  }
+}
+
 export const systemMonitorService = {
-  getDbHealth: () =>
-    apiQuery<DbHealth[]>(() => supabase.rpc('get_db_health'), 'SystemMonitor-健康概览'),
+  getDbHealth: (): Promise<ApiResponse<DbHealth[]>> =>
+    wrap(() => apiRequest<DbHealth[]>('GET', '/admin/system-monitor/db-health')),
 
-  getTableStats: () =>
-    apiQuery<TableStat[]>(() => supabase.rpc('get_table_stats'), 'SystemMonitor-表规模'),
+  getTableStats: (): Promise<ApiResponse<TableStat[]>> =>
+    wrap(() => apiRequest<TableStat[]>('GET', '/admin/system-monitor/table-stats')),
 
-  getLogTrends: (days: number) =>
-    apiQuery<LogTrendPoint[]>(
-      () => (supabase.rpc as any)('get_log_trends', { p_days: days }),
-      'SystemMonitor-日志趋势'
-    ),
+  getLogTrends: (days: number): Promise<ApiResponse<LogTrendPoint[]>> =>
+    wrap(() => apiRequest<LogTrendPoint[]>('GET', `/admin/system-monitor/log-trends?days=${days}`)),
 
-  getRlsCoverage: () =>
-    apiQuery<RlsCoverage[]>(() => supabase.rpc('get_rls_coverage'), 'SystemMonitor-RLS覆盖'),
+  getRlsCoverage: (): Promise<ApiResponse<RlsCoverage[]>> =>
+    wrap(() => apiRequest<RlsCoverage[]>('GET', '/admin/system-monitor/rls-coverage')),
 
-  getSeqScanHotspots: (minRows = 10000) =>
-    apiQuery<SeqScanHotspot[]>(
-      () => (supabase.rpc as any)('get_seq_scan_hotspots', { p_min_rows: minRows }),
-      'SystemMonitor-全表扫描热点'
-    ),
+  getSeqScanHotspots: (minRows = 10000): Promise<ApiResponse<SeqScanHotspot[]>> =>
+    wrap(() => apiRequest<SeqScanHotspot[]>('GET', `/admin/system-monitor/seq-scan-hotspots?min_rows=${minRows}`)),
 }

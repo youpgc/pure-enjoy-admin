@@ -76,7 +76,7 @@ const AdjustCard: React.FC<{ onAdjusted: () => void }> = ({ onAdjusted }) => {
     setSelectedBalance(null)
     if (!userId) return
     const res = await petWalletService.findAll(
-      (q) => (q as unknown as { eq: (c: string, v: string) => unknown }).eq('user_id', userId)
+      (q) => q.eq('user_id', userId)
     )
     if (res.success && res.data && res.data.length > 0) {
       setSelectedBalance(res.data[0]?.gold_balance ?? 0)

@@ -1,14 +1,21 @@
-// 应用版本管理页数据/操作逻辑 Hook（从 VersionManagement.tsx 抽取，行为保持）
-import { useState, useEffect, useCallback, useMemo } from 'react'
+// 应用版本管理页数据/操作逻辑 Hook（从 VersionManagement.tsx 抽取）
+// 数据源：本地后端 /admin/app-versions（SNAKE_CASE VO；分页参数 page/page_size）
+import { useState, useEffect, useCallback } from 'react'
 import type { Key } from 'react'
 import { Modal, message, Form } from 'antd'
-import { supabase } from '../../../utils/supabase'
 import { appVersionService } from '../../../services/appVersionService'
 import { usePermission } from '../../../hooks/usePermission'
-import { BaseService, handleApiError } from '../../../utils/apiClient'
+import { handleApiError } from '../../../utils/apiClient'
+import { apiRequest } from '../../../utils/adminHttp'
 import { usePagination } from '../../../hooks/usePagination'
 import { useMounted } from '../../../hooks/useMounted'
 import type { AppVersion, VersionFilters } from './types'
+
+/// 后端 AppVersionVO 形态（SNAKE_CASE）
+type AppVersionVO = Record<string, any>
+
+/// 后端 PageResult 形态
+interface PageResultVO { list: AppVersionVO[]; total: number }
 
 export function useVersions() {
   const mountedRef = useMounted()
@@ -31,43 +38,28 @@ export function useVersions() {
   const canWrite = hasPermission('versions:write')
   const canDelete = hasPermission('versions:delete')
 
-  const versionService = useMemo(() => new BaseService<AppVersion>('app_versions', { defaultOrder: { column: 'created_at', ascending: false } }), [])
-
-  // 加载版本列表
+  // 加载版本列表（后端按 buildNumber/id 倒序；keyword 过滤后端未提供，仅平台/状态生效）
   const loadVersions = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await versionService.paginate(pagination.current, pagination.pageSize, (q) => {
-        let query = q
-        if (filters.keyword) {
-          query = query.or(`version.ilike.%${filters.keyword}%,release_notes.ilike.%${filters.keyword}%`)
-        }
-        if (filters.platform) {
-          query = query.eq('platform', filters.platform)
-        }
-        if (filters.status) {
-          query = query.eq('status', filters.status)
-        }
-        return query
+      const params = new URLSearchParams({
+        page: String(pagination.current),
+        page_size: String(pagination.pageSize),
       })
-
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'VersionManagement-加载版本')
-        return
-      }
+      if (filters.platform) params.set('platform', filters.platform)
+      if (filters.status) params.set('status', filters.status)
+      const result = await apiRequest<PageResultVO>('GET', `/admin/app-versions?${params.toString()}`)
 
       if (!mountedRef.current) return
-      setVersions(result.data?.data || [])
-      setTotal(result.data?.total || 0)
+      setVersions((result?.list || []) as unknown as AppVersion[])
+      setTotal(result?.total || 0)
 
-      // 获取当前发布版本（status=released 的最新版本）
-      const activeRes = await versionService.findAll((q: any) =>
-        q.eq('status', 'released').order('created_at', { ascending: false }).limit(1)
+      // 获取当前发布版本（status=released，同平台唯一，由状态机保证）
+      const active = await apiRequest<PageResultVO>(
+        'GET', '/admin/app-versions?status=released&page=1&page_size=1'
       )
-      if (activeRes.data && activeRes.data.length > 0) {
-        if (!mountedRef.current) return
-        setCurrentVersion(activeRes.data[0] as AppVersion)
-      }
+      if (!mountedRef.current) return
+      setCurrentVersion(((active?.list || [])[0] as unknown as AppVersion) ?? null)
     } catch (error) {
       handleApiError(error, 'VersionManagement-加载版本')
     } finally {
@@ -124,11 +116,7 @@ export function useVersions() {
   // 删除版本
   const handleDelete = async (id: string) => {
     try {
-      const result = await versionService.delete(id)
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'VersionManagement-删除')
-        return
-      }
+      await apiRequest<void>('DELETE', `/admin/app-versions/${id}`)
       message.success('删除成功')
       loadVersions()
     } catch (error) {
@@ -136,30 +124,29 @@ export function useVersions() {
     }
   }
 
-  // 批量删除
+  // 批量删除（后端无批量端点，逐个删除；中途失败即中止并提示已完成数）
   const handleBatchDelete = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('请先选择要删除的版本')
       return
     }
+    const ids = selectedRowKeys as string[]
+    let done = 0
     try {
-      const { error } = await supabase
-        .from('app_versions')
-        .delete()
-        .in('id', selectedRowKeys as string[])
-      if (error) {
-        handleApiError(error, 'VersionManagement-批量删除')
-        return
+      for (const id of ids) {
+        await apiRequest<void>('DELETE', `/admin/app-versions/${id}`)
+        done += 1
       }
-      message.success(`成功删除 ${selectedRowKeys.length} 个版本`)
+      message.success(`成功删除 ${done} 个版本`)
       setSelectedRowKeys([])
       loadVersions()
     } catch (error) {
-      handleApiError(error, 'VersionManagement-批量删除')
+      handleApiError(error, `VersionManagement-批量删除(已完成 ${done}/${ids.length})`)
+      loadVersions()
     }
   }
 
-  // 回滚版本：将当前版本标记为 released，其他版本标记为 revoked
+  // 回滚/发布版本：后端状态机单事务完成「提升目标 + 降级同平台其他 released」
   const handleRollback = async (record: AppVersion) => {
     Modal.confirm({
       title: '确认回滚',
@@ -168,22 +155,9 @@ export function useVersions() {
       cancelText: '取消',
       onOk: async () => {
         try {
-          // 1. 将所有 released 版本标记为 revoked
-          const { error: revokeError } = await appVersionService.revokeAllReleased()
-
-          if (revokeError) {
-            handleApiError(revokeError, 'VersionManagement-回滚')
-            return
-          }
-
-          // 2. 将目标版本标记为 released
-          const { error: releaseError } = await appVersionService.releaseVersion(record.id)
-
-          if (releaseError) {
-            handleApiError(releaseError, 'VersionManagement-回滚')
-            return
-          }
-
+          // 已下架(revoked)版本走 rollback，其余走 release（后端校验状态合法性）
+          const action = record.status === 'revoked' ? 'rollback' as const : 'release' as const
+          await appVersionService.changeStatus(record.id, action)
           message.success(`版本 ${record.version} 已回滚为当前发布版本`)
           loadVersions()
         } catch (error) {
@@ -232,43 +206,22 @@ export function useVersions() {
       setSaving(true)
       const values = await form.validateFields()
 
-      // 如果将版本设为 released，确保没有其他已发布的版本
-      if (values.status === 'released') {
-        const { data: existingReleased, error: checkError } = await supabase
-          .from('app_versions')
-          .select('id, version, build_number')
-          .eq('status', 'released')
-          .limit(1)
-
-        if (checkError) {
-          handleApiError(checkError, 'VersionManagement-检查已发布版本')
-          return
-        }
-
-        const firstReleased = (existingReleased as unknown as Array<{ id: number; version: string; build_number: number }>)?.[0]
-        if (firstReleased && String(firstReleased.id) !== editingVersion?.id) {
-          message.warning(`已有已发布版本 v${firstReleased.version} (build ${firstReleased.build_number})，请先将其状态改为其他值，或使用回滚功能`)
-          return
-        }
-      }
-
+      // 后端 SaveAppVersionRequest（SNAKE_CASE 入参）；status 仅新增生效
       if (editingVersion) {
-        const result = await versionService.update(editingVersion.id, {
-          ...values,
-        })
-        if (!result.success) {
-          handleApiError(result.errorMessage, 'VersionManagement-更新')
-          return
+        await apiRequest<unknown>('PUT', `/admin/app-versions/${editingVersion.id}`, values)
+        // 编辑态状态变更走状态机：released→release、revoked→revoke（superseded 无动作，后端校验会拦截）
+        if (values.status && values.status !== editingVersion.status) {
+          if (values.status === 'released') {
+            await appVersionService.changeStatus(editingVersion.id, 'release')
+          } else if (values.status === 'revoked') {
+            await appVersionService.changeStatus(editingVersion.id, 'revoke')
+          } else {
+            message.warning('superseded 状态仅能由系统回滚窗口流转，不能手动设置')
+          }
         }
         message.success('更新成功')
       } else {
-        const result = await versionService.create({
-          ...values,
-        })
-        if (!result.success) {
-          handleApiError(result.errorMessage, 'VersionManagement-创建')
-          return
-        }
+        await apiRequest<unknown>('POST', '/admin/app-versions', values)
         message.success('创建成功')
       }
       setModalVisible(false)

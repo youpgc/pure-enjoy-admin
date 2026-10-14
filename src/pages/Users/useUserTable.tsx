@@ -20,7 +20,6 @@ import { USER_STATUS_ACTIVE, USER_STATUS_DISABLED } from '../../constants/roles'
 import {
   createUser,
   addPointRecordWithRecalc,
-  recalcUserPoints,
   logUserOperation,
   userService,
 } from '../../services/userService'
@@ -30,7 +29,7 @@ import { useMounted } from '../../hooks/useMounted'
 import { usePagination } from '../../hooks/usePagination'
 import { logApiError } from '../../utils/apiClient'
 import { message } from 'antd'
-import { buildNewUser, buildUpdateUser, createAuthUser } from './userTableHelpers'
+import { buildNewUser, buildUpdateUser } from './userTableHelpers'
 
 export interface UserFilterValues {
   role?: UserRole
@@ -142,45 +141,29 @@ export const useUserTable = () => {
 
       try {
         setSubmitting(true)
-        // 占位 id：仅满足 users 行 PK 非空。2026-09-14 双 ID 统一后，云端触发器
-        // 在建 auth 号时会把 users.id 统一改写为 auth uuid，勿将占位 id 用于
-        // 任何后续关联（流水/日志一律用 createAuthUser 返回的最终 ID）。
-        const placeholderId = crypto.randomUUID()
-        const { error: createError } = await createUser({ id: placeholderId, ...newUser })
-        if (createError) {
-          message.error('创建用户失败: ' + createError.message)
-          return
-        }
+        // 创建用户：后端 BCrypt 编码密码、校验 email/username/phone 唯一性，
+        // 返回的 id 即最终唯一 ID（本地后端无占位 id/触发器改写环节）
+        const created = await createUser(newUser)
+        const finalId = created.id
 
-        // 同步创建 auth.users 记录（使 App 端可通过 Supabase Auth 登录）。
-        // 必须先于初始积分流水：触发器此刻才把 users.id 改写为最终 auth uuid；
-        // RPC 失败时回退占位 id（该用户本就无法登录，维持旧行为）。
-        const finalId =
-          (await createAuthUser({ id: placeholderId, ...newUser } as User, formData.password || '123456')) ??
-          placeholderId
-
-        // 如果管理员设置了初始积分，插入 point_records 流水，随后主动重算回写 users 展示列
-        // （云端无 point_records→users 同步触发器，须后台主动回写，详见 points skill §5.3）
+        // 如果管理员设置了初始积分，走 /admin/points/adjust：
+        // 服务端单事务写 point_records 流水并同步回写 users 展示列
         const initPoints = formData.available_points ?? 0
         if (initPoints > 0) {
-          // 原子化：插入初始积分流水 + 重算回写 users 展示列（审查 P1-3）
           const { success, errorMessage } = await addPointRecordWithRecalc({
             user_id: finalId,
-            type: 'admin_adjust',
             amount: initPoints,
             remark: '创建用户时设置初始积分',
-            operator_name: adminUser?.nickname || adminUser?.email || '管理员',
-            operator_id: adminUser?.id,
           })
           if (!success) {
-            message.warning(errorMessage || '初始积分记录/重算失败，积分展示可能短暂不同步')
+            message.warning(errorMessage || '初始积分记录失败，积分展示可能短暂不同步')
           }
         }
 
         await fetchUsers()
-        await logOperation('create_user', finalId, { email: newUser.email })
+        await logOperation('create_user', finalId, { email: newUser.email as string })
       } catch (err) {
-        message.error('创建用户失败，请检查网络连接后重试')
+        message.error('创建用户失败: ' + (err instanceof Error ? err.message : '请检查网络连接后重试'))
       } finally {
         setSubmitting(false)
       }
@@ -206,27 +189,19 @@ export const useUserTable = () => {
         const delta = newAvailable - oldAvailable
 
         if (delta !== 0) {
-          // 原子化：插入积分流水 + 重算回写（审查 P1-3）
+          // 服务端单事务：point_records 流水 + users 展示列同步回写
           const { success, errorMessage } = await addPointRecordWithRecalc({
             user_id: currentUser.id,
-            type: 'admin_adjust',
             amount: delta,
             remark: `管理员调整可用积分：${oldAvailable} → ${newAvailable}`,
-            operator_name: adminUser?.nickname || adminUser?.email || '管理员',
-            operator_id: adminUser?.id,
           })
           if (!success) {
             message.error(errorMessage || '积分调整失败')
             setSubmitting(false)
             return
           }
-        } else {
-          // 无积分变动时也确保 users 展示列最新（替代不存在的触发器）
-          const recalcOk = await recalcUserPoints(currentUser.id)
-          if (!recalcOk) {
-            message.warning('积分展示列重算失败，用户积分/连续签到展示可能短暂不同步')
-          }
         }
+        // delta 为 0 时无需任何操作：users 积分列由流水驱动，服务端始终一致
 
         const updateData = buildUpdateUser(formData)
 

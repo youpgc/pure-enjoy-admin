@@ -2,13 +2,14 @@
 import { Modal, Button, Empty, Tag, Space, Timeline } from 'antd'
 import { HistoryOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import { supabase } from '../../utils/supabase'
+import { feedbackService } from '../../services/feedbackService'
+import type { FlowRecordVO } from '../../services/feedbackService'
 import { formatDateTime } from '../../utils/format'
 import { useDictOptions, useDictColors } from '../../hooks/useDictOptions'
 import { useMounted } from '../../hooks/useMounted'
 import { FEEDBACK_STATUS_MAP } from '../../constants'
 import { ACTION_TAG_MAP } from './actionMeta'
-import type { FeedbackRecord, FlowRecord } from './types'
+import type { FeedbackRecord } from './types'
 import styles from './FlowHistoryModal.module.css'
 import common from '../../styles/common.module.css'
 
@@ -20,7 +21,7 @@ interface FlowHistoryModalProps {
 
 export function FlowHistoryModal({ open, record, onClose }: FlowHistoryModalProps) {
   const mountedRef = useMounted()
-  const [records, setRecords] = useState<FlowRecord[]>([])
+  const [records, setRecords] = useState<FlowRecordVO[]>([])
   const [loading, setLoading] = useState(false)
   const { options: actionOptions } = useDictOptions('feedback_action', [])
   const { options: statusOptions } = useDictOptions('feedback_status', [])
@@ -39,16 +40,17 @@ export function FlowHistoryModal({ open, record, onClose }: FlowHistoryModalProp
   useEffect(() => {
     if (open && record) {
       setLoading(true)
-      supabase
-        .from('feedback_flow_records')
-        .select('id, feedback_id, action, remark, operator_id, operator_name, created_at')
-        .eq('feedback_id', record.id)
-        .order('created_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (error) console.error('获取流转记录失败:', error)
+      feedbackService
+        .detail(record.id)
+        .then((detail) => {
           if (!mountedRef.current) return
-          setRecords(data || [])
-          setLoading(false)
+          setRecords(detail.flow || [])
+        })
+        .catch((error) => {
+          console.error('获取流转记录失败:', error)
+        })
+        .finally(() => {
+          if (mountedRef.current) setLoading(false)
         })
     }
   }, [open, record])

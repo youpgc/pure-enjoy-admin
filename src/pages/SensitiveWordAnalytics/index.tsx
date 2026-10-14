@@ -28,7 +28,8 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { BaseService, handleApiError } from '../../utils/apiClient'
+import { LocalBaseService } from '../../services/tableService'
+import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { SENSITIVE_CATEGORY_MAP, SENSITIVE_LEVEL_MAP, SENSITIVE_SOURCE_MAP, SENSITIVE_ACTION_MAP } from '../../constants'
@@ -89,7 +90,7 @@ const SensitiveWordAnalytics: React.FC = () => {
   const [topWords, setTopWords] = useState<{ word: string; count: number }[]>([])
   const { pagination, tablePagination, setTotal } = usePagination()
 
-  const hitService = React.useMemo(() => new BaseService<SensitiveWordHit>('sensitive_word_logs', { defaultOrder: { column: 'created_at', ascending: false } }), [])
+  const hitService = React.useMemo(() => new LocalBaseService<SensitiveWordHit>('sensitive_word_logs', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
   // 加载全量数据用于统计（不受分页影响）
   const loadAllDataForAnalytics = useCallback(async (startDate: string, endDate: string): Promise<SensitiveWordHit[]> => {

@@ -17,9 +17,9 @@ import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
 import { UploadOutlined, UserOutlined } from '@ant-design/icons'
 import type { User, UserFormData } from '../../types/user'
-import { supabase } from '../../utils/supabase'
 import { useDictOptions } from '../../hooks/useDictOptions'
-import { apiExecute, handleApiError } from '../../utils/apiClient'
+import { apiUpload } from '../../utils/adminHttp'
+import { handleApiError } from '../../utils/apiClient'
 import { DEFAULT_USER_FORM_VALUES } from '../../constants'
 import common from '../../styles/common.module.css'
 
@@ -83,43 +83,33 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
     }
   }, [open, mode, user, form])
 
-  // 上传头像到 Supabase Storage
+  // 上传头像到本地后端（POST /files/upload，服务端落盘+入库一步完成，category=avatar）
   const handleAvatarUpload = async (file: File) => {
     try {
       setUploading(true)
-      
+
       // 验证文件类型
       if (!file.type.startsWith('image/')) {
         message.error('请上传图片文件')
         return false
       }
-      
+
       // 验证文件大小 (2MB)
       if (file.size > 2 * 1024 * 1024) {
         message.error('图片大小不能超过 2MB')
         return false
       }
 
-      // 生成唯一文件名
-      const fileExt = file.name.split('.').pop()
-      const fileName = `avatars/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('category', 'avatar')
+      const meta = await apiUpload<{ url: string | null }>('/files/upload', fd)
 
-      // 上传到 Supabase Storage
-      const uploadResult = await apiExecute(
-        () => supabase.storage.from('public').upload(fileName, file),
-        'UserFormModal-头像上传'
-      )
-
-      if (!uploadResult.success) {
-        message.error('头像上传失败')
+      const publicUrl = meta?.url ?? ''
+      if (!publicUrl) {
+        message.error('头像上传失败：服务端未返回访问地址')
         return false
       }
-
-      // 获取公开 URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('public')
-        .getPublicUrl(fileName)
-
       setAvatarUrl(publicUrl)
       form.setFieldsValue({ avatar_url: publicUrl })
       message.success('头像上传成功')

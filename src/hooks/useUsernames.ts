@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../utils/supabase'
-import { apiQuery } from '../utils/apiClient'
-import { buildUserLookupOr } from '../utils/userId'
+import { apiRequest } from '../utils/adminHttp'
+import { logApiError } from '../utils/apiClient'
 
 export interface UserInfo {
   username: string | null
@@ -16,9 +15,8 @@ const moduleUserCache = new Map<string, UserInfo>()
  * 批量解析用户信息（username / nickname）。
  *
  * 用途：列表页在「用户ID」列旁显示「用户名」，无需改动数据库。
- * - 同时按业务 ID（users.id）与 auth_id（UUID）建映射：业务存在双 ID 架构，
- *   部分历史数据（如早期 operation_logs/error_logs 的 user_id 写入的是 auth UUID）
- *   仅能凭 UUID 命中，故两键都建，避免回退显示原始 ID。
+ * - 通道：本地后端 GET /admin/users/by-ids（服务端按 id OR auth_id 双键匹配，
+ *   业务历史数据的 user_id 可能是 auth UUID）。
  * - 结果存入模块级全局缓存，跨页/跨组件/跨挂载复用（解决看板因重挂载反复请求闪烁）；
  * - 解析不到的 ID 在 map 中记为 { username: null, nickname: null }，
  *   交由 <UserName /> 回退显示原始 user_id。
@@ -43,22 +41,26 @@ export function useUsernames(ids: Array<string | null | undefined>): Map<string,
       setMap(new Map(moduleUserCache))
       return
     }
-    const orFilter = buildUserLookupOr(missing)
-    apiQuery<Array<{ id: string; auth_id: string | null; username: string | null; nickname: string | null }>>(
-      () =>
-        supabase
-          .from('users')
-          .select('id, auth_id, username, nickname')
-          .or(orFilter),
-      '批量查询用户名'
+    // 服务端上限 100，超出部分分批请求
+    const batches: string[][] = []
+    for (let i = 0; i < missing.length; i += 100) {
+      batches.push(missing.slice(i, i + 100))
+    }
+    Promise.all(
+      batches.map((batch) =>
+        apiRequest<Array<{ id: string; auth_id: string | null; username: string | null; nickname: string | null }>>(
+          'GET',
+          `/admin/users/by-ids?ids=${encodeURIComponent(batch.join(','))}`
+        )
+      )
     )
-      .then((res) => {
+      .then((results) => {
         if (cancelled) return
         const found = new Map<
           string,
           { id: string; auth_id: string | null; username: string | null; nickname: string | null }
         >()
-        ;(res.data || []).forEach((r) => {
+        results.flat().forEach((r) => {
           found.set(r.id, r)
           if (r.auth_id) found.set(r.auth_id, r)
         })
@@ -67,8 +69,10 @@ export function useUsernames(ids: Array<string | null | undefined>): Map<string,
         })
         setMap(new Map(moduleUserCache))
       })
-      .catch(() => {
-        // 查询失败不阻塞列表：保留已缓存，缺失项由 <UserName /> 回退原 ID
+      .catch((err) => {
+        // 查询失败为 best-effort：静默降级，保留已缓存，缺失项由 <UserName /> 回退原 ID
+        // （不弹窗——列表页加载用户名失败不应打断用户操作）
+        logApiError(err, '批量查询用户名')
       })
     return () => {
       cancelled = true

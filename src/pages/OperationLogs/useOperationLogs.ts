@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { Key } from 'react'
 import { message } from 'antd'
-import { BaseService, handleApiError } from '../../utils/apiClient'
+import { LocalBaseService } from '../../services/tableService'
+import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
@@ -28,7 +29,7 @@ export const useOperationLogs = () => {
   const userMap: UserMap = useUsernames(logs.map((l) => l.user_id))
 
   const logService = useMemo(
-    () => new BaseService<OperationLog>('operation_logs', {
+    () => new LocalBaseService<OperationLog>('operation_logs', {
       defaultOrder: { column: 'created_at', ascending: false },
     }),
     [],

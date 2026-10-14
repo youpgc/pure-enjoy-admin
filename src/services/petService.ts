@@ -1,12 +1,10 @@
+import { LocalBaseService } from './tableService'
+import { apiRequest } from '../utils/adminHttp'
 import {
-  BaseService,
-  apiQuery,
-  apiExecute,
   errorResponse,
   successResponse,
   type ApiResponse,
 } from '../utils/apiClient'
-import { supabase } from '../utils/supabase'
 import type {
   PetConfigRow,
   PetRarityRow,
@@ -32,16 +30,39 @@ import type {
   PetAchievementProgressRow,
 } from '../types/pet'
 
-// ==================== 宠物系统数据服务（Admin，18 表各继承 BaseService 八法） ====================
+// ==================== 宠物系统数据服务（Admin，22 子类继承 LocalBaseService 八法） ====================
 //
 // P1 十表 + P2 七表（进化链/阶段、特性、随机事件、成就、场景、成就进度）。
 //
+// 通道（2026-10-13 去 Supabase 化）：本地后端通用表层 /admin/table/pet_**（权限
+// admin:pet:list / admin:pet:edit）+ 专用端点 /admin/pet/**（透传数据库函数）。
+//
 // 列清单 = feature_pet_tables_20260916.sql 真实 DDL（⚠️ 新加列必须同步 select 白名单，
-// 否则编辑回显空 + 保存覆写清空云端值——见 pure-enjoy-admin-dev §3 显式 select 红线）。
+// 否则编辑回显空 + 保存覆写清空值——见 pure-enjoy-admin-dev §3 显式 select 红线）。
 // pet_* 表尚未进 database.ts（待重生成），类型来自 src/types/pet.ts（按 DDL 手工维护）。
+// ⚠️ 原 PostgREST 关系嵌入（species:pet_species(...) 等）通用表层不支持，改为
+//    service 层按外键批量拉字典填充（本页量级小，N=页大小）。
+
+/// 按主键列表批量拉字典表行，返回 Map（petService 内部填充用）
+async function fetchDict(
+  table: string,
+  cols: string,
+  keyCol: string,
+  keys: string[]
+): Promise<Map<string, Record<string, unknown>>> {
+  const map = new Map<string, Record<string, unknown>>()
+  if (keys.length === 0) return map
+  const where = encodeURIComponent(JSON.stringify([{ col: keyCol, op: 'in', val: keys }]))
+  const rows = await apiRequest<Record<string, unknown>[]>(
+    'GET',
+    `/admin/table/${table}?where=${where}&cols=${encodeURIComponent(cols)}`
+  )
+  ;(rows || []).forEach((r) => map.set(String(r[keyCol]), r))
+  return map
+}
 
 // 全局参数（单行 id=1）
-class PetConfigService extends BaseService<PetConfigRow> {
+class PetConfigService extends LocalBaseService<PetConfigRow> {
   constructor() {
     super('pet_config', {
       defaultOrder: { column: 'id', ascending: true },
@@ -57,7 +78,7 @@ class PetConfigService extends BaseService<PetConfigRow> {
 }
 
 // 评级字典（refine_base：洗练点评级基准，2026-09-17 属性系统）
-class PetRarityService extends BaseService<PetRarityRow> {
+class PetRarityService extends LocalBaseService<PetRarityRow> {
   constructor() {
     super('pet_rarities', {
       defaultOrder: { column: 'sort_order', ascending: true },
@@ -66,21 +87,26 @@ class PetRarityService extends BaseService<PetRarityRow> {
     })
   }
 
-  /// 主键为 code（非 id），BaseService.update 的 .eq('id',…) 不适用——按 code 更新
+  /// 主键为 code（非 id），LocalBaseService.update 的 WHERE id 不适用——走按列更新端点
   async updateByCode(code: string, data: Partial<PetRarityRow>) {
-    return apiExecute(
-      () =>
-        (supabase.from('pet_rarities') as any)
-          .update(data)
-          .eq('code', code)
-          .select(),
-      'PetRarity-按 code 更新'
-    )
+    try {
+      const result = await apiRequest<{ affected: number }>(
+        'PUT',
+        '/admin/table/pet_rarities/by-col/code',
+        { value: code, data: data as Record<string, unknown> }
+      )
+      if (!result || result.affected === 0) {
+        return errorResponse('更新失败：未匹配到任何记录（可能无权限）')
+      }
+      return successResponse(true)
+    } catch (err) {
+      return errorResponse(err instanceof Error ? err.message : '更新失败')
+    }
   }
 }
 
 // 种属/形态
-class PetSpeciesService extends BaseService<PetSpeciesRow> {
+class PetSpeciesService extends LocalBaseService<PetSpeciesRow> {
   constructor() {
     super('pet_species', {
       defaultOrder: { column: 'sort_order', ascending: true },
@@ -91,7 +117,7 @@ class PetSpeciesService extends BaseService<PetSpeciesRow> {
 }
 
 // 道具目录（三大类 + 扩容阶梯）
-class PetItemService extends BaseService<PetItemRow> {
+class PetItemService extends LocalBaseService<PetItemRow> {
   constructor() {
     super('pet_items', {
       defaultOrder: { column: 'sort_order', ascending: true },
@@ -102,7 +128,7 @@ class PetItemService extends BaseService<PetItemRow> {
 }
 
 // 蛋池与概率
-class PetEggPoolService extends BaseService<PetEggPoolRow> {
+class PetEggPoolService extends LocalBaseService<PetEggPoolRow> {
   constructor() {
     super('pet_egg_pools', {
       defaultOrder: { column: 'pool_code', ascending: true },
@@ -112,7 +138,7 @@ class PetEggPoolService extends BaseService<PetEggPoolRow> {
 }
 
 // 历险地
-class PetAdventureSpotService extends BaseService<PetAdventureSpotRow> {
+class PetAdventureSpotService extends LocalBaseService<PetAdventureSpotRow> {
   constructor() {
     super('pet_adventure_spots', {
       defaultOrder: { column: 'sort_order', ascending: true },
@@ -123,7 +149,7 @@ class PetAdventureSpotService extends BaseService<PetAdventureSpotRow> {
 }
 
 // 性格字典（2026-09-17 属性系统；4 条种子默认停用，孵化时按条件加权随机）
-class PetPersonalityService extends BaseService<PetPersonalityRow> {
+class PetPersonalityService extends LocalBaseService<PetPersonalityRow> {
   constructor() {
     super('pet_personalities', {
       defaultOrder: { column: 'code', ascending: true },
@@ -133,7 +159,7 @@ class PetPersonalityService extends BaseService<PetPersonalityRow> {
 }
 
 // 任务池
-class PetQuestService extends BaseService<PetQuestRow> {
+class PetQuestService extends LocalBaseService<PetQuestRow> {
   constructor() {
     super('pet_quests', {
       defaultOrder: { column: 'sort_order', ascending: true },
@@ -144,7 +170,7 @@ class PetQuestService extends BaseService<PetQuestRow> {
 }
 
 // 金币钱包
-class PetWalletService extends BaseService<PetWalletRow> {
+class PetWalletService extends LocalBaseService<PetWalletRow> {
   constructor() {
     super('pet_wallets', {
       defaultOrder: { column: 'gold_balance', ascending: false },
@@ -155,7 +181,7 @@ class PetWalletService extends BaseService<PetWalletRow> {
   paginateWallets(page: number, pageSize: number, userIds?: string[]) {
     return this.paginate(page, pageSize, (q) => {
       if (userIds && userIds.length > 0) {
-        return (q as any).in('user_id', userIds)
+        return q.in('user_id', userIds)
       }
       return q
     })
@@ -163,7 +189,7 @@ class PetWalletService extends BaseService<PetWalletRow> {
 }
 
 // 金币流水（append-only，按来源筛选）
-class PetWalletRecordService extends BaseService<PetWalletRecordRow> {
+class PetWalletRecordService extends LocalBaseService<PetWalletRecordRow> {
   constructor() {
     super('pet_wallet_records', {
       defaultOrder: { column: 'created_at', ascending: false },
@@ -180,7 +206,7 @@ class PetWalletRecordService extends BaseService<PetWalletRecordRow> {
       let builder = q
       if (options?.sourceType) builder = builder.eq('source_type', options.sourceType)
       if (options?.userIds && options.userIds.length > 0) {
-        builder = (builder as any).in('user_id', options.userIds)
+        builder = builder.in('user_id', options.userIds)
       }
       return builder
     })
@@ -188,7 +214,7 @@ class PetWalletRecordService extends BaseService<PetWalletRecordRow> {
 }
 
 // 道具增减流水（丢弃审计 = biz_type 前缀 discard）
-class PetItemFlowService extends BaseService<PetItemFlowRow> {
+class PetItemFlowService extends LocalBaseService<PetItemFlowRow> {
   constructor() {
     super('pet_item_flow_logs', {
       defaultOrder: { column: 'created_at', ascending: false },
@@ -204,10 +230,10 @@ class PetItemFlowService extends BaseService<PetItemFlowRow> {
     return this.paginate(page, pageSize, (q) => {
       let builder = q
       if (options?.bizTypes && options.bizTypes.length > 0) {
-        builder = (builder as any).in('biz_type', options.bizTypes)
+        builder = builder.in('biz_type', options.bizTypes)
       }
       if (options?.userIds && options.userIds.length > 0) {
-        builder = (builder as any).in('user_id', options.userIds)
+        builder = builder.in('user_id', options.userIds)
       }
       return builder
     })
@@ -215,12 +241,12 @@ class PetItemFlowService extends BaseService<PetItemFlowRow> {
 
   /// 道具 ID → 名称转译映射（丢弃流水展示用，一次拉取道具目录）
   async fetchItemNameMap(): Promise<Record<string, string>> {
-    const res = await apiQuery<Array<{ id: string; name: string }>>(
-      () => supabase.from('pet_items').select('id,name'),
-      'PetItemFlow-道具目录'
+    const rows = await apiRequest<Array<{ id: string; name: string }>>(
+      'GET',
+      '/admin/table/pet_items?cols=id,name'
     )
     const map: Record<string, string> = {}
-    ;(res.data ?? []).forEach((r) => {
+    ;(rows || []).forEach((r) => {
       map[r.id] = r.name
     })
     return map
@@ -230,7 +256,7 @@ class PetItemFlowService extends BaseService<PetItemFlowRow> {
 // ==================== P2 配置表服务（2026-09-23 RPC 上线配套，7 表） ====================
 
 // 进化链主表
-class PetEvoChainService extends BaseService<PetEvoChainRow> {
+class PetEvoChainService extends LocalBaseService<PetEvoChainRow> {
   constructor() {
     super('pet_evo_chains', {
       defaultOrder: { column: 'code', ascending: true },
@@ -240,7 +266,7 @@ class PetEvoChainService extends BaseService<PetEvoChainRow> {
 }
 
 // 进化阶段（子表：按链过滤）
-class PetEvoStageService extends BaseService<PetEvoStageRow> {
+class PetEvoStageService extends LocalBaseService<PetEvoStageRow> {
   constructor() {
     super('pet_evo_stages', {
       defaultOrder: { column: 'stage', ascending: true },
@@ -256,7 +282,7 @@ class PetEvoStageService extends BaseService<PetEvoStageRow> {
 }
 
 // 特性池
-class PetTraitService extends BaseService<PetTraitRow> {
+class PetTraitService extends LocalBaseService<PetTraitRow> {
   constructor() {
     super('pet_traits', {
       defaultOrder: { column: 'code', ascending: true },
@@ -267,7 +293,7 @@ class PetTraitService extends BaseService<PetTraitRow> {
 }
 
 // 随机事件
-class PetRandomEventService extends BaseService<PetRandomEventRow> {
+class PetRandomEventService extends LocalBaseService<PetRandomEventRow> {
   constructor() {
     super('pet_random_events', {
       defaultOrder: { column: 'code', ascending: true },
@@ -276,13 +302,13 @@ class PetRandomEventService extends BaseService<PetRandomEventRow> {
   }
 }
 
-// 事件选择流水（2026-10-08 随机事件实装；RLS: is_admin() 可读全量，客诉排查用）
-class PetEventChoiceLogService extends BaseService<PetEventChoiceLogRow> {
+// 事件选择流水（2026-10-08 随机事件实装；客诉排查用）
+class PetEventChoiceLogService extends LocalBaseService<PetEventChoiceLogRow> {
   constructor() {
     super('pet_event_choice_logs', {
       defaultOrder: { column: 'created_at', ascending: false },
-      select:
-        'id,user_id,event_id,option_index,rewards,created_at,event:pet_random_events(code,context,content)',
+      // 原嵌入 event:pet_random_events(code,context,content) → 字典填充 r.event
+      select: 'id,user_id,event_id,option_index,rewards,created_at',
     })
   }
 
@@ -290,52 +316,109 @@ class PetEventChoiceLogService extends BaseService<PetEventChoiceLogRow> {
   async recentLogs(limit = 200): Promise<ApiResponse<PetEventChoiceLogRow[]>> {
     const res = await this.paginate(1, limit, (q) => q)
     if (!res.success) return errorResponse(res.errorMessage ?? '查询失败')
-    return successResponse(res.data?.data ?? [])
+    const rows = (res.data?.data ?? []) as PetEventChoiceLogRow[]
+    // 字典填充：event_id → pet_random_events（code/context/content）
+    try {
+      const dict = await fetchDict(
+        'pet_random_events',
+        'id,code,context,content',
+        'id',
+        Array.from(new Set(rows.map((r) => (r as any).event_id).filter(Boolean) as string[]))
+      )
+      for (const r of rows as any[]) {
+        r.event = dict.get(String(r.event_id)) ?? null
+      }
+    } catch {
+      // 填充失败不阻塞主列表（页面已有 event_id 回退显示）
+    }
+    return successResponse(rows)
   }
 }
 
-// 宠物个体（只读查询：客诉排查；RLS is_admin 全量读）
-class PetPetAdminService extends BaseService<PetPetRow> {
+// 宠物个体（只读查询：客诉排查）
+class PetPetAdminService extends LocalBaseService<PetPetRow> {
   constructor() {
     super('pet_pets', {
       defaultOrder: { column: 'created_at', ascending: false },
+      // 原嵌入 species:pet_species(name_cn,rarity_code,family) → 字典填充 r.species
       select:
-        'id,user_id,show_no,nickname,stage,gender,level,exp,hunger,mood,intimacy,health,status,base_attributes,bonus_attributes,personality_code,created_at,species:pet_species(name_cn,rarity_code,family)',
+        'id,user_id,show_no,nickname,species_id,stage,gender,level,exp,hunger,mood,intimacy,health,status,base_attributes,bonus_attributes,personality_code,created_at',
     })
   }
 
   /// 全量列表（客服查询量级小；用户过滤由页面用 findUserIdsByKeyword 客户端完成）
   async listPets() {
-    return this.findAll()
+    return this.findAllWithSpecies()
   }
 
   /// 服务端分页（审计批 20261012：pet_pets 是按用户增长的个体大表，
   /// findAll 全量拉取随数据量线性劣化——与 pet_event_choice_logs 同口径下推）。
   /// 过滤二选一：userIds（用户关键字解析结果，命中即只看该批用户）；
-  /// 否则 text 对 编号/昵称 ilike 模糊下推（PostgREST 通配符需清洗）。
+  /// 否则 text 对 编号/昵称 ilike 模糊下推（平铺 OR，原 PostgREST .or 语义）。
   paginatePets(
     page: number,
     pageSize: number,
     options?: { userIds?: string[] | null; text?: string }
   ) {
-    return this.paginate(page, pageSize, (q) => {
+    return this.paginateWithSpecies(page, pageSize, (q) => {
       let builder = q
       if (options?.userIds && options.userIds.length > 0) {
-        return (builder as any).in('user_id', options.userIds)
+        return builder.in('user_id', options.userIds)
       }
       // id 次排序键:新手包批量发宠同 created_at 时页界不稳(复审 P3)
-      builder = (builder as any).order('id', { ascending: true })
+      builder = builder.order('id', { ascending: true })
       const t = (options?.text ?? '').replace(/[,()%\\`:"]/g, '')
       if (t) {
-        builder = (builder as any).or(`show_no.ilike.*${t}*,nickname.ilike.*${t}*`)
+        builder = builder.orFlat([
+          { col: 'show_no', op: 'ilike', val: `*${t}*` },
+          { col: 'nickname', op: 'ilike', val: `*${t}*` },
+        ])
       }
       return builder
     })
   }
+
+  /// 查询后按 species_id 批量填充 r.species（原 PostgREST 嵌入等价物）
+  private async findAllWithSpecies() {
+    const res = await this.findAll()
+    if (res.success) {
+      await this.fillSpecies(res.data as unknown as any[])
+    }
+    return res
+  }
+
+  private async paginateWithSpecies(
+    page: number,
+    pageSize: number,
+    query?: Parameters<PetPetAdminService['paginate']>[2]
+  ) {
+    const res = await this.paginate(page, pageSize, query)
+    if (res.success) {
+      await this.fillSpecies(res.data?.data as unknown as any[])
+    }
+    return res
+  }
+
+  private async fillSpecies(rows?: any[]) {
+    if (!rows || rows.length === 0) return
+    try {
+      const dict = await fetchDict(
+        'pet_species',
+        'id,name_cn,rarity_code,family',
+        'id',
+        Array.from(new Set(rows.map((r) => r.species_id).filter(Boolean) as string[]))
+      )
+      for (const r of rows) {
+        r.species = dict.get(String(r.species_id)) ?? null
+      }
+    } catch {
+      // 填充失败不阻塞主列表（页面已有 species 空回退）
+    }
+  }
 }
 
 // 事件触发审计（pet_lottery_records biz='event'：含放弃未选的触发占坑）
-class PetEventLotteryService extends BaseService<PetLotteryRecordRow> {
+class PetEventLotteryService extends LocalBaseService<PetLotteryRecordRow> {
   constructor() {
     super('pet_lottery_records', {
       defaultOrder: { column: 'created_at', ascending: false },
@@ -352,13 +435,13 @@ class PetEventLotteryService extends BaseService<PetLotteryRecordRow> {
   }
 }
 
-// 宠物时间线（pet_timeline_logs，只读审计；RLS is_admin 全量）
-class PetTimelineLogService extends BaseService<PetTimelineLogRow> {
+// 宠物时间线（pet_timeline_logs，只读审计）
+class PetTimelineLogService extends LocalBaseService<PetTimelineLogRow> {
   constructor() {
     super('pet_timeline_logs', {
       defaultOrder: { column: 'created_at', ascending: false },
-      select:
-        'id,user_id,pet_id,event_type,payload,created_at,pet:pet_pets(show_no,nickname)',
+      // 原嵌入 pet:pet_pets(show_no,nickname) → 字典填充 r.pet
+      select: 'id,user_id,pet_id,event_type,payload,created_at',
     })
   }
 
@@ -366,12 +449,27 @@ class PetTimelineLogService extends BaseService<PetTimelineLogRow> {
   async listLogs(limit = 200): Promise<ApiResponse<PetTimelineLogRow[]>> {
     const res = await this.paginate(1, limit, (q) => q)
     if (!res.success) return errorResponse(res.errorMessage ?? '查询失败')
-    return successResponse(res.data?.data ?? [])
+    const rows = (res.data?.data ?? []) as PetTimelineLogRow[]
+    // 字典填充：pet_id → pet_pets（show_no/nickname）
+    try {
+      const dict = await fetchDict(
+        'pet_pets',
+        'id,show_no,nickname',
+        'id',
+        Array.from(new Set(rows.map((r) => (r as any).pet_id).filter(Boolean) as string[]))
+      )
+      for (const r of rows as any[]) {
+        r.pet = dict.get(String(r.pet_id)) ?? null
+      }
+    } catch {
+      // 填充失败不阻塞主列表（页面已有 pet 空回退显示原 id）
+    }
+    return successResponse(rows)
   }
 }
 
 // 成就
-class PetAchievementService extends BaseService<PetAchievementRow> {
+class PetAchievementService extends LocalBaseService<PetAchievementRow> {
   constructor() {
     super('pet_achievements', {
       defaultOrder: { column: 'sort_order', ascending: true },
@@ -382,7 +480,7 @@ class PetAchievementService extends BaseService<PetAchievementRow> {
 }
 
 // 场景/背景主题
-class PetSceneService extends BaseService<PetSceneRow> {
+class PetSceneService extends LocalBaseService<PetSceneRow> {
   constructor() {
     super('pet_scenes', {
       defaultOrder: { column: 'scene_code', ascending: true },
@@ -391,13 +489,12 @@ class PetSceneService extends BaseService<PetSceneRow> {
   }
 }
 
-// 成就用户进度（运营查看：嵌入成就编码/名称/档位，避免页面自建映射）
-class PetAchievementProgressService extends BaseService<PetAchievementProgressRow> {
+// 成就用户进度（页面 ProgressTab 未消费嵌入字段，去掉原 pet_achievements 嵌入 select）
+class PetAchievementProgressService extends LocalBaseService<PetAchievementProgressRow> {
   constructor() {
     super('pet_achievement_progress', {
       defaultOrder: { column: 'created_at', ascending: false },
-      select:
-        'id,user_id,achievement_id,progress,completed_at,claimed_at,created_at,pet_achievements(code,title,tier,condition_value)',
+      select: 'id,user_id,achievement_id,progress,completed_at,claimed_at,created_at',
     })
   }
 
@@ -410,26 +507,27 @@ class PetAchievementProgressService extends BaseService<PetAchievementProgressRo
       let builder = q
       if (options?.achievementId) builder = builder.eq('achievement_id', options.achievementId)
       if (options?.userIds && options.userIds.length > 0) {
-        builder = (builder as any).in('user_id', options.userIds)
+        builder = builder.in('user_id', options.userIds)
       }
       return builder
     })
   }
 }
 
-// ==================== 客服金币调整（RPC：rpc_pet_admin_wallet_adjust） ====================
-// 调整逻辑在服务端 RPC 内完成（钱包行锁 + 流水双写 pet_admin_grant），前端只传参；
-// 调整后余额以页面重新拉取为准。RPC DDL 见 D:\workspace\sql\feature_pet_admin_20260916.sql。
-function adminAdjustWallet(targetUserId: string, gold: number, remark: string) {
-  return apiExecute(
-    () =>
-      supabase.rpc('rpc_pet_admin_wallet_adjust', {
-        p_target_user_id: targetUserId,
-        p_gold: gold,
-        p_remark: remark,
-      } as any) as any,
-    'PetBagAdjust-客服金币调整'
-  )
+// ==================== 客服金币调整（透传数据库函数 rpc_pet_admin_wallet_adjust） ====================
+// 调整逻辑在数据库函数内完成（钱包行锁 + 流水双写 pet_admin_grant），前端只传参；
+// 调整后余额以页面重新拉取为准。函数 DDL 见 D:\workspace\sql\pet\feature_pet_admin_20260916.sql。
+async function adminAdjustWallet(targetUserId: string, gold: number, remark: string) {
+  try {
+    await apiRequest('POST', '/admin/pet/wallet/adjust', {
+      targetUserId,
+      gold,
+      remark,
+    })
+    return successResponse(true)
+  } catch (err) {
+    return errorResponse(err instanceof Error ? err.message : '客服金币调整失败')
+  }
 }
 
 export {

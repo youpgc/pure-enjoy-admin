@@ -1,30 +1,58 @@
-// 角色与角色-权限关联的数据访问层
-// 集中管理 roles / role_permissions 的写操作，避免在页面组件中裸写 supabase.from（治理红线：页面只渲染，数据走 services）
-import { supabase } from '../utils/supabase'
+// 角色与角色-权限关联的数据访问层 —— 本地后端 rbac 端点
+// 数据源：/admin/roles（列表/CRUD/授权），授权为整体替换（单事务原子，替代旧「diff 删插」两段式）
+import { apiRequest } from '../utils/adminHttp'
 import type { Role } from '../types/permission'
 
+/// 后端 RoleVO 形态（SNAKE_CASE）
+export interface RoleVO {
+  id: number
+  name: string
+  code: string
+  description: string | null
+  is_system: boolean
+  status: string
+  created_at: string
+}
+
+/// 后端 RoleDetailVO 形态（附带已授权权限 ID）
+export interface RoleDetailVO {
+  id: number
+  permission_ids: number[]
+}
+
 export const roleService = {
-  /// 更新角色
-  updateRole: (id: number, data: Partial<Role>) =>
-    (supabase.from('roles') as any).update(data).eq('id', id),
+  /// 角色列表
+  listRoles: () => apiRequest<RoleVO[]>('GET', '/admin/roles'),
 
-  /// 新增角色并返回含 id 的记录
-  createRole: (data: Record<string, unknown>) =>
-    (supabase.from('roles') as any).insert(data).select().single(),
+  /// 更新角色（name/description/status；code 不可变更）
+  updateRole: async (id: number, data: Partial<Role>) => {
+    await apiRequest<RoleVO>('PUT', `/admin/roles/${id}`, data)
+    return { data: null, error: null }
+  },
 
-  /// 删除指定角色的全部权限关联（保留：新增角色清场等场景）
-  deleteRolePermissions: (roleId: number) =>
-    supabase.from('role_permissions').delete().eq('role_id', roleId),
+  /// 新增角色，返回含 id 的记录
+  createRole: async (data: Record<string, unknown>) => {
+    const vo = await apiRequest<RoleVO>('POST', '/admin/roles', data)
+    return { data: vo as unknown as Role, error: null }
+  },
 
-  /// 只删除指定权限关联（编辑角色 diff 更新用，避免全删重插的中途失败清空风险）
-  deleteRolePermissionsByIds: (roleId: number, permissionIds: number[]) =>
-    supabase
-      .from('role_permissions')
-      .delete()
-      .eq('role_id', roleId)
-      .in('permission_id', permissionIds),
+  /// 删除角色（系统内建角色由服务端拦截）
+  deleteRole: async (id: number) => {
+    await apiRequest<void>('DELETE', `/admin/roles/${id}`)
+    return { error: null }
+  },
 
-  /// 批量新增权限关联
-  createRolePermissions: (rolePerms: { role_id: number; permission_id: number }[]) =>
-    (supabase.from('role_permissions') as any).insert(rolePerms),
+  /// 查询角色已授权权限 ID 列表
+  getRolePermissions: async (roleId: number) => {
+    const detail = await apiRequest<RoleDetailVO>('GET', `/admin/roles/${roleId}/permissions`)
+    return detail?.permission_ids ?? []
+  },
+
+  /// 整体替换角色授权（单事务：先清空再插入，服务端保证原子性与权限 ID 有效性）
+  replaceRolePermissions: async (roleId: number, permissionIds: number[]) => {
+    await apiRequest<RoleDetailVO>('PUT', `/admin/roles/${roleId}/permissions`, {
+      permission_ids: permissionIds,
+    })
+    return { error: null }
+  },
 }

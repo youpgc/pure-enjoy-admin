@@ -3,7 +3,7 @@ import { Card, Table, Button, Drawer, Space, Typography, Empty, Spin, Tag, messa
 import { ReloadOutlined, CalendarOutlined, LeftOutlined, RightOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
-import { supabase } from '../../utils/supabase'
+import { apiRequest } from '../../utils/adminHttp'
 import { userDisplayName } from '../../utils/userDisplay'
 import common from '../../styles/common.module.css'
 import styles from './CheckinManagement.module.css'
@@ -48,15 +48,13 @@ const CheckinCalendarDrawer: React.FC<{
     if (!user) return
     setLoadingDates(true)
     try {
-      const { data, error } = (await supabase.rpc('get_user_checkin_dates', {
-        p_user_id: user.user_id,
-        p_year: m.year(),
-        p_month: m.month() + 1,
-      } as any)) as any
-      if (error) throw error
+      const data = await apiRequest<Array<{ checkin_date: string; is_makeup: boolean }>>(
+        'GET',
+        `/admin/checkins/${encodeURIComponent(user.user_id)}/dates?year=${m.year()}&month=${m.month() + 1}`,
+      )
       const set = new Set<string>()
       const makeup = new Set<string>()
-      for (const r of (data || []) as Array<{ checkin_date: string; is_makeup: boolean }>) {
+      for (const r of data || []) {
         const key = formatDate(r.checkin_date)
         set.add(key)
         if (r.is_makeup) makeup.add(key)
@@ -88,11 +86,11 @@ const CheckinCalendarDrawer: React.FC<{
     let cancelled = false
     ;(async () => {
       try {
-        const { data, error } = (await supabase.rpc('get_user_earliest_checkin_month', {
-          p_user_id: user.user_id,
-        } as any)) as any
+        const data = await apiRequest<string | null>(
+          'GET',
+          `/admin/checkins/${encodeURIComponent(user.user_id)}/earliest-month`,
+        )
         if (cancelled) return
-        if (error) throw error
         setEarliestMonth(data ? dayjs(data as string).startOf('month') : null)
       } catch {
         setEarliestMonth(null) // 取不到不阻断日历，仅不约束上一月
@@ -200,11 +198,9 @@ const CheckinManagement: React.FC = () => {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const { data: rows, error } = (await supabase.rpc('get_checkin_summary' as any)) as any
-      if (error) throw error
-      const list = (rows || []) as CheckinSummary[]
-      setData(list)
-      setPagination((p) => ({ ...p, total: list.length }))
+      const list = await apiRequest<CheckinSummary[]>('GET', '/admin/checkins/summary')
+      setData(list || [])
+      setPagination((p) => ({ ...p, total: (list || []).length }))
     } catch (e: any) {
       message.error(`加载签到汇总失败：${e?.message || e}`)
     } finally {

@@ -1,4 +1,6 @@
 // Dashboard 数据加载 Hook（从 Dashboard.tsx 抽取，行为保持）
+// 批 2-6：数据面切换本地后端 /admin/dashboard 4 个聚合端点
+// （user-stats / trend / recent-logs / game-overview），原 Supabase 多请求收敛。
 import { useState, useCallback, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 // import { supabase } from '../../utils/supabase' // 小说模块下线，注释保留可恢复
@@ -8,7 +10,6 @@ import { useMounted } from '../../hooks/useMounted'
 import { dashboardService } from '../../services/dashboardService'
 import { handleApiError } from '../../utils/apiClient'
 import { userDisplayName } from '../../utils/userDisplay'
-import type { UserDisplayInfo } from '../../utils/userDisplay'
 import type {
   // CommentItem,
   // NovelListItem,
@@ -19,11 +20,7 @@ import type {
   GameStats,
   GameOverviewRow,
 } from './types'
-import { formatBeijing, formatBeijingNow, formatDate } from '../../utils/format'
-
-function safeCount(count: unknown): number {
-  return typeof count === 'number' ? count : 0
-}
+import { formatBeijing, formatBeijingNow } from '../../utils/format'
 
 function getWeekMonday(date = new Date()): Date {
   const d = new Date(date)
@@ -37,7 +34,7 @@ export function useDashboard() {
   const mountedRef = useMounted()
 
   // 用 ref 持有最新 hasPermission，避免其引用随权限重载/切回浏览器
-  // （触发 Supabase onAuthStateChange → loadPermissions 生成新 permissions 数组）而频繁变化，
+  // （触发权限重载生成新 permissions 数组）而频繁变化，
   // 进而导致 loadStats 重新创建、useEffect 重跑而重复刷新数据
   const hasPermissionRef = useRef(hasPermission)
   hasPermissionRef.current = hasPermission
@@ -96,7 +93,7 @@ export function useDashboard() {
 
   // ==================== 加载数据 ====================
   const loadStats = useCallback(async () => {
-    if (!hasPermissionRef.current('dashboard:read')) return
+    if (!hasPermissionRef.current('admin:dashboard:list')) return
     setLoading(true)
 
     try {
@@ -108,175 +105,91 @@ export function useDashboard() {
       const lastMonthEnd = dayjs().subtract(1, 'month').endOf('month').toISOString()
       const trendStart = dayjs().subtract(30, 'day').startOf('day').toISOString()
 
-      // 原实现为顺序 await 瀑布（约 13 个相互独立的接口逐个等待），
-      // 首屏耗时≈请求数×单程延迟。改为一次性并发发出，墙钟时间≈最慢单个请求。
-      const [
-        totalRes,
-        todayRes,
-        weekRes,
-        monthRes,
-        lastWeekRes,
-        activeEventsRes,
-        lastMonthUsersRes,
-        // novelsRes,        // 小说模块下线，注释保留可恢复
-        // readCountRes,     // 小说模块下线，注释保留可恢复
-        trendRes,
-        logsRes,
-        gameListRes,
-        gameScoresTotalRes,
-        gameScoresTodayRes,
-        gamePlayersTodayRes,
-        gamePlayersWeekRes,
-        gamePointsTodayRes,
-      ] = await Promise.all([
-        dashboardService.getTotalUsers(),
-        dashboardService.getTodayNewUsers(todayStart),
-        dashboardService.getNewUsersSince(weekStart),
-        dashboardService.getNewUsersSince(monthStart),
-        dashboardService.getNewUsersInRange(lastWeekStart, weekStart),
-        dashboardService.getActiveUserEvents(monthStart),
-        dashboardService.getNewUserIdsInRange(lastMonthStart, lastMonthEnd),
-        // dashboardService.getNovelsCount(),      // 小说模块下线，注释保留可恢复
-        // dashboardService.getNovelReadCounts(),  // 小说模块下线，注释保留可恢复
-        dashboardService.getUserTrendData(trendStart),
+      // 批 2-6：原 13+ 个 Supabase 请求收敛为 4 个服务端聚合端点，一次并发发出
+      const [statsRes, trendRes, logsRes, gameOverviewRes] = await Promise.all([
+        dashboardService.getUserStats({
+          todayStart,
+          weekStart,
+          monthStart,
+          lastWeekStart,
+          lastMonthStart,
+          lastMonthEnd,
+        }),
+        dashboardService.getTrend(trendStart),
         // 最近活动最多展示 10 条（超出由「查看更多」跳操作日志页查看）
         dashboardService.getRecentLogs(10),
-        // 游戏模块统计
-        dashboardService.getGamesList(),
-        dashboardService.getGameScoresCount(),
-        dashboardService.getGameScoresCount(undefined, todayStart),
-        dashboardService.getGameActivePlayers(todayStart),
-        dashboardService.getGameActivePlayers(weekStart),
-        dashboardService.getGamePointsSum(todayStart),
+        dashboardService.getGameOverview(todayStart, weekStart),
       ])
 
       if (!mountedRef.current) return
 
-      const totalUsers = safeCount(totalRes.count)
-      const newToday = safeCount(todayRes.count)
-      const newWeek = safeCount(weekRes.count)
-      const newMonth = safeCount(monthRes.count)
-      const lastWeekNew = safeCount(lastWeekRes.count)
+      // 用户统计（含活跃与留存，均由服务端聚合；retentionChange 客户端环比）
+      if (statsRes.success && statsRes.data) {
+        const s = statsRes.data
+        const newWeek = s.new_week
+        const newLastWeek = s.new_last_week
+        const retentionChange = newLastWeek > 0
+          ? Math.round(((newWeek - newLastWeek) / newLastWeek) * 100)
+          : 0
+        setUserStats({
+          total: s.total,
+          newToday: s.new_today,
+          newWeek: s.new_week,
+          newMonth: s.new_month,
+          activeToday: s.active_today,
+          activeWeek: s.active_week,
+          activeMonth: s.active_month,
+          retention: s.retention,
+          retentionChange,
+        })
+      }
 
-      // 活跃用户数（基于真实用户行为：阅读 + 评论/书签/批注/听书/推荐反馈，
-      // 不再依赖 operation_logs，因其仅记录后台操作，不含用户阅读行为）
-      // 一次性拉取「本月」窗口内的全部活跃事件，客户端按时间筛出日/周/月活跃。
-      const activeEvents = activeEventsRes.success ? (activeEventsRes.data || []) : []
-      const activeToday = new Set(
-        activeEvents.filter(e => e.created_at >= todayStart).map(e => e.user_id)
-      ).size
-      const activeWeek = new Set(
-        activeEvents.filter(e => e.created_at >= weekStart).map(e => e.user_id)
-      ).size
-      const activeMonth = new Set(activeEvents.map(e => e.user_id)).size
-      // 本周活跃用户集合，留存率计算时与「上月注册用户」取交集
-      const thisWeekActiveUserIds = new Set(
-        activeEvents.filter(e => e.created_at >= weekStart).map(e => e.user_id)
-      )
-
-      // 留存率（上月注册且本周活跃的用户）
-      const lastMonthUserIds = new Set((lastMonthUsersRes.data || []).map(u => u.id))
-      const lastMonthUsersCount = lastMonthUserIds.size
-      // 取「上月注册」与「本周活跃」的交集，才是真正的留存用户
-      const retainedUsers = [...thisWeekActiveUserIds].filter(id => lastMonthUserIds.has(id)).length
-      const retention = lastMonthUsersCount > 0
-        ? Math.round((retainedUsers / lastMonthUsersCount) * 100)
-        : 0
-      const retentionChange = lastWeekNew > 0
-        ? Math.round(((newWeek - lastWeekNew) / lastWeekNew) * 100)
-        : 0
-
-      if (!mountedRef.current) return
-
-      setUserStats({
-        total: totalUsers,
-        newToday,
-        newWeek,
-        newMonth,
-        activeToday,
-        activeWeek,
-        activeMonth,
-        retention,
-        retentionChange,
-      })
-
-      // 小说统计（小说模块下线，注释保留可恢复）
-      // const novelsTotal = safeCount(novelsRes.count)
-      // const totalRead = readCountRes.success
-      //   ? (readCountRes.data || []).reduce((sum, n) => sum + (n.read_count || 0), 0)
-      //   : 0
-
-      // // 活跃读者（本周/今日阅读过小说）：复用上方已拉取的阅读类活跃事件
-      // // （source==='read' 即 user_novels.last_read_at），无需再发两次 getActiveReaders 请求
-      // const readEvents = activeEvents.filter(e => e.source === 'read')
-      // const readers = new Set(
-      //   readEvents.filter(e => e.created_at >= weekStart).map(e => e.user_id)
-      // ).size
-      // const newReaders = new Set(
-      //   readEvents.filter(e => e.created_at >= todayStart).map(e => e.user_id)
-      // ).size
-
-      if (!mountedRef.current) return
-
-      // setNovelStats({
-      //   total: novelsTotal,
-      //   totalRead,
-      //   readers,
-      //   newReaders,
-      // })
-
-      // 游戏模块统计
-      const gameList = gameListRes.success ? (gameListRes.data || []) : []
-      setGameStats({
-        total: gameList.length,
-        enabled: gameList.filter((g) => g.enabled).length,
-        scoresTotal: safeCount(gameScoresTotalRes.count),
-        scoresToday: safeCount(gameScoresTodayRes.count),
-        playersToday: gamePlayersTodayRes.success ? (gamePlayersTodayRes.data || []).length : 0,
-        playersWeek: gamePlayersWeekRes.success ? (gamePlayersWeekRes.data || []).length : 0,
-        pointsToday: gamePointsTodayRes.success ? (gamePointsTodayRes.data || 0) : 0,
-      })
-
-      // 用户增长趋势（最近30天）
-      if (trendRes.success) {
+      // 用户增长趋势（最近30天；服务端按北京日预聚合，客户端补零填充空缺日）
+      if (trendRes.success && trendRes.data) {
         const counts: Record<string, number> = {}
         for (let i = 29; i >= 0; i--) {
           counts[formatBeijing(dayjs().subtract(i, 'day'), 'YYYY-MM-DD')] = 0
         }
-        for (const u of (trendRes.data || [])) {
-          if (u.created_at) {
-            counts[formatDate(u.created_at)] = (counts[formatDate(u.created_at)] || 0) + 1
+        for (const row of trendRes.data.rows) {
+          if (row.date in counts) {
+            counts[row.date] = row.count
           }
         }
         setUserTrendData(Object.entries(counts).map(([date, count]) => ({ date, count })))
       }
 
-      // 最近活动（昵称查询依赖最近活动结果，单独发出，不再阻塞前面的统计）
-      if (logsRes.success && logsRes.data && logsRes.data.length > 0) {
-        const userIds = [...new Set(logsRes.data.map(l => l.user_id).filter(Boolean))] as string[]
-        if (userIds.length > 0) {
-          const nickRes = await dashboardService.getUserNicknames(userIds)
-          // 显示名统一走 userDisplayName（username → nickname → 未知用户）。
-          // 此前用 `nickname || u.id`，会把原始 ID 当显示名展示。
-          const nickMap = new Map<string, UserDisplayInfo>()
-          for (const u of (nickRes.data || [])) {
-            const info: UserDisplayInfo = { username: u.username, nickname: u.nickname }
-            nickMap.set(u.id, info)
-            if (u.auth_id) nickMap.set(u.auth_id, info)
-          }
-          setRecentActivities(
-            logsRes.data.map(l => ({
-              ...l,
-              user_nickname: l.user_id
-                ? userDisplayName(l.user_id, nickMap.get(l.user_id))
-                : '系统',
-            }))
-          )
-        } else {
-          setRecentActivities(logsRes.data.map(l => ({ ...l, user_nickname: '系统' })))
-        }
+      // 最近活动（操作人显示名由服务端 LEFT JOIN users 直出，免二次昵称查询）
+      if (logsRes.success && logsRes.data) {
+        setRecentActivities(
+          logsRes.data.rows.map((l) => ({
+            id: l.id,
+            action: l.action,
+            module: l.module,
+            user_id: l.user_id,
+            created_at: l.created_at,
+            user_nickname: l.user_id
+              ? userDisplayName(l.user_id, { username: l.username, nickname: l.nickname })
+              : '系统',
+          })),
+        )
       } else {
         setRecentActivities([])
+      }
+
+      if (!mountedRef.current) return
+
+      // 游戏模块统计卡片（全局汇总由服务端单次返回，跨游戏玩家已去重）
+      if (gameOverviewRes.success && gameOverviewRes.data) {
+        const { rows, summary } = gameOverviewRes.data
+        setGameStats({
+          total: rows.length,
+          enabled: rows.filter((g) => g.enabled).length,
+          scoresTotal: summary.scores_total,
+          scoresToday: summary.scores_today,
+          playersToday: summary.players_today,
+          playersWeek: summary.players_week,
+          pointsToday: summary.points_today,
+        })
       }
     } catch (error) {
       handleApiError(error, 'Dashboard-加载数据')
@@ -293,7 +206,7 @@ export function useDashboard() {
   //     const to = from + pageSize - 1
   //     const { data, error, count } = await supabase
   //       .from('novels')
-  //       .select('id, title, author, read_count, rating, created_at, category', { count: 'exact' })
+  //       .select(`id, title, author, read_count, rating, created_at, category`, { count: 'exact' })
   //       .order('read_count', { ascending: false })
   //       .range(from, to)
   //
@@ -357,37 +270,31 @@ export function useDashboard() {
   //   }
   // }, [commentPagination.pagination.current, commentPagination.pagination.pageSize])
 
-  // 游戏数据概览表（按游戏聚合：累计/今日成绩、今日活跃玩家、今日积分发放）
+  // 游戏数据概览表（批 2-6：按游戏聚合已服务端化，单请求直出行数组）
   const loadGameRows = useCallback(async () => {
     setGameRowsLoading(true)
     try {
       const todayStart = dayjs().startOf('day').toISOString()
-      const listRes = await dashboardService.getGamesList()
-      if (!listRes.success) {
-        handleApiError(listRes.errorMessage, 'Dashboard-游戏概览列表')
+      const weekStart = dayjs(getWeekMonday()).startOf('day').toISOString()
+      const overviewRes = await dashboardService.getGameOverview(todayStart, weekStart)
+      if (!overviewRes.success || !overviewRes.data) {
+        handleApiError(overviewRes.errorMessage ?? '游戏概览加载失败', 'Dashboard-游戏概览')
         return
       }
       if (!mountedRef.current) return
-      const games = listRes.data || []
-      const rows = await Promise.all(
-        games.map(async (g) => {
-          const [scoresTotal, scoresToday, playersToday, pointsToday] = await Promise.all([
-            dashboardService.getGameScoresCount(g.id),
-            dashboardService.getGameScoresCount(g.id, todayStart),
-            dashboardService.getGameActivePlayers(todayStart, g.id),
-            dashboardService.getGamePointsSum(todayStart, g.id),
-          ])
-          return {
-            ...g,
-            scoresTotal: safeCount(scoresTotal.count),
-            scoresToday: safeCount(scoresToday.count),
-            playersToday: playersToday.success ? (playersToday.data || []).length : 0,
-            pointsToday: pointsToday.success ? (pointsToday.data || 0) : 0,
-          } satisfies GameOverviewRow
-        })
+      setGameRows(
+        overviewRes.data.rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          code: row.code,
+          engine: row.engine,
+          enabled: row.enabled,
+          scoresTotal: row.scores_total,
+          scoresToday: row.scores_today,
+          playersToday: row.players_today,
+          pointsToday: row.points_today,
+        })),
       )
-      if (!mountedRef.current) return
-      setGameRows(rows)
     } catch (error) {
       handleApiError(error, 'Dashboard-游戏概览')
     } finally {
@@ -411,7 +318,7 @@ export function useDashboard() {
   const didInitialLoadRef = useRef(false)
   useEffect(() => {
     if (didInitialLoadRef.current) return
-    if (!hasPermission('dashboard:read')) return
+    if (!hasPermission('admin:dashboard:list')) return
     didInitialLoadRef.current = true
     refreshAll()
   }, [hasPermission, refreshAll])

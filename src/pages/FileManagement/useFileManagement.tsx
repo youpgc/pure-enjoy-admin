@@ -1,14 +1,39 @@
 // 文件管理状态与业务逻辑（从 FileManagement.tsx 抽离，审查 P1 膨胀）
 // 页面只负责组合渲染，所有状态/数据/处理器集中此处。
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+// 通道（2026-10-13 去 Supabase 化）：列表/删除走本地后端 /files 列表与删除端点
+// （原 supabase.storage 上传 → POST /files/upload 服务端入库+落盘一步完成）。
+import React, { useState, useEffect, useCallback } from 'react'
 import { message } from 'antd'
-import { supabase } from '../../utils/supabase'
 import { usePermission } from '../../hooks/usePermission'
-import { BaseService, apiExecute, handleApiError } from '../../utils/apiClient'
+import { apiRequest, apiUpload } from '../../utils/adminHttp'
+import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { buildFileColumns } from './columns'
 import type { FileItem, FileFilters } from './helpers'
+
+/// 后端 FileMetaVO（camelCase）→ 页面 FileItem（snake_case）
+interface FileMetaVO {
+  id: string
+  fileName: string
+  originalName: string
+  fileCategory: string | null
+  mimeType: string | null
+  size: number | null
+  url: string | null
+  createdAt: string
+}
+
+const toFileItem = (v: FileMetaVO): FileItem => ({
+  id: v.id,
+  file_name: v.fileName || v.originalName,
+  bucket: v.fileCategory ?? '-',
+  path: v.id,
+  size: v.size ?? 0,
+  mime_type: v.mimeType ?? '',
+  url: v.url ?? '',
+  created_at: v.createdAt,
+})
 
 export const useFileManagement = () => {
   const mountedRef = useMounted()
@@ -24,40 +49,29 @@ export const useFileManagement = () => {
   const [_uploading, setUploading] = useState(false)
   const { isAdmin: _isAdmin } = usePermission()
 
-  const fileService = useMemo(
-    () => new BaseService<FileItem>('files', { defaultOrder: { column: 'created_at', ascending: false } }),
-    [],
-  )
-
-  // 加载文件列表
+  // 加载文件列表（keyword 模糊匹配文件名；bucket 筛选 → 服务端类目过滤）
   const loadFiles = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await fileService.paginate(pagination.current, pagination.pageSize, (q) => {
-        let query = q
-        if (filters.keyword) {
-          query = query.ilike('name', `%${filters.keyword}%`)
-        }
-        if (filters.bucket) {
-          query = query.eq('bucket', filters.bucket)
-        }
-        return query
+      const sp = new URLSearchParams({
+        page: String(pagination.current),
+        page_size: String(pagination.pageSize),
       })
-
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'FileManagement-加载文件')
-        return
-      }
-
+      if (filters.keyword) sp.set('keyword', filters.keyword)
+      if (filters.bucket) sp.set('category', filters.bucket)
+      const data = await apiRequest<{ list: FileMetaVO[]; total: number }>(
+        'GET',
+        `/files?${sp.toString()}`
+      )
       if (!mountedRef.current) return
-      setFiles(result.data?.data || [])
-      setTotal(result.data?.total || 0)
+      setFiles((data?.list || []).map(toFileItem))
+      setTotal(data?.total || 0)
     } catch (error) {
       handleApiError(error, 'FileManagement-加载文件')
     } finally {
       setLoading(false)
     }
-  }, [pagination.current, pagination.pageSize, filters])
+  }, [pagination.current, pagination.pageSize, filters, mountedRef])
 
   useEffect(() => {
     loadFiles()
@@ -78,72 +92,33 @@ export const useFileManagement = () => {
     resetPage()
   }
 
-  // 删除文件
-  // 顺序：先删数据库记录，再清存储。
-  // 理由：DB 删除失败则应中止（不碰存储，不产生孤儿）；DB 删除成功但存储清理失败，
-  // 仅残留孤儿存储文件（可后续清理），不会出现「DB 有记录但文件已删」的坏链。
+  // 删除文件（服务端原子删除：存储文件 + 数据库记录一步完成）
   const handleDelete = async (record: FileItem) => {
     try {
-      // 1) 先删除数据库记录
-      const result = await fileService.delete(record.id)
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'FileManagement-删除记录')
-        return
-      }
-
-      // 2) 再清存储（失败仅告警，DB 已干净）
-      const storageResult = await apiExecute(
-        () => supabase.storage.from(record.bucket).remove([record.path]),
-        'FileManagement-删除存储',
-      )
-      if (!storageResult.success) {
-        message.warning('数据库记录已删除，但存储文件清理失败，可稍后手动清理')
-      } else {
-        message.success('删除成功')
-      }
+      await apiRequest('DELETE', `/files/${record.id}`)
+      message.success('删除成功')
       loadFiles()
     } catch (error) {
       handleApiError(error, 'FileManagement-删除')
     }
   }
 
-  // 批量删除
-  // 顺序：先批量删数据库记录，再按 bucket 分组清存储（与单条删除一致）。
+  // 批量删除（服务端逐条删除，单条失败不中断）
   const handleBatchDelete = async () => {
     if (selectedRowKeys.length === 0) {
       message.warning('请先选择要删除的文件')
       return
     }
     try {
-      // 1) 先批量删数据库记录
-      const result = await new BaseService('files').batchDelete(selectedRowKeys as string[])
-      if (!result.success) {
-        handleApiError(result.errorMessage, 'FileManagement-批量删除记录')
-        return
-      }
-
-      // 2) 再按 bucket 分组清存储（部分失败仅告警，DB 已干净）
-      const selectedFiles = files.filter((f) => selectedRowKeys.includes(f.id))
-      const bucketGroups = selectedFiles.reduce((acc, file) => {
-        const b = file.bucket
-        if (!acc[b]) acc[b] = []
-        acc[b].push(file.path)
-        return acc
-      }, {} as Record<string, string[]>)
-
-      let storageFailed = false
-      for (const [bucket, paths] of Object.entries(bucketGroups)) {
-        const sr = await apiExecute(
-          () => supabase.storage.from(bucket).remove(paths as string[]),
-          'FileManagement-批量删除存储',
-        )
-        if (!sr.success) storageFailed = true
-      }
-
-      if (storageFailed) {
-        message.warning(`已删除 ${selectedRowKeys.length} 条数据库记录，部分存储文件清理失败，可稍后手动清理`)
+      const data = await apiRequest<{ affected: number }>(
+        'POST',
+        '/files/batch-delete',
+        selectedRowKeys as string[]
+      )
+      if (data.affected < selectedRowKeys.length) {
+        message.warning(`已删除 ${data.affected}/${selectedRowKeys.length} 条（其余无权或已不存在）`)
       } else {
-        message.success(`成功删除 ${selectedRowKeys.length} 个文件`)
+        message.success(`成功删除 ${data.affected} 个文件`)
       }
       setSelectedRowKeys([])
       loadFiles()
@@ -152,43 +127,16 @@ export const useFileManagement = () => {
     }
   }
 
-  // 上传文件
+  // 上传文件（服务端一步完成：落盘 + files 记录入库，返回元数据）
   const handleUpload = async (file: File) => {
     try {
       setUploading(true)
-      const bucket = filters.bucket || 'public'
-      const fileExt = file.name.split('.').pop()
-      const filePath = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
-
-      const uploadResult = await apiExecute(
-        () => supabase.storage.from(bucket).upload(filePath, file),
-        'FileManagement-上传文件',
-      )
-
-      if (!uploadResult.success) {
-        message.error('上传失败')
-        return false
-      }
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(bucket).getPublicUrl(filePath)
-
-      // 保存文件记录
-      const saveResult = await fileService.create({
-        file_name: file.name,
-        bucket,
-        path: filePath,
-        size: file.size,
-        mime_type: file.type,
-        url: publicUrl,
-      })
-
-      if (!saveResult.success) {
-        handleApiError(saveResult.errorMessage, 'FileManagement-保存记录')
-        return false
-      }
-
+      // 上传类目：跟随当前类目筛选；未筛选时不强制归类（file_category 存 null，列表显示 '-'）
+      const category = filters.bucket
+      const fd = new FormData()
+      fd.append('file', file)
+      if (category) fd.append('category', category)
+      await apiUpload('/files/upload', fd)
       message.success('上传成功')
       loadFiles()
       return false
@@ -200,6 +148,8 @@ export const useFileManagement = () => {
     }
   }
 
+  // columns 每次渲染重建，保证 handleDelete 闭包始终读到最新的分页/筛选状态
+  // （不能用 useMemo([]) 固化——会捕获首次渲染的 handleDelete，删除后按旧参数刷新）
   const columns = buildFileColumns({ handleDelete })
 
   return {

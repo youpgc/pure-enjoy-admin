@@ -45,7 +45,7 @@ const Dashboard: React.FC = () => {
   // const commentColumns = useMemo(() => buildCommentColumns(), []) // 小说模块下线，注释保留可恢复
   const gameColumns = useMemo(() => buildGameOverviewColumns(), [])
 
-  if (!hasPermission('dashboard:read')) {
+  if (!hasPermission('admin:dashboard:list')) {
     return (
       <div className={styles.noPermission}>
         <Empty description="暂无仪表盘访问权限" />

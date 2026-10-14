@@ -1,85 +1,66 @@
-import { BaseService, apiExecute } from '../utils/apiClient'
-import { supabase } from '../utils/supabase'
-import type { Database } from '../types/database'
+// 用户反馈管理数据访问层 —— 本地后端 /admin/feedbacks
+// 列表（keyword/category/status 过滤，已排除软删）/ 详情（含流转记录）/ 回复改状态 / 软删除
+// 操作人信息由后端从 JWT 解析，前端不再传递
+import { apiRequest } from '../utils/adminHttp'
 
-type FeedbackRow = Database['public']['Tables']['user_feedback']['Row']
-
-/// 用户反馈管理服务（封装 user_feedback 和 feedback_flow_records 的 CRUD）
-class FeedbackService extends BaseService<FeedbackRow> {
-  constructor() {
-    super('user_feedback', { defaultOrder: { column: 'created_at', ascending: false } })
-  }
-
-  /// 分页查询反馈列表（排除已软删除）
-  async paginateFeedback(
-    page: number,
-    pageSize: number,
-    options?: {
-      keyword?: string
-      category?: string
-      status?: string
-    }
-  ) {
-    return this.paginate(page, pageSize, (q) => {
-      let builder = q.eq('is_deleted', false)
-      if (options?.keyword) {
-        const text = `%${options.keyword}%`
-        builder = builder.or(`title.ilike.${text},user_nickname.ilike.${text}`)
-      }
-      if (options?.category) builder = builder.eq('category', options.category)
-      if (options?.status) builder = builder.eq('status', options.status)
-      return builder
-    })
-  }
-
-  /// 软删除反馈
-  async softDelete(id: string, remark: string, operatorId: string, operatorName: string) {
-    // 先记录流转
-    const flowResult = await apiExecute(
-      () => {
-        // 已知类型坑：generated database.ts 对 feedback_flow_records 的 Insert 解析为 never，
-        // 故用 as any 绕过类型检查（运行时正常），非遗留 TODO。
-        return (supabase.from('feedback_flow_records') as any).insert({
-          feedback_id: id,
-          action: 'deleted',
-          remark: remark.trim() || '删除反馈记录',
-          operator_id: operatorId,
-          operator_name: operatorName,
-        })
-      },
-      'FeedbackService-删除流水'
-    )
-    if (!flowResult.success) return flowResult
-
-    // 再软删除
-    return this.update(id, {
-      is_deleted: true,
-      deleted_at: new Date().toISOString(),
-    } as Partial<FeedbackRow>)
-  }
-
-  /// 更新反馈状态并记录流转
-  async updateStatus(id: string, status: string, remark: string, operatorId: string, operatorName: string) {
-    // 记录流转
-    const flowResult = await apiExecute(
-      () => {
-        // 已知类型坑：generated database.ts 对 feedback_flow_records 的 Insert 解析为 never，
-        // 故用 as any 绕过类型检查（运行时正常），非遗留 TODO。
-        return (supabase.from('feedback_flow_records') as any).insert({
-          feedback_id: id,
-          action: status,
-          remark: remark.trim(),
-          operator_id: operatorId,
-          operator_name: operatorName,
-        })
-      },
-      'FeedbackService-状态流转'
-    )
-    if (!flowResult.success) return flowResult
-
-    // 更新状态
-    return this.update(id, { status, admin_reply: remark.trim() } as Partial<FeedbackRow>)
-  }
+/// 后端 FeedbackVO 形态（snake_case 出参）
+export interface FeedbackVO {
+  id: string
+  user_id: string | null
+  user_nickname: string | null
+  title: string
+  description: string | null
+  category: string
+  status: string
+  admin_reply: string | null
+  flow: FlowRecordVO[]
+  created_at: string
+  updated_at: string | null
 }
 
-export const feedbackService = new FeedbackService()
+/// 后端 FeedbackFlowVO 形态
+export interface FlowRecordVO {
+  id: string
+  action: string
+  remark: string | null
+  operator_name: string | null
+  created_at: string
+}
+
+/// 后端 PageResult 形态
+interface PageResultVO {
+  list: FeedbackVO[]
+  total: number
+}
+
+export const feedbackService = {
+  /// 分页查询反馈列表（后端已排除软删除）
+  paginateFeedback: (
+    page: number,
+    pageSize: number,
+    options?: { keyword?: string; category?: string; status?: string }
+  ) => {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+    if (options?.keyword) params.set('keyword', options.keyword)
+    if (options?.category) params.set('category', options.category)
+    if (options?.status) params.set('status', options.status)
+    return apiRequest<PageResultVO>('GET', `/admin/feedbacks?${params.toString()}`)
+  },
+
+  /// 反馈详情（含流转记录 flow）
+  detail: (id: string) => apiRequest<FeedbackVO>('GET', `/admin/feedbacks/${id}`),
+
+  /// 更新状态并回复（后端单事务写流转记录；admin_reply 与 status 至少其一）
+  updateStatus: async (id: string, status: string, remark: string) => {
+    const body: Record<string, string> = {}
+    if (status) body.status = status
+    if (remark.trim()) body.admin_reply = remark.trim()
+    return apiRequest<FeedbackVO>('PUT', `/admin/feedbacks/${id}`, body)
+  },
+
+  /// 软删除反馈（后端置 is_deleted 并写 deleted 流水）
+  softDelete: (id: string, remark: string) => {
+    const query = remark.trim() ? `?remark=${encodeURIComponent(remark.trim())}` : ''
+    return apiRequest<FeedbackVO>('DELETE', `/admin/feedbacks/${id}${query}`)
+  },
+}

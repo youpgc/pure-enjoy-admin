@@ -1,7 +1,8 @@
 // 字典管理页数据/操作逻辑 Hook（从 DictManagement.tsx 抽取，行为保持）
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { message, Form } from 'antd'
-import { BaseService, handleApiError } from '../../../utils/apiClient'
+import { LocalBaseService } from '../../../services/tableService'
+import { handleApiError } from '../../../utils/apiClient'
 import { usePagination } from '../../../hooks/usePagination'
 import { useMounted } from '../../../hooks/useMounted'
 import { usePermission } from '../../../hooks/usePermission'
@@ -40,13 +41,13 @@ export function useDictManagement() {
 
   // 使用 useMemo 缓存 Service 实例，避免每次渲染重新创建导致 useEffect 无限循环
   const typeService = useMemo(
-    () => new BaseService<DictType>('dict_types', {
+    () => new LocalBaseService<DictType>('dict_types', {
       defaultOrder: { column: 'sort_order', ascending: true },
     }),
     []
   )
   const itemService = useMemo(
-    () => new BaseService<DictItem>('dict_items', {
+    () => new LocalBaseService<DictItem>('dict_items', {
       defaultOrder: { column: 'sort_order', ascending: true },
     }),
     []

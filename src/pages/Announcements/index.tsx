@@ -23,7 +23,8 @@ import {
   DeleteOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { BaseService, handleApiError } from '../../utils/apiClient'
+import { LocalBaseService } from '../../services/tableService'
+import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { ANNOUNCEMENT_TYPE_MAP, ANNOUNCEMENT_TYPE_OPTIONS, PRIORITY_MAP, PRIORITY_OPTIONS } from '../../constants'
@@ -58,7 +59,7 @@ const Announcements: React.FC = () => {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
 
-  const service = React.useMemo(() => new BaseService<Announcement>('announcements', { defaultOrder: { column: 'created_at', ascending: false } }), [])
+  const service = React.useMemo(() => new LocalBaseService<Announcement>('announcements', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 
   // 加载数据
   const loadData = useCallback(async () => {

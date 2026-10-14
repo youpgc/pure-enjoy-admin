@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '../utils/supabase'
+import { fetchAdminMe, hasLocalSession, type AdminMe } from '../utils/adminSession'
 import { getSessionCache, setSessionCache, removeSessionCache } from '../utils/sessionCache'
 import { hasPermission as checkPermission } from '../types/permission'
 import { ROLE_SUPER_ADMIN, ROLE_ADMIN } from '../constants'
 
 // ==================== 权限 Hook ====================
-// 模块级共享：避免多个组件并发 usePermission 时重复发起 `permissions?select=name`
+// 本地后端为权限权威源：/auth/me 一次返回 role + permissions（服务端实时判定，
+// 超管返回全量权限码，其余角色按 role_permissions 授权）。原「get_my_role RPC +
+// roles/role_permissions/permissions 三段查询」已由服务端 /auth/me 取代。
+// 模块级共享：避免多个组件并发 usePermission 时重复发起 /auth/me。
 // 首屏 Dashboard 等页面会同时挂载多个使用本 hook 的组件，各自 useEffect 触发 loadPermissions。
 // 这里用单次 in-flight Promise 去重 + 会话内结果缓存，保证同一用户会话只发一次真实请求。
 // 权限变更/登出由 reload() 与 auth 事件清理缓存后重新拉取。
@@ -16,7 +19,7 @@ type PermissionLoadResult = {
 
 let permissionInflight: Promise<PermissionLoadResult> | null = null
 let permissionCache: PermissionLoadResult | null = null
-// 缓存归属的 auth 用户 ID：切换账号（无整页刷新场景）时校验不匹配则丢弃，
+// 缓存归属的用户 ID：切换账号（无整页刷新场景）时校验不匹配则丢弃，
 // 防止新账号读到旧账号的角色/权限缓存
 let permissionCacheUserId: string | null = null
 
@@ -31,12 +34,11 @@ function clearPermissionCache() {
 }
 
 async function fetchPermissionData(): Promise<PermissionLoadResult> {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.user) {
+  if (!hasLocalSession()) {
     clearPermissionCache()
     return { role: '', permissions: [] }
   }
-  const currentUserId = session.user.id
+  const currentUserId = localStorage.getItem('pe_admin_access_token')?.slice(-12) ?? 'anon'
 
   // 缓存/在途请求属于其他用户 → 丢弃后重新拉取
   if (permissionCacheUserId !== null && permissionCacheUserId !== currentUserId) {
@@ -44,7 +46,7 @@ async function fetchPermissionData(): Promise<PermissionLoadResult> {
   }
   if (permissionInflight) return permissionInflight
   if (permissionCache) return permissionCache
-  // 跨整页重载复用：同标签页内已拉取过则直接返回，跳过 get_my_role / permissions 等请求
+  // 跨整页重载复用：同标签页内已拉取过则直接返回，跳过 /auth/me 重复请求
   const cached = getSessionCache<PermissionLoadResult>(PERM_CACHE_KEY + currentUserId)
   if (cached) {
     permissionCacheUserId = currentUserId
@@ -54,61 +56,13 @@ async function fetchPermissionData(): Promise<PermissionLoadResult> {
   permissionCacheUserId = currentUserId
 
   permissionInflight = (async (): Promise<PermissionLoadResult> => {
-    // 角色判定以数据库 public.users.role 为准（get_my_role() RPC，防篡改），
-    // 与 AuthGuard 的 is_admin() 口径对齐。
-    // fail-closed：RPC 失败（网络/函数异常）一律不信任 JWT metadata
-    // （普通用户可经 auth.updateUser 自改 user_metadata.role 提权，见审查报告 P1-C），
-    // 回退为空角色（视为非管理员），由后续角色判定按最小权限处理。
-    let userRole = ''
-    const { data: dbRole, error: roleErr } = await supabase.rpc('get_my_role')
-    if (!roleErr && typeof dbRole === 'string' && dbRole) {
-      userRole = dbRole
-    } else {
-      userRole = ''
+    // 角色与权限码均由服务端 /auth/me 实时判定（超管全量、其余按授权），
+    // fail-closed：请求失败按最小权限（空角色）处理，绝不回退客户端缓存元数据。
+    const me: AdminMe | null = await fetchAdminMe()
+    if (!me) {
+      return { role: '', permissions: [] }
     }
-
-    // 超级管理员直接拥有所有权限
-    if (userRole === ROLE_SUPER_ADMIN) {
-      const { data: allPerms } = await supabase
-        .from('permissions')
-        .select('name')
-      return {
-        role: userRole,
-        permissions: (allPerms as Array<{ name: string }> | null)?.map((p) => p.name) || [],
-      }
-    }
-
-    // 其他角色从数据库查询权限列表
-    const { data: roleData } = await supabase
-      .from('roles')
-      .select('id')
-      .eq('code', userRole)
-      .single()
-
-    const roleId = (roleData as unknown as { id: number } | null)?.id
-    if (!roleId) {
-      return { role: userRole, permissions: [] }
-    }
-
-    const { data: rolePerms } = await supabase
-      .from('role_permissions')
-      .select('permission_id')
-      .eq('role_id', roleId)
-
-    if (!rolePerms || rolePerms.length === 0) {
-      return { role: userRole, permissions: [] }
-    }
-
-    const permissionIds = (rolePerms as unknown as Array<{ permission_id: number }>).map((rp) => rp.permission_id)
-    const { data: permData } = await supabase
-      .from('permissions')
-      .select('name')
-      .in('id', permissionIds)
-
-    return {
-      role: userRole,
-      permissions: ((permData as unknown as Array<{ name: string }> | null)?.map((p) => p.name)) || [],
-    }
+    return { role: me.role, permissions: me.permissions || [] }
   })()
 
   const inflight = permissionInflight
@@ -137,15 +91,7 @@ export const usePermission = () => {
   const loadPermissions = useCallback(async () => {
     try {
       setLoading(true)
-      const { data: { session: startSession } } = await supabase.auth.getSession()
-      const targetUserId = startSession?.user?.id ?? null
       const result = await fetchPermissionData()
-      // 快速切换账号时，若在途期间会话已变为其他用户，丢弃本次过期的角色/权限结果，
-      // 防止旧账号的权限状态覆盖新账号（见审查报告 P1-B）
-      const { data: { session: endSession } } = await supabase.auth.getSession()
-      if (targetUserId !== null && endSession?.user?.id !== targetUserId) {
-        return
-      }
       setRole(result.role)
       setPermissions(result.permissions)
     } catch (error) {
@@ -162,7 +108,7 @@ export const usePermission = () => {
     await loadPermissions()
   }, [loadPermissions])
 
-  // 判断是否有某个权限（基于数据库配置，禁止硬编码特权）
+  // 判断是否有某个权限（基于服务端授权，禁止硬编码特权）
   const hasPermission = useCallback((permissionName: string): boolean => {
     return checkPermission(permissions, permissionName)
   }, [permissions])
@@ -189,27 +135,6 @@ export const usePermission = () => {
 
   useEffect(() => {
     loadPermissions()
-
-    // 监听 Auth 状态变化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session?.user) {
-          // 登录事件（含切换账号）主动清缓存，确保拉取的是新账号的角色/权限
-          if (event === 'SIGNED_IN') {
-            clearPermissionCache()
-          }
-          loadPermissions()
-        } else {
-          clearPermissionCache()
-          setPermissions([])
-          setRole('')
-        }
-      }
-    )
-
-    return () => {
-      subscription.unsubscribe()
-    }
   }, [loadPermissions])
 
   return {

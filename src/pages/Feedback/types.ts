@@ -2,7 +2,7 @@
 
 export interface FeedbackRecord {
   id: string
-  user_id: string
+  user_id: string | null
   user_nickname: string | null
   title: string
   description: string | null
