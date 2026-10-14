@@ -4,7 +4,7 @@ import {
   DashboardOutlined,
   UserOutlined,
   TeamOutlined,
-  WalletOutlined,  LineChartOutlined,
+  WalletOutlined,  LineChartOutlined,
   BookOutlined,
   CalendarOutlined,
   ReadOutlined,
@@ -14,12 +14,12 @@ import {
   FileSearchOutlined,
   MonitorOutlined,
   AppstoreOutlined,
-  BarChartOutlined,  StarFilled,
+  BarChartOutlined,  StarFilled,
   BellOutlined,
   NotificationOutlined,
   CheckCircleOutlined,
   SoundOutlined,
-  MessageOutlined,  CrownOutlined,
+  MessageOutlined,  CrownOutlined,
   FundOutlined,
   ControlOutlined,
   SettingOutlined,
@@ -45,13 +45,18 @@ type MenuItem = { key: string; icon: ReactElement; label: string }
  * 侧边菜单配置（按业务模块分组，根据权限动态显示）。
  * 从 App.tsx 抽离，降低单文件体积（God File 优化，审查报告 P2a）。
  * 权限判定通过参数注入，避免在本文件内使用 Hook。
+ *
+ * 权限码（2026-10-14 对齐本地后端）：全部使用后端 permissions 表的 admin:* 码
+ * （/auth/me 返回服务端实时授权：超管全量、其余角色按 role_permissions）。
+ * 生活服务中暂无后端权限码的子页（消费/心情/体重/笔记/收藏/提醒/纪念日）
+ * 按角色放行（isAdmin）——本地后端尚未开放对应表的通道与权限码。
  */
 export const buildMenuItems = (
   hasMenuPermission: HasMenuPermission,
   isAdmin: IsAdmin
 ): MenuProps['items'] => [
   // 数据概览
-  ...(hasMenuPermission('menu:dashboard', ['dashboard:read']) ? [
+  ...(hasMenuPermission('admin:dashboard:list', []) ? [
     {
       key: 'dashboard',
       icon: <DashboardOutlined />,
@@ -59,81 +64,94 @@ export const buildMenuItems = (
     },
   ] : []),
   // 用户中心
-  ...(hasMenuPermission('menu:users', ['users:read', 'users:write', 'users:delete', 'points:read', 'points:write', 'checkin:read', 'login_logs:read']) || isAdmin() ? [
+  ...(hasMenuPermission('admin:user:list', [
+    'admin:user:list', 'admin:user:update', 'admin:user:delete', 'admin:user:view', 'admin:user:status',
+    'admin:points:list', 'admin:points:adjust', 'admin:points:recalc',
+    'admin:habit:list', 'admin:habit:edit',
+    'admin:audit:login',
+  ]) || isAdmin() ? [
     {
       key: 'user-center',
       icon: <TeamOutlined />,
       label: '用户中心',
       children: [
-        ...(hasMenuPermission('menu:users', ['users:read', 'users:write', 'users:delete']) ? [
+        ...(hasMenuPermission('admin:user:list', ['admin:user:list', 'admin:user:update', 'admin:user:delete']) ? [
           { key: 'users', icon: <UserOutlined />, label: '用户管理' },
         ] : []),
-        ...(hasMenuPermission('menu:users', ['points:read', 'points:write']) ? [
+        ...(hasMenuPermission('admin:points:list', ['admin:points:list', 'admin:points:adjust', 'admin:points:recalc']) ? [
           { key: 'points', icon: <StarFilled />, label: '积分管理' },
         ] : []),
-        // 签到管理：独立 checkin:read 权限（此前复用 points:read/points:write）
-        ...(hasMenuPermission('menu:users', ['checkin:read']) ? [
+        // 签到管理：数据走 habit_checkins 表，与习惯打卡共用 admin:habit:* 权限
+        ...(hasMenuPermission('admin:habit:list', ['admin:habit:list', 'admin:habit:edit']) ? [
           { key: 'checkin', icon: <CalendarOutlined />, label: '签到管理' },
         ] : []),
-        // 登录日志：独立 login_logs:read 权限门控（此前仅靠 isAdmin），归属用户中心
-        ...(hasMenuPermission('menu:users', ['login_logs:read']) ? [
+        // 登录日志：admin:audit:login
+        ...(hasMenuPermission('admin:audit:login', ['admin:audit:login']) ? [
           { key: 'login_logs', icon: <AlertOutlined />, label: '登录日志' },
         ] : []),
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
-  // 内容管理（敏感词）；小说系页面已随小说模块下线剥离至 novel-version 分支
-  ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
+  // 内容管理（敏感词域：admin:sensitive-word:*）
+  ...(hasMenuPermission('admin:sensitive-word:list', [
+    'admin:sensitive-word:list', 'admin:sensitive-word:update', 'admin:sensitive-word:delete',
+    'admin:sensitive-word:create', 'admin:sensitive-word:view', 'admin:sensitive-word:log',
+    'admin:sensitive-word:config',
+  ]) ? [
     {
       key: 'content',
       icon: <ReadOutlined />,
       label: '内容管理',
       children: [
-        ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
+        ...(hasMenuPermission('admin:sensitive-word:list', [
+          'admin:sensitive-word:list', 'admin:sensitive-word:update', 'admin:sensitive-word:delete',
+        ]) ? [
           { key: 'sensitive_words', icon: <SafetyOutlined />, label: '敏感词管理' },
         ] : []),
-        ...(hasMenuPermission('menu:content', ['sensitive_words:read', 'sensitive_words:write', 'sensitive_words:delete']) ? [
+        ...(hasMenuPermission('admin:sensitive-word:list', [
+          'admin:sensitive-word:list', 'admin:sensitive-word:log', 'admin:sensitive-word:config',
+        ]) ? [
           { key: 'sensitive_word_analytics', icon: <LineChartOutlined />, label: '敏感词统计' },
         ] : []),
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
-  // 生活服务
-  ...(hasMenuPermission('menu:life', ['expenses:read', 'mood:read', 'weight:read', 'notes:read', 'favorites:read', 'reminders:read', 'habits:read', 'anniversaries:read']) ? [
+  // 生活服务（本地后端仅开放 habit_checkins 通道；其余子页暂按角色放行）
+  ...(hasMenuPermission('admin:habit:list', ['admin:habit:list', 'admin:habit:edit']) || isAdmin() ? [
     {
       key: 'life',
       icon: <AppstoreOutlined />,
       label: '生活服务',
       children: [
-        ...(hasMenuPermission('menu:life', ['expenses:read', 'expenses:write', 'expenses:delete']) ? [
+        ...(isAdmin() ? [
           { key: 'expenses', icon: <WalletOutlined />, label: '消费记录' },
         ] : []),
-        ...(hasMenuPermission('menu:life', ['mood:read', 'mood:write', 'mood:delete']) ? [
+        ...(isAdmin() ? [
           { key: 'mood', icon: <SmileOutlined />, label: '心情日记' },
         ] : []),
-        ...(hasMenuPermission('menu:life', ['weight:read', 'weight:write', 'weight:delete']) ? [
+        ...(isAdmin() ? [
           { key: 'weight', icon: <LineChartOutlined />, label: '体重记录' },
         ] : []),
-        ...(hasMenuPermission('menu:life', ['notes:read', 'notes:write', 'notes:delete']) ? [
+        ...(isAdmin() ? [
           { key: 'notes', icon: <FileTextOutlined />, label: '笔记本' },
         ] : []),
-        ...(hasMenuPermission('menu:life', ['favorites:read', 'favorites:write', 'favorites:delete']) ? [
+        ...(isAdmin() ? [
           { key: 'favorites', icon: <StarOutlined />, label: '收藏夹' },
         ] : []),
-        ...(hasMenuPermission('menu:life', ['reminders:read', 'reminders:write', 'reminders:delete']) ? [
+        ...(isAdmin() ? [
           { key: 'reminders', icon: <BellOutlined />, label: '提醒事项' },
         ] : []),
-        ...(hasMenuPermission('menu:life', ['habits:read', 'habits:write', 'habits:delete']) ? [
+        ...(hasMenuPermission('admin:habit:list', ['admin:habit:list', 'admin:habit:edit']) ? [
           { key: 'habits', icon: <CheckCircleOutlined />, label: '习惯打卡' },
         ] : []),
-        ...(hasMenuPermission('menu:life', ['anniversaries:read', 'anniversaries:write', 'anniversaries:delete']) ? [
+        ...(isAdmin() ? [
           { key: 'anniversaries', icon: <CalendarOutlined />, label: '纪念日' },
         ] : []),
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
-  // 游戏中心（games 模块：配置 / 维度 / 关卡 / 奖励 / 成绩 / 分析）
-  ...(hasMenuPermission('menu:games', ['games:read', 'games:write', 'games:delete']) ? [
+  // 游戏中心（admin:game:list / edit / reward / score）
+  ...(hasMenuPermission('admin:game:list', ['admin:game:list', 'admin:game:edit', 'admin:game:reward', 'admin:game:score']) ? [
     {
       key: 'games',
       icon: <TrophyOutlined />,
@@ -151,8 +169,8 @@ export const buildMenuItems = (
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
-  // 宠物管理（pets 模块：pets:read/write/delete 统管 5 个容器页（2026-10-09 IA 整合），同 games 模式）
-  ...(hasMenuPermission('menu:pets', ['pets:read', 'pets:write', 'pets:delete']) ? [
+  // 宠物管理（admin:pet:list / edit 统管 5 个容器页，同 games 模式）
+  ...(hasMenuPermission('admin:pet:list', ['admin:pet:list', 'admin:pet:edit']) ? [
     {
       key: 'pets',
       icon: <HeartOutlined />,
@@ -166,57 +184,76 @@ export const buildMenuItems = (
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
-  // 运营管理
-  ...(hasMenuPermission('menu:operations', ['versions:read', 'notifications:read', 'announcements:read', 'feedback:read', 'analytics:read']) ? [
+  // 运营管理（version / notification / announcement / feedback 域权限码）
+  ...(hasMenuPermission('admin:announcement:list', [
+    'admin:version:list', 'admin:version:update', 'admin:version:delete', 'admin:version:create', 'admin:version:status', 'admin:version:view',
+    'admin:notification:list', 'admin:notification:edit',
+    'admin:announcement:list', 'admin:announcement:update', 'admin:announcement:delete', 'admin:announcement:create', 'admin:announcement:view',
+    'admin:feedback:list', 'admin:feedback:reply',
+  ]) ? [
     {
       key: 'operation',
       icon: <ControlOutlined />,
       label: '运营管理',
       children: [
-        ...(hasMenuPermission('menu:operations', ['versions:read', 'versions:write', 'versions:delete']) ? [
+        ...(hasMenuPermission('admin:version:list', [
+          'admin:version:list', 'admin:version:update', 'admin:version:delete', 'admin:version:create', 'admin:version:status',
+        ]) ? [
           { key: 'versions', icon: <MobileOutlined />, label: '版本管理' },
         ] : []),
-        ...(hasMenuPermission('menu:operations', ['notifications:read', 'notifications:write', 'notifications:delete']) ? [
+        ...(hasMenuPermission('admin:notification:list', ['admin:notification:list', 'admin:notification:edit']) ? [
           { key: 'notifications', icon: <NotificationOutlined />, label: '通知管理' },
         ] : []),
-        ...(hasMenuPermission('menu:operations', ['announcements:read', 'announcements:write', 'announcements:delete']) ? [
+        ...(hasMenuPermission('admin:announcement:list', [
+          'admin:announcement:list', 'admin:announcement:update', 'admin:announcement:delete',
+        ]) ? [
           { key: 'announcements', icon: <SoundOutlined />, label: '公告管理' },
         ] : []),
-        ...(hasMenuPermission('menu:operations', ['feedback:read', 'feedback:write', 'feedback:delete']) ? [
+        ...(hasMenuPermission('admin:feedback:list', ['admin:feedback:list', 'admin:feedback:reply']) ? [
           { key: 'feedback', icon: <MessageOutlined />, label: '问题反馈' },
         ] : []),
-        ...(hasMenuPermission('menu:operations', ['analytics:read']) ? [
+        // 数据分析：读 users / user_feedback（通用表层）
+        ...(hasMenuPermission('admin:feedback:list', ['admin:feedback:list', 'admin:user:list']) ? [
           { key: 'analytics', icon: <BarChartOutlined />, label: '数据分析' },
         ] : []),
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),
-  // 系统设置
-  ...(hasMenuPermission('menu:system', ['roles:read', 'operation_logs:read', 'system_monitor:read', 'app_configs:read', 'dict_management:read', 'file_management:read', 'error_logs:read']) ? [
+  // 系统设置（role / audit / monitor / setting / dict / file 域权限码）
+  ...(hasMenuPermission('admin:role:list', [
+    'admin:role:list', 'admin:role:update', 'admin:role:delete', 'admin:role:create', 'admin:role:grant', 'admin:role:view',
+    'admin:audit:operation', 'admin:audit:error',
+    'admin:monitor:list',
+    'admin:setting:list', 'admin:setting:update',
+    'admin:dict:list', 'admin:dict:update', 'admin:dict:delete', 'admin:dict:create', 'admin:dict:view',
+    'admin:file:list', 'admin:file:delete',
+  ]) ? [
     {
       key: 'system',
       icon: <SettingOutlined />,
       label: '系统设置',
       children: [
-        ...(hasMenuPermission('menu:system', ['roles:read', 'roles:write', 'roles:delete']) ? [
+        ...(hasMenuPermission('admin:role:list', [
+          'admin:role:list', 'admin:role:update', 'admin:role:delete', 'admin:role:create', 'admin:role:grant',
+        ]) ? [
           { key: 'roles', icon: <SafetyOutlined />, label: '角色权限' },
         ] : []),
-        ...(hasMenuPermission('menu:system', ['operation_logs:read']) ? [
+        ...(hasMenuPermission('admin:audit:operation', ['admin:audit:operation']) ? [
           { key: 'operation_logs', icon: <FileSearchOutlined />, label: '操作日志' },
         ] : []),
-        ...(hasMenuPermission('menu:system', ['system_monitor:read']) ? [
+        ...(hasMenuPermission('admin:monitor:list', ['admin:monitor:list']) ? [
           { key: 'system_monitor', icon: <MonitorOutlined />, label: '系统监控' },
         ] : []),
-        ...(hasMenuPermission('menu:system', ['app_configs:read', 'app_configs:write']) ? [
+        ...(hasMenuPermission('admin:setting:list', ['admin:setting:list', 'admin:setting:update']) ? [
           { key: 'app_configs', icon: <ToolOutlined />, label: '配置管理' },
         ] : []),
-        ...(hasMenuPermission('menu:system', ['dict_management:read', 'dict_management:write', 'dict_management:delete']) ? [
+        ...(hasMenuPermission('admin:dict:list', ['admin:dict:list', 'admin:dict:update', 'admin:dict:delete']) ? [
           { key: 'dict_management', icon: <BookOutlined />, label: '字典管理' },
         ] : []),
-        ...(hasMenuPermission('menu:system', ['file_management:read', 'file_management:write', 'file_management:delete']) ? [
+        ...(hasMenuPermission('admin:file:list', ['admin:file:list', 'admin:file:delete']) ? [
           { key: 'file_management', icon: <FolderOutlined />, label: '文件管理' },
         ] : []),
-        ...(hasMenuPermission('menu:system', ['error_logs:read']) ? [
+        ...(hasMenuPermission('admin:audit:error', ['admin:audit:error']) ? [
           { key: 'error_logs', icon: <AlertOutlined />, label: '错误日志' },
         ] : []),
       ].filter((item): item is MenuItem => !!item),
