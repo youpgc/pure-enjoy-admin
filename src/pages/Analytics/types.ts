@@ -1,24 +1,10 @@
-// 数据分析模块类型与常量（从 Analytics.tsx 抽离，审查 P1 膨胀）
+// 数据分析模块类型（从 Analytics.tsx 抽离，审查 P1 膨胀）
+// 小说域（novelStats / topNovels / 新增小说 / 新增章节）已随小说模块下线整体剥离，
+// 前端代码有分支备份；后期如需恢复请补后端通道后从分支取回。
 
 export interface DailyStat {
   date: string
   newUsers: number
   activeUsers: number
-  newNovels: number
-  newChapters: number
   newFeedback: number
 }
-
-export interface NovelStat {
-  category: string
-  count: number
-}
-
-export interface TopNovel {
-  title: string
-  author: string
-  read_count: number
-  chapter_count: number
-}
-
-export const COLORS = ['#1890ff', '#52c41a', '#faad14', '#ff4d4f', '#722ed1', '#13c2c2']
