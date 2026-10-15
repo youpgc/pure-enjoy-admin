@@ -95,28 +95,18 @@ const SensitiveWordAnalytics: React.FC = () => {
   // 加载全量数据用于统计（不受分页影响）
   const loadAllDataForAnalytics = useCallback(async (startDate: string, endDate: string): Promise<SensitiveWordHit[]> => {
     const allData: SensitiveWordHit[] = []
-    let offset = 0
     const batchSize = 1000
-    let hasMore = true
-
-    while (hasMore) {
-      const result = await hitService.findAll((q: any) =>
-        q.gte('created_at', startDate).lte('created_at', endDate).range(offset, offset + batchSize - 1)
+    for (let page = 1; ; page++) {
+      const result = await hitService.paginate(page, batchSize, (q: any) =>
+        q.gte('created_at', startDate).lte('created_at', endDate)
       )
       if (!result.success) {
         handleApiError(result.errorMessage, 'SensitiveWordAnalytics-加载全量统计')
         break
       }
-      const batch = result.data || []
-      if (batch.length === 0) {
-        hasMore = false
-      } else {
-        allData.push(...batch)
-        if (batch.length < batchSize) {
-          hasMore = false
-        }
-        offset += batchSize
-      }
+      const batch = result.data?.data || []
+      allData.push(...batch)
+      if (batch.length < batchSize || allData.length >= (result.data?.total ?? 0)) break
     }
     return allData
   }, [])

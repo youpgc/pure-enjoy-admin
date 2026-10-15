@@ -39,8 +39,8 @@ import common from '../../styles/common.module.css'
  */
 const GameItems: React.FC = () => {
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('games:write')
-  const canDelete = hasPermission('games:delete')
+  const canWrite = hasPermission('admin:game:edit')
+  const canDelete = hasPermission('admin:game:edit')
 
   const [items, setItems] = useState<DbGameItem[]>([])
   const [loading, setLoading] = useState(false)

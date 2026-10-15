@@ -12,8 +12,8 @@ export function useDictManagement() {
   const mountedRef = useMounted()
   // 写操作按钮级权限门控（与 feature_admin_permissions.sql 注册的权限码对应）
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('dict:write')
-  const canDelete = hasPermission('dict:delete')
+  const canWrite = hasPermission('admin:dict:update')
+  const canDelete = hasPermission('admin:dict:delete')
   // 字典类型状态
   const [dictTypes, setDictTypes] = useState<DictType[]>([])
   const [typeLoading, setTypeLoading] = useState(false)

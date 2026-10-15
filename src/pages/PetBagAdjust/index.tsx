@@ -42,7 +42,7 @@ interface UserOption {
 
 const AdjustCard: React.FC<{ onAdjusted: () => void }> = ({ onAdjusted }) => {
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('pets:write')
+  const canWrite = hasPermission('admin:pet:edit')
   const [form] = Form.useForm()
   const [userOptions, setUserOptions] = useState<UserOption[]>([])
   const [searching, setSearching] = useState(false)

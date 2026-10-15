@@ -62,7 +62,7 @@ export const buildNotificationColumns = (params: {
     getActionColumn<Notification>(
       (record): ActionButton[] => {
         const actions: ActionButton[] = []
-        if (hasPermission('notifications:write')) {
+        if (hasPermission('admin:notification:edit')) {
           actions.push({
             key: 'edit',
             label: '编辑',
@@ -71,7 +71,7 @@ export const buildNotificationColumns = (params: {
             onClick: () => onEdit(record),
           })
         }
-        if (hasPermission('notifications:delete')) {
+        if (hasPermission('admin:notification:edit')) {
           actions.push({
             key: 'delete',
             label: '删除',

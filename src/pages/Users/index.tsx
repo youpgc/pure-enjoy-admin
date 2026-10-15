@@ -101,7 +101,7 @@ const Users: React.FC = () => {
           </Col>
           <Col>
             <Space size="middle">
-              {(u.hasPermission('users:write') || u.hasPermission('users:delete')) && (
+              {(u.hasPermission('admin:user:update') || u.hasPermission('admin:user:delete')) && (
                 <>
                   <Button
                     type="primary"
@@ -214,7 +214,7 @@ const Users: React.FC = () => {
         }}
         scroll={{ x: 1400 }}
         rowSelection={
-          (u.hasPermission('users:write') || u.hasPermission('users:delete'))
+          (u.hasPermission('admin:user:update') || u.hasPermission('admin:user:delete'))
             ? {
                 selectedRowKeys: u.selectedRowKeys,
                 onChange: (keys: Key[]) => u.setSelectedRowKeys(keys),

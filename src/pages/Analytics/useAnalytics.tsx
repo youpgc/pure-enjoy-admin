@@ -40,12 +40,18 @@ export const useAnalytics = () => {
       const [usersRes, feedbackRes] = await Promise.all([
         apiRequest<Array<{ created_at: string }>>(
           'GET',
-          `/admin/table/users?where=${windowWhere([{ col: 'is_deleted', op: 'eq', val: false }])}&cols=created_at&order=created_at&asc=true`
-        ).catch(() => [] as Array<{ created_at: string }>),
+          `/admin/table/users?where=${windowWhere([{ col: 'is_deleted', op: 'eq', val: false }])}&cols=created_at&order=created_at&asc=true&page_size=1000`
+        ).catch((err) => {
+          console.error('[Analytics] 趋势查询失败', err)
+          return [] as Array<{ created_at: string }>
+        }),
         apiRequest<Array<{ created_at: string }>>(
           'GET',
-          `/admin/table/user_feedback?where=${windowWhere([{ col: 'is_deleted', op: 'eq', val: false }])}&cols=created_at&order=created_at&asc=true`
-        ).catch(() => [] as Array<{ created_at: string }>),
+          `/admin/table/user_feedback?where=${windowWhere([{ col: 'is_deleted', op: 'eq', val: false }])}&cols=created_at&order=created_at&asc=true&page_size=1000`
+        ).catch((err) => {
+          console.error('[Analytics] 趋势查询失败', err)
+          return [] as Array<{ created_at: string }>
+        }),
       ])
 
       // 处理每日统计

@@ -166,7 +166,7 @@ export function buildUserColumns(params: BuildUserColumnsParams): ColumnsType<Us
             onClick: () => onViewUser(record),
           },
         ]
-        if (hasPermission('users:write') || hasPermission('users:delete')) {
+        if (hasPermission('admin:user:update') || hasPermission('admin:user:delete')) {
           actions.push(
             {
               key: 'edit',

@@ -28,8 +28,9 @@ export function buildNewUser(formData: UserFormData): Record<string, unknown> {
     height: formData.height ?? null,
     role: formData.role,
     member_level: formData.member_level,
-    status: formData.status,
   }
+  // status 不走通用更新：后端 UpdateUserRequest 白名单不含 status，
+  // 变更走独立端点 PUT /users/{id}/status（避免弹窗提示成功但状态未变的静默 no-op）
 }
 
 // 构造更新用户入参（白名单字段直传后端；密码可选重置）

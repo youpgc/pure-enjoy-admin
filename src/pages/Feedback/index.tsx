@@ -48,7 +48,7 @@ const Feedback: React.FC = () => {
   }), [statusOptions, categoryOptions, getStatusColor, getCategoryColor, buildActions, userMap])
 
   // 权限检查
-  if (!hasPermission('feedback:read')) {
+  if (!hasPermission('admin:feedback:list')) {
     return <NoPermission module="反馈" />
   }
 

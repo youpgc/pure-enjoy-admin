@@ -16,8 +16,8 @@ import common from '../../styles/common.module.css'
 
 const PetTraits: React.FC = () => {
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('pets:write')
-  const canDelete = hasPermission('pets:delete')
+  const canWrite = hasPermission('admin:pet:edit')
+  const canDelete = hasPermission('admin:pet:edit')
 
   const [rows, setRows] = useState<PetTraitRow[]>([])
   const [speciesOptions, setSpeciesOptions] = useState<Array<{ value: string; label: string }>>([])

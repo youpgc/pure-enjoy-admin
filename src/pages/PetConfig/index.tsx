@@ -77,7 +77,7 @@ import common from '../../styles/common.module.css'
 
 const PetConfig: React.FC = () => {
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('pets:write')
+  const canWrite = hasPermission('admin:pet:edit')
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

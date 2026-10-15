@@ -126,7 +126,7 @@ const WalletsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
 
 const RecordsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
   const { hasPermission } = usePermission()
-  const canRead = hasPermission('pets:read')
+  const canRead = hasPermission('admin:pet:list')
 
   const [rows, setRows] = useState<PetWalletRecordRow[]>([])
   const [total, setTotal] = useState(0)

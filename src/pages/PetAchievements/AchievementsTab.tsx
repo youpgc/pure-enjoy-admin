@@ -23,8 +23,8 @@ const AchievementsTab: React.FC<{ onRowsChange: (rows: AchievementOption[]) => v
   onRowsChange,
 }) => {
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('pets:write')
-  const canDelete = hasPermission('pets:delete')
+  const canWrite = hasPermission('admin:pet:edit')
+  const canDelete = hasPermission('admin:pet:edit')
 
   const [rows, setRows] = useState<PetAchievementRow[]>([])
   const [items, setItems] = useState<Array<{ item_code: string; name: string; category: string }>>(

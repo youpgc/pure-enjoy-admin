@@ -12,27 +12,27 @@ import { useMounted } from '../../hooks/useMounted'
 import { buildFileColumns } from './columns'
 import type { FileItem, FileFilters } from './helpers'
 
-/// 后端 FileMetaVO（camelCase）→ 页面 FileItem（snake_case）
+/// 后端 FileMetaVO（全局 snake_case 序列化）→ 页面 FileItem（snake_case）
 interface FileMetaVO {
   id: string
-  fileName: string
-  originalName: string
-  fileCategory: string | null
-  mimeType: string | null
+  file_name: string
+  original_name: string
+  file_category: string | null
+  mime_type: string | null
   size: number | null
   url: string | null
-  createdAt: string
+  created_at: string
 }
 
 const toFileItem = (v: FileMetaVO): FileItem => ({
   id: v.id,
-  file_name: v.fileName || v.originalName,
-  bucket: v.fileCategory ?? '-',
+  file_name: v.file_name || v.original_name,
+  bucket: v.file_category ?? '-',
   path: v.id,
   size: v.size ?? 0,
-  mime_type: v.mimeType ?? '',
+  mime_type: v.mime_type ?? '',
   url: v.url ?? '',
-  created_at: v.createdAt,
+  created_at: v.created_at,
 })
 
 export const useFileManagement = () => {

@@ -65,8 +65,8 @@ const AppConfigs: React.FC = () => {
 
   // 写操作按钮级权限门控（与 feature_admin_permissions.sql 注册的权限码对应）
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('app_configs:write')
-  const canDelete = hasPermission('app_configs:delete')
+  const canWrite = hasPermission('admin:setting:update')
+  const canDelete = hasPermission('admin:setting:update')
 
   const service = React.useMemo(() => new LocalBaseService<AppConfig>('app_configs', { defaultOrder: { column: 'sort_order', ascending: true } }), [])
 

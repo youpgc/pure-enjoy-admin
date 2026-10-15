@@ -2,6 +2,7 @@
 // 本地后端 JWT 是管理端会话的**唯一权威源**：登录、鉴权、权限、登出全部走 /auth/*。
 // Supabase 依赖已完全移除——登录不再触碰任何 Supabase 接口。
 import { apiRequest, apiRequestLoose } from './adminHttp'
+import { removeSessionCache } from './sessionCache'
 
 const ACCESS_KEY = 'pe_admin_access_token'
 const REFRESH_KEY = 'pe_admin_refresh_token'
@@ -26,9 +27,13 @@ export function hasLocalSession(): boolean {
   return !!localStorage.getItem(ACCESS_KEY)
 }
 
+/** AuthGuard 标签页级角色校验缓存的键（登出/清会话时须同步清理，防换账号跳过服务端校验） */
+export const AUTH_CACHE_KEY = 'auth'
+
 export function clearLocalSession() {
   localStorage.removeItem(ACCESS_KEY)
   localStorage.removeItem(REFRESH_KEY)
+  removeSessionCache(AUTH_CACHE_KEY)
 }
 
 function saveTokens(accessToken: string, refreshToken?: string | null) {
@@ -91,11 +96,15 @@ export async function fetchAdminMe(): Promise<AdminMe | null> {
   }
 }
 
-/// 登出：通知后端吊销 refresh token 并清本地
+/// 登出：通知后端吊销 refresh token 并清本地。
+/// 后端不可达时也必须清本地令牌（否则残留令牌无法登出、且下次进入仍持旧会话）。
 export async function logoutAdmin(): Promise<void> {
   const refreshToken = localStorage.getItem(REFRESH_KEY)
-  if (refreshToken) {
-    await apiRequestLoose('POST', '/auth/logout', { refresh_token: refreshToken })
+  try {
+    if (refreshToken) {
+      await apiRequestLoose('POST', '/auth/logout', { refresh_token: refreshToken })
+    }
+  } finally {
+    clearLocalSession()
   }
-  clearLocalSession()
 }

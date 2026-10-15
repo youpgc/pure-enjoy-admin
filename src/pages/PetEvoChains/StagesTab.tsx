@@ -32,8 +32,8 @@ const StagesTab: React.FC<{
   onChainChange: (chainId: string) => void
 }> = ({ chains, chainId, onChainChange }) => {
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('pets:write')
-  const canDelete = hasPermission('pets:delete')
+  const canWrite = hasPermission('admin:pet:edit')
+  const canDelete = hasPermission('admin:pet:edit')
 
   const [rows, setRows] = useState<PetEvoStageRow[]>([])
   const [species, setSpecies] = useState<Array<{ value: string; label: string }>>([])

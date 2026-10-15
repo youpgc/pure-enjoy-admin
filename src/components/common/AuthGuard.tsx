@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Spin } from 'antd'
-import { fetchAdminMe, hasLocalSession, clearLocalSession } from '../../utils/adminSession'
+import { AUTH_CACHE_KEY, fetchAdminMe, hasLocalSession, clearLocalSession } from '../../utils/adminSession'
 import { getSessionCache, setSessionCache, removeSessionCache } from '../../utils/sessionCache'
 import { ROLE_ADMIN, ROLE_SUPER_ADMIN } from '../../constants/roles'
 import styles from './AuthGuard.module.css'
@@ -9,7 +9,7 @@ import styles from './AuthGuard.module.css'
 // 标签页级鉴权缓存 key：跨「整页重载」复用 /auth/me 校验结果，
 // 避免切走应用再切回浏览器（标签页被丢弃后重载）时重复请求固定鉴权接口。
 // 关闭标签页即失效；主动登出 / 会话失效时清除，保证新开标签页仍走服务端校验。
-const AUTH_CACHE_KEY = 'auth'
+
 
 interface AuthGuardProps {
   children: React.ReactNode

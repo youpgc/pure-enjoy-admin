@@ -42,8 +42,8 @@ const { Text } = Typography
 const GameLevels: React.FC = () => {
   const mountedRef = useMounted()
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('games:write')
-  const canDelete = hasPermission('games:delete')
+  const canWrite = hasPermission('admin:game:edit')
+  const canDelete = hasPermission('admin:game:edit')
 
   // 页签刷新筛选恢复（tabs 右键刷新=重挂载，模块级快照保持用户当前筛选）
   const restoredFiltersRef = useRef(loadTabFilters('game_levels'))

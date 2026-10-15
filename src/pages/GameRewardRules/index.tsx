@@ -46,8 +46,8 @@ const GLOBAL_GAME = '__global__'
 const GameRewardRules: React.FC = () => {
   const mountedRef = useMounted()
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('games:write')
-  const canDelete = hasPermission('games:delete')
+  const canWrite = hasPermission('admin:game:edit')
+  const canDelete = hasPermission('admin:game:edit')
 
   const [games, setGames] = useState<DbGame[]>([])
   const [gameNameMap, setGameNameMap] = useState<Record<string, string>>({})

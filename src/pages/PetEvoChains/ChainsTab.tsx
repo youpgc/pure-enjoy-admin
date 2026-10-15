@@ -24,8 +24,8 @@ const ChainsTab: React.FC<{
   onChainDeleted?: (chainId: string) => void
 }> = ({ onRowsChange, onConfigureStages, onChainDeleted }) => {
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('pets:write')
-  const canDelete = hasPermission('pets:delete')
+  const canWrite = hasPermission('admin:pet:edit')
+  const canDelete = hasPermission('admin:pet:edit')
 
   const [rows, setRows] = useState<PetEvoChainRow[]>([])
   const [loading, setLoading] = useState(false)

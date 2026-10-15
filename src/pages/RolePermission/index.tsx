@@ -185,21 +185,21 @@ const RolePermissionPage: React.FC = () => {
     interface PageNode { title: string; key: string; children: { title: string; key: string }[] }
     interface GroupNode { title: string; key: string; pages: Record<string, PageNode> }
 
-    // 游戏中心 9 个子页面（与侧边栏菜单一致）：games:read/write/delete 统管全模块，
-    // 权限树按页面维度展示（同一权限在每个页面节点下重复出现，key 带 @页序，
-    // 勾选/保存时按 @ 前缀解析回权限 id 去重，见下方 onCheck / treeCheckedKeys）
+    // 游戏中心 9 个子页面（与侧边栏菜单一致）：admin:game:list/edit/reward/score
+    // 统管全模块，权限树按页面维度展示（同一权限在每个页面节点下重复出现，
+    // key 带 @页序，勾选/保存时按 @ 前缀解析回权限 id 去重，见 onCheck / treeCheckedKeys）
     const GAME_PAGE_NAMES = [
       '游戏与维度配置', '模式管理', '关卡配置', '积分奖励配置', '游戏成就配置',
       '成绩看板', '游戏数据分析', '道具管理', '游戏奖励记录',
     ]
-    const gamePerms = permissions.filter(p => p.name.startsWith('games:'))
+    const gamePerms = permissions.filter(p => p.name.startsWith('admin:game:'))
 
     const groupMap: Record<string, GroupNode> = {}
 
     permissions.forEach(p => {
-      // 跳过侧边栏门控元权限（menu:*）与 games:*（游戏中心单独按页面展开）
+      // 跳过侧边栏门控元权限（menu:*）与 admin:game:*（游戏中心单独按页面展开）
       const prefix = p.name.split(':')[0] || p.name
-      if (TREE_SKIP_PREFIXES.includes(prefix) || prefix === 'games') return
+      if (TREE_SKIP_PREFIXES.includes(prefix) || p.name.startsWith('admin:game:')) return
 
       const info = resolvePermissionPage(p.name, p.module)
       let g = groupMap[info.group]
@@ -218,7 +218,7 @@ const RolePermissionPage: React.FC = () => {
       })
     })
 
-    // 游戏中心：按 9 个子页面展开（每个页面节点挂 games:* 全部权限）
+    // 游戏中心：按 9 个子页面展开（每个页面节点挂 admin:game:* 全部权限）
     if (gamePerms.length > 0) {
       const pages: Record<string, PageNode> = {}
       GAME_PAGE_NAMES.forEach((pageName, idx) => {
@@ -252,12 +252,12 @@ const RolePermissionPage: React.FC = () => {
     }))
   }, [permissions])
 
-  // Tree 的勾选 key：games:* 权限展开到 9 个页面节点（组合 key `${id}@${页序}`），
+  // Tree 的勾选 key：admin:game:* 权限展开到 9 个页面节点（组合 key `${id}@${页序}`），
   // 其余权限保持原始 id key；由 selectedPermissions（真实权限 id 集合）反向推导。
   const GAME_PAGE_COUNT = 9
   const treeCheckedKeys = useMemo(() => {
     const gamePermIds = new Set(
-      permissions.filter(p => p.name.startsWith('games:')).map(p => p.id),
+      permissions.filter(p => p.name.startsWith('admin:game:')).map(p => p.id),
     )
     const keys: string[] = []
     for (const id of selectedPermissions) {
@@ -327,7 +327,7 @@ const RolePermissionPage: React.FC = () => {
               </div>
             }
             extra={
-              hasPermission('role:create') && (
+              hasPermission('admin:role:create') && (
                 <Button
                   type="primary"
                   icon={<PlusOutlined />}

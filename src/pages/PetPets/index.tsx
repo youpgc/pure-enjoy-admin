@@ -47,7 +47,7 @@ function mergedAttrs(row: PetPetRow): Record<string, number> {
 
 const PetPets: React.FC = () => {
   const { hasPermission } = usePermission()
-  const canRead = hasPermission('pets:read')
+  const canRead = hasPermission('admin:pet:list')
 
   const [rows, setRows] = useState<PetPetRow[]>([])
   const [personalities, setPersonalities] = useState<PetPersonalityRow[]>([])

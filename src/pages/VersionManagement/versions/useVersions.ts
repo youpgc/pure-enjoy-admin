@@ -35,8 +35,8 @@ export function useVersions() {
   const [qrCodeVersion, setQrCodeVersion] = useState<AppVersion | null>(null)
   const [saving, setSaving] = useState(false)
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('versions:write')
-  const canDelete = hasPermission('versions:delete')
+  const canWrite = hasPermission('admin:version:update')
+  const canDelete = hasPermission('admin:version:delete')
 
   // 加载版本列表（后端按 buildNumber/id 倒序；keyword 过滤后端未提供，仅平台/状态生效）
   const loadVersions = useCallback(async () => {

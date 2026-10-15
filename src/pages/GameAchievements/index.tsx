@@ -39,8 +39,8 @@ import { buildAchievementColumns, type DbGameAchievement } from './columns'
  */
 const GameAchievements: React.FC = () => {
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('games:write')
-  const canDelete = hasPermission('games:delete')
+  const canWrite = hasPermission('admin:game:edit')
+  const canDelete = hasPermission('admin:game:edit')
   const mountedRef = useMounted()
 
   const [items, setItems] = useState<DbGameAchievement[]>([])

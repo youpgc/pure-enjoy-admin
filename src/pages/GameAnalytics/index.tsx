@@ -51,31 +51,23 @@ const { RangePicker } = DatePicker
 
 const COLORS = ['#ff4d4f', '#faad14', '#52c41a', '#1890ff', '#722ed1', '#13c2c2']
 
-/// 分批拉全量（不受分页影响，本地聚合；supabase 默认单次上限 1000）。
+/// 分批拉全量（走 /admin/table/{t} 分页端点；单页 ≤ 后端 MAX_PAGE_SIZE=1000）。
 /// extra：把筛选条件下推数据库（如时间窗），避免全表拉取后客户端过滤。
+/// 排序由各 LocalBaseService 的 defaultOrder 接管（需含唯一 tiebreaker 保证跨页稳定）。
 async function loadAllRows<T>(
-  svc: { findAll: (q?: any) => Promise<{ success: boolean; errorMessage?: string | null; data?: T[] | null }> },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- 各域 service 的 paginate 泛型包装形状不一，归一化返回均为 {data,total}
+  svc: { paginate: (page: number, pageSize: number, query?: (q: any) => any) => Promise<any> },
   extra?: (q: any) => any,
   _context = 'GameAnalytics-批量加载'
 ): Promise<T[]> {
   const all: T[] = []
-  let offset = 0
   const batch = 1000
-  let hasMore = true
-  while (hasMore) {
-    const res = await svc.findAll((q: any) => {
-      let b = q.range(offset, offset + batch - 1)
-      if (extra) b = extra(b)
-      return b
-    })
+  for (let page = 1; ; page++) {
+    const res = await svc.paginate(page, batch, (q: any) => (extra ? extra(q) : q))
     if (!res.success) break // 读失败：BaseService 内部已弹窗+记日志，静默中止避免双弹窗
-    const rows = (res.data || []) as T[]
-    if (rows.length === 0) hasMore = false
-    else {
-      all.push(...rows)
-      if (rows.length < batch) hasMore = false
-      offset += batch
-    }
+    const rows = (res.data?.data || []) as T[]
+    all.push(...rows)
+    if (rows.length < batch || all.length >= (res.data?.total ?? 0)) break
   }
   return all
 }

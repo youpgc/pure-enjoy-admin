@@ -56,7 +56,7 @@ export function useFeedback() {
   }, [pagination.current, pagination.pageSize, setTotal])
 
   useEffect(() => {
-    if (hasPermission('feedback:read')) fetchData()
+    if (hasPermission('admin:feedback:list')) fetchData()
   }, [hasPermission, fetchData])
 
   // 执行状态流转
@@ -98,7 +98,7 @@ export function useFeedback() {
 
   // 打开操作弹窗
   const openActionModal = (record: FeedbackRecord, action: string) => {
-    if (!hasPermission('feedback:write')) {
+    if (!hasPermission('admin:feedback:reply')) {
       message.warning('您没有操作反馈的权限')
       return
     }
@@ -136,7 +136,7 @@ export function useFeedback() {
       },
     })
 
-    if (hasPermission('feedback:delete')) {
+    if (hasPermission('admin:feedback:reply')) {
       buttons.push({
         key: 'delete',
         label: '删除',

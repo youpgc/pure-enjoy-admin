@@ -104,7 +104,7 @@ const LoginLogs: React.FC = () => {
       })
       if (filters.keyword) params.set('keyword', filters.keyword)
       if (filters.status) params.set('status', filters.status)
-      if (filters.userType) params.set('user_type', filters.userType)
+      if (filters.userType) params.set('userType', filters.userType)
       if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
         params.set('from', filters.dateRange[0].format('YYYY-MM-DD[T]00:00:00'))
         params.set('to', filters.dateRange[1].format('YYYY-MM-DD[T]23:59:59'))

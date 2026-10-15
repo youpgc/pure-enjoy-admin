@@ -102,7 +102,7 @@ export function buildOperationLogColumns({
     getActionColumn<OperationLog>(
       (record) => {
         const actions = []
-        if (hasPermission('operation_logs:delete')) {
+        if (hasPermission('admin:audit:operation')) {
           actions.push({
             key: 'delete',
             label: '删除',

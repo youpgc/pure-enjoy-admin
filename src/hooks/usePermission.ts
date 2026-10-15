@@ -68,6 +68,11 @@ async function fetchPermissionData(): Promise<PermissionLoadResult> {
   const inflight = permissionInflight
   try {
     const result = await inflight
+    // fail-closed：/auth/me 瞬时失败的空结果不落任何缓存（内存/标签页级），
+    // 否则同 token 下刷新页面也命中空缓存，菜单/按钮全空直到登出重登
+    if (result.role === '' && result.permissions.length === 0) {
+      return result
+    }
     // 等待期间可能已切换账号并清理/重建缓存归属，只有归属未变时才落缓存
     if (permissionCacheUserId === currentUserId) {
       permissionCache = result

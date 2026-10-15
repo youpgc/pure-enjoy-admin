@@ -184,15 +184,6 @@ export const PET_FAMILY_OPTIONS = Object.entries(PET_FAMILY_LABELS).map(([value,
   label,
 }))
 
-// ---------- 权限码（与 feature_pet_admin_20260916.sql 种子对齐） ----------
-
-export const PET_PERMS = {
-  MENU: 'menu:pets',
-  READ: 'pets:read',
-  WRITE: 'pets:write',
-  DELETE: 'pets:delete',
-} as const
-
 // ---------- 结构化 jsonb 编辑器选项（结构以 RPC 真实消费为准，禁止臆测） ----------
 //
 // 消费点实证（feature_pet_rpcs_20260916.sql）：

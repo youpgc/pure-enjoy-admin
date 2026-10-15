@@ -37,8 +37,8 @@ const { Text } = Typography
 const GameConfigs: React.FC = () => {
   const mountedRef = useMounted()
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('games:write')
-  const canDelete = hasPermission('games:delete')
+  const canWrite = hasPermission('admin:game:edit')
+  const canDelete = hasPermission('admin:game:edit')
 
   // 页签刷新筛选恢复（tabs 右键刷新=重挂载，保持用户当前筛选/Tab）
   const restoredFilters = loadTabFilters('game_configs')

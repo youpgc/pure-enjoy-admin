@@ -50,8 +50,8 @@ const SensitiveWords: React.FC = () => {
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('sensitive_words:write')
-  const canDelete = hasPermission('sensitive_words:delete')
+  const canWrite = hasPermission('admin:sensitive-word:update')
+  const canDelete = hasPermission('admin:sensitive-word:delete')
 
   const wordService = React.useMemo(() => new LocalBaseService<SensitiveWord>('sensitive_words', { defaultOrder: { column: 'created_at', ascending: false } }), [])
 

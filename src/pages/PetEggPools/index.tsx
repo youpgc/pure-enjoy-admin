@@ -46,8 +46,8 @@ function weightsSummaryText(v: Record<string, unknown>): string {
 
 const PetEggPools: React.FC = () => {
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('pets:write')
-  const canDelete = hasPermission('pets:delete')
+  const canWrite = hasPermission('admin:pet:edit')
+  const canDelete = hasPermission('admin:pet:edit')
 
   const [rows, setRows] = useState<PetEggPoolRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -158,7 +158,7 @@ const PetEggPools: React.FC = () => {
       {
         key: 'preview',
         label: '公示预览',
-        disabled: !hasPermission('pets:read'),
+        disabled: !hasPermission('admin:pet:list'),
         onClick: () => setPreview(record),
       },
       {

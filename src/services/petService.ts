@@ -520,7 +520,7 @@ class PetAchievementProgressService extends LocalBaseService<PetAchievementProgr
 async function adminAdjustWallet(targetUserId: string, gold: number, remark: string) {
   try {
     await apiRequest('POST', '/admin/pet/wallet/adjust', {
-      targetUserId,
+      target_user_id: targetUserId,
       gold,
       remark,
     })

@@ -78,8 +78,8 @@ const SUB_OPTIONS_BY_CATEGORY: Record<string, Array<{ value: string; label: stri
 
 const PetItems: React.FC = () => {
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('pets:write')
-  const canDelete = hasPermission('pets:delete')
+  const canWrite = hasPermission('admin:pet:edit')
+  const canDelete = hasPermission('admin:pet:edit')
 
   const [rows, setRows] = useState<PetItemRow[]>([])
   const [loading, setLoading] = useState(false)

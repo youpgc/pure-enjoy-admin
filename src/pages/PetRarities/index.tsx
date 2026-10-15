@@ -17,7 +17,7 @@ import common from '../../styles/common.module.css'
 
 const PetRarities: React.FC = () => {
   const { hasPermission } = usePermission()
-  const canWrite = hasPermission('pets:write')
+  const canWrite = hasPermission('admin:pet:edit')
 
   const [rows, setRows] = useState<PetRarityRow[]>([])
   const [loading, setLoading] = useState(false)

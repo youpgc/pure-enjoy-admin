@@ -211,7 +211,7 @@ const ErrorLogs: React.FC = () => {
     getActionColumn<ErrorLog>(
       (record) => {
         const actions = []
-        if (hasPermission('error_logs:delete')) {
+        if (hasPermission('admin:audit:error')) {
           actions.push({
             key: 'delete',
             label: '删除',

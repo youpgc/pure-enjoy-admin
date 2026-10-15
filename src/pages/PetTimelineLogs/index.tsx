@@ -41,7 +41,7 @@ function payloadSummary(type: string, payload: unknown): string {
 
 const PetTimelineLogs: React.FC = () => {
   const { hasPermission } = usePermission()
-  const canRead = hasPermission('pets:read')
+  const canRead = hasPermission('admin:pet:list')
 
   const [rows, setRows] = useState<PetTimelineLogRow[]>([])
   const [loading, setLoading] = useState(false)

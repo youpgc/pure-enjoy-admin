@@ -46,8 +46,8 @@ type DbGameMode = Database['public']['Tables']['game_modes']['Row']
 const GameModes: React.FC = () => {
   const { hasPermission } = usePermission()
   const { setCurrentPage } = useNavigation()
-  const canWrite = hasPermission('games:write')
-  const canDelete = hasPermission('games:delete')
+  const canWrite = hasPermission('admin:game:edit')
+  const canDelete = hasPermission('admin:game:edit')
 
   const meta = useGameMeta()
   const games = useMemo(
