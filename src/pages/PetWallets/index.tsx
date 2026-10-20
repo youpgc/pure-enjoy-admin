@@ -76,9 +76,9 @@ const WalletsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
       width: 200,
       render: (v: string) => <UserName userId={v} userMap={userMap} />,
     },
-    { title: '金币余额', dataIndex: 'gold_balance', width: 120, render: (v: number) => `${v}` },
-    { title: '累计获得', dataIndex: 'total_earned', width: 120, render: (v: number) => `${v}` },
-    { title: '累计消费', dataIndex: 'total_spent', width: 120, render: (v: number) => `${v}` },
+    { title: '金币余额', dataIndex: 'gold_balance', width: 120, render: (v: number) => v ?? 0 },
+    { title: '累计获得', dataIndex: 'total_earned', width: 120, render: (v: number) => v ?? 0 },
+    { title: '累计消费', dataIndex: 'total_spent', width: 120, render: (v: number) => v ?? 0 },
     { title: '更新时间', dataIndex: 'updated_at', width: 180, render: (v: string) => formatDateTime(v) },
   ]
 

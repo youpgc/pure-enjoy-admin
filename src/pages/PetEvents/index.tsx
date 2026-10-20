@@ -10,6 +10,7 @@ import type {
 import { usePermission } from '../../hooks/usePermission'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
+import { formatDateTimeMinute } from '../../utils/format'
 import {
   petRandomEventService,
   petEventChoiceLogService,
@@ -304,7 +305,7 @@ const PetEvents: React.FC = () => {
       title: '时间',
       dataIndex: 'created_at',
       width: 170,
-      render: (v: string) => new Date(v).toLocaleString('zh-CN', { hour12: false }),
+      render: (v: string) => formatDateTimeMinute(v),
     },
     {
       title: '用户',

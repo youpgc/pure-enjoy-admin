@@ -38,6 +38,7 @@ import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { systemMonitorService, type TableStat, type DbHealth, type RlsCoverage, type SeqScanHotspot, type LogTrendPoint } from '../../services/systemMonitorService'
 import { TABLE_NAME_MAP } from '../../constants/operationLog'
+import { formatDateTimeMinute } from '../../utils/format'
 import common from '../../styles/common.module.css'
 import styles from './SystemMonitor.module.css'
 
@@ -58,7 +59,8 @@ function formatNumber(n: number | null | undefined): string {
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
-  return new Date(iso).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+  // 北京时间统一格式（后端出参自带 +08:00，禁止浏览器时区渲染）
+  return formatDateTimeMinute(iso)
 }
 
 // ==================== 子组件 ====================

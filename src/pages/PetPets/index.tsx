@@ -8,6 +8,7 @@ import { petPetAdminService, petPersonalityService } from '../../services/petSer
 import { userService } from '../../services/userService'
 import type { PetPersonalityRow } from '../../types/pet'
 import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { formatDateTimeMinute } from '../../utils/format'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import common from '../../styles/common.module.css'
@@ -186,7 +187,7 @@ const PetPets: React.FC = () => {
       title: '创建时间',
       dataIndex: 'created_at',
       width: 170,
-      render: (v: string) => new Date(v).toLocaleString('zh-CN', { hour12: false }),
+      render: (v: string) => formatDateTimeMinute(v),
     },
   ]
 

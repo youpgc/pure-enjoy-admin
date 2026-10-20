@@ -133,6 +133,9 @@ const InlineAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const logout = useCallback(async () => {
     await logoutAdmin()
     setUser(null)
+    // AuthGuard 仅挂载时校验一次，setUser 不会触发跳转；整页跳登录页
+    // 同时复位模块级权限缓存等全部内存态（与登录成功后的整页刷新对称）
+    window.location.href = '/pure-enjoy-admin/login'
   }, [])
 
   return (

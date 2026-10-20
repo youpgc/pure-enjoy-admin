@@ -24,7 +24,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { LocalBaseService } from '../../services/tableService'
-import { handleApiError } from '../../utils/apiClient'
+import { handleApiError, logApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { ANNOUNCEMENT_TYPE_MAP, ANNOUNCEMENT_TYPE_OPTIONS, PRIORITY_MAP, PRIORITY_OPTIONS } from '../../constants'
@@ -154,8 +154,10 @@ const Announcements: React.FC = () => {
     try {
       setSaving(true)
       const values = await form.validateFields()
-      // 格式化 expire_at
-      values.expire_at = values.expire_at?.format('YYYY-MM-DD HH:mm:ss') || null
+      // 格式化 expire_at（北京时区 ISO 口径，与全局时间串一致）
+      values.expire_at = values.expire_at
+        ? values.expire_at.format('YYYY-MM-DD[T]HH:mm:ss') + '+08:00'
+        : null
       // 如果发布且没有 publish_at，自动设置
       if (values.is_published && !values.publish_at) {
         values.publish_at = new Date().toISOString()
@@ -163,7 +165,8 @@ const Announcements: React.FC = () => {
       if (editingAnnouncement) {
         const result = await service.update(editingAnnouncement.id, values)
         if (!result.success) {
-          handleApiError(result.errorMessage, 'Announcements-更新')
+          // 失败弹窗已由 LocalBaseService 层完成，此处仅记日志避免双弹窗
+          logApiError(result.errorMessage, 'Announcements-更新')
           return
         }
         message.success('更新成功')
@@ -172,7 +175,7 @@ const Announcements: React.FC = () => {
           ...values,
         })
         if (!result.success) {
-          handleApiError(result.errorMessage, 'Announcements-创建')
+          logApiError(result.errorMessage, 'Announcements-创建')
           return
         }
         message.success('创建成功')

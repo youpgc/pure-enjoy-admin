@@ -116,7 +116,7 @@ const SensitiveWordAnalytics: React.FC = () => {
     setLoading(true)
     try {
       const startDate = dateRange[0].format('YYYY-MM-DD')
-      const endDate = dateRange[1].format('YYYY-MM-DD') + 'T23:59:59'
+      const endDate = dateRange[1].format('YYYY-MM-DD') + 'T23:59:59+08:00'
 
       // 并行加载：分页数据用于表格，全量数据用于统计
       const [pageResult, allHitData] = await Promise.all([

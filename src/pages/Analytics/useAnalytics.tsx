@@ -28,26 +28,26 @@ export const useAnalytics = () => {
       const startDate = dateRange[0].format('YYYY-MM-DD')
       const endDate = dateRange[1].format('YYYY-MM-DD')
 
-      // 时间窗过滤条件（created_at，闭区间到当日 23:59:59；is_deleted=false）
+      // 时间窗过滤条件（created_at，闭区间到当日 23:59:59 北京时间；is_deleted=false）
       const windowWhere = (extra: Record<string, unknown>[]) =>
         encodeURIComponent(JSON.stringify([
           ...extra,
           { col: 'created_at', op: 'gte', val: startDate },
-          { col: 'created_at', op: 'lte', val: endDate + 'T23:59:59' },
+          { col: 'created_at', op: 'lte', val: endDate + 'T23:59:59+08:00' },
         ]))
 
-      // 并行查询：users / user_feedback 走通用表层
+      // 并行查询：users / user_feedback 走通用表层 /all 端点（返回纯数组，窗口内 ≤10000 行）
       const [usersRes, feedbackRes] = await Promise.all([
         apiRequest<Array<{ created_at: string }>>(
           'GET',
-          `/admin/table/users?where=${windowWhere([{ col: 'is_deleted', op: 'eq', val: false }])}&cols=created_at&order=created_at&asc=true&page_size=1000`
+          `/admin/table/users/all?where=${windowWhere([{ col: 'is_deleted', op: 'eq', val: false }])}&cols=created_at&order=created_at&asc=true`
         ).catch((err) => {
           console.error('[Analytics] 趋势查询失败', err)
           return [] as Array<{ created_at: string }>
         }),
         apiRequest<Array<{ created_at: string }>>(
           'GET',
-          `/admin/table/user_feedback?where=${windowWhere([{ col: 'is_deleted', op: 'eq', val: false }])}&cols=created_at&order=created_at&asc=true&page_size=1000`
+          `/admin/table/user_feedback/all?where=${windowWhere([{ col: 'is_deleted', op: 'eq', val: false }])}&cols=created_at&order=created_at&asc=true`
         ).catch((err) => {
           console.error('[Analytics] 趋势查询失败', err)
           return [] as Array<{ created_at: string }>

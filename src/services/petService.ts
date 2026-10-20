@@ -53,9 +53,10 @@ async function fetchDict(
   const map = new Map<string, Record<string, unknown>>()
   if (keys.length === 0) return map
   const where = encodeURIComponent(JSON.stringify([{ col: keyCol, op: 'in', val: keys }]))
+  // /all 端点返回纯数组（分页端点返回 {list,total}，不能当数组消费）
   const rows = await apiRequest<Record<string, unknown>[]>(
     'GET',
-    `/admin/table/${table}?where=${where}&cols=${encodeURIComponent(cols)}`
+    `/admin/table/${table}/all?where=${where}&cols=${encodeURIComponent(cols)}`
   )
   ;(rows || []).forEach((r) => map.set(String(r[keyCol]), r))
   return map
@@ -243,7 +244,7 @@ class PetItemFlowService extends LocalBaseService<PetItemFlowRow> {
   async fetchItemNameMap(): Promise<Record<string, string>> {
     const rows = await apiRequest<Array<{ id: string; name: string }>>(
       'GET',
-      '/admin/table/pet_items?cols=id,name'
+      '/admin/table/pet_items/all?cols=id,name'
     )
     const map: Record<string, string> = {}
     ;(rows || []).forEach((r) => {

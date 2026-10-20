@@ -55,7 +55,7 @@ export const useOperationLogs = () => {
         if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
           query = query
             .gte('created_at', filters.dateRange[0].format('YYYY-MM-DD'))
-            .lte('created_at', filters.dateRange[1].format('YYYY-MM-DD') + 'T23:59:59')
+            .lte('created_at', filters.dateRange[1].format('YYYY-MM-DD') + 'T23:59:59+08:00')
         }
         return query
       })

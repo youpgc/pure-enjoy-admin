@@ -79,7 +79,6 @@ export const DEFAULT_USER_FORM_VALUES = {
   gender: '保密',
   role: ROLE_USER as UserRole,
   member_level: 'normal' as MemberLevel,
-  status: USER_STATUS_ACTIVE as UserStatus,
   available_points: 0,
 }
 

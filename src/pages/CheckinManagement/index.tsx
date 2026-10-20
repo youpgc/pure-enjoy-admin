@@ -235,14 +235,14 @@ const CheckinManagement: React.FC = () => {
       title: '总签到日期',
       dataIndex: 'total_checkin_days',
       key: 'total_checkin_days',
-      sorter: (a, b) => a.total_checkin_days - b.total_checkin_days,
+      sorter: (a, b) => (a.total_checkin_days ?? 0) - (b.total_checkin_days ?? 0),
       render: (v: number) => <b>{v}</b>,
     },
     {
       title: '当前连续签到天数',
       dataIndex: 'current_streak',
       key: 'current_streak',
-      sorter: (a, b) => a.current_streak - b.current_streak,
+      sorter: (a, b) => (a.current_streak ?? 0) - (b.current_streak ?? 0),
       render: (v: number) => <Tag color={v > 0 ? 'purple' : 'default'}>{v} 天</Tag>,
     },
     {
