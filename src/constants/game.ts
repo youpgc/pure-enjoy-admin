@@ -9,8 +9,10 @@ export const GAME_ENGINE_MAP: Record<string, { color: string; label: string }> =
   flame: { color: 'volcano', label: 'Flame' },
 }
 
-// 成绩状态（game_scores.status）；未通关区分语义：放弃=灰 / 挑战失败=红（2026-09-10）
+// 成绩状态（game_scores.status），值域以服务端 GameScoreStatus 为准：completed/failed/aborted；
+// cleared 为 Supabase 期历史值（已归一迁移），仅保留兜底展示（2026-10-16）
 export const GAME_STATUS_MAP: Record<string, { color: string; label: string }> = {
+  completed: { color: 'green', label: '通关' },
   cleared: { color: 'green', label: '通关' },
   failed: { color: 'red', label: '挑战失败' },
   aborted: { color: 'default', label: '放弃' },

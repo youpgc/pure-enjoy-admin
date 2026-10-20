@@ -21,6 +21,41 @@ export const ACTION_MAP: Record<string, { color: string; label: string }> = {
   delete_user: { color: 'red', label: '删除用户' },
   toggle_user_status: { color: 'orange', label: '切换用户状态' },
   batch_delete: { color: 'red', label: '批量删除' },
+  // ── 本地后端 @OperationLog 新增动作码（与各 @OperationLog(module, action) 一一对应）──
+  status: { color: 'orange', label: '变更状态' },
+  'force-update': { color: 'orange', label: '设为强制更新' },
+  config_update: { color: 'blue', label: '更新配置' },
+  system_upsert: { color: 'green', label: '保存系统配置' },
+  system_delete: { color: 'red', label: '删除系统配置' },
+  app_create: { color: 'green', label: '新增应用配置' },
+  app_update: { color: 'blue', label: '更新应用配置' },
+  app_delete: { color: 'red', label: '删除应用配置' },
+  recalc: { color: 'blue', label: '积分重算' },
+  adjust: { color: 'orange', label: '积分调整' },
+  reply: { color: 'blue', label: '回复反馈' },
+  // 游戏配置子资源动作（module=game；item_* 与字典撞名，走下方「模块:动作」组合键）
+  mode_create: { color: 'green', label: '新增模式' },
+  mode_update: { color: 'blue', label: '更新模式' },
+  mode_delete: { color: 'red', label: '删除模式' },
+  level_create: { color: 'green', label: '新增关卡' },
+  level_update: { color: 'blue', label: '更新关卡' },
+  level_delete: { color: 'red', label: '删除关卡' },
+  dimension_create: { color: 'green', label: '新增维度' },
+  dimension_update: { color: 'blue', label: '更新维度' },
+  dimension_delete: { color: 'red', label: '删除维度' },
+  achievement_create: { color: 'green', label: '新增成就' },
+  achievement_update: { color: 'blue', label: '更新成就' },
+  achievement_delete: { color: 'red', label: '删除成就' },
+  reward_rule_create: { color: 'green', label: '新增奖励规则' },
+  reward_rule_update: { color: 'blue', label: '更新奖励规则' },
+  reward_rule_delete: { color: 'red', label: '删除奖励规则' },
+  // ── 同名异义动作：「模块:动作」组合键（与 DETAIL_ENUM_MAP 的三级映射同哲学）──
+  'dict:item_create': { color: 'green', label: '新增字典项' },
+  'dict:item_update': { color: 'blue', label: '更新字典项' },
+  'dict:item_delete': { color: 'red', label: '删除字典项' },
+  'game:item_create': { color: 'green', label: '新增道具' },
+  'game:item_update': { color: 'blue', label: '更新道具' },
+  'game:item_delete': { color: 'red', label: '删除道具' },
   // 以下为开发期误写入 operation_logs 的测试垃圾数据，仅作兜底展示（建议清理该测试行）
   test_action: { color: 'default', label: '测试操作' },
 }
@@ -83,11 +118,36 @@ export const OP_MODULE_MAP: Record<string, { color: string; label: string }> = {
   // ── TTS ──
   tts_management: { color: 'volcano', label: '听书管理' },
 
-  // ── 历史遗留泛化值（旧代码写入的粗粒度 module，保留兼容）──
+  // ── 历史 / 上报通道泛化值（保留兼容）──
   user: { color: 'blue', label: '用户' },
   system: { color: 'purple', label: '系统' },
   novel: { color: 'green', label: '小说' },
   content: { color: 'orange', label: '内容' },
+
+  // ── 本地后端 @OperationLog 语义模块名（kebab-case，非表名）──
+  announcement: { color: 'magenta', label: '公告管理' },
+  account: { color: 'purple', label: '管理员账号' },
+  dict: { color: 'purple', label: '字典管理' },
+  setting: { color: 'purple', label: '配置管理' },
+  version: { color: 'magenta', label: '版本管理' },
+  points: { color: 'blue', label: '积分管理' },
+  file: { color: 'purple', label: '文件管理' },
+  feedback: { color: 'orange', label: '问题反馈' },
+  'sensitive-word': { color: 'orange', label: '敏感词管理' },
+
+  // ── 宠物管理表名（Supabase 期前端表网关写入，module=真实表名）──
+  pet_config: { color: 'gold', label: '宠物全局参数' },
+  pet_species: { color: 'gold', label: '宠物种属' },
+  pet_items: { color: 'gold', label: '宠物物品' },
+  pet_egg_pools: { color: 'gold', label: '宠物蛋池' },
+  pet_traits: { color: 'gold', label: '宠物特性' },
+
+  // ── App 错误上报模块（ClientErrorLog 通道；键名与库中实际写入值一字不差）──
+  flutter: { color: 'default', label: 'Flutter 框架' },
+  platform: { color: 'default', label: '系统平台' },
+  pets: { color: 'gold', label: '宠物' },
+  global: { color: 'default', label: '全局' },
+  SupabaseAPI: { color: 'default', label: 'Supabase 接口' },
 
   // 开发期误写入 operation_logs 的测试模块，仅作兜底展示（建议清理该测试行）
   test_module: { color: 'default', label: '测试模块' },
@@ -97,10 +157,15 @@ export const OP_MODULE_MAP: Record<string, { color: string; label: string }> = {
   unknown: { color: 'default', label: '未知模块' },
 }
 
-/** 仅取 label 的便捷视图（供 RecentActivities 等轻量场景） */
-export const OP_MODULE_LABEL_MAP: Record<string, string> = Object.fromEntries(
-  Object.entries(OP_MODULE_MAP).map(([k, v]) => [k, v.label])
-)
+/** 动作翻译（「模块:动作」组合键优先，解决 dict/game 的 item_* 同名异义；未命中回退平键→原文） */
+export function getActionInfo(module: string | null | undefined, action: string): { color: string; label: string } {
+  const combo = module ? ACTION_MAP[`${module}:${action}`] : undefined
+  return combo || ACTION_MAP[action] || { color: 'default', label: action }
+}
+
+export function getActionLabel(module: string | null | undefined, action: string): string {
+  return getActionInfo(module, action).label
+}
 
 /** 全量 public 表名 → 中文名（含游戏模块等后建表与物化视图，随建表同步登记）。
  *  供系统监控「数据规模 / 全表扫描热点」把真实表名翻译成中文释义；
@@ -173,6 +238,44 @@ export const TABLE_NAME_MAP: Record<string, string> = {
   ranking_rules: '排行规则',
   recommend_config: '推荐配置',
   novel_ratings: '小说评分',
+
+  // ── 宠物模块（pet_* 全系，2026-10-16 补登记）──
+  pet_achievement_progress: '宠物成就进度',
+  pet_achievements: '宠物成就配置',
+  pet_adventure_spots: '宠物历险地点',
+  pet_adventures: '宠物历险记录',
+  pet_bag_items: '宠物背包',
+  pet_breed_logs: '宠物繁育记录',
+  pet_capacities: '宠物养育格配置',
+  pet_care_logs: '宠物照料日志',
+  pet_config: '宠物全局参数',
+  pet_daily_quests: '宠物每日任务',
+  pet_egg_pools: '宠物蛋池',
+  pet_eggs: '宠物蛋',
+  pet_event_choice_logs: '宠物事件选择日志',
+  pet_evo_chains: '宠物进化链',
+  pet_evo_stages: '宠物进化阶段',
+  pet_expansion_records: '宠物养育格扩展记录',
+  pet_item_flow_logs: '宠物物品流水',
+  pet_items: '宠物物品',
+  pet_lottery_records: '宠物抽蛋记录',
+  pet_personalities: '宠物性格',
+  pet_pets: '用户宠物',
+  pet_quests: '宠物任务',
+  pet_random_events: '宠物随机事件',
+  pet_rarities: '宠物稀有度',
+  pet_scenes: '宠物场景主题',
+  pet_species: '宠物种属',
+  pet_timeline_logs: '宠物时间线',
+  pet_traits: '宠物特性',
+  pet_user_features: '用户功能解锁',
+  pet_wallet_records: '宠物钱包流水',
+  pet_wallets: '宠物钱包',
+
+  // ── 会话与其他（2026-10-16 补登记）──
+  auth_refresh_tokens: '会话刷新令牌',
+  point_makeup_checkins: '积分补打卡',
+  user_notification_reads: '通知已读记录',
 
   // ── 物化视图（get_table_stats RPC 会把 MV 一并返回，需单独登记中文名）──
   mv_novel_chapters_index: '小说章节索引',

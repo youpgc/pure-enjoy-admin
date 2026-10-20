@@ -92,10 +92,13 @@ const GameScores: React.FC = () => {
   const [modeFilter, setModeFilter] = useState<string>(
     (restoredFilters.modeFilter as string) ?? 'all'
   )
-  // 默认排除「放弃」（aborted 仅诊断对局时长用，混入正常成绩列表易误导）
-  const [statusFilter, setStatusFilter] = useState<string>(
-    (restoredFilters.statusFilter as string) ?? 'not_aborted'
-  )
+  // 默认排除「放弃」（aborted 仅诊断对局时长用，混入正常成绩列表易误导）；
+  // 历史持久化值 cleared 归一为 completed（状态值域已随服务端定版迁移）
+  const [statusFilter, setStatusFilter] = useState<string>(() => {
+    const restored = restoredFilters.statusFilter as string | undefined
+    if (!restored) return 'not_aborted'
+    return restored === 'cleared' ? 'completed' : restored
+  })
   // 用户名模糊筛选（2026-09-15）：关键字 → 先按 users 表 username/nickname ilike
   // 定位业务 ID（接口查询），再以 id 集合过滤 game_scores
   const [usernameFilter, setUsernameFilter] = useState<string>(
@@ -210,7 +213,8 @@ const GameScores: React.FC = () => {
           value: number
           score: { game_id: string; user_id: string; status: string; played_at: string | null } | null
         }> | null) || []
-        const cleared = list.filter((r) => r.score?.status === 'cleared')
+        // 状态值域以服务端 GameScoreStatus 为准（completed/failed/aborted，cleared 为 Supabase 期历史值）
+        const cleared = list.filter((r) => r.score?.status === 'completed')
         const best = cleared[0] || list[0]
         if (best?.score) {
           rows.push({
@@ -375,7 +379,7 @@ const GameScores: React.FC = () => {
             options={[
               { value: 'not_aborted', label: '不含放弃' },
               { value: 'all', label: '全部' },
-              { value: 'cleared', label: '通关' },
+              { value: 'completed', label: '通关' },
               { value: 'failed', label: '失败' },
               { value: 'aborted', label: '放弃' },
             ]}

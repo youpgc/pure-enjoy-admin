@@ -276,6 +276,47 @@ export const PET_PENALTY_LABELS: Record<string, string> = {
   lose_item: '丢失道具',
 }
 
+/// 特性效果类型（pet_traits.effect_type）展示翻译。
+/// ⚠️ 值域 P2 尚未定版（服务端只掷不读，录入保持自由文本），本表仅覆盖
+/// 现网已出现的自解释值，未命中回退原文——不得据此做录入校验。
+export const PET_TRAIT_EFFECT_TYPE_LABELS: Record<string, string> = {
+  exp_bonus: '经验获取加成',
+  feed_exp_bonus: '喂养经验加成',
+  gold_bonus: '金币获取加成',
+  drop_chance_bonus: '掉落概率加成',
+  intimacy_bonus: '亲密度获取加成',
+  health_recover_bonus: '健康恢复加成',
+  hunger_decay_slow: '饱食衰减减缓',
+  mood_decay_slow: '心情衰减减缓',
+  adventure_time_reduce: '历险时长缩短',
+  adventure_danger_reduce: '历险遇险概率降低',
+  breed_cd_reduce: '繁育冷却缩短',
+}
+
+/// 历险时长档位（pet_adventures.tier / 时间线 payload.tier）
+export const PET_ADVENTURE_TIER_LABELS: Record<string, string> = {
+  short: '短途',
+  medium: '中途',
+  long: '长途',
+}
+
+/// 历险结果展示复用上方既有 `PET_ADVENTURE_RESULT_LABELS`（游玩/遇险/帮助/纪念）。
+
+/// 宠物时间线事件类型（pet_timeline_logs.event_type；与 App 成长回忆卡口径一致）
+export const PET_TIMELINE_EVENT_META: Record<string, { label: string; color: string }> = {
+  levelup: { label: '升级', color: 'green' },
+  evolve: { label: '进化', color: 'purple' },
+  rename: { label: '改名', color: 'blue' },
+  release: { label: '送别', color: 'default' },
+  obtain: { label: '初见', color: 'geekblue' },
+  breed: { label: '新生命', color: 'cyan' },
+  refine_reassigned: { label: '属性洗练', color: 'orange' },
+  trait_wash: { label: '特性洗练', color: 'gold' },
+  adventure_memory: { label: '历险纪念', color: 'blue' },
+  adventure_failed: { label: '历险遇险', color: 'red' },
+  adventure_recalled: { label: '提前召回', color: 'default' },
+}
+
 // ---------- P2 进化链（pet_evo_stages，2026-09-23 rpc_pet_evolve 已上线） ----------
 //
 // pick_mode 键域三端对齐：App lib/constants/pet.dart 的 PetPickMode 已有同名两值。

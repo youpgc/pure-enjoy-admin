@@ -4,6 +4,8 @@ export const ANNOUNCEMENT_TYPE_MAP: Record<string, { color: string; label: strin
   system: { color: 'blue', label: '系统' },
   activity: { color: 'green', label: '活动' },
   maintenance: { color: 'orange', label: '维护' },
+  // Supabase 期生产历史值，仅兜底展示；新建一律走上方规范值
+  notice: { color: 'blue', label: '通知' },
 }
 
 export const ANNOUNCEMENT_TYPE_OPTIONS = [

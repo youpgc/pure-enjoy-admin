@@ -140,9 +140,9 @@ const GameAnalytics: React.FC = () => {
 
       if (!mountedRef.current) return
 
-      // 指标卡
+      // 指标卡（通关口径=completed，与 GameScoreStatus 值域一致；cleared 为 Supabase 期历史值）
       const userSet = new Set(windowScores.map((s) => s.user_id))
-      const cleared = windowScores.filter((s) => s.status === 'cleared').length
+      const cleared = windowScores.filter((s) => s.status === 'completed').length
       setTotalScores(windowScores.length)
       setTotalUsers(userSet.size)
       setClearRate(windowScores.length ? Math.round((cleared / windowScores.length) * 1000) / 10 : 0)
@@ -153,7 +153,7 @@ const GameAnalytics: React.FC = () => {
       const gameCleared: Record<string, number> = {}
       windowScores.forEach((s) => {
         gameCount[s.game_id] = (gameCount[s.game_id] || 0) + 1
-        if (s.status === 'cleared') gameCleared[s.game_id] = (gameCleared[s.game_id] || 0) + 1
+        if (s.status === 'completed') gameCleared[s.game_id] = (gameCleared[s.game_id] || 0) + 1
       })
       const perGame = Object.entries(gameCount).map(([gid, count]) => ({
         game: gm[gid]?.name || gid,

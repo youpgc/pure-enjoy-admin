@@ -7,19 +7,44 @@ import { usePermission } from '../../hooks/usePermission'
 import { useUsernames } from '../../hooks/useUsernames'
 import { petTimelineLogService } from '../../services/petService'
 import { UserName } from '../../components/common/UserName'
-import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import {
+  PET_ADVENTURE_RESULT_LABELS,
+  PET_ADVENTURE_TIER_LABELS,
+  PET_ATTR_LABELS,
+  PET_TABLE_PAGE_SIZE,
+  PET_TIMELINE_EVENT_META,
+} from '../../constants/pet'
+import { formatDateTimeMinute } from '../../utils/format'
 import common from '../../styles/common.module.css'
 
 // ==================== 宠物时间线查询（pet_timeline_logs，只读审计） ====================
 //
 // 2026-10-09 立项池清账：§3.3 成长编年史的服务端流水（升级/进化/改名/送别等）
 // 供客诉排查。只读；RLS is_admin 全量可读（与 choice_logs 同批策略）。
+// 事件类型/内容翻译与 App 成长回忆卡（pet_timeline_screen._decor）口径一致。
 
-const TYPE_META: Record<string, { label: string; color: string }> = {
-  levelup: { label: '升级', color: 'green' },
-  evolve: { label: '进化', color: 'purple' },
-  rename: { label: '改名', color: 'blue' },
-  release: { label: '送别', color: 'default' },
+function tierLabel(v: unknown): string {
+  return PET_ADVENTURE_TIER_LABELS[String(v)] ?? String(v ?? '?')
+}
+
+function spotLabel(v: unknown): string {
+  return v ? String(v) : '?'
+}
+
+/** 历险结算来源（rpc_pet_hatch…/rpc_pet_obtain 的 source 值） */
+function obtainSourceLabel(v: unknown): string {
+  switch (v) {
+    case 'initial':
+      return '初始赠送'
+    case 'shop':
+      return '商店兑换'
+    case 'hatch':
+      return '孵化'
+    case 'breed':
+      return '繁育'
+    default:
+      return v ? String(v) : '?'
+  }
 }
 
 function payloadSummary(type: string, payload: unknown): string {
@@ -34,6 +59,32 @@ function payloadSummary(type: string, payload: unknown): string {
       return `${p['from'] ?? '?'} → ${p['to'] ?? '?'}`
     case 'release':
       return `送别（Lv.${p['level'] ?? '?'}，补偿 ${p['gold_comp'] ?? 0} 金）`
+    case 'obtain':
+      return `破壳获得（${obtainSourceLabel(p['source'])}${p['pool'] ? ` · 蛋池 ${p['pool']}` : ''}）`
+    case 'refine_reassigned': {
+      // after 为重掷后的四维分配（总值守恒），refine_points_left 为剩余洗练点
+      const after = p['after'] as Record<string, unknown> | undefined
+      const attrs = after
+        ? Object.entries(PET_ATTR_LABELS)
+            .map(([key, label]) => `${label} ${after[key] ?? 0}`)
+            .join(' / ')
+        : '?'
+      return `天赋重掷（${attrs} · 剩余洗练点 ${p['refine_points_left'] ?? '?'}）`
+    }
+    case 'trait_wash':
+      return '特性洗练，天赋特性焕然一新'
+    case 'adventure_memory':
+      // 求援被救回的变体只有 rescued_by；正常结算带收益四元组
+      if (p['rescued_by']) {
+        return `历险中被${p['rescued_by'] === 'npc' ? 'NPC' : p['rescued_by']}救回`
+      }
+      return `完成冒险（${tierLabel(p['tier'])} · ${spotLabel(p['spot'])}）：经验 +${p['exp'] ?? 0} · 金币 +${p['gold'] ?? 0} · 结果：${
+        PET_ADVENTURE_RESULT_LABELS[String(p['result'])] ?? String(p['result'] ?? '?')
+      }`
+    case 'adventure_failed':
+      return `历险遇险（${tierLabel(p['tier'])} · ${spotLabel(p['spot'])}），所幸平安归来`
+    case 'adventure_recalled':
+      return `旅程未完被召回（${tierLabel(p['tier'])} · ${spotLabel(p['spot'])}）`
     default:
       return JSON.stringify(payload)
   }
@@ -81,7 +132,7 @@ const PetTimelineLogs: React.FC = () => {
       title: '时间',
       dataIndex: 'created_at',
       width: 170,
-      render: (v: string) => new Date(v).toLocaleString('zh-CN', { hour12: false }),
+      render: (v: string) => formatDateTimeMinute(v),
     },
     {
       title: '用户',
@@ -92,9 +143,9 @@ const PetTimelineLogs: React.FC = () => {
     {
       title: '事件',
       dataIndex: 'event_type',
-      width: 90,
+      width: 96,
       render: (v: string) => {
-        const m = TYPE_META[v]
+        const m = PET_TIMELINE_EVENT_META[v]
         return m ? <Tag color={m.color}>{m.label}</Tag> : <Tag>{v}</Tag>
       },
     },

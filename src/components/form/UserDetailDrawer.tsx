@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Drawer,
   Descriptions,
@@ -12,6 +12,8 @@ import {
   Row,
   Col,
   Timeline,
+  Button,
+  Space,
 } from 'antd'
 import {
   UserOutlined,
@@ -26,10 +28,15 @@ import {
   HomeOutlined,
   SolutionOutlined,
   GlobalOutlined,
+  EditOutlined,
+  KeyOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import type { User, UserStats, OperationLog } from '../../types/user'
-import { ACTION_LABEL_MAP, getModuleLabel, getModuleColor } from '../../constants'
+import { getActionLabel, getModuleLabel, getModuleColor } from '../../constants'
 import { useDictOptions, useDictColors } from '../../hooks/useDictOptions'
+import { usePermission } from '../../hooks/usePermission'
+import UserModuleEditModal, { UserResetPasswordModal, type UserEditModule } from './UserModuleEditModal'
 import common from '../../styles/common.module.css'
 import styles from './UserDetailDrawer.module.css'
 import { formatDate, formatDateTime, formatMonthDayTime } from '../../utils/format'
@@ -43,6 +50,8 @@ interface UserDetailDrawerProps {
   logs?: OperationLog[]
   loading?: boolean
   onClose: () => void
+  /** 分区编辑/重置密码保存成功后回调：父级同步列表与抽屉用户数据 */
+  onUserUpdated: (merged: User) => void
 }
 
 const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
@@ -52,7 +61,14 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
   logs = [],
   loading = false,
   onClose,
+  onUserUpdated,
 }) => {
+  const [editModule, setEditModule] = useState<UserEditModule | null>(null)
+  const [resetPwdOpen, setResetPwdOpen] = useState(false)
+  const { hasPermission } = usePermission()
+  const canEdit = hasPermission('admin:user:update')
+  // 分区标题行：左标题 + 右操作按钮
+  const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
   // 字典查询
   const { options: roleOptions } = useDictOptions('user_role')
   const { options: levelOptions } = useDictOptions('member_level')
@@ -102,10 +118,22 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
         <Divider />
 
         {/* 基本信息 */}
-        <Title level={5}>
-          <UserOutlined className={common.mr8} />
-          基本信息
-        </Title>
+        <div style={headerStyle}>
+          <Title level={5} style={{ margin: 0 }}>
+            <UserOutlined className={common.mr8} />
+            基本信息
+          </Title>
+          {canEdit && (
+            <Space size={0}>
+              <Button type="link" size="small" icon={<EditOutlined />} onClick={() => setEditModule('basic')}>
+                编辑
+              </Button>
+              <Button type="link" size="small" icon={<KeyOutlined />} onClick={() => setResetPwdOpen(true)}>
+                重置密码
+              </Button>
+            </Space>
+          )}
+        </div>
         <Descriptions column={2} size="small" bordered>
           <Descriptions.Item label="用户ID" span={2}>
             <Text copyable className={common.smallText}>
@@ -126,10 +154,6 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
               <Text type="secondary">未绑定</Text>
             )}
           </Descriptions.Item>
-          <Descriptions.Item label="积分">
-            <TrophyOutlined className={`${common.mr4} ${styles.goldIcon}`} />
-            <Text strong>{user.points}</Text>
-          </Descriptions.Item>
           <Descriptions.Item label="登录次数">
             <LoginOutlined className={common.mr4} />
             {user.login_count} 次
@@ -138,11 +162,18 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
 
         <Divider />
 
-        {/* 个人资料（扩展字段） */}
-        <Title level={5}>
-          <IdcardOutlined className={common.mr8} />
-          个人资料
-        </Title>
+        {/* 扩展资料 */}
+        <div style={headerStyle}>
+          <Title level={5} style={{ margin: 0 }}>
+            <IdcardOutlined className={common.mr8} />
+            扩展资料
+          </Title>
+          {canEdit && (
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => setEditModule('profile')}>
+              编辑
+            </Button>
+          )}
+        </div>
         <Descriptions column={2} size="small" bordered>
           <Descriptions.Item label="用户名">
             {user.username ? (
@@ -208,6 +239,42 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
             ) : (
               <Text type="secondary">未设置</Text>
             )}
+          </Descriptions.Item>
+        </Descriptions>
+
+        <Divider />
+
+        {/* 账户设置 */}
+        <div style={headerStyle}>
+          <Title level={5} style={{ margin: 0 }}>
+            <SettingOutlined className={common.mr8} />
+            账户设置
+          </Title>
+          {canEdit && (
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => setEditModule('account')}>
+              编辑
+            </Button>
+          )}
+        </div>
+        <Descriptions column={2} size="small" bordered>
+          <Descriptions.Item label="角色">
+            <Tag color={getRoleColor(user.role) || 'default'}>
+              {roleOptions.find(opt => opt.value === user.role)?.label || user.role}
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="会员等级">
+            <Tag color={getLevelColor(user.member_level) || 'default'}>
+              {levelOptions.find(opt => opt.value === user.member_level)?.label || user.member_level}
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="状态">
+            <Tag color={getStatusColor(user.status) || 'default'}>
+              {statusOptions.find(opt => opt.value === user.status)?.label || user.status}
+            </Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="可用积分">
+            <TrophyOutlined className={`${common.mr4} ${styles.goldIcon}`} />
+            <Text strong>{user.available_points ?? '-'}</Text>
           </Descriptions.Item>
         </Descriptions>
 
@@ -320,7 +387,7 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
               children: (
                 <div>
                   <div>
-                    <Text strong>{ACTION_LABEL_MAP[log.action] || log.action}</Text>
+                    <Text strong>{getActionLabel(log.module, log.action)}</Text>
                     {log.module && (
                       <Tag color={getModuleColor(log.module)} className={common.ml8}>
                         {getModuleLabel(log.module)}
@@ -353,6 +420,24 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
         ) : (
           <Empty description="暂无操作记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         )}
+
+        {/* 分区编辑与重置密码弹窗 */}
+        <UserModuleEditModal
+          open={!!editModule}
+          module={editModule}
+          user={user}
+          onClose={() => setEditModule(null)}
+          onSaved={(merged) => {
+            setEditModule(null)
+            onUserUpdated(merged)
+          }}
+        />
+        <UserResetPasswordModal
+          open={resetPwdOpen}
+          user={user}
+          onClose={() => setResetPwdOpen(false)}
+          onSaved={() => setResetPwdOpen(false)}
+        />
       </Spin>
     </Drawer>
   )

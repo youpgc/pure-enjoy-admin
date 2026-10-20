@@ -21,7 +21,7 @@ import { usePagination } from '../../hooks/usePagination'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
 import { getActionColumn } from '../../components/common/ActionColumn'
-import { ERROR_LOG_LEVEL_MAP, ERROR_LOG_LEVEL_OPTIONS, OP_MODULE_LABEL_MAP } from '../../constants'
+import { ERROR_LOG_LEVEL_MAP, ERROR_LOG_LEVEL_OPTIONS, getModuleLabel } from '../../constants'
 import EllipsisText from '../../components/common/EllipsisText'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
@@ -170,7 +170,9 @@ const ErrorLogs: React.FC = () => {
       dataIndex: 'module',
       key: 'module',
       width: 120,
-      render: (v: string) => <Tag>{OP_MODULE_LABEL_MAP[v] || v}</Tag>,
+      // 模块翻译走完整回退链（OP_MODULE_MAP → TABLE_NAME_MAP → 原文），
+      // 覆盖 App 上报模块（flutter/platform/pets）与后端表名模块（games 等）
+      render: (v: string) => <Tag>{getModuleLabel(v)}</Tag>,
     },
     {
       title: '消息',

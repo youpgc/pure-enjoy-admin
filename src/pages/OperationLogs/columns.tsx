@@ -1,7 +1,7 @@
 import { Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { DeleteOutlined } from '@ant-design/icons'
-import { ACTION_MAP } from '../../constants'
+import { getActionInfo } from '../../constants'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { UserName } from '../../components/common/UserName'
 import EllipsisText from '../../components/common/EllipsisText'
@@ -44,8 +44,8 @@ export function buildOperationLogColumns({
       dataIndex: 'action',
       key: 'action',
       width: 120,
-      render: (action: string) => {
-        const info = ACTION_MAP[action] || { color: 'default', label: action }
+      render: (action: string, record: OperationLog) => {
+        const info = getActionInfo(record.module, action)
         return <Tag color={info.color}>{info.label}</Tag>
       },
     },

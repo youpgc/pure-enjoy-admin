@@ -1,7 +1,7 @@
-import { Tag } from 'antd'
+import { Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { PetTraitRow } from '../../types/pet'
-import { PET_FAMILY_LABELS } from '../../constants/pet'
+import { PET_FAMILY_LABELS, PET_TRAIT_EFFECT_TYPE_LABELS } from '../../constants/pet'
 import { getActionColumn } from '../../components/common/ActionColumn'
 
 // ==================== 特性池列定义（pet_traits） ====================
@@ -16,7 +16,22 @@ export function buildTraitColumns(handlers: {
   return [
     { title: '编码', dataIndex: 'code', width: 160 },
     { title: '名称', dataIndex: 'name', width: 140 },
-    { title: '效果类型', dataIndex: 'effect_type', width: 140 },
+    {
+      // 值域 P2 未定版：已知值翻译展示，悬停可看原始编码；未知值回退原文
+      title: '效果类型',
+      dataIndex: 'effect_type',
+      width: 150,
+      render: (v: string) => {
+        const label = PET_TRAIT_EFFECT_TYPE_LABELS[v]
+        return label ? (
+          <Tooltip title={v}>
+            <Tag color="blue">{label}</Tag>
+          </Tooltip>
+        ) : (
+          <Tag>{v || '-'}</Tag>
+        )
+      },
+    },
     {
       title: '效果参数',
       dataIndex: 'effect_params',

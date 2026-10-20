@@ -15,11 +15,14 @@ const moduleUserCache = new Map<string, UserInfo>()
  * 批量解析用户信息（username / nickname）。
  *
  * 用途：列表页在「用户ID」列旁显示「用户名」，无需改动数据库。
- * - 通道：本地后端 GET /admin/users/by-ids（服务端按 id OR auth_id 双键匹配，
+ * - 通道一：本地后端 GET /admin/users/by-ids（服务端按 id OR auth_id 双键匹配，
  *   业务历史数据的 user_id 可能是 auth UUID）。
+ * - 通道二：纯数字 ID 走 GET /admin/accounts/by-ids —— 双表分离后
+ *   operation_logs / error_logs 的管理端操作者写的是 admin_users 数字 ID，
+ *   users 表查不到，需第二段解析（两段都失败才落「未知用户」兜底）。
  * - 结果存入模块级全局缓存，跨页/跨组件/跨挂载复用（解决看板因重挂载反复请求闪烁）；
  * - 解析不到的 ID 在 map 中记为 { username: null, nickname: null }，
- *   交由 <UserName /> 回退显示原始 user_id。
+ *   交由 <UserName /> 回退显示。
  *
  * @param ids 当前页数据中的 user_id 列表（任意顺序、可含空值；业务 ID 或 UUID 均可）
  */
@@ -46,14 +49,32 @@ export function useUsernames(ids: Array<string | null | undefined>): Map<string,
     for (let i = 0; i < missing.length; i += 100) {
       batches.push(missing.slice(i, i + 100))
     }
-    Promise.all(
-      batches.map((batch) =>
-        apiRequest<Array<{ id: string; auth_id: string | null; username: string | null; nickname: string | null }>>(
-          'GET',
-          `/admin/users/by-ids?ids=${encodeURIComponent(batch.join(','))}`
-        )
+    // 纯数字 ID：admin_users 数字主键形态，users 表必然查不到，直接走账号通道
+    const numericBatches = new Map<string, string[]>()
+    const userBatches: Array<[string, string[]]> = []
+    for (const batch of batches) {
+      const numeric = batch.filter((id) => /^\d+$/.test(id))
+      const rest = batch.filter((id) => !/^\d+$/.test(id))
+      if (numeric.length > 0) {
+        numericBatches.set(batch.join(','), numeric)
+      }
+      if (rest.length > 0) {
+        userBatches.push([batch.join(','), rest])
+      }
+    }
+    const fetchBatch = (path: string, batch: string[]) =>
+      apiRequest<Array<{ id: string; auth_id: string | null; username: string | null; nickname: string | null }>>(
+        'GET',
+        `${path}?ids=${encodeURIComponent(batch.join(','))}`
       )
-    )
+    Promise.all([
+      ...userBatches.map(([, batch]) => fetchBatch('/admin/users/by-ids', batch)),
+      // 账号通道对无 admin:account:list 权限的角色预期 403：静默降级为「未知用户」，
+      // 不拖垮 users 通道，也不弹错（与该列 best-effort 定位一致）
+      ...Array.from(numericBatches.values()).map((batch) =>
+        fetchBatch('/admin/accounts/by-ids', batch).catch(() => [])
+      ),
+    ])
       .then((results) => {
         if (cancelled) return
         const found = new Map<
@@ -61,7 +82,7 @@ export function useUsernames(ids: Array<string | null | undefined>): Map<string,
           { id: string; auth_id: string | null; username: string | null; nickname: string | null }
         >()
         results.flat().forEach((r) => {
-          found.set(r.id, r)
+          found.set(String(r.id), r)
           if (r.auth_id) found.set(r.auth_id, r)
         })
         missing.forEach((id) => {

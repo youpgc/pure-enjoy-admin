@@ -2,7 +2,7 @@
 import { Avatar, Button, Card, Empty, Tag, Typography, theme } from 'antd'
 import { UserOutlined } from '@ant-design/icons'
 import { formatDateTime } from '../../utils/format'
-import { ACTION_LABEL_MAP, getModuleLabel, getModuleColor } from '../../constants'
+import { getActionLabel, getModuleLabel, getModuleColor } from '../../constants'
 import type { RecentActivity } from './types'
 import styles from './RecentActivities.module.css'
 import common from '../../styles/common.module.css'
@@ -46,7 +46,7 @@ export function RecentActivities({ activities, onViewMore }: RecentActivitiesPro
               <Avatar size="small" icon={<UserOutlined />} className={styles.activityAvatar} />
               <div className={common.flex1}>
               <Text strong>{activity.user_nickname || '系统'}</Text>
-              <Text className={common.ml8}>{ACTION_LABEL_MAP[activity.action] || activity.action}</Text>
+              <Text className={common.ml8}>{getActionLabel(activity.module, activity.action)}</Text>
               {activity.module && (
                 <Tag color={getModuleColor(activity.module)} className={common.ml8}>{getModuleLabel(activity.module)}</Tag>
               )}

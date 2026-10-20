@@ -48,6 +48,9 @@ interface LoginLog {
   user_agent: string | null
   login_at: string
   status: 'success' | 'failed'
+  /** 服务端按登录账号双表归因出的展示名/主体 ID（null=未能归因） */
+  resolved_name?: string | null
+  resolved_user_id?: string | null
 }
 
 interface LogFilters {
@@ -142,14 +145,16 @@ const LoginLogs: React.FC = () => {
 
   // 强退：调用本地后端吊销目标用户全部 refresh token
   const handleRevoke = async (record: LoginLog) => {
-    if (!record.user_id) {
-      message.warning('该记录无对应用户，无法强退')
+    // 新行 user_id 恒空（设计 §6.3），强退用归因出的主体 ID
+    const targetId = record.resolved_user_id || record.user_id
+    if (!targetId) {
+      message.warning('该记录无法归属到具体用户，无法强退')
       return
     }
     try {
       const result = await apiRequest<{ revoked: number }>(
         'POST',
-        `/admin/audit/login-logs/revoke?user_id=${encodeURIComponent(record.user_id)}&realm=${encodeURIComponent(record.user_type)}`,
+        `/admin/audit/login-logs/revoke?user_id=${encodeURIComponent(targetId)}&realm=${encodeURIComponent(record.user_type)}`,
       )
       message.success(`已强退该用户（吊销 ${result.revoked} 个会话），其将无法再续期`)
       loadLogs()
@@ -161,8 +166,9 @@ const LoginLogs: React.FC = () => {
 
   // 是否可强退该记录（基于调用者角色 + 目标角色 + 是否自己）
   const canRevoke = (record: LoginLog): boolean => {
-    if (!record.user_id) return false
-    if (callerId && record.user_id === callerId) return false
+    const targetId = record.resolved_user_id || record.user_id
+    if (!targetId) return false
+    if (callerId && targetId === callerId) return false
     if (isSuperAdmin()) {
       // 超级管理员可退 admin + user，不可退其他超级管理员
       return record.role !== ROLE_SUPER_ADMIN
@@ -186,7 +192,18 @@ const LoginLogs: React.FC = () => {
       // 直接展示即用户反馈的「用户名列为手机号」。这里显示占位文案，
       // 原始账号放悬停提示，审计信息不丢。
       render: (v: string | null, record: LoginLog) => {
-        if (!record.user_id && isAccountIdentifier(v)) {
+        // 服务端已按登录账号双表归因（admin_users / users），归因成功直接展示人名
+        if (record.resolved_name) {
+          return (
+            <Tooltip title={`登录账号：${v}`}>
+              <span>{record.resolved_name}</span>
+            </Tooltip>
+          )
+        }
+        // 未能归因的历史行回落写入「登录账号」本身（手机号/邮箱）——那不是人名，
+        // 直接展示即用户反馈的「用户名列为手机号」。这里显示占位文案，
+        // 原始账号放悬停提示，审计信息不丢。
+        if (!record.user_id && !record.resolved_user_id && isAccountIdentifier(v)) {
           return (
             <Tooltip title={`登录账号：${v}（该账号当前无法归属）`}>
               <span>{UNKNOWN_USER_LABEL}</span>
@@ -269,7 +286,7 @@ const LoginLogs: React.FC = () => {
           return (
             <Popconfirm
               title="确认强退"
-              description={`确定要强退「${record.username || record.user_id}」吗？其所有会话将立即失效。`}
+              description={`确定要强退「${record.resolved_name || record.username || record.resolved_user_id || record.user_id}」吗？其所有会话将立即失效。`}
               onConfirm={() => handleRevoke(record)}
               okText="强退"
               cancelText="取消"
