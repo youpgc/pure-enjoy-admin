@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useState } from 'react'
 import type { Key } from 'react'
 import {
   Table,
@@ -29,6 +29,7 @@ import { buildUserColumns } from './columns'
 import { exportUsers } from './export'
 import UserFormModal from '../../components/form/UserFormModal'
 import UserDetailDrawer from '../../components/form/UserDetailDrawer'
+import { UserResetPasswordModal } from '../../components/form/UserModuleEditModal'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
 
@@ -37,13 +38,18 @@ const { RangePicker } = DatePicker
 // ==================== 主组件 ====================
 const Users: React.FC = () => {
   const u = useUsers()
+  // 行内重置密码弹窗（与详情抽屉同款表单）
+  const [resetPwdUser, setResetPwdUser] = useState<User | null>(null)
+  const [resetPwdOpen, setResetPwdOpen] = useState(false)
 
   // 表格列定义
   const columns = buildUserColumns({
     onViewUser: u.handleViewUser,
-    onOpenEdit: u.handleOpenEdit,
+    onResetPwd: (record) => {
+      setResetPwdUser(record)
+      setResetPwdOpen(true)
+    },
     onToggleStatus: u.handleToggleStatus,
-    onDelete: u.handleDelete,
     hasPermission: u.hasPermission,
     roleOptions: u.roleOptions,
     memberLevelOptions: u.memberLevelOptions,
@@ -225,16 +231,16 @@ const Users: React.FC = () => {
         bordered
       />
 
-      {/* 用户表单弹窗 */}
+      {/* 新增用户弹窗（编辑已移入详情抽屉的分区编辑） */}
       <UserFormModal
         open={u.modalOpen}
-        mode={u.modalMode}
-        user={u.currentUser}
+        mode="create"
+        user={null}
         onCancel={() => {
           u.setModalOpen(false)
           u.setCurrentUser(null)
         }}
-        onSubmit={u.modalMode === 'create' ? u.handleCreate : u.handleEdit}
+        onSubmit={u.handleCreate}
       />
 
       {/* 用户详情抽屉 */}
@@ -250,6 +256,21 @@ const Users: React.FC = () => {
           u.setUserStats(null)
           u.setUserLogs([])
         }}
+        onUserUpdated={(merged) => {
+          u.setDetailUser(merged)
+          u.fetchUsers()
+        }}
+      />
+
+      {/* 行内重置密码弹窗（与详情抽屉同款表单） */}
+      <UserResetPasswordModal
+        open={resetPwdOpen}
+        user={resetPwdUser}
+        onClose={() => {
+          setResetPwdOpen(false)
+          setResetPwdUser(null)
+        }}
+        onSaved={() => u.fetchUsers()}
       />
     </div>
   )

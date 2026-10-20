@@ -1,6 +1,6 @@
 // 管理员自助资料服务 —— 全部走本地后端，Supabase 依赖已移除。
 // 资料持久化于 admin_users（nickname/avatar_url/email），改密走服务端 BCrypt 校验。
-import { apiRequest, buildAuthHeaders, API_BASE_URL } from '../utils/adminHttp'
+import { apiRequest, apiUpload, API_BASE_URL } from '../utils/adminHttp'
 import type { AdminMe } from '../utils/adminSession'
 
 export interface ProfileData {
@@ -58,17 +58,8 @@ export async function uploadAvatar(file: File): Promise<string> {
   const form = new FormData()
   form.append('file', file)
   form.append('category', 'avatar')
-  // multipart 请求不能带 JSON Content-Type，由浏览器自动生成 boundary
-  const response = await fetch(`${API_BASE_URL}/files/upload`, {
-    method: 'POST',
-    headers: { ...buildAuthHeaders() },
-    body: form,
-  })
-  const result = await response.json().catch(() => null)
-  if (!response.ok || !result || result.code !== 200) {
-    throw new Error(result?.message || '头像上传失败')
-  }
-  const meta = result.data as { id: string }
+  // apiUpload：JWT 注入 + 401 静默续期重放（裸 fetch 在会话过期时直接失败）
+  const meta = await apiUpload<{ id: string }>('/files/upload', form)
   if (!meta?.id) throw new Error('头像上传失败：服务端未返回文件标识')
   return `${API_BASE_URL}/files/public/${meta.id}/content`
 }

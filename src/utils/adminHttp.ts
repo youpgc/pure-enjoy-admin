@@ -41,11 +41,15 @@ function handleUnauthorized() {
 }
 
 /// 核心请求：一次 401 自动续期重试（refresh token 换新 access token 后重放原请求）
+/// isAuthEndpoint：登录/刷新等鉴权端点本身——401 不再触发续期与会话清理，
+/// 直接透出后端业务文案（如「账号或密码错误」），避免被通用「登录已过期」遮蔽；
+/// 也杜绝 refresh 端点 401 时重入 refreshTokenSilently 造成自等死锁。
 async function requestCore<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
   path: string,
   body?: unknown,
-  retryOn401 = true
+  retryOn401 = true,
+  isAuthEndpoint = false
 ): Promise<BackendResult<T>> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 30000)
@@ -69,19 +73,28 @@ async function requestCore<T>(
     clearTimeout(timer)
   }
 
-  if (response.status === 401 && retryOn401) {
-    // 尝试静默续期；成功则重放，失败按未授权处理
-    const { refreshTokenSilently } = await import('./adminSession')
-    const refreshed = await refreshTokenSilently().catch(() => false)
-    if (refreshed) {
-      return requestCore<T>(method, path, body, false)
-    }
-    handleUnauthorized()
-    throw new HttpError('登录已过期，请重新登录', 401)
-  }
   if (response.status === 401) {
-    handleUnauthorized()
-    throw new HttpError('登录已过期，请重新登录', 401)
+    if (!isAuthEndpoint) {
+      if (retryOn401) {
+        // 尝试静默续期；成功则重放，失败按未授权处理
+        const { refreshTokenSilently } = await import('./adminSession')
+        const refreshed = await refreshTokenSilently().catch(() => false)
+        if (refreshed) {
+          return requestCore<T>(method, path, body, false, isAuthEndpoint)
+        }
+      }
+      // 首发与续期重放后仍 401 一致处理：清本地会话（重放后仍被拒=会话已被服务端吊销）
+      handleUnauthorized()
+    }
+    // 透出后端业务文案（登录失败=账号或密码错误等）；取不到时保留通用文案
+    let bizMessage = isAuthEndpoint ? '登录失败' : '登录已过期，请重新登录'
+    try {
+      const biz = (await response.json()) as BackendResult<any>
+      if (biz?.message) bizMessage = biz.message
+    } catch {
+      // 响应体非 JSON：保留默认文案
+    }
+    throw new HttpError(bizMessage, 401)
   }
 
   let result: BackendResult<T>
@@ -94,12 +107,14 @@ async function requestCore<T>(
 }
 
 /// 发起请求并解包 data；非 2xx 业务码抛 HttpError(message)
+/// authEndpoint=true 用于登录等鉴权端点：401 不做续期/清会话，透出后端真实文案
 export async function apiRequest<T = any>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
   path: string,
-  body?: unknown
+  body?: unknown,
+  authEndpoint = false
 ): Promise<T> {
-  const result = await requestCore<T>(method, path, body)
+  const result = await requestCore<T>(method, path, body, true, authEndpoint)
   if (result.code !== 200) {
     throw new HttpError(result.message || `请求失败（${result.code}）`, result.code)
   }
@@ -110,9 +125,10 @@ export async function apiRequest<T = any>(
 export async function apiRequestLoose<T = any>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
   path: string,
-  body?: unknown
+  body?: unknown,
+  authEndpoint = false
 ): Promise<BackendResult<T>> {
-  return requestCore<T>(method, path, body)
+  return requestCore<T>(method, path, body, true, authEndpoint)
 }
 
 export const API_BASE_URL = BASE_URL

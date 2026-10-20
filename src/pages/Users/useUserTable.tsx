@@ -29,7 +29,7 @@ import { useMounted } from '../../hooks/useMounted'
 import { usePagination } from '../../hooks/usePagination'
 import { logApiError } from '../../utils/apiClient'
 import { message } from 'antd'
-import { buildNewUser, buildUpdateUser } from './userTableHelpers'
+import { buildNewUser } from './userTableHelpers'
 
 export interface UserFilterValues {
   role?: UserRole
@@ -127,14 +127,14 @@ export const useUserTable = () => {
     [adminUser],
   )
 
-  // 新增用户
+  // 新增用户（返回 false=未成功创建，弹窗不弹成功文案）
   const handleCreate = useCallback(
-    async (formData: UserFormData) => {
-      if (submitting) return
+    async (formData: UserFormData): Promise<boolean> => {
+      if (submitting) return false
       // 对密码进行 SHA-256 哈希（密码必填，不允许留空）
       if (!formData.password || formData.password.trim() === '') {
         message.error('密码不能为空')
-        return
+        return false
       }
 
       const newUser = buildNewUser(formData)
@@ -162,71 +162,15 @@ export const useUserTable = () => {
 
         await fetchUsers()
         await logOperation('create_user', finalId, { email: newUser.email as string })
+        return true
       } catch (err) {
         message.error('创建用户失败: ' + (err instanceof Error ? err.message : '请检查网络连接后重试'))
+        return false
       } finally {
         setSubmitting(false)
       }
     },
     [fetchUsers, logOperation, submitting, adminUser],
-  )
-
-  // 编辑用户
-  const handleEdit = useCallback(
-    async (formData: UserFormData) => {
-      if (submitting) return
-      if (!currentUser) return
-
-      try {
-        setSubmitting(true)
-
-        // 可用积分调整：如果 available_points 变动，插入 point_records 流水记录，随后主动重算回写 users 展示列
-        // （云端无同步触发器，须后台主动回写，详见 points skill §5.3）
-        // G2 修复：表单「积分」字段现绑定 available_points（当前可用余额），delta 以可用余额为基准，
-        // 增/减都生效（recalc 后 available 落为新值）；累计获得 points 只读展示，不在此变动。
-        const oldAvailable = currentUser.available_points ?? 0
-        const newAvailable = formData.available_points ?? 0
-        const delta = newAvailable - oldAvailable
-
-        if (delta !== 0) {
-          // 服务端单事务：point_records 流水 + users 展示列同步回写
-          const { success, errorMessage } = await addPointRecordWithRecalc({
-            user_id: currentUser.id,
-            amount: delta,
-            remark: `管理员调整可用积分：${oldAvailable} → ${newAvailable}`,
-          })
-          if (!success) {
-            message.error(errorMessage || '积分调整失败')
-            setSubmitting(false)
-            return
-          }
-        }
-        // delta 为 0 时无需任何操作：users 积分列由流水驱动，服务端始终一致
-
-        const updateData = buildUpdateUser(formData)
-
-        const result = await userService.update(currentUser.id, updateData)
-
-        if (!result.success) {
-          // ★ 半成功提示（审查报告 Admin#用户#2）：积分/签到调整已在前面成功落库，
-          // 档案字段更新失败时如实告知，避免误以为整体失败而重试导致重复调整
-          message.warning(
-            '积分/签到调整已生效，但资料字段保存失败：' +
-              (result.errorMessage || '未知错误') +
-              '。请勿重复调整积分，仅修正资料后再试。',
-          )
-          await fetchUsers()
-          return
-        }
-        await fetchUsers()
-        await logOperation('update_user', currentUser.id, { changes: formData })
-      } catch (err) {
-        message.error('更新用户失败，请检查网络连接后重试')
-      } finally {
-        setSubmitting(false)
-      }
-    },
-    [currentUser, fetchUsers, logOperation, submitting, adminUser],
   )
 
   // 删除用户（软删除）
@@ -282,14 +226,7 @@ export const useUserTable = () => {
     await handleDelete(selectedRowKeys.map((k) => String(k)))
   }, [selectedRowKeys, handleDelete])
 
-  // 打开编辑弹窗
-  const handleOpenEdit = useCallback((user: User) => {
-    setCurrentUser(user)
-    setModalMode('edit')
-    setModalOpen(true)
-  }, [])
-
-  // 打开新增弹窗
+  // 打开新增弹窗（编辑已移入详情抽屉的分区编辑）
   const handleOpenCreate = useCallback(() => {
     setCurrentUser(null)
     setModalMode('create')
@@ -333,11 +270,9 @@ export const useUserTable = () => {
     // 操作
     fetchUsers,
     handleCreate,
-    handleEdit,
     handleDelete,
     handleToggleStatus,
     handleBatchDisable,
-    handleOpenEdit,
     handleOpenCreate,
   }
 }

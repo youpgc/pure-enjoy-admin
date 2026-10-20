@@ -3,10 +3,8 @@ import { Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   EyeOutlined,
-  EditOutlined,
   StopOutlined,
   CheckCircleOutlined,
-  DeleteOutlined,
 } from '@ant-design/icons'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import type { ActionButton } from '../../components/common/ActionColumn'
@@ -20,9 +18,8 @@ const { Text } = Typography
 
 interface BuildUserColumnsParams {
   onViewUser: (user: User) => void
-  onOpenEdit: (user: User) => void
+  onResetPwd: (user: User) => void
   onToggleStatus: (user: User) => void
-  onDelete: (ids: string[]) => void
   hasPermission: (perm: string) => boolean
   roleOptions: DictOption[]
   memberLevelOptions: DictOption[]
@@ -35,9 +32,8 @@ interface BuildUserColumnsParams {
 export function buildUserColumns(params: BuildUserColumnsParams): ColumnsType<User> {
   const {
     onViewUser,
-    onOpenEdit,
+    onResetPwd,
     onToggleStatus,
-    onDelete,
     hasPermission,
     roleOptions,
     memberLevelOptions,
@@ -166,13 +162,12 @@ export function buildUserColumns(params: BuildUserColumnsParams): ColumnsType<Us
             onClick: () => onViewUser(record),
           },
         ]
-        if (hasPermission('admin:user:update') || hasPermission('admin:user:delete')) {
+        if (hasPermission('admin:user:update')) {
           actions.push(
             {
-              key: 'edit',
-              label: '编辑',
-              icon: <EditOutlined />,
-              onClick: () => onOpenEdit(record),
+              key: 'reset-pwd',
+              label: '重置密码',
+              onClick: () => onResetPwd(record),
             },
             {
               key: 'toggle',
@@ -180,13 +175,6 @@ export function buildUserColumns(params: BuildUserColumnsParams): ColumnsType<Us
             icon: record.status === USER_STATUS_ACTIVE ? <StopOutlined /> : <CheckCircleOutlined />,
               danger: record.status === USER_STATUS_ACTIVE,
               onClick: () => onToggleStatus(record),
-            },
-            {
-              key: 'delete',
-              label: '删除',
-              icon: <DeleteOutlined />,
-              danger: true,
-              onClick: () => onDelete([record.id]),
             }
           )
         }

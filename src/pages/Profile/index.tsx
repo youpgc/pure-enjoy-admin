@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Form, Input, Tabs, Avatar, Upload, Space, Button, message, Spin, Select, InputNumber } from 'antd'
+import { Card, Form, Input, Tabs, Avatar, Upload, Space, Button, message, Spin } from 'antd'
 import { UploadOutlined, UserOutlined } from '@ant-design/icons'
 import { useAuth } from '../../App'
 import {
   updateProfile,
   changePassword,
-  changeEmail,
   uploadAvatar,
 } from '../../services/adminProfileService'
+import { logoutAdmin } from '../../utils/adminSession'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
 
@@ -19,18 +19,8 @@ interface PwdFormValues {
 
 interface ProfileFormValues {
   nickname?: string
-  username?: string
-  phone?: string
   email?: string
-  gender?: string
-  height?: number
 }
-
-const GENDER_OPTIONS = [
-  { value: 'male', label: '男' },
-  { value: 'female', label: '女' },
-  { value: 'unknown', label: '保密' },
-]
 
 const Profile: React.FC = () => {
   const { user } = useAuth()
@@ -47,11 +37,7 @@ const Profile: React.FC = () => {
     if (user) {
       profileForm.setFieldsValue({
         nickname: user.nickname || '',
-        username: user.username || '',
-        phone: user.phone || '',
         email: user.email || '',
-        gender: user.gender || '',
-        height: user.height,
       })
       setAvatarUrl(user.avatar_url || '')
       setAvatarBroken(false)
@@ -89,23 +75,13 @@ const Profile: React.FC = () => {
     try {
       const v = await profileForm.validateFields()
       setSavingProfile(true)
-      // 资料字段双写 public.users（用户管理可见）+ auth.user_metadata（后台回显）
+      // updateProfile 同端点携带 email（服务端全表唯一性校验，立即生效）
       await updateProfile({
         nickname: v.nickname || '',
-        username: v.username || '',
-        phone: v.phone || '',
-        gender: v.gender || '',
-        height: v.height,
         avatar_url: avatarUrl,
         email: v.email,
       })
-      // 邮箱合并到同一栏维护：若发生变更，触发验证邮件流程
-      if (v.email && v.email !== user?.email) {
-        await changeEmail(v.email)
-        message.success('资料已更新，新邮箱验证邮件已发送，请查收确认')
-      } else {
-        message.success('资料已更新')
-      }
+      message.success('资料已更新')
     } catch (e: any) {
       if (e?.message) message.error(e.message)
     } finally {
@@ -122,11 +98,14 @@ const Profile: React.FC = () => {
       }
       setSavingPwd(true)
       await changePassword(v.currentPassword, v.newPassword)
+      // 改密成功：服务端已吊销本账号全部会话，主动登出并整页跳登录页重新登录
       message.success('密码修改成功，请使用新密码重新登录')
-      pwdForm.resetFields()
+      await logoutAdmin()
+      setTimeout(() => {
+        window.location.href = '/pure-enjoy-admin/login'
+      }, 900)
     } catch (e: any) {
       if (e?.message) message.error(e.message)
-    } finally {
       setSavingPwd(false)
     }
   }
@@ -163,16 +142,7 @@ const Profile: React.FC = () => {
                   <Form.Item name="nickname" label="昵称" rules={[{ max: 30, message: '昵称不超过30字' }]}>
                     <Input placeholder="请输入昵称" />
                   </Form.Item>
-                  <Form.Item name="username" label="用户名" rules={[{ max: 30, message: '用户名不超过30字' }]}>
-                    <Input placeholder="请输入用户名" />
-                  </Form.Item>
-                  <Form.Item
-                    name="phone"
-                    label="手机号"
-                    rules={[{ pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号', validateTrigger: 'onBlur' }]}
-                  >
-                    <Input placeholder="请输入手机号" maxLength={20} />
-                  </Form.Item>
+                  {/* username/phone/gender/height 不在 admin_users 模型内（服务端不落库），不提供编辑 */}
                   <Form.Item
                     name="email"
                     label="邮箱"
@@ -182,12 +152,6 @@ const Profile: React.FC = () => {
                     ]}
                   >
                     <Input placeholder="请输入邮箱" />
-                  </Form.Item>
-                  <Form.Item name="gender" label="性别">
-                    <Select placeholder="请选择性别" options={GENDER_OPTIONS} allowClear className={styles.selectMax240} />
-                  </Form.Item>
-                  <Form.Item name="height" label="身高 (cm)">
-                    <InputNumber min={50} max={250} className={styles.inputWidth240} placeholder="请输入身高" />
                   </Form.Item>
                   <Form.Item label="头像">
                     <Space direction="vertical" align="center">
@@ -233,9 +197,9 @@ const Profile: React.FC = () => {
                   <Form.Item
                     name="newPassword"
                     label="新密码"
-                    rules={[{ required: true, message: '请输入新密码' }, { min: 6, message: '密码至少6位' }]}
+                    rules={[{ required: true, message: '请输入新密码' }, { min: 6, max: 16, message: '密码长度为 6~16 位' }]}
                   >
-                    <Input.Password placeholder="至少6位" />
+                    <Input.Password placeholder="请输入新密码（6~16 位）" />
                   </Form.Item>
                   <Form.Item
                     name="confirmPassword"

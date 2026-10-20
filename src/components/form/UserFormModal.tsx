@@ -28,7 +28,7 @@ interface UserFormModalProps {
   mode: 'create' | 'edit'
   user?: User | null
   onCancel: () => void
-  onSubmit: (data: UserFormData) => Promise<void>
+  onSubmit: (data: UserFormData) => Promise<boolean>
   loading?: boolean
 }
 
@@ -48,7 +48,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
   // 字典查询
   const { options: roleOptions } = useDictOptions('user_role')
   const { options: levelOptions } = useDictOptions('member_level')
-  const { options: statusOptions } = useDictOptions('user_status')
 
   // 初始化表单值
   useEffect(() => {
@@ -71,7 +70,6 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           website: user.website || '',
           role: user.role,
           member_level: user.member_level,
-          status: user.status,
           available_points: user.available_points ?? 0,
         })
         setAvatarUrl(user.avatar_url || '')
@@ -136,7 +134,9 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
         birthday: birthdayValue,
       }
       setSubmitting(true)
-      await onSubmit(submitData)
+      // onSubmit 返回 false=保存失败（如半成功：积分已调整但资料未落库），不弹成功文案不关弹窗
+      const ok = await onSubmit(submitData)
+      if (ok === false) return
       message.success(mode === 'create' ? '用户创建成功' : '用户更新成功')
       form.resetFields()
       onCancel()
@@ -193,10 +193,10 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
             label="密码"
             rules={[
               { required: true, message: '请输入密码' },
-              { min: 6, message: '密码至少6位' },
+              { min: 6, max: 16, message: '密码长度为 6~16 位' },
             ]}
           >
-            <Input.Password placeholder="请输入密码" />
+            <Input.Password placeholder="请输入密码（6~16 位）" />
           </Form.Item>
         )}
 
@@ -205,9 +205,9 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
             name="password"
             label="新密码"
             extra="留空则不修改密码"
-            rules={[{ min: 6, message: '密码至少6位' }]}
+            rules={[{ min: 6, max: 16, message: '密码长度为 6~16 位' }]}
           >
-            <Input.Password placeholder="留空则不修改密码" />
+            <Input.Password placeholder="留空则不修改密码（填写时 6~16 位）" />
           </Form.Item>
         )}
 
@@ -346,13 +346,8 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
           <Select options={levelOptions} placeholder="请选择会员等级" />
         </Form.Item>
 
-        <Form.Item
-          name="status"
-          label="状态"
-          rules={[{ required: true, message: '请选择状态' }]}
-        >
-          <Select options={statusOptions} placeholder="请选择状态" />
-        </Form.Item>
+        {/* 状态不在此编辑：后端 UpdateUserRequest 白名单不含 status，变更走列表行内开关
+            （PUT /users/{id}/status），弹窗内提供会造成「提示成功但未生效」的静默 no-op */}
 
         <Form.Item
           name="available_points"
