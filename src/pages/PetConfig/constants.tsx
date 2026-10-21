@@ -41,11 +41,11 @@ export const MODULES: ModuleMeta[] = [
     title: '喂养与互动',
     fields: [
       { field: 'free_feed_daily', label: '免费喂养次数 / 天', format: fmtNum },
-      { field: 'free_feed_cooldown_min', label: '免费喂养冷却（分钟）', format: fmtNum },
+      { field: 'free_feed_cooldown_sec', label: '免费喂养冷却（秒）', desc: '两次免费喂养最小间隔;300 秒 = 5 分钟', format: fmtNum },
       { field: 'free_feed_hunger', label: '免费喂养饱食恢复', desc: 'rpc_pet_feed 免费档效果', format: fmtNum },
       { field: 'free_feed_exp', label: '免费喂养经验获得', format: fmtNum },
       { field: 'feed_full_hunger', label: '饱腹阈值（饱食度）', desc: '达到即停喂：App 喂食钮置灰与 rpc_pet_feed 的 PET_ALREADY_FULL 同源', format: fmtNum },
-      { field: 'interact_cooldown_min', label: '互动冷却（分钟）', desc: 'rpc_pet_interact 两次互动最小间隔', format: fmtNum },
+      { field: 'interact_cooldown_sec', label: '互动冷却（秒）', desc: 'rpc_pet_interact 两次互动最小间隔;10 秒为定稿值', format: fmtNum },
       { field: 'interact_daily', label: '互动次数 / 天', desc: 'rpc_pet_interact 每日上限', format: fmtNum },
       { field: 'interact_mood', label: '互动心情恢复', desc: 'rpc_pet_interact 单次效果', format: fmtNum },
       { field: 'feed_intimacy', label: '喂养亲密度 / 次', desc: 'rpc_pet_feed 每次成功加的亲密；受每日上限约束', format: fmtNum },

@@ -45,7 +45,7 @@ export const renderModuleControls = (
           <Form.Item name="free_feed_daily" label="免费喂养次数 / 天" rules={[{ required: true }]}>
             <InputNumber min={0} max={99} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
-          <Form.Item name="free_feed_cooldown_min" label="免费喂养冷却（分钟）" rules={[{ required: true }]}>
+          <Form.Item name="free_feed_cooldown_sec" label="免费喂养冷却（秒）" tooltip="两次免费喂养最小间隔;300 秒 = 5 分钟" rules={[{ required: true }]}>
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
           <Form.Item name="free_feed_hunger" label="免费喂养饱食恢复" rules={[{ required: true }]}>
@@ -57,7 +57,7 @@ export const renderModuleControls = (
           <Form.Item name="feed_full_hunger" label="饱腹阈值（饱食度）" rules={[{ required: true }]}>
             <InputNumber min={0} max={100} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
-          <Form.Item name="interact_cooldown_min" label="互动冷却（分钟）" rules={[{ required: true }]}>
+          <Form.Item name="interact_cooldown_sec" label="互动冷却（秒）" tooltip="两次抚摸最小间隔" rules={[{ required: true }]}>
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
           <Form.Item name="interact_daily" label="互动次数 / 天" rules={[{ required: true }]}>
@@ -226,6 +226,33 @@ export const renderModuleControls = (
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
           <Form.Item name={['reserved', 'breeding', 'gestation_hours']} label="繁育孕期（小时）" rules={[{ required: true }]}>
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'exp', 'short']} label="历险经验倍率·短途" tooltip="留空 = 服务端缺省 1；按派遣时长放大经验收益" >
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'exp', 'medium']} label="历险经验倍率·中途" >
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'exp', 'long']} label="历险经验倍率·长途" >
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'gold', 'short']} label="历险金币倍率·短途" tooltip="留空 = 服务端缺省 1" >
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'gold', 'medium']} label="历险金币倍率·中途" >
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'gold', 'long']} label="历险金币倍率·长途" >
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'long_drop_pity', 'evo_stone_n']} label="长途保底·进化石凡品（次）" tooltip="连续未中的长途次数达此值必得并清零；留空 = 服务端缺省 20" >
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'long_drop_pity', 'evo_stone_r']} label="长途保底·进化石珍品（次）" >
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'long_drop_pity', 'relic_compass']} label="长途保底·星辰罗盘（次）" >
             <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
           <Form.Item name={['reserved', 'breeding', 'fee_gold']} label="繁育手续费（金币，0=不收）" rules={[{ required: true }]}>

@@ -39,6 +39,16 @@ const RESERVED_NAME_PATHS: (string | (string | number)[])[] = [
   ['reserved', 'breeding', 'egg_pool', 'R'],
   ['reserved', 'breeding', 'egg_pool', 'SR'],
   ['reserved', 'breeding', 'egg_pool', 'SSR'],
+  // 历险时长收益系数 + 长途稀有保底(20261015 批;四层嵌套同 egg_pool)
+  ['reserved', 'adventure_tier_mult', 'exp', 'short'],
+  ['reserved', 'adventure_tier_mult', 'exp', 'medium'],
+  ['reserved', 'adventure_tier_mult', 'exp', 'long'],
+  ['reserved', 'adventure_tier_mult', 'gold', 'short'],
+  ['reserved', 'adventure_tier_mult', 'gold', 'medium'],
+  ['reserved', 'adventure_tier_mult', 'gold', 'long'],
+  ['reserved', 'long_drop_pity', 'evo_stone_n'],
+  ['reserved', 'long_drop_pity', 'evo_stone_r'],
+  ['reserved', 'long_drop_pity', 'relic_compass'],
 ]
 
 /** 深合并：表单 patch 覆盖既有 reserved，未在表单内的键（运营手写/后续新增）原样保留 */

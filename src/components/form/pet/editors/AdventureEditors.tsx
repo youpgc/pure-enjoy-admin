@@ -147,9 +147,80 @@ const ResultDropSection: React.FC<{
   )
 }
 
+// 长途独占掉落段(20261015):drop_table.long_only = [{code,count?,p}]
+// 仅 tier='long' 结算时逐件独立 roll;保底计数见 reserved.long_drop_pity
+const LongOnlySection: React.FC<{
+  data: Record<string, unknown>
+  items: ItemOption[]
+  disabled?: boolean
+  onChange: (next: Record<string, unknown>) => void
+}> = ({ data, items, disabled, onChange }) => {
+  const rows = asArray(data.long_only)
+  const itemOptions = items.map((i) => ({ value: i.item_code, label: `${i.name}（${i.item_code}）` }))
+
+  const setRows = (next: unknown[]) => {
+    const out = { ...data }
+    if (next.length === 0) delete out.long_only
+    else out.long_only = next
+    onChange(out)
+  }
+
+  return (
+    <div>
+      {rows.map((raw, idx) => {
+        const row = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+        return (
+          <Space.Compact key={idx} style={{ display: 'flex', marginBottom: 6 }}>
+            <Select
+              style={{ width: 240 }}
+              value={typeof row.code === 'string' ? row.code : undefined}
+              placeholder="独占道具"
+              options={itemOptions}
+              showSearch
+              optionFilterProp="label"
+              disabled={disabled}
+              onChange={(v) => setRows(rows.map((r, i) => (i === idx ? { ...r, code: v } : r)))}
+            />
+            <InputNumber size="small" style={{ width: 90 }} min={1} placeholder="数量"
+              value={numOf(row.count, undefined) ?? undefined}
+              disabled={disabled}
+              onChange={(v) => setRows(rows.map((r, i) => (i === idx ? { ...r, count: typeof v === 'number' ? v : null } : r)))}
+            />
+            <InputNumber size="small" style={{ width: 110 }} min={0} max={1} step={0.05} placeholder="概率 p"
+              value={numOf(row.p, undefined) ?? undefined}
+              disabled={disabled}
+              onChange={(v) => setRows(rows.map((r, i) => (i === idx ? { ...r, p: typeof v === 'number' ? v : null } : r)))}
+            />
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<MinusCircleOutlined />}
+              disabled={disabled}
+              onClick={() => setRows(rows.filter((_, i) => i !== idx))}
+            />
+          </Space.Compact>
+        )
+      })}
+      <Button
+        size="small"
+        icon={<PlusOutlined />}
+        disabled={disabled}
+        onClick={() => setRows([...rows, { code: '', count: 1, p: 0.1 }])}
+      >
+        新增长途独占道具
+      </Button>
+      <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
+        仅长途派遣结算时逐件独立 roll（短/中途不掉）；数量缺省 1。约「10 次长途出 1 个」配 p=0.10；
+        保底次数在 全局参数 → reserved 卡「长途稀有保底」配置
+      </Typography.Text>
+    </div>
+  )
+}
+
 export const DropTableEditor: React.FC<DropTableEditorProps> = ({ value, onChange, items, disabled }) => {
   const obj = asObject(value)
-  const extra = extraKeys(value, DROP_RESULT_KEYS)
+  const extra = extraKeys(value, [...DROP_RESULT_KEYS, 'long_only'])
 
   const items2 = (
     <>
@@ -188,6 +259,19 @@ export const DropTableEditor: React.FC<DropTableEditorProps> = ({ value, onChang
   return (
     <div>
       <Collapse size="small">{items2}</Collapse>
+      <div style={{ marginTop: 10 }}>
+        <Typography.Text style={{ fontSize: 13, fontWeight: 600 }}>
+          长途独占掉落（long_only）
+        </Typography.Text>
+        <div style={{ marginTop: 6 }}>
+          <LongOnlySection
+            data={obj}
+            items={items}
+            disabled={disabled}
+            onChange={(next) => onChange?.(next)}
+          />
+        </div>
+      </div>
       {Object.keys(extra).length > 0 && (
         <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
           其余结果键已保留：{Object.keys(extra).join('、')}
