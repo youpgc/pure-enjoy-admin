@@ -293,14 +293,6 @@ const UserDetailDrawer: React.FC<UserDetailDrawerProps> = ({
                 className={styles.statColor4}
               />
             </Col>
-            <Col span={8}>
-              <Statistic
-                title="书架小说"
-                value={stats.novel_count}
-                suffix="本"
-                className={styles.statColor5}
-              />
-            </Col>
           </Row>
         ) : (
           <Empty description="暂无统计数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />

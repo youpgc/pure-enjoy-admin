@@ -110,7 +110,6 @@ export interface UserStats {
   mood_count: number
   weight_count: number
   note_count: number
-  novel_count: number
 }
 
 // 操作日志

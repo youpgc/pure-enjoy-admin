@@ -22,7 +22,7 @@ export const useUserDetail = () => {
 
     try {
       // 获取用户统计数据
-      const [expensesResult, moodsResult, weightsResult, notesResult, novelsResult, logsResult] =
+      const [expensesResult, moodsResult, weightsResult, notesResult, logsResult] =
         await fetchUserActivity(user.id)
 
       if (!mountedRef.current) return
@@ -32,7 +32,6 @@ export const useUserDetail = () => {
         mood_count: moodsResult.count || 0,
         weight_count: weightsResult.count || 0,
         note_count: notesResult.count || 0,
-        novel_count: novelsResult.count || 0,
       })
       setUserLogs((logsResult.data || []) as unknown as OperationLog[])
     } catch (err) {

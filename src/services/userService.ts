@@ -159,7 +159,6 @@ export const fetchUserActivity = (userId: string) =>
     supabase.from('mood_diaries').select('id', { count: 'exact', head: true }).eq('user_id', userId),
     supabase.from('weight_records').select('id', { count: 'exact', head: true }).eq('user_id', userId),
     supabase.from('notes').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-    supabase.from('user_novels').select('id', { count: 'exact', head: true }).eq('user_id', userId),
     supabase
       .from('operation_logs')
       .select('id, user_id, action, module, target_id, details, ip, user_agent, created_at')
@@ -168,7 +167,6 @@ export const fetchUserActivity = (userId: string) =>
       .limit(10),
   ]) as unknown as Promise<
     [
-      { count: number | null },
       { count: number | null },
       { count: number | null },
       { count: number | null },
