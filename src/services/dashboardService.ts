@@ -6,11 +6,6 @@ import { buildUserLookupOr } from '../utils/userId'
 /// 注意：Dashboard 涉及大量跨表聚合和 count 查询，不适合 BaseService，
 /// 因此使用 apiQuery + 专用方法封装。
 
-/// 活跃用户事件（单条行为记录，未去重）
-/// source 标记行为来源（read/comment/bookmark/annotation/tts/feedback），
-/// 供 Dashboard 复用阅读事件计算「活跃读者」而无需额外请求。
-type ActiveEvent = { user_id: string; created_at: string; source: string }
-
 class DashboardService {
   /// 总用户数
   async getTotalUsers() {
@@ -36,75 +31,6 @@ class DashboardService {
     )
   }
 
-  /// 时间段内新增用户（用于上周对比）
-  async getNewUsersInRange(from: string, to: string) {
-    return apiQuery(
-      () => supabase.from('users').select('id', { count: 'exact', head: true }).eq('is_deleted', false).gte('created_at', from).lt('created_at', to),
-      'Dashboard-时间段新增用户'
-    )
-  }
-
-  /// 时间段内新增用户 ID 列表（用于留存率交集计算）
-  async getNewUserIdsInRange(from: string, to: string) {
-    return apiQuery<{ id: string }[]>(
-      () => supabase.from('users').select('id').eq('is_deleted', false).gte('created_at', from).lt('created_at', to),
-      'Dashboard-时间段新增用户ID'
-    )
-  }
-
-  /// 活跃用户事件（未去重），用于计算日/周/月活跃用户与留存率。
-  /// 数据来源为真实用户行为：阅读(user_novels.last_read_at) + 评论 + 书签 +
-  /// 批注(未删除) + 听书(TTS) + 推荐反馈。不再依赖 operation_logs
-  /// （该表仅记录后台管理操作，不含用户阅读等行为）。
-  /// 注意：各表上限 limit 行，数据量大时为近似值。
-  async getActiveUserEvents(from: string, limit = 5000): Promise<ApiResponse<ActiveEvent[]>> {
-    const [rRead, rComment, rBookmark, rAnnotation, rTts, rFeedback] = await Promise.all([
-      // 阅读：用 last_read_at 作为活跃时间，别名映射为 created_at 以统一结构
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('user_novels').select('user_id, created_at:last_read_at').gte('last_read_at', from).limit(limit),
-        'Dashboard-活跃事件-阅读'
-      ),
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('novel_comments').select('user_id, created_at').gte('created_at', from).limit(limit),
-        'Dashboard-活跃事件-评论'
-      ),
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('novel_bookmarks').select('user_id, created_at').gte('created_at', from).limit(limit),
-        'Dashboard-活跃事件-书签'
-      ),
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('novel_annotations').select('user_id, created_at').gte('created_at', from).neq('is_deleted', true).limit(limit),
-        'Dashboard-活跃事件-批注'
-      ),
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('tts_playback_logs').select('user_id, created_at').gte('created_at', from).limit(limit),
-        'Dashboard-活跃事件-TTS'
-      ),
-      apiQuery<ActiveEvent[]>(
-        () => supabase.from('user_recommendation_feedback').select('user_id, created_at').gte('created_at', from).limit(limit),
-        'Dashboard-活跃事件-推荐反馈'
-      ),
-    ])
-
-    const events: ActiveEvent[] = []
-    const sources: Array<{ res: ApiResponse<ActiveEvent[]>; source: string }> = [
-      { res: rRead, source: 'read' },
-      { res: rComment, source: 'comment' },
-      { res: rBookmark, source: 'bookmark' },
-      { res: rAnnotation, source: 'annotation' },
-      { res: rTts, source: 'tts' },
-      { res: rFeedback, source: 'feedback' },
-    ]
-    for (const { res, source } of sources) {
-      for (const row of (res.data || [])) {
-        if (row.user_id && row.created_at) {
-          events.push({ user_id: row.user_id, created_at: row.created_at, source })
-        }
-      }
-    }
-    return { success: true, data: events, errorMessage: null, statusCode: 200 }
-  }
-
   /// 用户增长趋势数据
   async getUserTrendData(since: string, limit = 1000) {
     return apiQuery<{ created_at: string }[]>(
@@ -118,30 +44,6 @@ class DashboardService {
     return apiQuery<{ id: string; user_id: string | null; action: string; module: string | null; created_at: string }[]>(
       () => supabase.from('operation_logs').select('id, user_id, action, module, created_at').order('created_at', { ascending: false }).limit(limit),
       'Dashboard-最近操作日志'
-    )
-  }
-
-  /// 小说总数
-  async getNovelsCount() {
-    return apiQuery(
-      () => supabase.from('novels').select('id', { count: 'exact', head: true }),
-      'Dashboard-小说总数'
-    )
-  }
-
-  /// 小说阅读量列表
-  async getNovelReadCounts(limit = 1000) {
-    return apiQuery<{ read_count: number | null }[]>(
-      () => supabase.from('novels').select('read_count').limit(limit),
-      'Dashboard-小说阅读量'
-    )
-  }
-
-  /// 活跃读者
-  async getActiveReaders(since: string, limit = 1000) {
-    return apiQuery<{ user_id: string | null; last_read_at: string | null }[]>(
-      () => supabase.from('user_novels').select('user_id, last_read_at').gte('last_read_at', since).limit(limit),
-      'Dashboard-活跃读者'
     )
   }
 
@@ -192,7 +94,7 @@ class DashboardService {
 
   /// 游戏活跃玩家（time 窗口内去重 user_id 集合）。
   /// PostgREST 服务端 db-max-rows=1000 钳制：单请求最多返回 1000 行，
-  /// 必须 range 分页循环；maxRows 为上限，超出即视为近似值（与 getActiveUserEvents 同口径）。
+  /// 必须 range 分页循环；maxRows 为上限，超出即视为近似值。
   async getGameActivePlayers(since: string, gameId?: string, maxRows = 5000): Promise<ApiResponse<string[]>> {
     const userIds = new Set<string>()
     const pageSize = 1000

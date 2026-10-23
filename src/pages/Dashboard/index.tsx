@@ -2,13 +2,11 @@
 import React, { useMemo } from 'react'
 import { Card, Spin, Button, Empty, Table, Typography } from 'antd'
 import {
-  // BookOutlined, MessageOutlined, // 小说模块下线，注释保留可恢复
   TrophyOutlined, ReloadOutlined,
 } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
 import { useNavigation } from '../../App'
 import { useDashboard } from './useDashboard'
-// import { buildNovelColumns, buildCommentColumns } from './columns' // 小说模块下线，注释保留可恢复
 import { buildGameOverviewColumns } from './columns'
 import { StatsCards } from './StatsCards'
 import { RecentActivities } from './RecentActivities'
@@ -25,13 +23,6 @@ const Dashboard: React.FC = () => {
     lastUpdated,
     loading,
     userStats,
-    // novelStats,      // 小说模块下线，注释保留可恢复
-    // novels,          // 小说模块下线，注释保留可恢复
-    // novelsLoading,   // 小说模块下线，注释保留可恢复
-    // novelPagination, // 小说模块下线，注释保留可恢复
-    // comments,          // 小说模块下线，注释保留可恢复
-    // commentsLoading,   // 小说模块下线，注释保留可恢复
-    // commentPagination, // 小说模块下线，注释保留可恢复
     recentActivities,
     userTrendData,
     gameStats,
@@ -41,8 +32,6 @@ const Dashboard: React.FC = () => {
     refreshAll,
   } = useDashboard()
 
-  // const novelColumns = useMemo(() => buildNovelColumns(), [])   // 小说模块下线，注释保留可恢复
-  // const commentColumns = useMemo(() => buildCommentColumns(), []) // 小说模块下线，注释保留可恢复
   const gameColumns = useMemo(() => buildGameOverviewColumns(), [])
 
   if (!hasPermission('dashboard:read')) {
@@ -91,7 +80,7 @@ const Dashboard: React.FC = () => {
             onViewMore={() => setCurrentPage('operation_logs')}
           />
 
-          {/* 游戏数据概览（小说排行榜/最新评论已下线，见下方注释块） */}
+          {/* 游戏数据概览 */}
           <Card
             title={
               <div className={styles.cardTitle}>
@@ -114,64 +103,6 @@ const Dashboard: React.FC = () => {
               size="small"
             />
           </Card>
-
-          {/* 小说模块下线（2026-09-08）：以下两块注释保留，恢复时连同
-              useDashboard/StatsCards/columns 中对应注释一并打开 */}
-          {/* 小说排行榜
-          <Card
-            title={
-              <div className={styles.cardTitle}>
-                <BookOutlined className={styles.titleIconPurple} />
-                <span>小说排行榜</span>
-              </div>
-            }
-            className={common.mb24}
-          >
-            <Table
-              columns={novelColumns}
-              dataSource={novels}
-              rowKey="id"
-              loading={novelsLoading}
-              pagination={{
-                ...novelPagination.tablePagination,
-                pageSizeOptions: ['10', '20', '50'],
-                showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-                onChange: (page, pageSize) => {
-                  novelPagination.handlePageChange(page, pageSize)
-                  loadNovels(page, pageSize)
-                },
-              }}
-              size="small"
-            />
-          </Card>
-
-          最新评论
-          <Card
-            title={
-              <div className={styles.cardTitle}>
-                <MessageOutlined className={styles.titleIconGreen} />
-                <span>最新评论</span>
-              </div>
-            }
-          >
-            <Table
-              columns={commentColumns}
-              dataSource={comments}
-              rowKey="id"
-              loading={commentsLoading}
-              pagination={{
-                ...commentPagination.tablePagination,
-                pageSizeOptions: ['10', '20', '50'],
-                showTotal: (total, range) => `显示 ${range[0]}-${range[1]} 条，共 ${total} 条`,
-                onChange: (page, pageSize) => {
-                  commentPagination.handlePageChange(page, pageSize)
-                  loadComments(page, pageSize)
-                },
-              }}
-              size="small"
-            />
-          </Card>
-          */}
         </div>
       </Spin>
     </div>

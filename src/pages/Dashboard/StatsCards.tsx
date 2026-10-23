@@ -3,13 +3,11 @@ import { Card, Row, Col, Tag, Typography, theme } from 'antd'
 import type { ReactNode } from 'react'
 import { useMemo } from 'react'
 import {
-  UserOutlined, RiseOutlined, FireOutlined,
-  // BookOutlined, EyeOutlined, // 小说模块下线，注释保留可恢复
-  ClockCircleOutlined, ArrowUpOutlined, ArrowDownOutlined,
+  UserOutlined, RiseOutlined,
+  ArrowUpOutlined, ArrowDownOutlined,
   TrophyOutlined, ThunderboltOutlined, TeamOutlined, GoldOutlined,
 } from '@ant-design/icons'
 import { formatNumber } from './format'
-// import type { NovelStats, UserStats } from './types' // 小说模块下线，注释保留可恢复
 import type { UserStats, GameStats } from './types'
 import type { PageKey } from '../../App'
 import styles from './StatsCards.module.css'
@@ -20,8 +18,7 @@ interface StatCard {
   value: number | string
   icon: ReactNode
   change?: number
-  changeLabel: string
-  isPercentage?: boolean
+  changeLabel?: string
   link: PageKey
   /** 带参跳转：目标页按参数初始化筛选（如「今日成绩/今日发放」→ 时间范围=今日） */
   navParams?: Record<string, unknown>
@@ -29,7 +26,6 @@ interface StatCard {
 
 interface StatsCardsProps {
   userStats: UserStats
-  // novelStats: NovelStats // 小说模块下线，注释保留可恢复
   gameStats: GameStats
   onNavigate: (page: PageKey, params?: Record<string, unknown>) => void
 }
@@ -59,7 +55,7 @@ export function StatsCards({ userStats, gameStats, onNavigate }: StatsCardsProps
   const { token } = theme.useToken()
   const { Text } = Typography
 
-  // 用户数据卡片（小说模块两张卡片下线，注释保留可恢复）
+  // 用户数据卡片
   const userCards = useMemo<StatCard[]>(() => [
     {
       title: '总用户数',
@@ -73,41 +69,6 @@ export function StatsCards({ userStats, gameStats, onNavigate }: StatsCardsProps
       title: '今日新增用户',
       value: userStats.newToday,
       icon: <RiseOutlined style={{ fontSize: 24, color: STAT_CARD_ICON_COLORS[1] }} />,
-      change: userStats.activeToday,
-      changeLabel: '今日活跃',
-      link: 'users',
-    },
-    {
-      title: '本周活跃用户',
-      value: userStats.activeWeek,
-      icon: <FireOutlined style={{ fontSize: 24, color: STAT_CARD_ICON_COLORS[2] }} />,
-      change: userStats.newWeek,
-      changeLabel: '本周新增',
-      link: 'users',
-    },
-    // {
-    //   title: '小说总数',
-    //   value: novelStats.total,
-    //   icon: <BookOutlined style={{ fontSize: 24, color: STAT_CARD_ICON_COLORS[3] }} />,
-    //   change: novelStats.totalRead,
-    //   changeLabel: '总阅读',
-    //   link: 'novels',
-    // },
-    // {
-    //   title: '活跃读者',
-    //   value: novelStats.readers,
-    //   icon: <EyeOutlined style={{ fontSize: 24, color: STAT_CARD_ICON_COLORS[4] }} />,
-    //   change: novelStats.newReaders,
-    //   changeLabel: '今日新增',
-    //   link: 'novels',
-    // },
-    {
-      title: '留存率',
-      value: `${userStats.retention}%`,
-      icon: <ClockCircleOutlined style={{ fontSize: 24, color: STAT_CARD_ICON_COLORS[5] }} />,
-      change: userStats.retentionChange,
-      changeLabel: '环比',
-      isPercentage: true,
       link: 'users',
     },
   ], [userStats])
@@ -172,7 +133,7 @@ export function StatsCards({ userStats, gameStats, onNavigate }: StatsCardsProps
               className={styles.statTag}
             >
               {card.change >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />}
-              {card.isPercentage ? `${Math.abs(card.change)}%` : Math.abs(card.change)}
+              {Math.abs(card.change)}
               {card.changeLabel}
             </Tag>
           )}
