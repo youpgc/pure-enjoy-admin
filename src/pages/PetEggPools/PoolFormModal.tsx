@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Modal, Form, Input, InputNumber, Select, Switch, Typography, message } from 'antd'
-import type { PetEggPoolRow } from '../../types/pet'
+import type { PetEggPoolRow, PetSpeciesRow } from '../../types/pet'
 import { petSpeciesService } from '../../services/petService'
 import { NumberMapEditor } from '../../components/form/pet/editors/BasicEditors'
 import {
@@ -13,7 +13,8 @@ import { asObject } from '../../components/form/pet/editors/shared'
 // ==================== 蛋池编辑弹窗（pet_egg_pools，概率结构化配置） ====================
 //
 // weights 结构与 rpc_pet_hatch_instant 消费同源：
-//   fixed_species（固定产出）/ mode / families{系:权重} / rarity{首键=锁定评级} /
+//   fixed_species（固定产出）/ initial_choices（初始蛋自选种属 {系:[SSR code]}）/
+//   mode / families{系:权重} / rarity{首键=锁定评级} /
 //   gender{male:0~1 概率, female} / note。
 // 未知键保留（防覆写扩展配置）。
 
@@ -40,23 +41,48 @@ const FAMILY_FIELDS = Object.entries(PET_FAMILY_LABELS).map(([key, label]) => ({
 
 const PoolFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel }) => {
   const [form] = Form.useForm()
-  const [speciesOptions, setSpeciesOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [speciesRows, setSpeciesRows] = useState<PetSpeciesRow[]>([])
   // weights 初始快照：保存时与当前值比对，有变更才递增 config_version
   const weightsBaseline = useRef<string>('{}')
+  // 池编码监听：仅 initial_ssr 展示「初始可选 SSR」编辑器
+  const poolCode = Form.useWatch('pool_code', form)
 
   useEffect(() => {
     if (!open) return
     petSpeciesService.findAll().then((res) => {
-      if (res.success && res.data) {
-        setSpeciesOptions(
-          res.data.map((s) => ({
-            value: s.species_code,
-            label: `${s.name_cn}（${s.species_code}）`,
-          }))
-        )
-      }
+      if (res.success && res.data) setSpeciesRows(res.data)
     })
   }, [open])
+
+  const speciesOptions = speciesRows.map((s) => ({
+    value: s.species_code,
+    label: `${s.name_cn}（${s.species_code}）`,
+  }))
+  // 初始可选 SSR 候选：SSR 基础形（排除 _sN 进化阶）——同系多只由服务端随机
+  const ssrOptions = speciesRows
+    .filter((s) => s.rarity_code === 'SSR' && !/_s\d+$/.test(s.species_code))
+    .map((s) => ({
+      value: s.species_code,
+      label: `${PET_FAMILY_LABELS[s.family] ?? s.family}·${s.name_cn}（${s.species_code}）`,
+    }))
+
+  // 初始可选 SSR:回显值在 WeightsFields 内从 weights 实时计算(Form 值变化只触发
+  // WeightsFields 重渲染,父组件算会在勾选后不回显);此处仅保留写回回调
+  const handleInitialChoicesChange = (codes: string[] | undefined) => {
+    const cur = asObject(form.getFieldValue('weights'))
+    const next = { ...cur }
+    if (!codes || codes.length === 0) {
+      delete next.initial_choices
+    } else {
+      const byFamily: Record<string, string[]> = {}
+      for (const code of codes) {
+        const fam = speciesRows.find((s) => s.species_code === code)?.family ?? 'other'
+        ;(byFamily[fam] ??= []).push(code)
+      }
+      next.initial_choices = byFamily
+    }
+    form.setFieldsValue({ weights: next })
+  }
 
   const handleGenderChange = (malePercent: number | null) => {
     const cur = asObject(form.getFieldValue('weights'))
@@ -153,6 +179,9 @@ const PoolFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
           <WeightsFields
             speciesOptions={speciesOptions}
             disabled={false}
+            poolCode={poolCode}
+            ssrOptions={ssrOptions}
+            onInitialChoicesChange={handleInitialChoicesChange}
             onGenderChange={handleGenderChange}
             onRarityChange={handleRarityChange}
             onNoteChange={handleNoteChange}
@@ -178,11 +207,29 @@ const WeightsFields: React.FC<{
   onChange?: (v: Record<string, unknown>) => void
   speciesOptions: Array<{ value: string; label: string }>
   disabled: boolean
+  poolCode?: string
+  ssrOptions: Array<{ value: string; label: string }>
+  onInitialChoicesChange: (codes: string[] | undefined) => void
   onGenderChange: (malePercent: number | null) => void
   onRarityChange: (code: string | undefined) => void
   onNoteChange: (text: string) => void
-}> = ({ value, onChange, speciesOptions, disabled, onGenderChange, onRarityChange, onNoteChange }) => {
+}> = ({
+  value,
+  onChange,
+  speciesOptions,
+  disabled,
+  poolCode,
+  ssrOptions,
+  onInitialChoicesChange,
+  onGenderChange,
+  onRarityChange,
+  onNoteChange,
+}) => {
   const obj = asObject(value)
+  // 初始可选 SSR 回显:从 weights 实时摊平(Form 值变化随重渲染同步,勾选即回显)
+  const initialSelected = Object.values(asObject(obj.initial_choices)).flatMap((v) =>
+    Array.isArray(v) ? v.map(String) : []
+  )
   const gender = asObject(obj.gender)
   const rarity = asObject(obj.rarity)
   const rarityCode = Object.keys(rarity)[0]
@@ -211,6 +258,31 @@ const WeightsFields: React.FC<{
           onChange={(v) => setKey('fixed_species', v ?? null)}
         />
       </div>
+      {poolCode === 'initial_ssr' && (
+        <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 8 }}>
+          <Typography.Text style={{ width: 130, flexShrink: 0, paddingTop: 4 }}>
+            初始可选 SSR
+            <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
+              App 选种属，同系多只随机；不配则按固定产出
+            </Typography.Text>
+          </Typography.Text>
+          <div style={{ flex: 1 }}>
+            <Select
+              mode="multiple"
+              style={{ width: '100%' }}
+              value={initialSelected}
+              placeholder="勾选可作为初始伙伴的 SSR（候选为空则用户无自选入口）"
+              options={ssrOptions}
+              allowClear
+              showSearch
+              optionFilterProp="label"
+              maxTagCount="responsive"
+              disabled={disabled}
+              onChange={(v) => onInitialChoicesChange(v as string[])}
+            />
+          </div>
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <Typography.Text style={{ width: 130, flexShrink: 0 }}>锁定评级</Typography.Text>
         <Select
@@ -283,7 +355,8 @@ const WeightsFields: React.FC<{
       </div>
       {(() => {
         const extraKeysList = Object.keys(obj).filter(
-          (k) => !['fixed_species', 'mode', 'families', 'rarity', 'gender', 'note'].includes(k)
+          (k) =>
+            !['fixed_species', 'initial_choices', 'mode', 'families', 'rarity', 'gender', 'note'].includes(k)
         )
         if (extraKeysList.length === 0) return null
         return (
