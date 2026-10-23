@@ -96,6 +96,9 @@ const PetTraits: React.FC = () => {
   const columns = buildTraitColumns({
     canWrite,
     canDelete,
+    // speciesOptions label 形如「煤球（cat_n2）」，取括号前的中文名
+    speciesLabel: (code) =>
+      speciesOptions.find((o) => o.value === code)?.label.split('（')[0] ?? code,
     onEdit: (record) => {
       setEditing(record)
       setModalOpen(true)

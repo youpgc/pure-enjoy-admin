@@ -6,7 +6,7 @@ import type { PetEvoStageRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { petEvoStageService, petItemService, petSpeciesService } from '../../services/petService'
 import { getActionColumn } from '../../components/common/ActionColumn'
-import { PET_PICK_MODE_COLORS, PET_PICK_MODE_LABELS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { PET_PICK_MODE_COLORS, PET_PICK_MODE_LABELS, PET_EVO_COND_TYPE_LABELS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { asArray } from '../../components/form/pet/editors/shared'
 import StageFormModal, { type StageFormValues } from './StageFormModal'
 import type { ChainOption } from './ChainsTab'
@@ -14,14 +14,18 @@ import common from '../../styles/common.module.css'
 
 // ==================== 进化阶段（pet_evo_stages，Tab 2：按链过滤） ====================
 
-const conditionsSummary = (value: unknown): string => {
+/// 条件概要：类型中文名 + 阈值；道具条件走 itemName 转中文名
+const conditionsSummary = (value: unknown, itemName: (code: string) => string): string => {
   const rows = asArray(value)
   if (rows.length === 0) return '无条件'
   return rows
     .map((r) => {
       const type = String(r.type ?? '?')
-      if (type === 'item') return `道具 ${String(r.item ?? r.item_id ?? '?')}×${String(r.cost ?? 1)}`
-      return `${type} ≥ ${String(r.value ?? r.target ?? '?')}`
+      if (type === 'item') {
+        const code = String(r.item ?? r.item_id ?? '?')
+        return `道具 ${itemName(code)}×${String(r.cost ?? 1)}`
+      }
+      return `${PET_EVO_COND_TYPE_LABELS[type] ?? type} ≥ ${String(r.value ?? r.target ?? '?')}`
     })
     .join('、')
 }
@@ -77,6 +81,9 @@ const StagesTab: React.FC<{
   const speciesLabel = (id: string) =>
     species.find((s) => s.value === id)?.label ?? id.slice(0, 8)
 
+  const itemName = (code: string) =>
+    items.find((i) => i.item_code === code)?.name ?? code
+
   const handleSave = async (values: StageFormValues) => {
     setSaving(true)
     try {
@@ -116,7 +123,7 @@ const StagesTab: React.FC<{
       render: (v: string) => speciesLabel(v),
       ellipsis: true,
     },
-    { title: '分支', dataIndex: 'branch_key', width: 100 },
+    { title: '分支', dataIndex: 'branch_key', width: 100, render: (v: string) => (v === 'main' ? '主线' : v) },
     {
       title: '抉择模式',
       dataIndex: 'pick_mode',
@@ -129,7 +136,7 @@ const StagesTab: React.FC<{
     {
       title: '进化条件',
       dataIndex: 'conditions',
-      render: (v: unknown) => conditionsSummary(v),
+      render: (v: unknown) => conditionsSummary(v, itemName),
       ellipsis: true,
     },
     getActionColumn<PetEvoStageRow>((record) => [

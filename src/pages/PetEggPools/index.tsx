@@ -5,8 +5,8 @@ import type { ColumnsType } from 'antd/es/table'
 import type { PetEggPoolRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
-import { petEggPoolService } from '../../services/petService'
-import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { petEggPoolService, petSpeciesService } from '../../services/petService'
+import { PET_EGG_MODE_LABELS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import PoolFormModal, { type PoolFormValues } from './PoolFormModal'
 import OddsPreviewModal from './OddsPreviewModal'
@@ -19,11 +19,15 @@ import common from '../../styles/common.module.css'
 const RARITY_LABELS: Record<string, string> = { N: 'N', R: 'R', SR: 'SR', SSR: 'SSR' }
 const FAMILY_LABELS: Record<string, string> = { cat: '猫', dog: '犬', rabbit: '兔', mouse: '鼠' }
 
-/** 权重概览 → 可读文本（替代纯键名 Tag） */
-function weightsSummaryText(v: Record<string, unknown>): string {
+/** 权重概览 → 可读文本（替代纯键名 Tag）；speciesName 把种属码译为中文名 */
+function weightsSummaryText(
+  v: Record<string, unknown>,
+  speciesName: (code: string) => string,
+): string {
   const parts: string[] = []
-  if (typeof v.fixed_species === 'string') parts.push(`固定产出 ${v.fixed_species}`)
-  if (typeof v.mode === 'string') parts.push(`方式 ${v.mode}`)
+  if (typeof v.fixed_species === 'string')
+    parts.push(`固定产出 ${speciesName(v.fixed_species)}`)
+  if (typeof v.mode === 'string') parts.push(`方式 ${PET_EGG_MODE_LABELS[v.mode] ?? v.mode}`)
   const rarity = v.rarity
   if (rarity && typeof rarity === 'object') {
     const code = Object.keys(rarity as Record<string, unknown>)[0]
@@ -56,6 +60,13 @@ const PetEggPools: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetEggPoolRow | null>(null)
   const [preview, setPreview] = useState<PetEggPoolRow | null>(null)
+  // 种属码 → 中文名（权重概览 fixed_species 转译）
+  const [speciesNames, setSpeciesNames] = useState<Record<string, string>>({})
+
+  const speciesName = useCallback(
+    (code: string) => speciesNames[code] ?? code,
+    [speciesNames],
+  )
 
   // 发布状态筛选（页签刷新经 tabFilterCache 恢复；默认仅看已发布版本——历史版本行混显是运维干扰源）
   const restoredFilters = loadTabFilters('pet_egg_pools')
@@ -90,6 +101,13 @@ const PetEggPools: React.FC = () => {
 
   useEffect(() => {
     loadRows()
+    petSpeciesService.findAll().then((res) => {
+      if (res.success && res.data) {
+        setSpeciesNames(
+          Object.fromEntries(res.data.map((s) => [s.species_code, s.name_cn])),
+        )
+      }
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -172,7 +190,7 @@ const PetEggPools: React.FC = () => {
       render: (v: Record<string, unknown>) =>
         v && Object.keys(v).length > 0 ? (
           <Typography.Text style={{ fontSize: 13 }} ellipsis>
-            {weightsSummaryText(v)}
+            {weightsSummaryText(v, speciesName)}
           </Typography.Text>
         ) : (
           <Typography.Text type="secondary">空</Typography.Text>

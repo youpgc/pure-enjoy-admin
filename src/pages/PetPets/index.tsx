@@ -7,7 +7,7 @@ import { usePermission } from '../../hooks/usePermission'
 import { petPetAdminService, petPersonalityService } from '../../services/petService'
 import { userService } from '../../services/userService'
 import type { PetPersonalityRow } from '../../types/pet'
-import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { PET_TABLE_PAGE_SIZE, PET_RARITY_CODE_SELECT_OPTIONS } from '../../constants/pet'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import common from '../../styles/common.module.css'
@@ -134,17 +134,17 @@ const PetPets: React.FC = () => {
       title: '种属',
       key: 'species',
       width: 140,
-      render: (_, r) =>
-        r.species ? (
+      render: (_, r) => {
+        if (!r.species) return '-'
+        const rc = r.species.rarity_code
+        const label = PET_RARITY_CODE_SELECT_OPTIONS.find((o) => o.value === rc)?.label ?? rc
+        return (
           <Space size={4}>
             <span>{r.species.name_cn}</span>
-            <Tag color={RARITY_COLORS[r.species.rarity_code] ?? 'default'}>
-              {r.species.rarity_code}
-            </Tag>
+            <Tag color={RARITY_COLORS[rc] ?? 'default'}>{label}</Tag>
           </Space>
-        ) : (
-          '-'
-        ),
+        )
+      },
     },
     { title: '等级', dataIndex: 'level', width: 70 },
     {

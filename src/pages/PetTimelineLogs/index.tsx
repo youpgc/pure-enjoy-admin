@@ -5,9 +5,9 @@ import type { ColumnsType } from 'antd/es/table'
 import type { PetTimelineLogRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { useUsernames } from '../../hooks/useUsernames'
-import { petTimelineLogService } from '../../services/petService'
+import { petTimelineLogService, petAdventureSpotService } from '../../services/petService'
 import { UserName } from '../../components/common/UserName'
-import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { PET_TABLE_PAGE_SIZE, PET_TIMELINE_EVENT_META, PET_ADVENTURE_RESULT_LABELS } from '../../constants/pet'
 import common from '../../styles/common.module.css'
 
 // ==================== 宠物时间线查询（pet_timeline_logs，只读审计） ====================
@@ -15,25 +15,52 @@ import common from '../../styles/common.module.css'
 // 2026-10-09 立项池清账：§3.3 成长编年史的服务端流水（升级/进化/改名/送别等）
 // 供客诉排查。只读；RLS is_admin 全量可读（与 choice_logs 同批策略）。
 
-const TYPE_META: Record<string, { label: string; color: string }> = {
-  levelup: { label: '升级', color: 'green' },
-  evolve: { label: '进化', color: 'purple' },
-  rename: { label: '改名', color: 'blue' },
-  release: { label: '送别', color: 'default' },
-}
+// 事件类型中文标签统一取 constants（PET_TIMELINE_EVENT_META），未登记码回退原样
+const TYPE_META = PET_TIMELINE_EVENT_META
 
-function payloadSummary(type: string, payload: unknown): string {
+/// 历险档位码 → 中文（adventure_tiers 固定三档）
+const TIER_LABELS: Record<string, string> = { short: '短途', medium: '中途', long: '长途' }
+
+function payloadSummary(
+  type: string,
+  payload: unknown,
+  spotNames: Record<string, string>,
+): string {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return '-'
   const p = payload as Record<string, unknown>
+  const s = (k: string) => String(p[k] ?? '?')
+  const spotName = (code: string) => spotNames[code] ?? code
   switch (type) {
     case 'levelup':
-      return `升至 Lv.${p['level'] ?? '?'}`
+      return `升至 Lv.${s('level')}`
     case 'evolve':
-      return `进化（形态 ${p['to_stage'] ?? p['stage'] ?? '?'}）`
+      return `进化（形态 ${s('to_stage') === '?' ? s('stage') : s('to_stage')}）`
     case 'rename':
-      return `${p['from'] ?? '?'} → ${p['to'] ?? '?'}`
+      return `${s('from')} → ${s('to')}`
     case 'release':
-      return `送别（Lv.${p['level'] ?? '?'}，补偿 ${p['gold_comp'] ?? 0} 金）`
+      return `送别（Lv.${s('level')}，补偿 ${p['gold_comp'] ?? 0} 金）`
+    case 'obtain':
+      return `孵化入列（蛋源 ${s('source')}${p['pool'] ? `，蛋池 ${s('pool')}` : ''}）`
+    case 'breed':
+      return `结配产蛋（蛋池 ${s('pool')}）`
+    case 'trait_wash':
+      return `特性重掷（${s('from')} → ${s('to')}）`
+    case 'refine_reassigned':
+      return '属性加点重掷（明细见洗练记录）'
+    case 'spot_hidden_unlock':
+      return `解锁秘境 ${spotName(s('code'))}`
+    case 'adventure_memory': {
+      if (p['rescued_by'] != null) return `遇险获救（渠道 ${s('rescued_by')}）`
+      const tier = TIER_LABELS[s('tier')] ?? s('tier')
+      const result = PET_ADVENTURE_RESULT_LABELS[s('result')] ?? s('result')
+      const gold = p['gold'] != null ? `，金 ${p['gold']}` : ''
+      const exp = p['exp'] != null ? `，经验 ${p['exp']}` : ''
+      return `${spotName(s('spot'))} · ${tier} · ${result}${gold}${exp}`
+    }
+    case 'adventure_failed':
+      return `${spotName(s('spot'))} · ${TIER_LABELS[s('tier')] ?? s('tier')} · 结算失败（惩罚已执行）`
+    case 'adventure_recalled':
+      return '提前召回（无奖励）'
     default:
       return JSON.stringify(payload)
   }
@@ -46,6 +73,8 @@ const PetTimelineLogs: React.FC = () => {
   const [rows, setRows] = useState<PetTimelineLogRow[]>([])
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
+  // 历险地码 → 中文名（历险归来/失败概要转译）
+  const [spotNames, setSpotNames] = useState<Record<string, string>>({})
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -58,6 +87,14 @@ const PetTimelineLogs: React.FC = () => {
   useEffect(() => {
     if (canRead) loadRows()
   }, [canRead, loadRows])
+
+  useEffect(() => {
+    petAdventureSpotService.findAll().then((res) => {
+      if (res.success && res.data) {
+        setSpotNames(Object.fromEntries(res.data.map((sp) => [sp.code, sp.name])))
+      }
+    })
+  }, [])
 
   const kw = keyword.trim().toLowerCase()
   const filtered = useMemo(
@@ -111,7 +148,7 @@ const PetTimelineLogs: React.FC = () => {
     {
       title: '内容',
       key: 'payload',
-      render: (_, r) => payloadSummary(r.event_type, r.payload),
+      render: (_, r) => payloadSummary(r.event_type, r.payload, spotNames),
     },
   ]
 
