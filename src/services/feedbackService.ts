@@ -1,4 +1,4 @@
-import { BaseService, apiExecute } from '../utils/apiClient'
+import { BaseService, apiExecute, apiQuery } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
 import type { Database } from '../types/database'
 
@@ -30,6 +30,30 @@ class FeedbackService extends BaseService<FeedbackRow> {
       if (options?.status) builder = builder.eq('status', options.status)
       return builder
     })
+  }
+
+  /// 查询反馈的流转记录（按时间倒序）
+  async findFlowRecords(feedbackId: string) {
+    return apiQuery<
+      Array<{
+        id: string
+        feedback_id: string
+        action: string
+        remark: string | null
+        operator_id: string | null
+        operator_name: string | null
+        created_at: string
+      }>
+    >(
+      () =>
+        // 已知类型坑：generated database.ts 对 feedback_flow_records 的 Insert 解析为 never，
+        // 故用 as any 绕过类型检查（运行时正常），非遗留 TODO。
+        (supabase.from('feedback_flow_records') as any)
+          .select('id, feedback_id, action, remark, operator_id, operator_name, created_at')
+          .eq('feedback_id', feedbackId)
+          .order('created_at', { ascending: false }),
+      'FeedbackService-流转记录'
+    )
   }
 
   /// 软删除反馈

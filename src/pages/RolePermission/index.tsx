@@ -20,13 +20,13 @@ import {
   DeleteOutlined,
   SafetyOutlined,
 } from '@ant-design/icons'
-import { supabase } from '../../utils/supabase'
 import { handleApiError } from '../../utils/apiClient'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import type { Role, Permission } from '../../types/permission'
 import { ROLE_STATUS_LABELS, ROLE_STATUS_COLORS, ROLE_STATUS } from '../../types/permission'
 import { roleService } from '../../services/roleService'
+import { rolePermissionService } from '../../services/rolePermissionService'
 import EllipsisText from '../../components/common/EllipsisText'
 import { resolvePermissionPage, GROUP_ORDER } from '../../constants/permissionMenuMap'
 import styles from './index.module.css'
@@ -56,15 +56,9 @@ const RolePermissionPage: React.FC = () => {
   const loadRoles = useCallback(async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('roles')
-        .select('id, name, code, description, is_system, status, created_at, updated_at')
-        .order('id')
-
-      if (error) throw error
-      setRoles((data as Role[]) || [])
-    } catch (error) {
-      handleApiError(error, 'RolePermission-加载角色')
+      const res = await rolePermissionService.findAllRoles()
+      if (!res.success) return // service 已统一弹窗 + 记日志
+      setRoles((res.data as unknown as Role[]) || [])
     } finally {
       setLoading(false)
     }
@@ -72,34 +66,18 @@ const RolePermissionPage: React.FC = () => {
 
   // 加载权限列表
   const loadPermissions = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('permissions')
-        .select('id, name, display_name, type, parent_id, sort_order, module, description, created_at')
-        .order('sort_order')
-
-      if (error) throw error
-      setPermissions((data as Permission[]) || [])
-    } catch (error) {
-      handleApiError(error, 'RolePermission-加载权限')
-    }
+    const res = await rolePermissionService.findAllPermissions()
+    if (!res.success) return // service 已统一弹窗 + 记日志
+    setPermissions((res.data as unknown as Permission[]) || [])
   }, [])
 
   // 加载角色的权限
   const loadRolePermissions = useCallback(async (roleId: number) => {
-    try {
-      const { data, error } = await supabase
-        .from('role_permissions')
-        .select('permission_id')
-        .eq('role_id', roleId)
-
-      if (error) throw error
-      const ids = data?.map((rp: { permission_id: number }) => rp.permission_id) || []
-      originalPermsRef.current = ids
-      setSelectedPermissions(ids)
-    } catch (error) {
-      handleApiError(error, 'RolePermission-加载角色权限')
-    }
+    const res = await rolePermissionService.findRolePermissions(roleId)
+    if (!res.success) return // service 已统一弹窗 + 记日志
+    const ids = res.data ?? []
+    originalPermsRef.current = ids
+    setSelectedPermissions(ids)
   }, [])
 
   useEffect(() => {
@@ -206,10 +184,7 @@ const RolePermissionPage: React.FC = () => {
         return
       }
 
-      const { error } = await supabase
-        .from('roles')
-        .delete()
-        .eq('id', role.id)
+      const { error } = await roleService.deleteRole(role.id)
 
       if (error) throw error
       message.success('角色删除成功')

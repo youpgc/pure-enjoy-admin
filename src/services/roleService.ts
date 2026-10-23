@@ -12,9 +12,9 @@ export const roleService = {
   createRole: (data: Record<string, unknown>) =>
     (supabase.from('roles') as any).insert(data).select().single(),
 
-  /// 删除指定角色的全部权限关联（保留：新增角色清场等场景）
-  deleteRolePermissions: (roleId: number) =>
-    supabase.from('role_permissions').delete().eq('role_id', roleId),
+  /// 删除角色
+  deleteRole: (id: number) =>
+    (supabase.from('roles') as any).delete().eq('id', id),
 
   /// 只删除指定权限关联（编辑角色 diff 更新用，避免全删重插的中途失败清空风险）
   deleteRolePermissionsByIds: (roleId: number, permissionIds: number[]) =>

@@ -2,7 +2,7 @@
 import { Modal, Button, Empty, Tag, Space, Timeline } from 'antd'
 import { HistoryOutlined } from '@ant-design/icons'
 import { useState, useEffect } from 'react'
-import { supabase } from '../../utils/supabase'
+import { feedbackService } from '../../services/feedbackService'
 import { formatDateTime } from '../../utils/format'
 import { useDictOptions, useDictColors } from '../../hooks/useDictOptions'
 import { useMounted } from '../../hooks/useMounted'
@@ -39,17 +39,12 @@ export function FlowHistoryModal({ open, record, onClose }: FlowHistoryModalProp
   useEffect(() => {
     if (open && record) {
       setLoading(true)
-      supabase
-        .from('feedback_flow_records')
-        .select('id, feedback_id, action, remark, operator_id, operator_name, created_at')
-        .eq('feedback_id', record.id)
-        .order('created_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (error) console.error('获取流转记录失败:', error)
-          if (!mountedRef.current) return
-          setRecords(data || [])
-          setLoading(false)
-        })
+      feedbackService.findFlowRecords(record.id).then((res) => {
+        if (!mountedRef.current) return
+        // service 失败已统一弹窗 + 记日志，这里保持空列表展示
+        setRecords((res.data as FlowRecord[]) || [])
+        setLoading(false)
+      })
     }
   }, [open, record])
 
