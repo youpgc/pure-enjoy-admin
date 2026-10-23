@@ -23,7 +23,7 @@ import { useMounted } from '../../hooks/useMounted'
 import { useUsernames } from '../../hooks/useUsernames'
 import { useGameMeta } from '../../utils/gameMetaCache'
 import { userService } from '../../services/userService'
-import { useNavigation } from '../../App'
+import { useNavigation } from '../../contexts/NavigationContext'
 import {
   gameScoreService,
   gameScoreValueService,

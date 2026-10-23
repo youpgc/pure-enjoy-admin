@@ -28,7 +28,7 @@ import {
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { useUsernames } from '../../hooks/useUsernames'
-import { useNavigation } from '../../App'
+import { useNavigation } from '../../contexts/NavigationContext'
 import { UserName } from '../../components/common/UserName'
 import dayjs from 'dayjs'
 import styles from './index.module.css'

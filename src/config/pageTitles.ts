@@ -1,4 +1,4 @@
-import type { PageKey } from '../App'
+import type { PageKey } from '../contexts/NavigationContext'
 
 /**
  * 各页面标题映射，从 App.tsx 的 getPageTitle 抽离（God File 优化，审查报告 P2a）。

@@ -5,7 +5,7 @@ import {
   TrophyOutlined, ReloadOutlined,
 } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
-import { useNavigation } from '../../App'
+import { useNavigation } from '../../contexts/NavigationContext'
 import { useDashboard } from './useDashboard'
 import { buildGameOverviewColumns } from './columns'
 import { StatsCards } from './StatsCards'

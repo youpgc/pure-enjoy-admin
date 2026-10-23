@@ -24,7 +24,7 @@ import {
   logUserOperation,
   userService,
 } from '../../services/userService'
-import { useAuth } from '../../App'
+import { useAuth } from '../../contexts/AuthContext'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
 import { usePagination } from '../../hooks/usePagination'

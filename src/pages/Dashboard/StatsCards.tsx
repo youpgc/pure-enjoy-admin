@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons'
 import { formatNumber } from './format'
 import type { UserStats, GameStats } from './types'
-import type { PageKey } from '../../App'
+import type { PageKey } from '../../contexts/NavigationContext'
 import styles from './StatsCards.module.css'
 import common from '../../styles/common.module.css'
 

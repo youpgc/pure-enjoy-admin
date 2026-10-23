@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Card, Form, Input, Tabs, Avatar, Upload, Space, Button, message, Spin, Select, InputNumber } from 'antd'
 import { UploadOutlined, UserOutlined } from '@ant-design/icons'
-import { useAuth } from '../../App'
+import { useAuth } from '../../contexts/AuthContext'
 import {
   updateProfile,
   changePassword,
