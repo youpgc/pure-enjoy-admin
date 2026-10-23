@@ -193,7 +193,7 @@ const CheckinCalendarDrawer: React.FC<{
 const CheckinManagement: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<CheckinSummary[]>([])
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 })
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 })
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<CheckinSummary | null>(null)
 
@@ -285,7 +285,7 @@ const CheckinManagement: React.FC = () => {
             rowKey="user_id"
             loading={loading}
             pagination={pagination}
-            onChange={(pag) => setPagination((p) => ({ ...p, current: pag.current || 1, pageSize: pag.pageSize || 20 }))}
+            onChange={(pag) => setPagination((p) => ({ ...p, current: pag.current || 1, pageSize: pag.pageSize || 10 }))}
             scroll={{ x: 700 }}
             size="middle"
             bordered
