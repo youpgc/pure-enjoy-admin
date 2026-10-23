@@ -6,7 +6,8 @@ import type { PetQuestRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petQuestService, petItemService } from '../../services/petService'
-import { PET_QUEST_TYPE_LABELS, PET_QUEST_DIFFICULTY_LABELS, PET_QUEST_DIFFICULTY_COLORS, PET_QUEST_TYPE_OPTIONS, PET_QUEST_DIFFICULTY_OPTIONS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { PET_QUEST_TYPE_LABELS, PET_QUEST_DIFFICULTY_LABELS, PET_QUEST_DIFFICULTY_COLORS, PET_QUEST_TYPE_OPTIONS, PET_QUEST_DIFFICULTY_OPTIONS, PET_QUEST_CONDITION_TYPE_LABELS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { RewardPackageCell, usePetItemCatalog } from '../../components/pet/RewardCells'
 import QuestFormModal, { type QuestFormValues } from './QuestFormModal'
 import common from '../../styles/common.module.css'
 
@@ -25,6 +26,7 @@ const PetQuests: React.FC = () => {
   const [items, setItems] = useState<Array<{ item_code: string; name: string; category: string }>>([])
   const [typeFilter, setTypeFilter] = useState('')
   const [difficultyFilter, setDifficultyFilter] = useState('')
+  const catalog = usePetItemCatalog()
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -106,14 +108,15 @@ const PetQuests: React.FC = () => {
       title: '条件',
       dataIndex: 'condition',
       render: (v: Record<string, unknown>) =>
-        v && v.type ? `${String(v.type)} · 目标 ${String(v.target ?? 1)} 次` : '-',
+        v && v.type
+          ? `${PET_QUEST_CONDITION_TYPE_LABELS[String(v.type)] ?? String(v.type)} · 目标 ${String(v.target ?? 1)} 次`
+          : '-',
       ellipsis: true,
     },
     {
       title: '奖励',
       dataIndex: 'rewards',
-      render: (v: Record<string, unknown>) =>
-        v && Object.keys(v).length > 0 ? JSON.stringify(v) : '-',
+      render: (v: Record<string, unknown>) => <RewardPackageCell value={v} catalog={catalog} />,
       ellipsis: true,
     },
     {

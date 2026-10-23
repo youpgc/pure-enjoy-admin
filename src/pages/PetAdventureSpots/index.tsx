@@ -12,6 +12,7 @@ import {
   PET_TABLE_PAGE_SIZE,
 } from '../../constants/pet'
 import SpotFormModal, { type SpotFormValues } from './SpotFormModal'
+import { DropTableCell, usePetItemCatalog } from '../../components/pet/RewardCells'
 import common from '../../styles/common.module.css'
 
 // ==================== 历险地管理（pet_adventure_spots） ====================
@@ -26,6 +27,7 @@ const PetAdventureSpots: React.FC = () => {
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetAdventureSpotRow | null>(null)
+  const catalog = usePetItemCatalog()
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -79,6 +81,7 @@ const PetAdventureSpots: React.FC = () => {
     { title: '名称', dataIndex: 'name', width: 140 },
     {
       title: '解锁条件',
+      width: 140,
       dataIndex: 'unlock_conditions',
       render: (v: unknown[]) => {
         // 中文翻译展示：[{type:'level',value:N}] → 「宠物等级 ≥ N」；未知 type 回退原始串
@@ -139,6 +142,12 @@ const PetAdventureSpots: React.FC = () => {
         ) : (
           <Tag>空</Tag>
         ),
+    },
+    {
+      title: '掉落',
+      dataIndex: 'drop_table',
+      width: 360,
+      render: (v: Record<string, unknown>) => <DropTableCell value={v} catalog={catalog} />,
     },
     {
       title: '失败惩罚',

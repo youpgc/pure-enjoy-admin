@@ -18,6 +18,7 @@ import {
   PET_TABLE_PAGE_SIZE,
 } from '../../constants/pet'
 import ItemFormModal, { type ItemFormValues } from './ItemFormModal'
+import { PetItemIcon } from '../../components/pet/PetItemIcon'
 import common from '../../styles/common.module.css'
 
 // ==================== 道具目录管理（pet_items，三大类 + 扩容阶梯统一编辑） ====================
@@ -26,39 +27,8 @@ import common from '../../styles/common.module.css'
 // - 移除所有下拉的「全部」选项；「类型」（原分类）默认取第一个值，其余筛选项默认空；
 // - 「子类型」与「类型」数据联动，选项从库行动态派生（静态映射易落后于线上值域），
 //   工具类型追加三套扩容阶梯前缀项；
-// - 图标列：pet_items.icon 形如 icon/<key>，双端资源落位前回退显示键名；
+// - 图标列：pet_items.icon 形如 icon/<key>（PetItemIcon 共享件，缺失回退键名）；
 // - 积分购买已下线：移除积分价列，保存时强制 price_points=null / points_purchasable=false。
-
-/** icon 字段值（icon/<key>）→ 资源键；非该格式返回 null */
-const iconKey = (icon: string | null): string | null => {
-  if (!icon) return null
-  return icon.startsWith('icon/') ? icon.slice(5) : icon
-}
-
-/** 图标单元格：双端资源（public/pet-icons/<key>.svg）缺失时回退键名
- *  ⚠️ 必须带 import.meta.env.BASE_URL 前缀：本工程 vite base 为 /pure-enjoy-admin/，
- *  写绝对路径 /pet-icons/... 部署后 404（同 constants/game.ts 图标基址口径） */
-const PetItemIcon: React.FC<{ icon: string | null }> = ({ icon }) => {
-  const [failed, setFailed] = useState(false)
-  const key = iconKey(icon)
-  if (!key) return <Tag>无图标</Tag>
-  if (failed)
-    return (
-      <Tag style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        {key}
-      </Tag>
-    )
-  return (
-    <img
-      alt={key}
-      src={`${import.meta.env.BASE_URL}pet-icons/${key}.svg`}
-      width={32}
-      height={32}
-      onError={() => setFailed(true)}
-      style={{ display: 'block', borderRadius: 6, background: '#fafafa' }}
-    />
-  )
-}
 
 const PetItems: React.FC = () => {
   const { hasPermission } = usePermission()

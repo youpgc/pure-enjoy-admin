@@ -16,6 +16,7 @@ import {
   petEventLotteryService,
 } from '../../services/petService'
 import { PET_TABLE_PAGE_SIZE, PET_EVENT_CONTEXT_LABELS } from '../../constants/pet'
+import { usePetItemCatalog } from '../../components/pet/RewardCells'
 import { buildEventColumns } from './columns'
 import EventFormModal, { type EventFormValues } from './EventFormModal'
 import common from '../../styles/common.module.css'
@@ -37,7 +38,8 @@ const eventTitle = (r: PetEventChoiceLogRow): string => {
   return title ? `${title}（${r.event?.code ?? ''}）` : r.event?.code ?? '-'
 }
 
-const fmtRewards = (v: unknown): string => {
+/** 奖惩包 → 可读文本；道具码经目录转中文名 */
+const fmtRewards = (v: unknown, itemName: (code: string) => string): string => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return '-'
   const r = v as Record<string, unknown>
   const parts: string[] = []
@@ -51,11 +53,14 @@ const fmtRewards = (v: unknown): string => {
   n('mood', '心情')
   n('intimacy', '亲密')
   n('hunger', '饱食')
-  if (r.item_code) parts.push(`${r.item_code}×${typeof r.item_count === 'number' ? r.item_count : 1}`)
+  if (r.item_code)
+    parts.push(`${itemName(String(r.item_code))}×${typeof r.item_count === 'number' ? r.item_count : 1}`)
   return parts.length ? parts.join('，') : '-'
 }
 
-const buildChoiceLogColumns = (): ColumnsType<PetEventChoiceLogRow> => [
+const buildChoiceLogColumns = (
+  itemName: (code: string) => string,
+): ColumnsType<PetEventChoiceLogRow> => [
   {
     title: '时间',
     dataIndex: 'created_at',
@@ -80,7 +85,7 @@ const buildChoiceLogColumns = (): ColumnsType<PetEventChoiceLogRow> => [
   {
     title: '奖惩（公示包）',
     dataIndex: 'rewards',
-    render: (v: unknown) => fmtRewards(v),
+    render: (v: unknown) => fmtRewards(v, itemName),
   },
 ]
 
@@ -88,6 +93,7 @@ const PetEvents: React.FC = () => {
   const { hasPermission } = usePermission()
   const canWrite = hasPermission('pets:write')
   const canDelete = hasPermission('pets:delete')
+  const catalog = usePetItemCatalog()
 
   const [rows, setRows] = useState<PetRandomEventRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -246,7 +252,9 @@ const PetEvents: React.FC = () => {
     </>
   )
 
-  const logColumns = buildChoiceLogColumns().map((c) =>
+  const logColumns = buildChoiceLogColumns(
+    (code) => catalog.get(code)?.name ?? code,
+  ).map((c) =>
     c.title === '用户'
       ? {
           ...c,
@@ -332,7 +340,17 @@ const PetEvents: React.FC = () => {
       key: 'event',
       width: 180,
       ellipsis: true,
-      render: (_, r) => String((r.result as Record<string, unknown> | null)?.event_code ?? '-'),
+      render: (_, r) => {
+        const code = String((r.result as Record<string, unknown> | null)?.event_code ?? '')
+        if (!code) return '-'
+        // 掷中记录只有事件码，标题从事件配置行 content.title 联查（同页 rows）
+        const evt = rows.find((e) => e.code === code)
+        const title =
+          evt?.content && typeof evt.content === 'object' && !Array.isArray(evt.content)
+            ? String((evt.content as Record<string, unknown>).title ?? '')
+            : ''
+        return title ? `${title}（${code}）` : code
+      },
     },
     {
       title: '配置版本',

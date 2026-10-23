@@ -75,6 +75,7 @@ export const PET_ITEM_SUB_TYPE_LABELS: Record<string, string> = {
   heal: '治疗',
   refine_point: '属性洗练',
   trait_wash: '特性洗练',
+  exp_double: '双倍经验',
   // tool
   rescue: '救援',
   evolution: '进化石',
@@ -162,6 +163,22 @@ export const PET_QUEST_DIFFICULTY_COLORS: Record<string, string> = {
   normal: 'green',
   advanced: 'orange',
   hard: 'red',
+}
+
+/// 任务条件类型（pet_quests.condition.type，与 App PetQuestConditionType 值域对齐；
+/// 未登记码由列渲染原样展示）
+export const PET_QUEST_CONDITION_TYPE_LABELS: Record<string, string> = {
+  feed: '喂养次数',
+  interact: '互动次数',
+  adventure: '历险次数',
+  hatch: '孵化次数',
+  clean: '清洁次数',
+  play: '游玩次数',
+  heal: '治疗次数',
+  exchange: '积分兑换次数',
+  scene: '场景装扮次数',
+  breed: '繁育次数',
+  evolve: '进化次数',
 }
 
 export const PET_QUEST_DIFFICULTY_OPTIONS = Object.entries(PET_QUEST_DIFFICULTY_LABELS).map(
@@ -282,6 +299,44 @@ export const PET_EGG_MODE_OPTIONS = [
   { value: 'wait', label: '等待' },
 ]
 
+export const PET_EGG_MODE_LABELS: Record<string, string> = Object.fromEntries(
+  PET_EGG_MODE_OPTIONS.map((o) => [o.value, o.label]),
+)
+
+/// 特性效果类型（pet_traits.effect_type，值域来自线上种子；未登记码原样展示）
+export const PET_TRAIT_EFFECT_TYPE_LABELS: Record<string, string> = {
+  exp_bonus: '经验加成',
+  gold_bonus: '金币加成',
+  feed_exp_bonus: '喂食经验加成',
+  hunger_decay_slow: '饱食衰减减缓',
+  mood_decay_slow: '心情衰减减缓',
+  health_recover_bonus: '健康恢复加成',
+  intimacy_bonus: '亲密度加成',
+  adventure_time_reduce: '历险时长缩短',
+  adventure_danger_reduce: '历险遇险降低',
+  breed_cd_reduce: '繁育冷却缩短',
+  drop_chance_bonus: '掉落概率提升',
+}
+
+/// 宠物时间线事件类型（pet_timeline_logs.event_type，12 类 = 全部写入点实证：
+/// levelup/evolve/rename/release/obtain/breed/adventure_memory/adventure_failed/
+/// adventure_recalled/refine_reassigned/trait_wash/spot_hidden_unlock；
+/// 未登记码回退原样展示，便于新事件先行落库观察）
+export const PET_TIMELINE_EVENT_META: Record<string, { label: string; color: string }> = {
+  levelup: { label: '升级', color: 'green' },
+  evolve: { label: '进化', color: 'purple' },
+  rename: { label: '改名', color: 'blue' },
+  release: { label: '送别', color: 'default' },
+  obtain: { label: '孵化获得', color: 'cyan' },
+  breed: { label: '繁育产蛋', color: 'gold' },
+  adventure_memory: { label: '历险归来', color: 'geekblue' },
+  adventure_failed: { label: '历险失败', color: 'red' },
+  adventure_recalled: { label: '历险召回', color: 'default' },
+  refine_reassigned: { label: '属性洗练', color: 'purple' },
+  trait_wash: { label: '特性洗练', color: 'purple' },
+  spot_hidden_unlock: { label: '秘境解锁', color: 'magenta' },
+}
+
 // ---------- 四维属性（2026-09-17 属性系统，与 App/SQL 对齐） ----------
 // 消费点实证（feature_pet_attributes_20260917.sql）：
 // - 种属 base_attributes.base 键 / hatch roll 维度；
@@ -374,6 +429,13 @@ export const PET_ACH_CONDITION_TYPE_LABELS: Record<string, string> = {
   pets_owned: '拥有宠物数达到',
   families_owned: '拥有系别数达到',
   rarity_owned: '拥有指定评级宠物（condition_value.rarity）',
+  clean_total: '累计清洁次数',
+  play_total: '累计游玩次数',
+  heal_total: '累计治疗次数',
+  exchange_total: '累计积分兑换次数',
+  scene_total: '累计场景装扮次数',
+  gold_earned_total: '累计获得金币',
+  dex_total: '图鉴收集形态数',
 }
 
 export const PET_ACH_CONDITION_TYPE_OPTIONS = Object.entries(

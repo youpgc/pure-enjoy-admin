@@ -6,6 +6,7 @@ import { usePermission } from '../../hooks/usePermission'
 import { petAchievementService, petItemService } from '../../services/petService'
 import { PET_ACH_TIER_OPTIONS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { buildAchievementColumns } from './columns'
+import { usePetItemCatalog } from '../../components/pet/RewardCells'
 import AchievementFormModal, { type AchievementFormValues } from './AchievementFormModal'
 import common from '../../styles/common.module.css'
 
@@ -37,6 +38,7 @@ const AchievementsTab: React.FC<{ onRowsChange: (rows: AchievementOption[]) => v
   const [keyword, setKeyword] = useState('')
   const [tierFilter, setTierFilter] = useState('')
   const [enabledFilter, setEnabledFilter] = useState('')
+  const catalog = usePetItemCatalog()
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -103,6 +105,7 @@ const AchievementsTab: React.FC<{ onRowsChange: (rows: AchievementOption[]) => v
   const columns = buildAchievementColumns({
     canWrite,
     canDelete,
+    catalog,
     onEdit: (record) => {
       setEditing(record)
       setModalOpen(true)

@@ -1,8 +1,9 @@
 import { Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { PetAchievementRow } from '../../types/pet'
-import { PET_ACH_CONDITION_TYPE_LABELS, PET_ACH_TIER_COLORS, PET_ACH_TIER_LABELS } from '../../constants/pet'
-import { asObject, asArray, numOf } from '../../components/form/pet/editors/shared'
+import { PET_ACH_CONDITION_TYPE_LABELS, PET_ACH_TIER_COLORS, PET_ACH_TIER_LABELS, PET_RARITY_CODE_SELECT_OPTIONS } from '../../constants/pet'
+import { asObject, numOf } from '../../components/form/pet/editors/shared'
+import { RewardPackageCell, type PetItemCatalog } from '../../components/pet/RewardCells'
 import { getActionColumn } from '../../components/common/ActionColumn'
 
 // ==================== 成就列定义（pet_achievements） ====================
@@ -13,35 +14,20 @@ function conditionSummary(row: PetAchievementRow): string {
   const obj = asObject(row.condition_value)
   const target = numOf(obj.value, numOf(obj.target, 1))
   const rarity = typeof obj.rarity === 'string' ? obj.rarity : ''
-  return `${label} · 目标 ${target}${rarity ? ` · 评级 ${rarity}` : ''}`
-}
-
-/// 奖励包概要（与任务 rewards 同 schema：gold / points / items[]）
-function rewardSummary(value: unknown): string {
-  const obj = asObject(value)
-  const parts: string[] = []
-  const gold = numOf(obj.gold)
-  const points = numOf(obj.points)
-  if (gold) parts.push(`金币 ${gold}`)
-  if (points) parts.push(`积分 ${points}`)
-  const items = asArray(obj.items)
-  if (items.length > 0) {
-    parts.push(
-      items
-        .map((i) => `${String(i.code ?? '?')}×${String(i.count ?? 1)}`)
-        .join('、')
-    )
-  }
-  return parts.length > 0 ? parts.join(' / ') : '-'
+  const rarityLabel = rarity
+    ? PET_RARITY_CODE_SELECT_OPTIONS.find((o) => o.value === rarity)?.label ?? rarity
+    : ''
+  return `${label} · 目标 ${target}${rarityLabel ? ` · 评级 ${rarityLabel}` : ''}`
 }
 
 export function buildAchievementColumns(handlers: {
   canWrite: boolean
   canDelete: boolean
+  catalog: PetItemCatalog
   onEdit: (record: PetAchievementRow) => void
   onDelete: (record: PetAchievementRow) => void
 }): ColumnsType<PetAchievementRow> {
-  const { canWrite, canDelete, onEdit, onDelete } = handlers
+  const { canWrite, canDelete, catalog, onEdit, onDelete } = handlers
   return [
     { title: '编码', dataIndex: 'code', width: 170 },
     { title: '名称', dataIndex: 'title', width: 150 },
@@ -62,7 +48,7 @@ export function buildAchievementColumns(handlers: {
     {
       title: '奖励包',
       dataIndex: 'reward_package',
-      render: (v: unknown) => rewardSummary(v),
+      render: (v: unknown) => <RewardPackageCell value={v} catalog={catalog} />,
       ellipsis: true,
     },
     {
