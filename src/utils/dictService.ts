@@ -190,43 +190,6 @@ export async function getMoodTypeOptions(): Promise<Array<{ label: string; value
 }
 
 /**
- * 小说分类选项
- */
-export async function getNovelCategoryOptions(): Promise<Array<{ label: string; value: string }>> {
-  const options = await getDictOptions('novel_category')
-  if (options.length === 0) {
-    return [
-      { label: '玄幻', value: '玄幻' },
-      { label: '修真', value: '修真' },
-      { label: '都市', value: '都市' },
-      { label: '言情', value: '言情' },
-      { label: '科幻', value: '科幻' },
-      { label: '历史', value: '历史' },
-      { label: '游戏', value: '游戏' },
-      { label: '悬疑', value: '悬疑' },
-      { label: '武侠', value: '武侠' },
-      { label: '灵异', value: '灵异' },
-      { label: '其他', value: '其他' },
-    ]
-  }
-  return options
-}
-
-/**
- * 小说状态选项
- */
-export async function getNovelStatusOptions(): Promise<Array<{ label: string; value: string }>> {
-  const options = await getDictOptions('novel_status')
-  if (options.length === 0) {
-    return [
-      { label: '连载中', value: 'ongoing' },
-      { label: '已完结', value: 'completed' },
-    ]
-  }
-  return options
-}
-
-/**
  * 反馈分类选项
  */
 export async function getFeedbackCategoryOptions(): Promise<Array<{ label: string; value: string }>> {
