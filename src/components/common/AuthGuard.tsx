@@ -74,10 +74,11 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
         // 二级兜底：即便 is_admin() RPC 未含 status 条件，也按 users.status 拦截
         // 禁用/封禁账户（软删除仅置 status，若 RPC 不校验则被禁管理员仍可进后台，审查 P1-2/P2-7）。
         // RLS 限制下查不到 profile 时放行（主闭环依赖 is_admin SQL 加 status 条件）。
+        // users.id 已统一为 Supabase Auth UUID（migrate_unify_user_id_v1），直接按 id 命中。
         const result = await supabase
           .from('users')
           .select('status')
-          .eq('auth_id', session.user.id)
+          .eq('id', session.user.id)
           .maybeSingle()
         const profile = result.data as { status?: string } | null
         if (profile && profile.status !== USER_STATUS_ACTIVE) {
