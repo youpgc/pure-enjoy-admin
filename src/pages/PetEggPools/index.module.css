@@ -1,0 +1,80 @@
+/* 蛋池与概率管理页样式 */
+
+/* 公示预览卡片（镜像 App 产出概率说明卡片） */
+.oddsCard {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  padding: 14px 14px 16px;
+}
+
+.oddsHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eggIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #fff7e6;
+  color: #d48806;
+  font-size: 22px;
+}
+
+.poolName {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.initialBanner {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #fff7e6;
+  color: #874d00;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.oddsSubtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.oddsGroup {
+  margin-top: 10px;
+}
+
+.oddsGroupLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.oddsChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.oddsChip {
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: #f5f5f5;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.oddsFootnote {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+}

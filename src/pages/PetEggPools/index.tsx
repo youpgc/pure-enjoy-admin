@@ -1,14 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import { Table, Alert, Card, Button, Space, Tag, Typography, message, Modal, Descriptions } from 'antd'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Table, Alert, Card, Button, Space, Select, Tag, Typography, message } from 'antd'
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { PetEggPoolRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petEggPoolService } from '../../services/petService'
-import { stringifyJson } from '../../utils/petJson'
 import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import PoolFormModal, { type PoolFormValues } from './PoolFormModal'
+import OddsPreviewModal from './OddsPreviewModal'
 import common from '../../styles/common.module.css'
 
 // ==================== 蛋池与概率管理（pet_egg_pools） ====================
@@ -55,6 +56,29 @@ const PetEggPools: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetEggPoolRow | null>(null)
   const [preview, setPreview] = useState<PetEggPoolRow | null>(null)
+
+  // 发布状态筛选（页签刷新经 tabFilterCache 恢复；默认仅看已发布版本——历史版本行混显是运维干扰源）
+  const restoredFilters = loadTabFilters('pet_egg_pools')
+  const [publishedFilter, setPublishedFilter] = useState<string>(
+    (restoredFilters.publishedFilter as string) ?? 'published',
+  )
+  usePersistTabFilters('pet_egg_pools', { publishedFilter })
+
+  const filteredRows = useMemo(
+    () =>
+      publishedFilter === 'all'
+        ? rows
+        : rows.filter((r) => (publishedFilter === 'published' ? r.published : !r.published)),
+    [rows, publishedFilter],
+  )
+
+  // 历史版本行守卫：已下架且非该池最高版本 = 历史快照，禁止编辑（版本史审计链保护）
+  const isHistoricalRow = useCallback(
+    (r: PetEggPoolRow) =>
+      !r.published &&
+      rows.some((x) => x.pool_code === r.pool_code && x.config_version > r.config_version),
+    [rows],
+  )
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -166,6 +190,10 @@ const PetEggPools: React.FC = () => {
         label: '编辑',
         disabled: !canWrite,
         onClick: () => {
+          if (isHistoricalRow(record)) {
+            message.warning('历史版本行已锁定，仅该池最新发布版本可编辑（版本史审计保护），如需调整请递增版本号发布新行')
+            return
+          }
           setEditing(record)
           setModalOpen(true)
         },
@@ -188,11 +216,21 @@ const PetEggPools: React.FC = () => {
         showIcon
         className={common.mb16}
         message="蛋池概率说明"
-        description="固定概率原则：概率判定只在服务端 RPC，判定结果写 pet_lottery_records（含 config_version）审计；App 端公示读取「已发布」版本的同一份 weights，公示与判定永远同源。改概率 = 递增 config_version 后再发布。"
+        description="固定概率原则：概率判定只在服务端 RPC，判定结果写 pet_lottery_records（含 config_version）审计；App 端公示读取「已发布」版本的同一份 weights，公示与判定永远同源。改概率 = 递增 config_version 后再发布。列表默认仅显示已发布版本，历史版本行只读保护。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
           <Space wrap>
+            <Select
+              className={common.sel240}
+              value={publishedFilter}
+              onChange={setPublishedFilter}
+              options={[
+                { value: 'published', label: '已发布（App 可见）' },
+                { value: 'unpublished', label: '未发布（历史/草稿）' },
+                { value: 'all', label: '全部版本' },
+              ]}
+            />
             <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRows()}>
               刷新
             </Button>
@@ -214,9 +252,10 @@ const PetEggPools: React.FC = () => {
         rowKey="id"
         loading={loading}
         columns={columns}
-        dataSource={rows}
+        dataSource={filteredRows}
         pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
         size="middle"
+        locale={{ emptyText: publishedFilter === 'published' ? '暂无已发布蛋池' : '暂无数据' }}
       />
       <PoolFormModal
         open={modalOpen}
@@ -225,27 +264,7 @@ const PetEggPools: React.FC = () => {
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
       />
-      <Modal
-        title={`公示预览 · ${preview?.pool_code ?? ''} v${preview?.config_version ?? ''}`}
-        open={preview !== null}
-        footer={null}
-        onCancel={() => setPreview(null)}
-        width={560}
-      >
-        {preview && (
-          <>
-            <Descriptions size="small" column={2} className={common.mb16}>
-              <Descriptions.Item label="发布状态">
-                {preview.published ? <Tag color="green">已发布（App 可见）</Tag> : <Tag>未发布（App 不可见）</Tag>}
-              </Descriptions.Item>
-              <Descriptions.Item label="版本">v{preview.config_version}</Descriptions.Item>
-            </Descriptions>
-            <pre className={common.mb16} style={{ maxHeight: 360, overflow: 'auto', fontSize: 12 }}>
-              {stringifyJson(preview.weights)}
-            </pre>
-          </>
-        )}
-      </Modal>
+      <OddsPreviewModal row={preview} onClose={() => setPreview(null)} />
     </div>
   )
 }
