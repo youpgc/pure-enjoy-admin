@@ -12,6 +12,7 @@ import {
   PET_ITEM_CATEGORY_COLORS,
   PET_ITEM_CATEGORY_OPTIONS,
   PET_ITEM_CHANNEL_LABELS,
+  PET_ITEM_SUB_TYPE_LABELS,
   PET_LADDER_KEY_LABELS,
   PET_LADDER_KEY_COLORS,
   PET_TABLE_PAGE_SIZE,
@@ -23,7 +24,8 @@ import common from '../../styles/common.module.css'
 //
 // 筛选交互（2026-09-17 调整）：
 // - 移除所有下拉的「全部」选项；「类型」（原分类）默认取第一个值，其余筛选项默认空；
-// - 「子类型」与「类型」数据联动：消耗品→食物/清洁/玩具，工具→救援 + 三套扩容阶梯；
+// - 「子类型」与「类型」数据联动，选项从库行动态派生（静态映射易落后于线上值域），
+//   工具类型追加三套扩容阶梯前缀项；
 // - 图标列：pet_items.icon 形如 icon/<key>，双端资源落位前回退显示键名；
 // - 积分购买已下线：移除积分价列，保存时强制 price_points=null / points_purchasable=false。
 
@@ -56,24 +58,6 @@ const PetItemIcon: React.FC<{ icon: string | null }> = ({ icon }) => {
       style={{ display: 'block', borderRadius: 6, background: '#fafafa' }}
     />
   )
-}
-
-/** 类型 → 子类型联动选项（value 前缀 ladder: 表示按扩容阶梯匹配）；
- *  键一律取自 PET_ITEM_CATEGORY_TYPES 枚举码，禁止类目字面量副本 */
-const SUB_OPTIONS_BY_CATEGORY: Record<string, Array<{ value: string; label: string }>> = {
-  [PET_ITEM_CATEGORY_TYPES.EGG]: [{ value: 'initial', label: '初始蛋' }],
-  [PET_ITEM_CATEGORY_TYPES.CONSUMABLE]: [
-    { value: 'food', label: '食物' },
-    { value: 'clean', label: '清洁' },
-    { value: 'toy', label: '玩具' },
-  ],
-  [PET_ITEM_CATEGORY_TYPES.TOOL]: [
-    { value: 'rescue', label: '救援' },
-    ...Object.entries(PET_LADDER_KEY_LABELS).map(([value, label]) => ({
-      value: `ladder:${value}`,
-      label: `${label}扩容`,
-    })),
-  ],
 }
 
 const PetItems: React.FC = () => {
@@ -130,7 +114,26 @@ const PetItems: React.FC = () => {
     [rows, categoryFilter, subFilter, shelfFilter, keyword]
   )
 
-  const subOptions = SUB_OPTIONS_BY_CATEGORY[categoryFilter] ?? []
+  // 子类型选项动态派生：当前类型在库行的 sub_type 去重（值域新增道具自动出现，
+  // 标签取 PET_ITEM_SUB_TYPE_LABELS，未登记码原样展示）；工具类型追加 ladder: 前缀
+  // 扩容阶梯项（matchSub 按 r.ladder_key 前缀语义匹配）
+  const subOptions = useMemo(() => {
+    const codes = Array.from(
+      new Set(
+        rows.filter((r) => r.category === categoryFilter && r.sub_type).map((r) => r.sub_type as string),
+      ),
+    ).sort()
+    const options = codes.map((v) => ({ value: v, label: PET_ITEM_SUB_TYPE_LABELS[v] ?? v }))
+    if (categoryFilter === PET_ITEM_CATEGORY_TYPES.TOOL) {
+      options.push(
+        ...Object.entries(PET_LADDER_KEY_LABELS).map(([value, label]) => ({
+          value: `ladder:${value}`,
+          label: `${label}扩容`,
+        })),
+      )
+    }
+    return options
+  }, [rows, categoryFilter])
 
   const handleSave = async (values: ItemFormValues) => {
     setSaving(true)

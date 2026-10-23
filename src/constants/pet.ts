@@ -62,6 +62,30 @@ export const PET_ITEM_CATEGORY_LABELS: Record<string, string> = {
   [PET_ITEM_CATEGORY_TYPES.TOOL]: '工具',
 }
 
+/// 道具子类型中文标签（值域来自线上 pet_items 实测，文案按道具名定稿；
+/// 未登记码由筛选项原样展示——新 sub_type 无需改代码即可筛）
+export const PET_ITEM_SUB_TYPE_LABELS: Record<string, string> = {
+  // egg
+  initial: '初始蛋',
+  random: '随机蛋',
+  // consumable
+  food: '食物',
+  clean: '清洁',
+  toy: '玩具',
+  heal: '治疗',
+  refine_point: '属性洗练',
+  trait_wash: '特性洗练',
+  // tool
+  rescue: '救援',
+  evolution: '进化石',
+  accelerate: '孵化加速',
+  expand: '扩容',
+  key: '罗盘',
+  rename: '更名卡',
+  scene: '场景主题',
+  unlock: '功能解锁',
+}
+
 export const PET_ITEM_CATEGORY_COLORS: Record<string, string> = {
   egg: 'geekblue',
   consumable: 'green',
