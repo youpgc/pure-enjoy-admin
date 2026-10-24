@@ -70,6 +70,11 @@ export const kPetBendForms: Readonly<Record<string, PetBendForm>> = {
   "rabbit_sr1": b("rabbit_sr1", "银狐", "sr", 0, "pet-anim/rabbit/sr/rabbit_sr1/s0", { HEAD_TOP: 99, YN: 292, FOOT: 383, DROOP_RAMP: 0.25, DROOP_RAMP_MIN: 40 }),
   "rabbit_sr2": b("rabbit_sr2", "岚岚", "sr", 0, "pet-anim/rabbit/sr/rabbit_sr2/s0", { HEAD_TOP: 114, YN: 297, FOOT: 383, DROOP_RAMP: 0.25, DROOP_RAMP_MIN: 40 }),
   "rabbit_ssr1": b("rabbit_ssr1", "玉兔", "ssr", 0, "pet-anim/rabbit/ssr/rabbit_ssr1/s0", { HEAD_TOP: 114, YN: 297, FOOT: 383, DROOP_RAMP: 0.25, DROOP_RAMP_MIN: 40 }),
+  "mouse_r2": b("mouse_r2", "花枝", "r", 0, "pet-anim/mouse/r/mouse_r2/s0", { HEAD_TOP: 144, YN: 307, FOOT: 383, DROOP_RAMP: 0.25, DROOP_RAMP_MIN: 40 }),
+  "mouse_r3": b("mouse_r3", "栗子", "r", 0, "pet-anim/mouse/r/mouse_r3/s0", { HEAD_TOP: 114, YN: 297, FOOT: 383, DROOP_RAMP: 0.25, DROOP_RAMP_MIN: 40 }),
+  "mouse_sr1": b("mouse_sr1", "奶茶", "sr", 0, "pet-anim/mouse/sr/mouse_sr1/s0", { HEAD_TOP: 168, YN: 314, FOOT: 383, DROOP_RAMP: 0.25, DROOP_RAMP_MIN: 40 }),
+  "mouse_sr2": b("mouse_sr2", "翼翼", "sr", 0, "pet-anim/mouse/sr/mouse_sr2/s0", { HEAD_TOP: 144, YN: 307, FOOT: 383, DROOP_RAMP: 0.25, DROOP_RAMP_MIN: 40 }),
+  "mouse_ssr1": b("mouse_ssr1", "松灵", "ssr", 0, "pet-anim/mouse/ssr/mouse_ssr1/s0", { HEAD_TOP: 144, YN: 307, FOOT: 383, DROOP_RAMP: 0.25, DROOP_RAMP_MIN: 40 }),
 };
 
 /** 后台 species_code → 弯曲形态；未登记返回 undefined。 */
