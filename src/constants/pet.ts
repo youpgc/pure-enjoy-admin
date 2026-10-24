@@ -494,7 +494,6 @@ export const PET_EVENT_CONTEXT_OPTIONS = Object.entries(
 /// 奖惩包数值键（choose 结算与 App 公示同源；hunger 允许负值=代价型选项）
 export const PET_EVENT_REWARD_FIELDS = [
   { key: 'gold', label: '金币', min: 0 },
-  { key: 'points', label: '积分', min: 0 },
   { key: 'exp', label: '经验', min: 0 },
   { key: 'mood', label: '心情', min: 0 },
   { key: 'intimacy', label: '亲密', min: 0 },
