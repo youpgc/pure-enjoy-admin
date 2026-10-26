@@ -436,6 +436,8 @@ export const PET_ACH_CONDITION_TYPE_LABELS: Record<string, string> = {
   scene_total: '累计场景装扮次数',
   gold_earned_total: '累计获得金币',
   dex_total: '图鉴收集形态数',
+  collection_total: '累计获得收藏品',
+  tree_full_claim: '成就树圆满度（全树领取数）',
 }
 
 export const PET_ACH_CONDITION_TYPE_OPTIONS = Object.entries(
