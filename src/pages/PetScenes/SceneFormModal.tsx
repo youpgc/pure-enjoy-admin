@@ -50,10 +50,10 @@ const SceneFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel
         <Form.Item
           name="scene_code"
           label="场景编码"
-          tooltip="命名即契约：如 scene_moonlit_garden；道具管理的 bg_scene_id 按此值关联"
+          tooltip="命名即契约：如 scene_sakura；道具管理的 bg_scene_id 按此值关联"
           rules={[{ required: true, message: '请输入场景编码' }]}
         >
-          <Input placeholder="如 scene_moonlit_garden" />
+          <Input placeholder="如 scene_sakura" />
         </Form.Item>
         <Form.Item name="name" label="场景名称" rules={[{ required: true, message: '请输入名称' }]}>
           <Input placeholder="如 月夜云端庭院" />
@@ -61,9 +61,9 @@ const SceneFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel
         <Form.Item
           name="asset_ref"
           label="素材引用"
-          tooltip="一期 2D：背景图层资源标识；留空表示走客户端内置占位"
+          tooltip="App 内置资源路径，双端同名：assets/pets/scenes/<场景编码>.png；后台预览图取 public/pet-scenes/<场景编码>.png"
         >
-          <Input placeholder="如 assets/pets/bg/moonlit_garden" className={common.fullWidth} />
+          <Input placeholder="如 assets/pets/scenes/scene_sakura" className={common.fullWidth} />
         </Form.Item>
         <Form.Item
           name="price_coin"

@@ -8,10 +8,11 @@ import { getActionColumn } from '../../components/common/ActionColumn'
 export function buildSceneColumns(handlers: {
   canWrite: boolean
   canDelete: boolean
+  onPreview: (record: PetSceneRow) => void
   onEdit: (record: PetSceneRow) => void
   onDelete: (record: PetSceneRow) => void
 }): ColumnsType<PetSceneRow> {
-  const { canWrite, canDelete, onEdit, onDelete } = handlers
+  const { canWrite, canDelete, onPreview, onEdit, onDelete } = handlers
   return [
     { title: '场景编码', dataIndex: 'scene_code', width: 200 },
     { title: '名称', dataIndex: 'name', width: 160 },
@@ -40,6 +41,7 @@ export function buildSceneColumns(handlers: {
       render: (v: boolean) => (v ? <Tag color="green">已上架</Tag> : <Tag>未上架</Tag>),
     },
     getActionColumn<PetSceneRow>((record) => [
+      { key: 'preview', label: '预览', onClick: () => onPreview(record) },
       { key: 'edit', label: '编辑', disabled: !canWrite, onClick: () => onEdit(record) },
       {
         key: 'delete',

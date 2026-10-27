@@ -7,6 +7,7 @@ import { petSceneService } from '../../services/petService'
 import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { buildSceneColumns } from './columns'
 import SceneFormModal, { type SceneFormValues } from './SceneFormModal'
+import ScenePreviewModal from './ScenePreviewModal'
 import common from '../../styles/common.module.css'
 
 // ==================== 场景管理（pet_scenes：宠物主页背景主题，P2 起售卖） ====================
@@ -24,6 +25,7 @@ const PetScenes: React.FC = () => {
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetSceneRow | null>(null)
+  const [previewing, setPreviewing] = useState<PetSceneRow | null>(null)
   const [keyword, setKeyword] = useState('')
   const [shelfFilter, setShelfFilter] = useState('')
 
@@ -81,6 +83,7 @@ const PetScenes: React.FC = () => {
   const columns = buildSceneColumns({
     canWrite,
     canDelete,
+    onPreview: (record) => setPreviewing(record),
     onEdit: (record) => {
       setEditing(record)
       setModalOpen(true)
@@ -95,7 +98,7 @@ const PetScenes: React.FC = () => {
         showIcon
         className={common.mb16}
         message="场景说明"
-        description="一期背景为 2D 图层，asset_ref 仅作资源标识；is_default = 用户未购买主题时的背景。上架开关需与道具侧配置同时成立，App 才展示购买入口。"
+        description="asset_ref 为 App 内置资源路径（assets/pets/scenes/<场景编码>.png，双端同名）；后台预览图取 public/pet-scenes/<场景编码>.png，新增主题需同步落位两侧。上架开关需与道具侧配置同时成立，App 才展示购买入口。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
@@ -148,6 +151,12 @@ const PetScenes: React.FC = () => {
         saving={saving}
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
+      />
+      <ScenePreviewModal
+        open={previewing !== null}
+        rows={rows}
+        scene={previewing}
+        onCancel={() => setPreviewing(null)}
       />
     </div>
   )
