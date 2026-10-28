@@ -1,15 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
-  Card,
   Button,
+  Card,
   Form,
+  InputNumber,
   Modal,
+  Select,
   Spin,
   Table,
   message,
 } from 'antd'
-import { EditOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
 import { petConfigService, petItemService } from '../../services/petService'
 import type { PetConfigRow } from '../../types/pet'
@@ -23,7 +25,22 @@ import {
   buildValueColumns,
 } from './columns'
 import { renderModuleControls } from './ModuleControls'
-import type { ItemOption, ModuleKey } from './types'
+import type { ExchangeRecipe, ItemOption, ModuleKey } from './types'
+
+/** reserved.collection_exchange 取数净化：非数组/项残缺时落空表（编辑器重建，不崩） */
+function readExchangeRecipes(reserved: unknown): ExchangeRecipe[] {
+  const raw = (reserved as Record<string, unknown> | null | undefined)?.['collection_exchange']
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((r) => r as Partial<ExchangeRecipe>)
+    .filter((r) => typeof r?.from === 'string' && typeof r?.to === 'string')
+    .map((r) => ({
+      from: r.from as string,
+      from_count: Number(r.from_count) || 1,
+      to: r.to as string,
+      to_count: Number(r.to_count) || 1,
+    }))
+}
 
 /** reserved 卡表单的嵌套路径（与 ModuleControls 的数组名一一对应） */
 const RESERVED_NAME_PATHS: (string | (string | number)[])[] = [
@@ -49,6 +66,13 @@ const RESERVED_NAME_PATHS: (string | (string | number)[])[] = [
   ['reserved', 'long_drop_pity', 'evo_stone_n'],
   ['reserved', 'long_drop_pity', 'evo_stone_r'],
   ['reserved', 'long_drop_pity', 'relic_compass'],
+  // 幸运抽奖双限购（fix_pet_lottery_20261023）+ 进化任务窗口 + 低状态掉血
+  ['reserved', 'lottery', 'price'],
+  ['reserved', 'lottery', 'limit_total'],
+  ['reserved', 'lottery', 'limit_window_hours'],
+  ['reserved', 'lottery', 'limit_per_window'],
+  ['reserved', 'evo_quest_window_exp'],
+  ['reserved', 'low_status_health_decay'],
 ]
 
 /** 深合并：表单 patch 覆盖既有 reserved，未在表单内的键（运营手写/后续新增）原样保留 */
@@ -95,6 +119,8 @@ const PetConfig: React.FC = () => {
   const [itemOptions, setItemOptions] = useState<ItemOption[]>([])
   const [editModule, setEditModule] = useState<ModuleKey | null>(null)
   const [editForm] = Form.useForm()
+  // 收藏兑换配方编辑态（数组体不走 FieldMeta 表单，独立受控行编辑）
+  const [exRows, setExRows] = useState<ExchangeRecipe[]>([])
 
   const loadConfig = useCallback(async () => {
     setLoading(true)
@@ -120,6 +146,7 @@ const PetConfig: React.FC = () => {
 
   const openEdit = (key: ModuleKey) => {
     if (!row) return
+    if (key === 'collection_exchange') setExRows(readExchangeRecipes(row.reserved))
     setEditModule(key)
   }
 
@@ -131,6 +158,34 @@ const PetConfig: React.FC = () => {
     const fields = mod.fields.map((f) => f.field)
 
     // —— reserved 卡：数组名取嵌套值，深合并保留既有键（审查 P2 reserved 编辑入口）——
+    if (editModule === 'collection_exchange') {
+      // 整组替换 reserved.collection_exchange（数组语义：deepMerge 对数组整体覆盖）
+      for (const [i, r] of exRows.entries()) {
+        if (!r.from || !r.to) return void message.error(`第 ${i + 1} 行的材料/目标未选道具`)
+        if (!Number.isInteger(r.from_count) || r.from_count < 1 ||
+            !Number.isInteger(r.to_count) || r.to_count < 1)
+          return void message.error(`第 ${i + 1} 行数量须为 ≥1 的整数`)
+      }
+      const seen = new Set<string>()
+      for (const r of exRows) {
+        const k = `${r.from}->${r.to}`
+        if (seen.has(k)) return void message.error(`重复配方 ${k}（同一材料→目标仅保留一条）`)
+        seen.add(k)
+      }
+      const merged = deepMergeReserved(row.reserved, { collection_exchange: exRows })
+      setSaving(true)
+      try {
+        const res = await petConfigService.update(row.id, { reserved: merged } as never)
+        if (!res.success) return
+        message.success('「收藏兑换配方（reserved）」已保存')
+        setEditModule(null)
+        setRow((prev) => (prev ? { ...prev, reserved: merged as Json } : prev))
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
     if (editModule === 'reserved_p2') {
       const values = await editForm.validateFields(RESERVED_NAME_PATHS)
       const patch = (values as { reserved?: Record<string, unknown> }).reserved ?? {}
@@ -266,6 +321,20 @@ const PetConfig: React.FC = () => {
               dataSource={newbieRows}
               pagination={false}
             />
+          ) : mod.key === 'collection_exchange' ? (
+            <Table
+              rowKey={(r) => `${r.from}->${r.to}`}
+              size="small"
+              pagination={false}
+              locale={{ emptyText: '暂无配方（收藏兑换不可用）' }}
+              columns={[
+                { title: '材料', dataIndex: 'from', render: itemName },
+                { title: '数量', dataIndex: 'from_count', width: 70 },
+                { title: '兑换目标', dataIndex: 'to', render: itemName },
+                { title: '数量', dataIndex: 'to_count', width: 70 },
+              ]}
+              dataSource={readExchangeRecipes(row.reserved)}
+            />
           ) : (
             <Table
               rowKey="field"
@@ -307,18 +376,76 @@ const PetConfig: React.FC = () => {
         confirmLoading={saving}
         onCancel={() => setEditModule(null)}
         destroyOnHidden
-        width={620}
+        width={editModule === 'collection_exchange' ? 780 : 620}
       >
-        {/* 回显方案：destroyOnHidden 每次打开重新挂载 → initialValues 挂载即生效，
-            规避「Modal 内容异步挂载导致 setFieldsValue 丢值」问题 */}
-        <Form
-          form={editForm}
-          layout="vertical"
-          preserve={false}
-          initialValues={(row ?? {}) as unknown as Record<string, unknown>}
-        >
-          {editModule ? renderModuleControls(editModule, { canWrite, itemOptions }) : null}
-        </Form>
+        {editModule === 'collection_exchange' ? (
+          // 配方行编辑（受控数组，保存时整组校验替换；不走 FieldMeta 表单）
+          <div>
+            {exRows.map((r, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ width: 20, textAlign: 'right', color: '#999', fontSize: 12 }}>{i + 1}</span>
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  style={{ flex: 3 }}
+                  placeholder="材料（收藏品）"
+                  value={r.from || undefined}
+                  options={itemOptions.map((o) => ({ value: o.item_code, label: `${o.item_code}·${o.name}` }))}
+                  onChange={(v) => setExRows((rs) => rs.map((x, j) => (j === i ? { ...x, from: String(v) } : x)))}
+                />
+                <InputNumber
+                  min={1}
+                  precision={0}
+                  style={{ flex: 1 }}
+                  value={r.from_count}
+                  onChange={(v) => setExRows((rs) => rs.map((x, j) => (j === i ? { ...x, from_count: Number(v) || 1 } : x)))}
+                />
+                <span style={{ color: '#999' }}>→</span>
+                <Select
+                  showSearch
+                  optionFilterProp="label"
+                  style={{ flex: 3 }}
+                  placeholder="兑换目标（道具）"
+                  value={r.to || undefined}
+                  options={itemOptions.map((o) => ({ value: o.item_code, label: `${o.item_code}·${o.name}` }))}
+                  onChange={(v) => setExRows((rs) => rs.map((x, j) => (j === i ? { ...x, to: String(v) } : x)))}
+                />
+                <InputNumber
+                  min={1}
+                  precision={0}
+                  style={{ flex: 1 }}
+                  value={r.to_count}
+                  onChange={(v) => setExRows((rs) => rs.map((x, j) => (j === i ? { ...x, to_count: Number(v) || 1 } : x)))}
+                />
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={() => setExRows((rs) => rs.filter((_, j) => j !== i))}
+                />
+              </div>
+            ))}
+            <Button
+              type="dashed"
+              block
+              icon={<PlusOutlined />}
+              onClick={() => setExRows((rs) => [...rs, { from: '', from_count: 4, to: '', to_count: 1 }])}
+            >
+              添加配方
+            </Button>
+          </div>
+        ) : (
+          /* 回显方案：destroyOnHidden 每次打开重新挂载 → initialValues 挂载即生效，
+              规避「Modal 内容异步挂载导致 setFieldsValue 丢值」问题 */
+          <Form
+            form={editForm}
+            layout="vertical"
+            preserve={false}
+            initialValues={(row ?? {}) as unknown as Record<string, unknown>}
+          >
+            {editModule ? renderModuleControls(editModule, { canWrite, itemOptions }) : null}
+          </Form>
+        )}
       </Modal>
     </div>
   )

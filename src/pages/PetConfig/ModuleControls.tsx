@@ -270,6 +270,26 @@ export const renderModuleControls = (
               ))}
             </Input.Group>
           </Form.Item>
+          {/* 幸运抽奖（rpc_pet_lottery_draw：双限购闸，seed fix_pet_lottery_20261023） */}
+          <Form.Item name={['reserved', 'lottery', 'price']} label="幸运抽奖单价（金币）" tooltip="rpc_pet_lottery_draw 每次消耗；留空 = 服务端缺省 30000">
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'lottery', 'limit_total']} label="幸运抽奖·终身限购（次）" tooltip="留空 = 服务端缺省 100">
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'lottery', 'limit_window_hours']} label="幸运抽奖·时段窗口（小时）" tooltip="与窗口限购组合成时段限购；留空 = 服务端缺省 24">
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'lottery', 'limit_per_window']} label="幸运抽奖·窗口内限购（次）" tooltip="留空 = 服务端缺省 10">
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          {/* 任务/健康调参键（进化任务经验差窗口 + 低状态掉血速率） */}
+          <Form.Item name={['reserved', 'evo_quest_window_exp']} label="进化任务经验差窗口" tooltip="距下一阶等级门槛的剩余经验 ≤ 此值才下发进化任务（2600 ≈ 7 天日常经验）；留空 = 服务端缺省 2600">
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'low_status_health_decay']} label="低状态掉血（健康/小时）" tooltip="饱食或心情低于线时按此速率掉健康（虚弱线钳制）；留空 = 服务端缺省 2">
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
         </>
       )
   }

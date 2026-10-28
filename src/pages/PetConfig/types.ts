@@ -11,7 +11,17 @@ export type ModuleKey =
   | 'hatch'
   | 'economy'
   | 'newbie'
+  | 'collection_exchange'
   | 'reserved_p2'
+
+/// 收藏兑换配方（reserved.collection_exchange 数组项；
+/// rpc_pet_collection_exchange(p_from_code, p_to_code) 按此校验扣料入包）
+export interface ExchangeRecipe {
+  from: string
+  from_count: number
+  to: string
+  to_count: number
+}
 
 export interface FieldMeta {
   field: string

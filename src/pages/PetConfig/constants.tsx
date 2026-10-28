@@ -125,6 +125,13 @@ export const MODULES: ModuleMeta[] = [
     ],
   },
   {
+    // 收藏兑换配方卡：reserved.collection_exchange（收藏品 × 目标道具的兑换矩阵），
+    // rpc_pet_collection_exchange 消费；体为动态数组，展示与编辑走 index 专属分支
+    key: 'collection_exchange',
+    title: '收藏兑换配方（reserved）',
+    fields: [],
+  },
+  {
     // P2 参数卡（审查报告 宠物 P2：reserved 无编辑入口，运营调整须手写 SQL）
     // 键域与 p2_seed §1 种子 + 各 RPC 消费点同源；dotted field 由 rawValue 深取值
     key: 'reserved_p2',
@@ -142,6 +149,21 @@ export const MODULES: ModuleMeta[] = [
       { field: 'reserved.breeding.egg_pool.R', label: '评级蛋池映射 R', format: fmtStr },
       { field: 'reserved.breeding.egg_pool.SR', label: '评级蛋池映射 SR', format: fmtStr },
       { field: 'reserved.breeding.egg_pool.SSR', label: '评级蛋池映射 SSR', format: fmtStr },
+      { field: 'reserved.adventure_tier_mult.exp.short', label: '历险经验倍率·短途', desc: '按派遣时长放大收益，缺省 1', format: fmtNum },
+      { field: 'reserved.adventure_tier_mult.exp.medium', label: '历险经验倍率·中途', desc: '定版 3', format: fmtNum },
+      { field: 'reserved.adventure_tier_mult.exp.long', label: '历险经验倍率·长途', desc: '定版 6', format: fmtNum },
+      { field: 'reserved.adventure_tier_mult.gold.short', label: '历险金币倍率·短途', desc: '缺省 1', format: fmtNum },
+      { field: 'reserved.adventure_tier_mult.gold.medium', label: '历险金币倍率·中途', desc: '定版 2.5', format: fmtNum },
+      { field: 'reserved.adventure_tier_mult.gold.long', label: '历险金币倍率·长途', desc: '定版 8', format: fmtNum },
+      { field: 'reserved.long_drop_pity.evo_stone_n', label: '长途保底·进化石凡品（次）', desc: '连续未中的长途次数达此值必得并清零，缺省 20', format: fmtNum },
+      { field: 'reserved.long_drop_pity.evo_stone_r', label: '长途保底·进化石珍品（次）', format: fmtNum },
+      { field: 'reserved.long_drop_pity.relic_compass', label: '长途保底·星辰罗盘（次）', format: fmtNum },
+      { field: 'reserved.lottery.price', label: '幸运抽奖单价（金币）', desc: 'rpc_pet_lottery_draw 每次消耗，缺省 30000', format: fmtNum },
+      { field: 'reserved.lottery.limit_total', label: '幸运抽奖·终身限购（次）', desc: '缺省 100', format: fmtNum },
+      { field: 'reserved.lottery.limit_window_hours', label: '幸运抽奖·时段窗口（小时）', desc: '与窗口限购组合成时段限购，缺省 24', format: fmtNum },
+      { field: 'reserved.lottery.limit_per_window', label: '幸运抽奖·窗口内限购（次）', desc: '缺省 10', format: fmtNum },
+      { field: 'reserved.evo_quest_window_exp', label: '进化任务经验差窗口', desc: '距下一阶等级门槛剩余经验 ≤ 此值才下发进化任务，缺省 2600', format: fmtNum },
+      { field: 'reserved.low_status_health_decay', label: '低状态掉血（健康/小时）', desc: '饱食/心情低于线时的健康流失速率（虚弱线钳制），缺省 2', format: fmtNum },
     ],
   },
 ]
