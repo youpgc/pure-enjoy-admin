@@ -201,7 +201,7 @@ const PetAdventureSpots: React.FC = () => {
         showIcon
         className={common.mb16}
         message="历险地说明"
-        description="历险三档时长（短途/中途/长途）在「全局参数」页配置；本页配置各地点的解锁条件、属性要求（结算判据：不达标仍可出发，结算判失败）、四类结果权重（play/danger/help/memory）、掉落包、失败惩罚（健康/心情/金币/丢失道具）与救助参数。遇险后先自救，超窗 NPC 兜底（rescue_params）。"
+        description="历险三档时长与三档收益倍率（adventure_tier_mult）在「全局参数」页配置，历险地本身不区分档位。本页可配：解锁条件（当前仅 level 类型）、四类结果权重（play/danger/help/memory 纯权重 roll）、掉落包（结算只发 play/help/memory 与 long_only，遇险不掉落走救援）、属性要求（全达标必不遇险；不达标保留遇险判定）、失败惩罚（遇险救援结算：道具自救 ×0.5 / 超窗 NPC ×1.0，无慰问金）与救助参数（自救窗口分钟）。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>

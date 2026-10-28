@@ -14,13 +14,16 @@ import common from '../../styles/common.module.css'
 
 // ==================== 历险地编辑弹窗（pet_adventure_spots） ====================
 //
-// jsonb 结构与 rpc_pet_adventure_claim 消费同源：
+// jsonb 结构与 rpc_pet_adventure_claim/rescue 消费同源：
 // - unlock_conditions：[{type,value}]（App 侧解锁判定/展示；服务端仅校验 enabled）；
-// - attr_requirements：[{attr,value}]（属性结算判据：不达标 claim 判 failed，2026-09-17）；
+// - attr_requirements：[{attr,value}]（属性威胁定版 20261027：全达标 → 结算
+//   剔除 danger 必不遇险；不达标 → 保留遇险判定，遇险走救援+失败惩罚）；
 // - result_weights：{play,danger,help,memory} 累计权重（和为 1 时 roll 覆盖全区间）；
-// - drop_table：<result>.gold[min,max] / exp[min,max] / items[{code,min,max,p}]；
+// - drop_table：<result>.gold[min,max] / exp[min,max] / items[{code,min,max,p}]
+//   （danger 键不结算——遇险走救援，掉落只配 play/help/memory 与 long_only）；
 // - rescue_params：{self_window_minutes}（缺省 120）；
-// - penalty：{health,mood,gold（负值）, lose_item:{p}}（failed 时生效）。
+// - penalty：{health,mood,gold（负值）, lose_item:{p}}（救援结算时生效：
+//   道具自救 ×0.5 减轻 / 超窗 NPC ×1.0 拉满）。
 
 export interface SpotFormValues {
   code: string
@@ -132,8 +135,8 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
 
         <Form.Item
           name="attr_requirements"
-          label="属性要求（结算判据）"
-          tooltip="属性不达标仍可出发；结算时判为失败并按下方惩罚扣减"
+          label="属性要求（达标必不遇险）"
+          tooltip="全达标 → 结算剔除遇险必不遇险；不达标仍可出发，但保留遇险判定（遇险走救援+失败惩罚）。曲线基准：两维各 ≈10+(解锁等级-1)×0.9"
         >
           <AttrRequirementsEditor />
         </Form.Item>
@@ -163,8 +166,8 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
 
         <Form.Item
           name="penalty"
-          label="失败惩罚"
-          tooltip="属性不达标结算失败时生效：健康/心情/金币按负值扣减，丢失道具按概率"
+          label="失败惩罚（遇险救援结算）"
+          tooltip="遇险救援时生效：道具自救 ×0.5 减轻 / 超窗 NPC ×1.0 拉满。健康/心情/金币按负值扣减，丢失道具按概率"
         >
           <PenaltyEditor />
         </Form.Item>

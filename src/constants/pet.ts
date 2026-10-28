@@ -483,19 +483,39 @@ export const PET_RARITY_CODE_SELECT_OPTIONS = [
   { value: 'SSR', label: 'SSR 传说' },
 ]
 
+/// 成就档位（pet_achievements.tier；值域与文案与 App PetAchTier 枚举一致
+/// ——经典/铜银金/彩/传说/纪念/史诗，20261023 成就树批起 bronze~epic 投产）
 export const PET_ACH_TIER_TYPES = {
   NORMAL: 'normal',
+  BRONZE: 'bronze',
+  SILVER: 'silver',
+  GOLD: 'gold',
+  LEGEND: 'legend',
   LEGENDARY: 'legendary',
+  MEMORIAL: 'memorial',
+  EPIC: 'epic',
 } as const
 
 export const PET_ACH_TIER_LABELS: Record<string, string> = {
-  [PET_ACH_TIER_TYPES.NORMAL]: '普通',
+  [PET_ACH_TIER_TYPES.NORMAL]: '经典',
+  [PET_ACH_TIER_TYPES.BRONZE]: '铜阶',
+  [PET_ACH_TIER_TYPES.SILVER]: '银阶',
+  [PET_ACH_TIER_TYPES.GOLD]: '金阶',
+  [PET_ACH_TIER_TYPES.LEGEND]: '彩阶',
   [PET_ACH_TIER_TYPES.LEGENDARY]: '传说',
+  [PET_ACH_TIER_TYPES.MEMORIAL]: '纪念',
+  [PET_ACH_TIER_TYPES.EPIC]: '史诗',
 }
 
 export const PET_ACH_TIER_COLORS: Record<string, string> = {
   normal: 'default',
-  legendary: 'gold',
+  bronze: 'volcano',
+  silver: 'default',
+  gold: 'gold',
+  epic: 'purple',
+  legend: 'magenta',
+  legendary: 'red',
+  memorial: 'cyan',
 }
 
 export const PET_ACH_TIER_OPTIONS = Object.entries(PET_ACH_TIER_LABELS).map(
