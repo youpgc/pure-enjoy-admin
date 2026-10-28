@@ -28,7 +28,7 @@ export const PET_SOURCE_TYPE_LABELS: Record<string, string> = {
   pet_achievement: '成就发放',
   pet_exchange: '积分兑换',
   pet_admin_grant: '客服调整',
-  pet_adventure_penalty: '历险惩罚',
+  pet_adventure_penalty: '游历惩罚',
   pet_feature_spend: '功能消耗',
 }
 
@@ -104,7 +104,7 @@ export const PET_ITEM_CHANNEL_LABELS: Record<string, string> = {
   shop: '商城',
   activity: '活动',
   both: '商城+活动',
-  adventure_drop: '历险掉落',
+  adventure_drop: '游历掉落',
   system: '系统',
 }
 
@@ -170,7 +170,7 @@ export const PET_QUEST_DIFFICULTY_COLORS: Record<string, string> = {
 export const PET_QUEST_CONDITION_TYPE_LABELS: Record<string, string> = {
   feed: '喂养次数',
   interact: '互动次数',
-  adventure: '历险次数',
+  adventure: '游历次数',
   hatch: '孵化次数',
   clean: '清洁次数',
   play: '游玩次数',
@@ -257,7 +257,7 @@ export const PET_EFFECT_TYPE_LABELS: Record<string, string> = {
   clean: '清洁（心情）',
   toy: '玩耍（心情）',
   heal: '疗伤（健康，effect.value）',
-  rescue: '历险自救',
+  rescue: '游历自救',
   refine_point: '洗练点补给',
   refine_reassign: '属性重掷（已下线）',
   hatch_accel: '孵化加速（effect.minutes）',
@@ -273,17 +273,45 @@ export const PET_EFFECT_TYPE_OPTIONS = Object.entries(PET_EFFECT_TYPE_LABELS)
   .filter(([value]) => !PET_EFFECT_TYPE_NOT_CONFIGURABLE.includes(value))
   .map(([value, label]) => ({ value, label }))
 
-/// 任务条件 type（服务端 _pet_quest_bump 的 bump 键；feed/use_item、interact/互动、adventure/claim、hatch/孵化）
-export const PET_CONDITION_TYPE_LABELS: Record<string, string> = {
-  feed: '喂养次数',
-  interact: '互动次数',
-  adventure: '历险次数',
-  hatch: '孵化次数',
-}
+/// 任务条件 type（服务端 _pet_quest_bump 进度键：十类按事实表实况重算
+/// （feed/interact/adventure/clean/play/heal/hatch/exchange/breed/evolve）+ scene 增量。
+/// 值域与 App PetQuestConditionType 一致（铁律 12）；历险类可带 tier 时长维度）
+export const PET_CONDITION_TYPE_LABELS: Record<string, string> = PET_QUEST_CONDITION_TYPE_LABELS
 
 export const PET_CONDITION_TYPE_OPTIONS = Object.entries(PET_CONDITION_TYPE_LABELS).map(
   ([value, label]) => ({ value, label })
 )
+
+/// 历险条件时长维度（condition.tier；服务端历险重算按 a.tier 过滤，
+/// App 任务标题前缀显示「短途/中途/长途历险」，双端同口径）
+export const PET_QUEST_TIER_LABELS: Record<string, string> = {
+  short: '短途',
+  medium: '中途',
+  long: '长途',
+}
+
+export const PET_QUEST_TIER_OPTIONS = Object.entries(PET_QUEST_TIER_LABELS).map(
+  ([value, label]) => ({ value, label })
+)
+
+/// 下发资格（pet_quests.eligibility；draw 过滤不满足不进候选，多键之间 OR——
+/// 服务端语义见 fix_pet_quest_ecosystem_20261026 / fix_pet_quest_eligibility_align_20261026）
+export const PET_QUEST_ELIGIBILITY_LABELS: Record<string, string> = {
+  feature: '功能已解锁',
+  item_any: '持有任一道具',
+  counter: '累计次数达标',
+  evo_ready: '即将可进化',
+  scene_available: '仍有主题未解锁',
+  points_enough: '积分充足',
+  any_damaged: '存在伤员',
+}
+
+/// counter 资格的计数键（服务端 draw 过滤 case 枚举，新增计数须同步服务端）
+export const PET_QUEST_ELIGIBILITY_COUNTER_LABELS: Record<string, string> = {
+  hatch_total: '累计孵化',
+  evolve_total: '累计进化',
+  breed_egg_total: '累计繁育出蛋',
+}
 
 /// 蛋池 rarity 单选（weights.rarity 取首键语义 → 单选归一为 {code:1}）
 export const PET_RARITY_CODE_OPTIONS = [
@@ -312,8 +340,8 @@ export const PET_TRAIT_EFFECT_TYPE_LABELS: Record<string, string> = {
   mood_decay_slow: '心情衰减减缓',
   health_recover_bonus: '健康恢复加成',
   intimacy_bonus: '亲密度加成',
-  adventure_time_reduce: '历险时长缩短',
-  adventure_danger_reduce: '历险遇险降低',
+  adventure_time_reduce: '游历时长缩短',
+  adventure_danger_reduce: '游历遇险降低',
   breed_cd_reduce: '繁育冷却缩短',
   drop_chance_bonus: '掉落概率提升',
 }
@@ -329,9 +357,9 @@ export const PET_TIMELINE_EVENT_META: Record<string, { label: string; color: str
   release: { label: '送别', color: 'default' },
   obtain: { label: '孵化获得', color: 'cyan' },
   breed: { label: '繁育产蛋', color: 'gold' },
-  adventure_memory: { label: '历险归来', color: 'geekblue' },
-  adventure_failed: { label: '历险失败', color: 'red' },
-  adventure_recalled: { label: '历险召回', color: 'default' },
+  adventure_memory: { label: '游历归来', color: 'geekblue' },
+  adventure_failed: { label: '游历失败', color: 'red' },
+  adventure_recalled: { label: '游历召回', color: 'default' },
   refine_reassigned: { label: '属性洗练', color: 'purple' },
   trait_wash: { label: '特性洗练', color: 'purple' },
   spot_hidden_unlock: { label: '秘境解锁', color: 'magenta' },
@@ -421,7 +449,7 @@ export const PET_ACH_CONDITION_TYPE_LABELS: Record<string, string> = {
   feed_total: '累计喂养次数',
   interact_total: '累计互动次数',
   hatch_total: '累计孵化次数',
-  adventure_total: '累计历险次数',
+  adventure_total: '累计游历次数',
   rescue_total: '累计救助次数',
   evolve_total: '累计进化次数',
   breed_egg_total: '累计繁育产蛋次数',

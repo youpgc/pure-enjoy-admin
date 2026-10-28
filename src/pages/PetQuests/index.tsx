@@ -6,12 +6,35 @@ import type { PetQuestRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petQuestService, petItemService } from '../../services/petService'
-import { PET_QUEST_TYPE_LABELS, PET_QUEST_DIFFICULTY_LABELS, PET_QUEST_DIFFICULTY_COLORS, PET_QUEST_TYPE_OPTIONS, PET_QUEST_DIFFICULTY_OPTIONS, PET_QUEST_CONDITION_TYPE_LABELS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { PET_QUEST_TYPE_LABELS, PET_QUEST_DIFFICULTY_LABELS, PET_QUEST_DIFFICULTY_COLORS, PET_QUEST_TYPE_OPTIONS, PET_QUEST_DIFFICULTY_OPTIONS, PET_QUEST_CONDITION_TYPE_LABELS, PET_QUEST_TIER_LABELS, PET_QUEST_ELIGIBILITY_LABELS, PET_QUEST_ELIGIBILITY_COUNTER_LABELS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { RewardPackageCell, usePetItemCatalog } from '../../components/pet/RewardCells'
 import QuestFormModal, { type QuestFormValues } from './QuestFormModal'
 import common from '../../styles/common.module.css'
 
 // ==================== 任务池管理（pet_quests：每日/每周任务配置） ====================
+
+/// 下发资格摘要（键中文 + 关键值；键值域与编辑器/服务端过滤臂同源）
+function eligibilitySummary(v: Record<string, unknown> | null): string {
+  if (!v || Object.keys(v).length === 0) return '无门槛'
+  const parts: string[] = []
+  for (const [k, val] of Object.entries(v)) {
+    const label = PET_QUEST_ELIGIBILITY_LABELS[k]
+    if (!label) {
+      parts.push(k)
+    } else if (k === 'counter') {
+      parts.push(
+        `${PET_QUEST_ELIGIBILITY_COUNTER_LABELS[String(val)] ?? String(val)}≥${String(v.min ?? '?')}`
+      )
+    } else if (k === 'feature') {
+      parts.push(`已解锁:${String(val)}`)
+    } else if (k === 'item_any') {
+      parts.push(`持有:${Array.isArray(val) ? val.join('/') : String(val)}`)
+    } else {
+      parts.push(label)
+    }
+  }
+  return parts.join(' · ')
+}
 
 const PetQuests: React.FC = () => {
   const { hasPermission } = usePermission()
@@ -64,6 +87,7 @@ const PetQuests: React.FC = () => {
         difficulty: values.difficulty,
         condition: values.condition as unknown as Record<string, unknown>,
         rewards: values.rewards as unknown as Record<string, unknown>,
+        eligibility: values.eligibility as unknown as Record<string, unknown>,
         enabled: !!values.enabled,
         sort_order: Number(values.sort_order) || 0,
       }
@@ -107,10 +131,24 @@ const PetQuests: React.FC = () => {
     {
       title: '条件',
       dataIndex: 'condition',
-      render: (v: Record<string, unknown>) =>
-        v && v.type
-          ? `${PET_QUEST_CONDITION_TYPE_LABELS[String(v.type)] ?? String(v.type)} · 目标 ${String(v.target ?? 1)} 次`
-          : '-',
+      render: (v: Record<string, unknown>) => {
+        if (!v || !v.type) return '-'
+        const type = String(v.type)
+        const typeText = PET_QUEST_CONDITION_TYPE_LABELS[type] ?? type
+        // 历险类时长维度与 App 标题同口径（「长途历险」，取自 condition.tier）
+        const tier = type === 'adventure' ? String(v.tier ?? '') : ''
+        const label = tier
+          ? `${PET_QUEST_TIER_LABELS[tier] ?? tier}${typeText.replace('游历次数', '游历')}`
+          : typeText
+        return `${label} · 目标 ${String(v.target ?? 1)} 次`
+      },
+      ellipsis: true,
+    },
+    {
+      title: '下发资格',
+      dataIndex: 'eligibility',
+      width: 190,
+      render: (v: Record<string, unknown> | null) => eligibilitySummary(v),
       ellipsis: true,
     },
     {

@@ -138,7 +138,7 @@ class PetQuestService extends BaseService<PetQuestRow> {
     super('pet_quests', {
       defaultOrder: { column: 'sort_order', ascending: true },
       select:
-        'id,code,type,difficulty,condition,rewards,enabled,sort_order,created_at,updated_at',
+        'id,code,type,difficulty,condition,rewards,eligibility,enabled,sort_order,created_at,updated_at',
     })
   }
 }

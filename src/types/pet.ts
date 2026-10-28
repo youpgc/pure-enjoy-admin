@@ -189,6 +189,8 @@ export interface PetQuestRow {
   difficulty: string
   condition: Json
   rewards: Json
+  /// 下发资格（jsonb，多键 OR；null/空 = 无门槛，任务对全体开放）
+  eligibility: Json | null
   enabled: boolean
   sort_order: number
   created_at: string
