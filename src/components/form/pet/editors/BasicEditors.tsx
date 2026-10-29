@@ -80,7 +80,7 @@ export const NumberMapEditor: React.FC<NumberMapEditorProps> = ({
   )
 }
 
-// ---------- TierListEditor：历险三档（[{tier,minutes,label}]） ----------
+// ---------- TierListEditor：游历三档（[{tier,minutes,label}]） ----------
 interface TierListEditorProps {
   value?: unknown
   onChange?: (v: Array<Record<string, unknown>>) => void

@@ -101,7 +101,7 @@ const pctText = (p: unknown): string => {
   return n == null ? '' : `${Math.round(n * 100)}%`
 }
 
-/** 历险掉落单元格：{play|help|memory:{gold:[a,b],exp:[a,b],items:[{code,min,max,p}]},
+/** 游历掉落单元格：{play|help|memory:{gold:[a,b],exp:[a,b],items:[{code,min,max,p}]},
  *  long_only:[{p,code}]} → 按结果类型分行，道具带图标，概率尾注 */
 export const DropTableCell: React.FC<{ value: unknown; catalog: PetItemCatalog }> = ({
   value,

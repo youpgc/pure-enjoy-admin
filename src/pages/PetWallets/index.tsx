@@ -18,7 +18,7 @@ import { formatDateTime } from '../../utils/format'
 import common from '../../styles/common.module.css'
 
 // ==================== 金币钱包与流水（pet_wallets / pet_wallet_records） ====================
-// 流水按来源筛选（source_type 五枚举，蓝图 §六.2）；append-only 只读，不做增删改。
+// 流水按来源筛选（source_type 七类，蓝图 §六.2）；append-only 只读，不做增删改。
 
 const PAGE_SIZE = PET_TABLE_PAGE_SIZE
 
@@ -253,7 +253,7 @@ const PetWallets: React.FC = () => {
         showIcon
         className={common.mb16}
         message="金币钱包说明"
-        description="金币为宠物体系内货币（1 金币 = 10 积分，仅积分→金币单向兑换）；流水 append-only，来源七类：商城消费 / 系统发放 / 成就发放 / 积分兑换 / 历险惩罚 / 功能消耗 / 客服调整。本页只读，客服调整在「宠物运营」页操作。"
+        description="金币为宠物体系内货币（1 金币 = 10 积分，仅积分→金币单向兑换）；流水 append-only，来源七类：商城消费 / 系统发放 / 成就发放 / 积分兑换 / 游历惩罚 / 功能消耗 / 客服调整。本页只读，客服调整在「宠物运营」页操作。"
       />
       <Tabs
         defaultActiveKey="records"

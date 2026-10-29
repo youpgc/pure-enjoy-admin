@@ -5,7 +5,7 @@ import { asObject, asArray, extraKeys, numOf } from './shared'
 import { PET_ADVENTURE_RESULT_LABELS } from '../../../../constants/pet'
 import type { ItemOption } from './ItemEditors'
 
-// ==================== 历险掉落包编辑器 ====================
+// ==================== 游历掉落包编辑器 ====================
 //
 // drop_table 结构实证（rpc_pet_adventure_claim）：
 //   { <result>: {gold?: [min,max], exp?: [min,max], items?: [{code,min,max,p}]} }

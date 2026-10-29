@@ -12,7 +12,7 @@ import { asObject } from '../../components/form/pet/editors/shared'
 import { PET_ADVENTURE_RESULT_LABELS } from '../../constants/pet'
 import common from '../../styles/common.module.css'
 
-// ==================== 历险地编辑弹窗（pet_adventure_spots） ====================
+// ==================== 游历地编辑弹窗（pet_adventure_spots） ====================
 //
 // jsonb 结构与 rpc_pet_adventure_claim/rescue 消费同源：
 // - unlock_conditions：[{type,value}]（App 侧解锁判定/展示；服务端仅校验 enabled）；
@@ -69,7 +69,7 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
 
   return (
     <Modal
-      title={editing ? '编辑历险地' : '新增历险地'}
+      title={editing ? '编辑游历地' : '新增游历地'}
       open={open}
       onOk={async () => {
         const values = await form.validateFields()
@@ -129,7 +129,7 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
           <Input placeholder="如 云端花园" />
         </Form.Item>
 
-        <Form.Item name="unlock_conditions" label="解锁条件" tooltip="历险按等级/条件解锁；type 如 level，value 为阈值">
+        <Form.Item name="unlock_conditions" label="解锁条件" tooltip="游历按等级/条件解锁；type 如 level，value 为阈值">
           <UnlockListEditor />
         </Form.Item>
 
@@ -175,7 +175,7 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         <Form.Item name="sort_order" label="排序号">
           <InputNumber min={0} className={common.fullWidth} />
         </Form.Item>
-        <Form.Item name="enabled" label="启用" valuePropName="checked" tooltip="关闭后 App 历险地列表不可见">
+        <Form.Item name="enabled" label="启用" valuePropName="checked" tooltip="关闭后 App 游历地列表不可见">
           <Switch checkedChildren="启用" unCheckedChildren="停用" />
         </Form.Item>
       </Form>

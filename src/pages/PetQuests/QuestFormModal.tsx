@@ -21,8 +21,8 @@ import common from '../../styles/common.module.css'
 //
 // 结构与 RPC 消费同源：
 // - condition：{type: 11 类条件键, target: int, tier?: short|medium|long}
-//   （draw 取 target 为目标次数，bump 按事实表实况重算；tier 仅历险类，
-//   服务端按 a.tier 过滤、App 标题前缀「短途/中途/长途历险」；缺省 target=1）；
+//   （draw 取 target 为目标次数，bump 按事实表实况重算；tier 仅游历类，
+//   服务端按 a.tier 过滤、App 标题前缀「短途/中途/长途游历」；缺省 target=1）；
 // - eligibility：下发资格 jsonb（多键 OR，不满足不进抽取候选；缺省 = 无门槛）；
 // - rewards：{gold?, points?, items:[{code,count}]}（claim 发放，与成就共用 schema）。
 
@@ -65,7 +65,7 @@ const QuestFormModal: React.FC<Props> = ({ open, editing, saving, items, onOk, o
     form.setFieldsValue({ condition: next })
   }
 
-  // 切换条件类型：tier 仅历险类合法——切走历险时随 type 一并清除，避免脏键残留
+  // 切换条件类型：tier 仅游历类合法——切走游历时随 type 一并清除，避免脏键残留
   const handleTypeChange = (v: string | undefined) => {
     const cur = asObject(form.getFieldValue('condition'))
     const next: Record<string, unknown> = { ...cur, type: v }
@@ -235,8 +235,8 @@ const ConditionFields: React.FC<{
           disabled={!onChange}
           onChange={(v) => onTypeChange(v)}
         />
-        {/* 历险类时长维度：服务端历险重算按 a.tier 过滤（缺省不限），
-            App 标题前缀「短途/中途/长途历险」——切走历险类型时随 type 变更清除 */}
+        {/* 游历类时长维度：服务端游历重算按 a.tier 过滤（缺省不限），
+            App 标题前缀「短途/中途/长途游历」——切走游历类型时随 type 变更清除 */}
         {isAdventure && (
           <Select
             style={{ width: 120 }}

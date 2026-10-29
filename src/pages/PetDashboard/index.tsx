@@ -46,7 +46,7 @@ const SOURCE_LABELS: Record<string, string> = {
   pet_achievement: '成就发放',
   pet_exchange: '积分兑换',
   pet_admin_grant: '客服调整',
-  pet_adventure_penalty: '历险惩罚',
+  pet_adventure_penalty: '游历惩罚',
   pet_feature_spend: '功能消耗',
 }
 
@@ -175,7 +175,7 @@ const PetDashboard: React.FC = () => {
               <>
                 <div style={{ marginBottom: 6 }}>
                   <Tag color="green">养育 {p.rearing}</Tag>
-                  <Tag color="blue">历险 {p.adventuring}</Tag>
+                  <Tag color="blue">游历 {p.adventuring}</Tag>
                   <Tag color="purple">繁育 {p.breeding}</Tag>
                   <Tag color="orange">寄养 {p.fostered}</Tag>
                   <Tag>已放生 {p.released}</Tag>
@@ -209,7 +209,7 @@ const PetDashboard: React.FC = () => {
           </Card>
         </Col>
         <Col xs={24} md={8}>
-          <Card size="small" title="历险">
+          <Card size="small" title="游历">
             {data ? (
               <>
                 <div>进行中 {data.adventures.ongoing}</div>
