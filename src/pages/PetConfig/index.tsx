@@ -9,11 +9,13 @@ import {
   Select,
   Spin,
   Table,
+  Tabs,
   message,
 } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import { usePermission } from '../../hooks/usePermission'
 import { petConfigService, petItemService } from '../../services/petService'
+import { deepMergeReserved } from '../../components/form/pet/ReservedGroupCard'
 import type { PetConfigRow } from '../../types/pet'
 import type { Json } from '../../types/database'
 import { MODULES } from './constants'
@@ -42,55 +44,21 @@ function readExchangeRecipes(reserved: unknown): ExchangeRecipe[] {
     }))
 }
 
-/** reserved 卡表单的嵌套路径（与 ModuleControls 的数组名一一对应） */
+/** reserved_p2 卡表单的嵌套路径（与 ModuleControls 的数组名一一对应）；
+ *  其余 reserved 键已迁对应玩法页/模块卡，各自经通用路径保存 */
 const RESERVED_NAME_PATHS: (string | (string | number)[])[] = [
-  ['reserved', 'trait', 'chance'],
-  ['reserved', 'trait', 'wash_chance'],
-  ['reserved', 'hatch', 'accel_minutes'],
-  ['reserved', 'hatch', 'accel_gold'],
   ['reserved', 'breeding', 'intimacy_min'],
   ['reserved', 'breeding', 'gestation_hours'],
   ['reserved', 'breeding', 'fee_gold'],
-  ['reserved', 'weekly', 'draw_count'],
   ['reserved', 'breeding', 'egg_pool', 'N'],
   ['reserved', 'breeding', 'egg_pool', 'R'],
   ['reserved', 'breeding', 'egg_pool', 'SR'],
   ['reserved', 'breeding', 'egg_pool', 'SSR'],
-  // 历险时长收益系数 + 长途稀有保底(20261015 批;四层嵌套同 egg_pool)
-  ['reserved', 'adventure_tier_mult', 'exp', 'short'],
-  ['reserved', 'adventure_tier_mult', 'exp', 'medium'],
-  ['reserved', 'adventure_tier_mult', 'exp', 'long'],
-  ['reserved', 'adventure_tier_mult', 'gold', 'short'],
-  ['reserved', 'adventure_tier_mult', 'gold', 'medium'],
-  ['reserved', 'adventure_tier_mult', 'gold', 'long'],
-  ['reserved', 'long_drop_pity', 'evo_stone_n'],
-  ['reserved', 'long_drop_pity', 'evo_stone_r'],
-  ['reserved', 'long_drop_pity', 'relic_compass'],
-  // 幸运抽奖双限购（fix_pet_lottery_20261023）+ 进化任务窗口 + 低状态掉血
-  ['reserved', 'lottery', 'price'],
-  ['reserved', 'lottery', 'limit_total'],
-  ['reserved', 'lottery', 'limit_window_hours'],
-  ['reserved', 'lottery', 'limit_per_window'],
-  ['reserved', 'evo_quest_window_exp'],
+  ['reserved', 'hatch', 'accel_minutes'],
+  ['reserved', 'hatch', 'accel_gold'],
   ['reserved', 'low_status_health_decay'],
 ]
 
-/** 深合并：表单 patch 覆盖既有 reserved，未在表单内的键（运营手写/后续新增）原样保留 */
-const deepMergeReserved = (
-  base: unknown,
-  patch: Record<string, unknown>,
-): Record<string, unknown> => {
-  const out: Record<string, unknown> =
-    base && typeof base === 'object' ? { ...(base as Record<string, unknown>) } : {}
-  for (const [k, v] of Object.entries(patch)) {
-    if (v === undefined) continue
-    out[k] =
-      v !== null && typeof v === 'object' && !Array.isArray(v)
-        ? deepMergeReserved(out[k], v as Record<string, unknown>)
-        : v
-  }
-  return out
-}
 import common from '../../styles/common.module.css'
 
 // ==================== 宠物全局参数（pet_config 单行表） ====================
@@ -100,7 +68,7 @@ import common from '../../styles/common.module.css'
 // （PATCH 语义，互不干扰、失败可单独重试）。
 // 回显：Form 挂 initialValues + Modal destroyOnHidden——每次打开重新挂载即回显，
 // 不再依赖 setFieldsValue 时序（Modal 内容异步挂载会丢值）。
-// 历险/任务拆分为两张卡片；历险档位按 adventure_tiers 逐档成行；初始资源包按内容拆行。
+// 游历/任务拆分为两张卡片；游历档位按 adventure_tiers 逐档成行；初始资源包按内容拆行。
 //
 // 文件拆分（2026-09-22，审查 P2-16 单文件超 500 行）：
 //   types.ts           —— ModuleKey / FieldMeta / ModuleMeta / ValueRow / ItemOption
@@ -155,7 +123,6 @@ const PetConfig: React.FC = () => {
     if (!row || !editModule) return
     const mod = MODULES.find((m) => m.key === editModule)
     if (!mod) return
-    const fields = mod.fields.map((f) => f.field)
 
     // —— reserved 卡：数组名取嵌套值，深合并保留既有键（审查 P2 reserved 编辑入口）——
     if (editModule === 'collection_exchange') {
@@ -177,7 +144,7 @@ const PetConfig: React.FC = () => {
       try {
         const res = await petConfigService.update(row.id, { reserved: merged } as never)
         if (!res.success) return
-        message.success('「收藏兑换配方（reserved）」已保存')
+        message.success('「收藏兑换配方」已保存')
         setEditModule(null)
         setRow((prev) => (prev ? { ...prev, reserved: merged as Json } : prev))
       } finally {
@@ -190,18 +157,11 @@ const PetConfig: React.FC = () => {
       const values = await editForm.validateFields(RESERVED_NAME_PATHS)
       const patch = (values as { reserved?: Record<string, unknown> }).reserved ?? {}
       const merged = deepMergeReserved(row.reserved, patch)
-      const trait = (merged.trait ?? {}) as Record<string, unknown>
-      for (const k of ['chance', 'wash_chance']) {
-        const v = Number(trait[k])
-        if (trait[k] !== null && trait[k] !== undefined && (Number.isNaN(v) || v <= 0 || v > 1)) {
-          return void message.error(`特性概率 ${k} 需在 0~1 之间`)
-        }
-      }
       setSaving(true)
       try {
         const res = await petConfigService.update(row.id, { reserved: merged } as never)
         if (!res.success) return
-        message.success('「P2 参数（reserved）」已保存')
+        message.success('「繁育与健康参数」已保存')
         setEditModule(null)
         setRow((prev) => (prev ? { ...prev, reserved: merged as Json } : prev))
       } finally {
@@ -210,7 +170,9 @@ const PetConfig: React.FC = () => {
       return
     }
 
-    const values = await editForm.validateFields(fields)
+    // 无参校验：弹窗内只渲染本模块字段；点字符串与数组路径注册不匹配
+    // （rc-field-form getNamePath 不拆点），无参必然收集全部嵌套值
+    const values = await editForm.validateFields()
     if (editModule === 'economy') {
       const pairs: Array<[string, number, number]> = [
         ['背包', values.backpack_capacity_init, values.backpack_capacity_max],
@@ -221,20 +183,29 @@ const PetConfig: React.FC = () => {
         if (init > max) return void message.error(`${label}初始容量不能大于上限`)
       }
     }
+    // reserved 列深合并：本卡只 patch 自己的键，其他玩法组既有键不被覆盖
+    // （Supabase update 对 jsonb 列是整列替换，直传 values 会清掉未编辑的玩法组）
+    const payload =
+      values.reserved && typeof values.reserved === 'object'
+        ? {
+            ...values,
+            reserved: deepMergeReserved(row.reserved, values.reserved as Record<string, unknown>),
+          }
+        : values
     setSaving(true)
     try {
-      const res = await petConfigService.update(row.id, values as never)
+      const res = await petConfigService.update(row.id, payload as never)
       if (!res.success) return
       message.success(`「${mod.title}」已保存`)
       setEditModule(null)
       // 局部刷新：仅合并本模块字段到本地行，不整页重拉（其他模块不闪动、不受影响）
-      setRow((prev) => (prev ? { ...prev, ...(values as Partial<PetConfigRow>) } : prev))
+      setRow((prev) => (prev ? { ...prev, ...(payload as Partial<PetConfigRow>) } : prev))
     } finally {
       setSaving(false)
     }
   }
 
-  // ---------- 拆行展示（历险档位逐档 / 初始资源包按内容） ----------
+  // ---------- 拆行展示（游历档位逐档 / 初始资源包按内容） ----------
   const tierRows = useMemo(() => buildTierRows(row), [row])
 
   /** item_code → 展示名：初始包拆行与道具目录同源 */
@@ -277,24 +248,29 @@ const PetConfig: React.FC = () => {
         showIcon
         className={common.mb16}
         message="全局参数说明"
-        description="按模块查看参数表，点击模块卡片右上角「编辑」打开弹窗修改；保存只提交本模块字段。概率/审计版本锚点 config_version 只读（递增在蛋池页操作）。"
+        description="按页签查看各模块参数表，点击右上角「编辑」打开弹窗修改；保存只提交本模块字段。"
       />
-      {MODULES.map((mod) => (
-        <Card
-          key={mod.key}
-          title={mod.title}
-          className={common.mb16}
-          extra={
-            <Button
+      <Tabs
+        defaultActiveKey="master"
+        destroyOnHidden={false}
+        items={MODULES.map((mod) => ({
+          key: mod.key,
+          label: mod.title,
+          children: (
+            <Card
+              key={mod.key}
               size="small"
-              icon={<EditOutlined />}
-              disabled={!canWrite}
-              onClick={() => openEdit(mod.key)}
+              extra={
+                <Button
+                  size="small"
+                  icon={<EditOutlined />}
+                  disabled={!canWrite}
+                  onClick={() => openEdit(mod.key)}
+                >
+                  编辑
+                </Button>
+              }
             >
-              编辑
-            </Button>
-          }
-        >
           {mod.key === 'adventure' ? (
             <>
               <Table
@@ -344,30 +320,11 @@ const PetConfig: React.FC = () => {
               pagination={false}
             />
           )}
-        </Card>
-      ))}
+            </Card>
+          ),
+        }))}
+      />
 
-      <Card title="审计锚点" className={common.mb16}>
-        <Table
-          rowKey="field"
-          size="small"
-          columns={[
-            { title: '参数', dataIndex: 'label', width: 260 },
-            {
-              title: '当前值',
-              dataIndex: 'field',
-              render: () => `v${row.config_version}`,
-            },
-            {
-              title: '说明',
-              dataIndex: 'desc',
-              render: () => 'config_version 在「蛋池与概率」修改概率时递增，App 公示与 RPC 判定同源锚点',
-            },
-          ]}
-          dataSource={[{ field: 'config_version', label: 'config_version（概率/审计版本）' }]}
-          pagination={false}
-        />
-      </Card>
 
       <Modal
         title={`编辑 · ${editMod?.title ?? ''}`}

@@ -38,7 +38,7 @@ export const buildValueColumns = (row: PetConfigRow | null): ColumnsType<FieldMe
   { title: '说明', dataIndex: 'desc', render: DescCell },
 ]
 
-/** 自定义行表列（历险档位 / 初始资源包） */
+/** 自定义行表列（游历档位 / 初始资源包） */
 export const ROW_COLUMNS: ColumnsType<ValueRow> = [
   { title: '内容', dataIndex: 'label', width: 260 },
   {
@@ -54,7 +54,7 @@ export const ROW_COLUMNS: ColumnsType<ValueRow> = [
   { title: '说明', dataIndex: 'desc', render: DescCell },
 ]
 
-/** 历险档位逐档成行（adventure_tiers：tier 编码 / minutes 时长 / label 展示名） */
+/** 游历档位逐档成行（adventure_tiers：tier 编码 / minutes 时长 / label 展示名） */
 export const buildTierRows = (row: PetConfigRow | null): ValueRow[] => {
   const raw = rawValue(row, 'adventure_tiers') as Array<Record<string, unknown>> | null | undefined
   if (!Array.isArray(raw)) return []

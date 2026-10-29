@@ -1,6 +1,6 @@
 // 宠物全局参数模块元数据（从 PetConfig/index.tsx 抽离，审查 P2-16 单文件超 500 行）
 //
-// 历险/任务拆分为两张卡片；历险档位按 adventure_tiers 逐档成行；初始资源包按内容拆行。
+// 游历/任务拆分为两张卡片；游历档位按 adventure_tiers 逐档成行；初始资源包按内容拆行。
 // 列全集 = tables + rpcs + asset 三波 DDL + 互动冷却批补列；结构化编辑器与 RPC 消费同源。
 // 3D 一期已下线：render3d_enabled / asset_manifest 两列不再建卡编辑（列与存量值保留，
 // App 端已不取回，后期迭代重写渲染层时随 3D 编辑器一并恢复）。
@@ -42,14 +42,14 @@ export const MODULES: ModuleMeta[] = [
     fields: [
       { field: 'free_feed_daily', label: '免费喂养次数 / 天', format: fmtNum },
       { field: 'free_feed_cooldown_sec', label: '免费喂养冷却（秒）', desc: '两次免费喂养最小间隔;300 秒 = 5 分钟', format: fmtNum },
-      { field: 'free_feed_hunger', label: '免费喂养饱食恢复', desc: 'rpc_pet_feed 免费档效果', format: fmtNum },
+      { field: 'free_feed_hunger', label: '免费喂养饱食恢复', desc: '免费喂养档恢复的饱食量', format: fmtNum },
       { field: 'free_feed_exp', label: '免费喂养经验获得', format: fmtNum },
-      { field: 'feed_full_hunger', label: '饱腹阈值（饱食度）', desc: '达到即停喂：App 喂食钮置灰与 rpc_pet_feed 的 PET_ALREADY_FULL 同源', format: fmtNum },
-      { field: 'interact_cooldown_sec', label: '互动冷却（秒）', desc: 'rpc_pet_interact 两次互动最小间隔;10 秒为定稿值', format: fmtNum },
-      { field: 'interact_daily', label: '互动次数 / 天', desc: 'rpc_pet_interact 每日上限', format: fmtNum },
-      { field: 'interact_mood', label: '互动心情恢复', desc: 'rpc_pet_interact 单次效果', format: fmtNum },
-      { field: 'feed_intimacy', label: '喂养亲密度 / 次', desc: 'rpc_pet_feed 每次成功加的亲密；受每日上限约束', format: fmtNum },
-      { field: 'interact_intimacy', label: '互动亲密度 / 次', desc: 'rpc_pet_interact 每次成功加的亲密', format: fmtNum },
+      { field: 'feed_full_hunger', label: '饱腹阈值（饱食度）', desc: '达到即停止喂食：App 喂食按钮置灰与喂食服务同源判定', format: fmtNum },
+      { field: 'interact_cooldown_sec', label: '互动冷却（秒）', desc: '两次互动的最小间隔', format: fmtNum },
+      { field: 'interact_daily', label: '互动次数 / 天', desc: '每日互动次数上限', format: fmtNum },
+      { field: 'interact_mood', label: '互动心情恢复', desc: '单次互动恢复的心情', format: fmtNum },
+      { field: 'feed_intimacy', label: '喂养亲密度 / 次', desc: '每次成功喂养加的亲密；受每日上限约束', format: fmtNum },
+      { field: 'interact_intimacy', label: '互动亲密度 / 次', desc: '每次成功互动加的亲密', format: fmtNum },
       { field: 'intimacy_daily_cap', label: '亲密度每日上限 / 宠', desc: '每宠每日从照料（喂养+互动）获得的亲密上限，北京日归零；事件奖励不受此限', format: fmtNum },
     ],
   },
@@ -63,21 +63,39 @@ export const MODULES: ModuleMeta[] = [
   },
   {
     key: 'adventure',
-    title: '历险',
+    title: '游历',
     fields: [
-      { field: 'adventure_tiers', label: '历险档位', desc: 'tier 编码 / minutes 时长 / label 展示名', format: fmtJson },
-      { field: 'adventure_hunger_threshold', label: '历险出发饱食阈值（/100）', format: fmtNum },
-      { field: 'adventure_mood_threshold', label: '历险出发心情阈值（/100）', format: fmtNum },
-      { field: 'adventure_health_threshold', label: '历险出发健康阈值（/100）', desc: '健康为状态值：受伤扣减，药品/自然恢复；低于阈值不可出发', format: fmtNum },
-      { field: 'adventure_health_recover', label: '历险结算回血（/100）', desc: 'rpc_pet_adventure_claim 正常结算回补健康值，保证账户可恢复', format: fmtNum },
-      { field: 'rescue_consolation_gold', label: '遇险慰问金（金币）', desc: '超出自救窗口由 NPC 兜底救助时发放', format: fmtNum },
+      { field: 'adventure_tiers', label: '游历档位', desc: 'tier 编码 / minutes 时长 / label 展示名', format: fmtJson },
+      { field: 'adventure_hunger_threshold', label: '游历出发饱食阈值（/100）', format: fmtNum },
+      { field: 'adventure_mood_threshold', label: '游历出发心情阈值（/100）', format: fmtNum },
+      { field: 'adventure_health_threshold', label: '游历出发健康阈值（/100）', desc: '健康为状态值：受伤扣减，药品/自然恢复；低于阈值不可出发', format: fmtNum },
+      { field: 'adventure_health_recover', label: '游历结算回血（/100）', desc: '游历正常归来结算时回补的健康值', format: fmtNum },
+      { field: 'reserved.adventure_tier_mult.exp.short', label: '经验倍率·短途', desc: '短途派遣的经验收益倍率', format: fmtNum },
+      { field: 'reserved.adventure_tier_mult.exp.medium', label: '经验倍率·中途', desc: '中途派遣的经验收益倍率', format: fmtNum },
+      { field: 'reserved.adventure_tier_mult.exp.long', label: '经验倍率·长途', desc: '长途派遣的经验收益倍率', format: fmtNum },
+      { field: 'reserved.adventure_tier_mult.gold.short', label: '金币倍率·短途', desc: '短途派遣的金币收益倍率', format: fmtNum },
+      { field: 'reserved.adventure_tier_mult.gold.medium', label: '金币倍率·中途', desc: '中途派遣的金币收益倍率', format: fmtNum },
+      { field: 'reserved.adventure_tier_mult.gold.long', label: '金币倍率·长途', desc: '长途派遣的金币收益倍率', format: fmtNum },
+      { field: 'reserved.long_drop_pity.evo_stone_n', label: '长途保底·进化石凡品（次）', desc: '连续长途未出凡品进化石的保底次数，触达必得并清零', format: fmtNum },
+      { field: 'reserved.long_drop_pity.evo_stone_r', label: '长途保底·进化石珍品（次）', desc: '连续长途未出珍品进化石的保底次数，触达必得并清零', format: fmtNum },
+      { field: 'reserved.long_drop_pity.relic_compass', label: '长途保底·星辰罗盘（次）', desc: '连续长途未出星辰罗盘的保底次数，触达必得并清零', format: fmtNum },
     ],
   },
   {
     key: 'quest',
-    title: '任务',
+    title: '任务参数',
     fields: [
-      { field: 'daily_task_draw_count', label: '每日任务抽取数', desc: 'rpc_pet_daily_quests_draw 每日随机抽取条数', format: fmtNum },
+      { field: 'daily_task_draw_count', label: '每日任务抽取数', desc: '每日随机抽取的任务条数', format: fmtNum },
+      { field: 'reserved.weekly.draw_count', label: '周任务抽取条数', desc: '每周抽取的任务条数，留空回落每日抽取数', format: fmtNum },
+      { field: 'reserved.evo_quest_window_exp', label: '进化任务经验差窗口', desc: '距下一阶等级门槛剩余经验 ≤ 此值才下发进化任务，缺省 2600', format: fmtNum },
+    ],
+  },
+  {
+    key: 'trait',
+    title: '特性概率',
+    fields: [
+      { field: 'reserved.trait.chance', label: '孵化掷特性概率（0~1）', desc: '每次孵化掷出特性的概率', format: fmtNum },
+      { field: 'reserved.trait.wash_chance', label: '洗练命中概率（0~1）', desc: '洗练道具未自带概率时的兜底命中概率，未命中保留原特性', format: fmtNum },
     ],
   },
   {
@@ -95,6 +113,8 @@ export const MODULES: ModuleMeta[] = [
     fields: [
       { field: 'breeding_cooldown_hours', label: '繁育冷却（小时）', format: fmtNum },
       { field: 'ssr_hatch_wait_hours', label: 'SSR 等待孵化时长（小时）', format: fmtNum },
+      { field: 'reserved.hatch.accel_minutes', label: '加速孵化时长（分钟）', desc: '加速道具未配置时长时的兜底档', format: fmtNum },
+      { field: 'reserved.hatch.accel_gold', label: '加速孵化金币', desc: '金币加速档的花费', format: fmtNum },
     ],
   },
   {
@@ -105,7 +125,7 @@ export const MODULES: ModuleMeta[] = [
       { field: 'stack_limit_default', label: '默认单格堆叠上限', desc: '仅作道具目录未显式配置 stack_limit 时的兜底；每格实际上限以「宠物道具」页的 stack_limit 为准（App 背包据此显示 数量/上限 与满格角标）', format: fmtNum },
       { field: 'backpack_capacity_init', label: '背包初始格数', format: fmtNum },
       { field: 'backpack_capacity_max', label: '背包最高上限', format: fmtNum },
-      { field: 'release_gold_per_level', label: '放生补偿单价（金币/级）', desc: '放生补偿 = 等级 × 本值 × 评级倍率（倍率在 reserved 卡 release_gold_mult 按评级配置，缺省 1.0）', format: fmtNum },
+      { field: 'release_gold_per_level', label: '放生补偿单价（金币/级）', desc: '放生补偿 = 宠物等级 × 本值 × 评级倍率', format: fmtNum },
       { field: 'rearing_capacity_init', label: '养育格初始', format: fmtNum },
       { field: 'rearing_capacity_max', label: '养育格上限', format: fmtNum },
       { field: 'foster_capacity_init', label: '寄养格初始', desc: '0 = 需扩容道具开启', format: fmtNum },
@@ -128,41 +148,23 @@ export const MODULES: ModuleMeta[] = [
     // 收藏兑换配方卡：reserved.collection_exchange（收藏品 × 目标道具的兑换矩阵），
     // rpc_pet_collection_exchange 消费；体为动态数组，展示与编辑走 index 专属分支
     key: 'collection_exchange',
-    title: '收藏兑换配方（reserved）',
+    title: '收藏兑换配方',
     fields: [],
   },
   {
-    // P2 参数卡（审查报告 宠物 P2：reserved 无编辑入口，运营调整须手写 SQL）
+    // 繁育与健康参数卡（特性/孵化/游历倍率/长途保底/礼盒/周任务
+    // 各键已迁对应玩法页参数卡，本卡只留繁育参数与健康横切项）
     // 键域与 p2_seed §1 种子 + 各 RPC 消费点同源；dotted field 由 rawValue 深取值
     key: 'reserved_p2',
-    title: 'P2 参数（reserved）',
+    title: '繁育与健康参数',
     fields: [
-      { field: 'reserved.trait.chance', label: '孵化掷特性概率（0~1）', desc: 'rpc_pet_hatch_instant 孵化时是否掷特性', format: fmtNum },
-      { field: 'reserved.trait.wash_chance', label: '洗练命中概率（0~1）', desc: 'rpc_pet_wash_trait 道具无 effect.chance 时兜底；未命中保留原特性（口径 A）', format: fmtNum },
-      { field: 'reserved.hatch.accel_minutes', label: '加速孵化时长（分钟）', desc: 'rpc_pet_hatch_accelerate 道具无 effect.minutes 时兜底', format: fmtNum },
-      { field: 'reserved.hatch.accel_gold', label: '加速孵化金币', desc: 'rpc_pet_hatch_accelerate mode=gold 的花费', format: fmtNum },
-      { field: 'reserved.breeding.intimacy_min', label: '繁育亲密度门槛', desc: 'rpc_pet_breed_start 双亲亲密度门槛', format: fmtNum },
+      { field: 'reserved.breeding.intimacy_min', label: '繁育亲密度门槛', desc: '发起繁育时双亲需达到的亲密度', format: fmtNum },
       { field: 'reserved.breeding.gestation_hours', label: '繁育孕期（小时）', format: fmtNum },
       { field: 'reserved.breeding.fee_gold', label: '繁育手续费（金币，0=不收）', format: fmtNum },
-      { field: 'reserved.weekly.draw_count', label: '周任务抽取条数', desc: '缺省回落 daily_task_draw_count', format: fmtNum },
-      { field: 'reserved.breeding.egg_pool.N', label: '评级蛋池映射 N', desc: '评级→蛋池 code，缺省回落 egg_||lower(rarity)', format: fmtStr },
+      { field: 'reserved.breeding.egg_pool.N', label: '评级蛋池映射 N', desc: '评级对应的蛋池编码，留空用默认池', format: fmtStr },
       { field: 'reserved.breeding.egg_pool.R', label: '评级蛋池映射 R', format: fmtStr },
       { field: 'reserved.breeding.egg_pool.SR', label: '评级蛋池映射 SR', format: fmtStr },
       { field: 'reserved.breeding.egg_pool.SSR', label: '评级蛋池映射 SSR', format: fmtStr },
-      { field: 'reserved.adventure_tier_mult.exp.short', label: '历险经验倍率·短途', desc: '按派遣时长放大收益，缺省 1', format: fmtNum },
-      { field: 'reserved.adventure_tier_mult.exp.medium', label: '历险经验倍率·中途', desc: '定版 3', format: fmtNum },
-      { field: 'reserved.adventure_tier_mult.exp.long', label: '历险经验倍率·长途', desc: '定版 6', format: fmtNum },
-      { field: 'reserved.adventure_tier_mult.gold.short', label: '历险金币倍率·短途', desc: '缺省 1', format: fmtNum },
-      { field: 'reserved.adventure_tier_mult.gold.medium', label: '历险金币倍率·中途', desc: '定版 2.5', format: fmtNum },
-      { field: 'reserved.adventure_tier_mult.gold.long', label: '历险金币倍率·长途', desc: '定版 8', format: fmtNum },
-      { field: 'reserved.long_drop_pity.evo_stone_n', label: '长途保底·进化石凡品（次）', desc: '连续未中的长途次数达此值必得并清零，缺省 20', format: fmtNum },
-      { field: 'reserved.long_drop_pity.evo_stone_r', label: '长途保底·进化石珍品（次）', format: fmtNum },
-      { field: 'reserved.long_drop_pity.relic_compass', label: '长途保底·星辰罗盘（次）', format: fmtNum },
-      { field: 'reserved.lottery.price', label: '幸运抽奖单价（金币）', desc: 'rpc_pet_lottery_draw 每次消耗，缺省 30000', format: fmtNum },
-      { field: 'reserved.lottery.limit_total', label: '幸运抽奖·终身限购（次）', desc: '缺省 100', format: fmtNum },
-      { field: 'reserved.lottery.limit_window_hours', label: '幸运抽奖·时段窗口（小时）', desc: '与窗口限购组合成时段限购，缺省 24', format: fmtNum },
-      { field: 'reserved.lottery.limit_per_window', label: '幸运抽奖·窗口内限购（次）', desc: '缺省 10', format: fmtNum },
-      { field: 'reserved.evo_quest_window_exp', label: '进化任务经验差窗口', desc: '距下一阶等级门槛剩余经验 ≤ 此值才下发进化任务，缺省 2600', format: fmtNum },
       { field: 'reserved.low_status_health_decay', label: '低状态掉血（健康/小时）', desc: '饱食/心情低于线时的健康流失速率（虚弱线钳制），缺省 2', format: fmtNum },
     ],
   },

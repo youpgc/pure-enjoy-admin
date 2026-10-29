@@ -12,6 +12,7 @@ export type ModuleKey =
   | 'economy'
   | 'newbie'
   | 'collection_exchange'
+  | 'trait'
   | 'reserved_p2'
 
 /// 收藏兑换配方（reserved.collection_exchange 数组项；
@@ -38,7 +39,7 @@ export interface ModuleMeta {
   fields: FieldMeta[]
 }
 
-/** 自定义行（历险档位/初始资源包拆行展示） */
+/** 自定义行（游历档位/初始资源包拆行展示） */
 export interface ValueRow {
   key: string
   label: string

@@ -69,7 +69,7 @@ export const renderModuleControls = (
           <Form.Item
             name="feed_intimacy"
             label="喂养亲密度 / 次"
-            tooltip="rpc_pet_feed 每次成功加的亲密；受每日上限约束"
+            tooltip="每次成功喂养加的亲密；受每日上限约束"
             rules={[{ required: true }]}
           >
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
@@ -77,7 +77,7 @@ export const renderModuleControls = (
           <Form.Item
             name="interact_intimacy"
             label="互动亲密度 / 次"
-            tooltip="rpc_pet_interact 每次成功加的亲密"
+            tooltip="每次成功互动加的亲密"
             rules={[{ required: true }]}
           >
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
@@ -108,21 +108,21 @@ export const renderModuleControls = (
         <>
           <Form.Item
             name="adventure_tiers"
-            label="历险档位"
-            tooltip="tier 编码 / minutes 时长 / label 展示名；App 按此渲染历险发起页"
-            rules={[{ required: true, message: '至少保留一个历险档位' }]}
+            label="游历档位"
+            tooltip="tier 编码 / minutes 时长 / label 展示名；App 按此渲染游历发起页"
+            rules={[{ required: true, message: '至少保留一个游历档位' }]}
           >
             <TierListEditor disabled={disabled} />
           </Form.Item>
-          <Form.Item name="adventure_hunger_threshold" label="历险出发饱食阈值（/100）" rules={[{ required: true }]}>
+          <Form.Item name="adventure_hunger_threshold" label="游历出发饱食阈值（/100）" rules={[{ required: true }]}>
             <InputNumber min={0} max={100} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
-          <Form.Item name="adventure_mood_threshold" label="历险出发心情阈值（/100）" rules={[{ required: true }]}>
+          <Form.Item name="adventure_mood_threshold" label="游历出发心情阈值（/100）" rules={[{ required: true }]}>
             <InputNumber min={0} max={100} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
           <Form.Item
             name="adventure_health_threshold"
-            label="历险出发健康阈值（/100）"
+            label="游历出发健康阈值（/100）"
             tooltip="健康为状态值（/100）：受伤扣减，药品/自然恢复；低于阈值不可出发"
             rules={[{ required: true }]}
           >
@@ -130,22 +130,67 @@ export const renderModuleControls = (
           </Form.Item>
           <Form.Item
             name="adventure_health_recover"
-            label="历险结算回血（/100）"
-            tooltip="历险正常结算时回补的健康值（0 表示不回补，仅靠疗伤道具）"
+            label="游历结算回血（/100）"
+            tooltip="游历正常结算时回补的健康值（0 表示不回补，仅靠疗伤道具）"
             rules={[{ required: true }]}
           >
             <InputNumber min={0} max={100} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
-          <Form.Item name="rescue_consolation_gold" label="遇险慰问金（金币）" rules={[{ required: true }]}>
-            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          {/* 游历收益倍率（按派遣档放大经验/金币收益） */}
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'exp', 'short']} label="经验倍率·短途">
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'exp', 'medium']} label="经验倍率·中途">
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'exp', 'long']} label="经验倍率·长途">
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'gold', 'short']} label="金币倍率·短途">
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'gold', 'medium']} label="金币倍率·中途">
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'adventure_tier_mult', 'gold', 'long']} label="金币倍率·长途">
+            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          {/* 长途掉落保底（连续未中达次数必得并清零） */}
+          <Form.Item name={['reserved', 'long_drop_pity', 'evo_stone_n']} label="长途保底·进化石凡品（次）">
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'long_drop_pity', 'evo_stone_r']} label="长途保底·进化石珍品（次）">
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'long_drop_pity', 'relic_compass']} label="长途保底·星辰罗盘（次）">
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
         </>
       )
     case 'quest':
       return (
-        <Form.Item name="daily_task_draw_count" label="每日任务抽取数" rules={[{ required: true }]}>
-          <InputNumber min={1} max={20} className={common.fullWidth} disabled={disabled} />
-        </Form.Item>
+        <>
+          <Form.Item name="daily_task_draw_count" label="每日任务抽取数" rules={[{ required: true }]}>
+            <InputNumber min={1} max={20} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'weekly', 'draw_count']} label="周任务抽取条数" tooltip="留空回落每日抽取数">
+            <InputNumber min={1} max={20} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'evo_quest_window_exp']} label="进化任务经验差窗口" tooltip="距下一阶等级门槛剩余经验 ≤ 此值才下发进化任务；留空 = 服务端缺省 2600">
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+        </>
+      )
+    case 'trait':
+      return (
+        <>
+          <Form.Item name={['reserved', 'trait', 'chance']} label="孵化掷特性概率（0~1）" tooltip="每次孵化掷出特性的概率">
+            <InputNumber min={0} max={1} step={0.05} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'trait', 'wash_chance']} label="洗练命中概率（0~1）" tooltip="洗练道具未自带概率时的兜底；未命中保留原特性">
+            <InputNumber min={0} max={1} step={0.05} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+        </>
       )
     case 'hatch':
       return (
@@ -154,6 +199,13 @@ export const renderModuleControls = (
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
           <Form.Item name="ssr_hatch_wait_hours" label="SSR 等待孵化时长（小时）" rules={[{ required: true }]}>
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          {/* 加速孵化兜底档（加速道具未配置时长/金币时取此值） */}
+          <Form.Item name={['reserved', 'hatch', 'accel_minutes']} label="加速孵化时长（分钟）" tooltip="加速道具未配置时长时的兜底档">
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'hatch', 'accel_gold']} label="加速孵化金币" tooltip="金币加速档的花费；留空 = 服务端缺省">
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
         </>
@@ -188,7 +240,7 @@ export const renderModuleControls = (
           <Form.Item
             name="release_gold_per_level"
             label="放生补偿单价（金币/级）"
-            tooltip="放生补偿 = 等级 × 本值 × 评级倍率（倍率在 reserved 卡 release_gold_mult 按评级配置，缺省 1.0）"
+            tooltip="放生补偿 = 宠物等级 × 本值 × 评级倍率"
             rules={[{ required: true }]}
           >
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
@@ -205,61 +257,34 @@ export const renderModuleControls = (
           <NewbiePackageEditor items={itemOptions} disabled={disabled} />
         </Form.Item>
       )
+    case 'event':
+      // 随机事件三闸（rpc_pet_event_roll 消费）——此前 constants 有卡但无渲染 case
+      return (
+        <>
+          <Form.Item name="event_rate_home_open" label="事件触发率·打开宠物页" tooltip="每次打开宠物模块的掷中概率（0~1 小数，如 0.25 = 25%）；留空 = 服务端缺省 0.25">
+            <InputNumber min={0} max={1} step={0.05} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name="event_rate_action_done" label="事件触发率·照料动作后" tooltip="喂养/互动等动作成功后的掷中概率（0~1 小数，如 0.10 = 10%）；留空 = 服务端缺省 0.10">
+            <InputNumber min={0} max={1} step={0.05} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name="event_daily_limit" label="事件次数上限 / 天" tooltip="单宠每日随机事件触发配额（防刷闸）；留空 = 服务端缺省 5">
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+        </>
+      )
     case 'reserved_p2':
       // P2 参数（reserved）：数组名走 antd 嵌套路径，initialValues(row) 自动回显；
       // 保存由 index.tsx 深合并进 reserved，保留未在表单内的既有键（审查 P2 编辑入口）
       return (
         <>
-          <Form.Item name={['reserved', 'trait', 'chance']} label="孵化掷特性概率（0~1）" tooltip="0.3 = 30% 概率掷出特性" rules={[{ required: true }]}>
-            <InputNumber min={0} max={1} step={0.05} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'trait', 'wash_chance']} label="洗练命中概率（0~1）" tooltip="未命中保留原特性（口径 A）；道具可带 effect.chance 覆盖此兜底" rules={[{ required: true }]}>
-            <InputNumber min={0} max={1} step={0.05} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'hatch', 'accel_minutes']} label="加速孵化时长（分钟）" rules={[{ required: true }]}>
-            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'hatch', 'accel_gold']} label="加速孵化金币" rules={[{ required: true }]}>
-            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
           <Form.Item name={['reserved', 'breeding', 'intimacy_min']} label="繁育亲密度门槛" rules={[{ required: true }]}>
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
           <Form.Item name={['reserved', 'breeding', 'gestation_hours']} label="繁育孕期（小时）" rules={[{ required: true }]}>
             <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
-          <Form.Item name={['reserved', 'adventure_tier_mult', 'exp', 'short']} label="历险经验倍率·短途" tooltip="留空 = 服务端缺省 1；按派遣时长放大经验收益" >
-            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'adventure_tier_mult', 'exp', 'medium']} label="历险经验倍率·中途" >
-            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'adventure_tier_mult', 'exp', 'long']} label="历险经验倍率·长途" >
-            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'adventure_tier_mult', 'gold', 'short']} label="历险金币倍率·短途" tooltip="留空 = 服务端缺省 1" >
-            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'adventure_tier_mult', 'gold', 'medium']} label="历险金币倍率·中途" >
-            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'adventure_tier_mult', 'gold', 'long']} label="历险金币倍率·长途" >
-            <InputNumber min={0} step={0.5} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'long_drop_pity', 'evo_stone_n']} label="长途保底·进化石凡品（次）" tooltip="连续未中的长途次数达此值必得并清零；留空 = 服务端缺省 20" >
-            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'long_drop_pity', 'evo_stone_r']} label="长途保底·进化石珍品（次）" >
-            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'long_drop_pity', 'relic_compass']} label="长途保底·星辰罗盘（次）" >
-            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
           <Form.Item name={['reserved', 'breeding', 'fee_gold']} label="繁育手续费（金币，0=不收）" rules={[{ required: true }]}>
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'weekly', 'draw_count']} label="周任务抽取条数" tooltip="缺省回落 daily_task_draw_count" rules={[{ required: true }]}>
-            <InputNumber min={1} max={20} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
           <Form.Item label="评级 → 蛋池映射" tooltip="缺省回落 egg_||lower(rarity)；留空走回落">
             <Input.Group compact>
@@ -269,23 +294,6 @@ export const renderModuleControls = (
                 </Form.Item>
               ))}
             </Input.Group>
-          </Form.Item>
-          {/* 幸运抽奖（rpc_pet_lottery_draw：双限购闸，seed fix_pet_lottery_20261023） */}
-          <Form.Item name={['reserved', 'lottery', 'price']} label="幸运抽奖单价（金币）" tooltip="rpc_pet_lottery_draw 每次消耗；留空 = 服务端缺省 30000">
-            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'lottery', 'limit_total']} label="幸运抽奖·终身限购（次）" tooltip="留空 = 服务端缺省 100">
-            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'lottery', 'limit_window_hours']} label="幸运抽奖·时段窗口（小时）" tooltip="与窗口限购组合成时段限购；留空 = 服务端缺省 24">
-            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          <Form.Item name={['reserved', 'lottery', 'limit_per_window']} label="幸运抽奖·窗口内限购（次）" tooltip="留空 = 服务端缺省 10">
-            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
-          </Form.Item>
-          {/* 任务/健康调参键（进化任务经验差窗口 + 低状态掉血速率） */}
-          <Form.Item name={['reserved', 'evo_quest_window_exp']} label="进化任务经验差窗口" tooltip="距下一阶等级门槛的剩余经验 ≤ 此值才下发进化任务（2600 ≈ 7 天日常经验）；留空 = 服务端缺省 2600">
-            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
           <Form.Item name={['reserved', 'low_status_health_decay']} label="低状态掉血（健康/小时）" tooltip="饱食或心情低于线时按此速率掉健康（虚弱线钳制）；留空 = 服务端缺省 2">
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
