@@ -14,7 +14,7 @@ import { asObject } from '../../components/form/pet/editors/shared'
 //
 // weights 结构与 rpc_pet_hatch_instant 消费同源：
 //   fixed_species（固定产出）/ initial_choices（初始蛋自选种属 {系:[SSR code]}）/
-//   mode / families{系:权重} / rarity{首键=锁定评级} /
+//   mode / families{系:权重} / rarity{code:权重 加权掷取; 单键=锁定该评级} /
 //   gender{male:0~1 概率, female} / note。
 // 未知键保留（防覆写扩展配置）。
 
@@ -36,6 +36,13 @@ interface Props {
 const FAMILY_FIELDS = Object.entries(PET_FAMILY_LABELS).map(([key, label]) => ({
   key,
   label: `${label}（${key}）`,
+  min: 0,
+}))
+
+// 评级权重字段（比例语义按总量归一；单键=锁定评级，多键=加权抽取如礼盒 N13/R35/SR50/SSR2）
+const RARITY_FIELDS = PET_RARITY_CODE_OPTIONS.map((o) => ({
+  key: o.value,
+  label: o.label,
   min: 0,
 }))
 
@@ -95,13 +102,6 @@ const PoolFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
     }
     form.setFieldsValue({ weights: next })
   }
-  const handleRarityChange = (code: string | undefined) => {
-    const cur = asObject(form.getFieldValue('weights'))
-    const next = { ...cur }
-    if (!code) delete next.rarity
-    else next.rarity = { [code]: 1 }
-    form.setFieldsValue({ weights: next })
-  }
   const handleNoteChange = (text: string) => {
     const cur = asObject(form.getFieldValue('weights'))
     const next = { ...cur }
@@ -118,6 +118,11 @@ const PoolFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
     const familyVals = Object.values(asObject(weights.families ?? {})) as (number | string)[]
     if (familyVals.length > 0 && familyVals.some((v) => Number(v) <= 0 || Number.isNaN(Number(v)))) {
       message.error('体系权重必须为正数（服务端按总量归一，任意量纲均可，如 25/25/25/25）')
+      return
+    }
+    const rarityVals = Object.values(asObject(weights.rarity ?? {})) as (number | string)[]
+    if (rarityVals.length > 0 && rarityVals.some((v) => Number(v) <= 0 || Number.isNaN(Number(v)))) {
+      message.error('评级权重必须为正数（按总量归一；0 权重的评级请直接删行，避免边界抽取）')
       return
     }
     if (editing) {
@@ -169,7 +174,7 @@ const PoolFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         <Form.Item
           name="config_version"
           label="配置版本"
-          tooltip="审计铁律：编辑既有池版本不可手改，保存时概率有变更自动 +1（只增不减）；新池默认 1 可填"
+          tooltip="版本规则：编辑既有池版本不可手改，保存时概率有变更自动 +1（只增不减）；新池默认 1 可填"
           rules={[{ required: true, message: '请输入配置版本' }]}
         >
           <InputNumber min={1} style={{ width: '100%' }} disabled={!!editing} />
@@ -183,7 +188,6 @@ const PoolFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
             ssrOptions={ssrOptions}
             onInitialChoicesChange={handleInitialChoicesChange}
             onGenderChange={handleGenderChange}
-            onRarityChange={handleRarityChange}
             onNoteChange={handleNoteChange}
           />
         </Form.Item>
@@ -211,7 +215,6 @@ const WeightsFields: React.FC<{
   ssrOptions: Array<{ value: string; label: string }>
   onInitialChoicesChange: (codes: string[] | undefined) => void
   onGenderChange: (malePercent: number | null) => void
-  onRarityChange: (code: string | undefined) => void
   onNoteChange: (text: string) => void
 }> = ({
   value,
@@ -222,7 +225,6 @@ const WeightsFields: React.FC<{
   ssrOptions,
   onInitialChoicesChange,
   onGenderChange,
-  onRarityChange,
   onNoteChange,
 }) => {
   const obj = asObject(value)
@@ -232,7 +234,6 @@ const WeightsFields: React.FC<{
   )
   const gender = asObject(obj.gender)
   const rarity = asObject(obj.rarity)
-  const rarityCode = Object.keys(rarity)[0]
   const malePercent = typeof gender.male === 'number' ? Math.round(gender.male * 100) : null
 
   const setKey = (key: string, v: unknown) => {
@@ -283,22 +284,22 @@ const WeightsFields: React.FC<{
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <Typography.Text style={{ width: 130, flexShrink: 0 }}>锁定评级</Typography.Text>
-        <Select
-          style={{ width: 220 }}
-          value={rarityCode}
-          placeholder="可空 = 不锁定"
-          options={PET_RARITY_CODE_OPTIONS}
-          allowClear
-          disabled={disabled}
-          onChange={(v) => onRarityChange(v)}
-        />
-        {rarityCode && (
-          <Typography.Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-            服务端取 rarity 首键作为锁定评级
+      <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 8 }}>
+        <Typography.Text style={{ width: 130, flexShrink: 0, paddingTop: 4 }}>
+          评级权重
+          <Typography.Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
+            比例语义按总量归一；单键=锁定评级
           </Typography.Text>
-        )}
+        </Typography.Text>
+        <div style={{ flex: 1 }}>
+          <NumberMapEditor
+            value={rarity}
+            fields={RARITY_FIELDS}
+            sumHint="比例语义，按总量归一（无需凑 100）"
+            disabled={disabled}
+            onChange={(next) => setKey('rarity', Object.keys(next).length > 0 ? next : null)}
+          />
+        </div>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <Typography.Text style={{ width: 130, flexShrink: 0 }}>孵化方式</Typography.Text>
@@ -329,6 +330,14 @@ const WeightsFields: React.FC<{
           />
         </div>
       </div>
+      {poolCode === 'lottery_s1' && (
+        <Typography.Text
+          type="secondary"
+          style={{ display: 'block', fontSize: 12, marginBottom: 8 }}
+        >
+          礼盒的 SSR 保底阈值（缺省 40）、单价与终身/窗口限购在「宠物配置 → 全局参数」维护
+        </Typography.Text>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
         <Typography.Text style={{ width: 130, flexShrink: 0 }}>公的概率（%）</Typography.Text>
         <InputNumber

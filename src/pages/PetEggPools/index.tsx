@@ -30,8 +30,21 @@ function weightsSummaryText(
   if (typeof v.mode === 'string') parts.push(`方式 ${PET_EGG_MODE_LABELS[v.mode] ?? v.mode}`)
   const rarity = v.rarity
   if (rarity && typeof rarity === 'object') {
-    const code = Object.keys(rarity as Record<string, unknown>)[0]
-    if (code) parts.push(`锁定 ${RARITY_LABELS[code] ?? code}`)
+    const entries = Object.entries(rarity as Record<string, unknown>)
+    const first = entries[0]
+    if (first && entries.length === 1) {
+      parts.push(`锁定 ${RARITY_LABELS[first[0]] ?? first[0]}`)
+    } else if (entries.length > 1) {
+      const total = entries.reduce((acc, [, w]) => acc + Number(w), 0)
+      const text = entries
+        .map(([k, w]) => {
+          const n = Number(w)
+          const shown = total > 0 ? `${Math.round((n / total) * 100)}%` : String(w)
+          return `${RARITY_LABELS[k] ?? k}${shown}`
+        })
+        .join('/')
+      parts.push(text)
+    }
   }
   const families = v.families
   if (families && typeof families === 'object') {
@@ -53,6 +66,7 @@ const PetEggPools: React.FC = () => {
   const { hasPermission } = usePermission()
   const canWrite = hasPermission('pets:write')
   const canDelete = hasPermission('pets:delete')
+  const [page, setPage] = useState(1)
 
   const [rows, setRows] = useState<PetEggPoolRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -234,7 +248,7 @@ const PetEggPools: React.FC = () => {
         showIcon
         className={common.mb16}
         message="蛋池概率说明"
-        description="固定概率原则：概率判定只在服务端 RPC，判定结果写 pet_lottery_records（含 config_version）审计；App 端公示读取「已发布」版本的同一份 weights，公示与判定永远同源。改概率 = 递增 config_version 后再发布。列表默认仅显示已发布版本，历史版本行只读保护。"
+        description="固定概率原则：概率判定只在服务端进行且记录可追溯；App 公示读取「已发布」版本的同一份权重，公示与判定永远同源。修改概率保存时会自动生成新版本行，发布后生效。列表默认仅显示已发布版本，历史版本行只读保护。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
@@ -242,14 +256,14 @@ const PetEggPools: React.FC = () => {
             <Select
               className={common.sel240}
               value={publishedFilter}
-              onChange={setPublishedFilter}
+              onChange={(v) => { setPublishedFilter(v); setPage(1) }}
               options={[
                 { value: 'published', label: '已发布（App 可见）' },
                 { value: 'unpublished', label: '未发布（历史/草稿）' },
                 { value: 'all', label: '全部版本' },
               ]}
             />
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRows()}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setPage(1); void loadRows() }}>
               刷新
             </Button>
           </Space>
@@ -271,7 +285,7 @@ const PetEggPools: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filteredRows}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: page, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
         size="middle"
         locale={{ emptyText: publishedFilter === 'published' ? '暂无已发布蛋池' : '暂无数据' }}
       />
