@@ -266,8 +266,8 @@ const DiscardFlowsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
               style={{ width: 180 }}
               value={bizFilter}
               onChange={(v) => {
-                setBizFilter(v ?? '')
                 setPage(1)
+                setBizFilter(v ?? '')
               }}
               allowClear
               placeholder="丢弃（默认）"
@@ -282,14 +282,18 @@ const DiscardFlowsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
               allowClear
               style={{ width: 200 }}
               onSearch={(v) => {
-                setSearchText(v)
                 setPage(1)
+                setSearchText(v)
               }}
             />
             <Button
               icon={<ReloadOutlined />}
               loading={loading}
-              onClick={() => loadRows(page, bizFilter, searchText)}
+              onClick={() => {
+                // 已在第 1 页则显式重取；否则归 1 由分页 effect 重取
+                if (page === 1) void loadRows(1, bizFilter, searchText)
+                else setPage(1)
+              }}
             >
               刷新
             </Button>

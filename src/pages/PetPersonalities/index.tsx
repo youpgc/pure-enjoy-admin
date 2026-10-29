@@ -24,6 +24,7 @@ const PetPersonalities: React.FC = () => {
 
   const [rows, setRows] = useState<PetPersonalityRow[]>([])
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetPersonalityRow | null>(null)
@@ -138,12 +139,12 @@ const PetPersonalities: React.FC = () => {
         showIcon
         className={common.mb16}
         message="性格字典说明"
-        description="孵化时按属性占比匹配性格（2026-10-11 定版）：condition 为 {维度: 占比%}（该维占比 ≥ 值）或 {维度_max: 占比%}（该维占比 ≤ 值），占比 = 该维 ÷ 四维合计 × 100；全部满足才入候选，按条件键数、下界占比和降序取第一个（链式唯一解析）。全部 24 条已启用，档位为测试档、冒烟后调整。编码创建后不可修改。"
+        description="孵化时按属性占比匹配性格：condition 为 {维度: 占比%}（该维占比 ≥ 值）或 {维度_max: 占比%}（该维占比 ≤ 值），占比 = 该维 ÷ 四维合计 × 100；全部满足才入候选，按条件键数、下界占比和降序取第一个（链式唯一解析）。当前 24 条全部启用，数值为初始配置、可随时调整。编码创建后不可修改。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
           <Space wrap>
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRows()}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setPage(1); void loadRows() }}>
               刷新
             </Button>
           </Space>
@@ -165,7 +166,7 @@ const PetPersonalities: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: page, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
         size="middle"
         scroll={{ x: 900 }}
       />

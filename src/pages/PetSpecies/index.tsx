@@ -75,6 +75,7 @@ const PetSpecies: React.FC = () => {
   const [rows, setRows] = useState<PetSpeciesRow[]>([])
   const [rarities, setRarities] = useState<Array<{ code: string; name_cn: string }>>([])
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetSpeciesRow | null>(null)
@@ -266,13 +267,13 @@ const PetSpecies: React.FC = () => {
             <Select
               style={{ width: 140 }}
               value={familyFilter}
-              onChange={setFamilyFilter}
+              onChange={(v) => { setFamilyFilter(v); setPage(1) }}
               options={[{ value: '', label: '全部体系' }, ...PET_FAMILY_OPTIONS]}
             />
             <Select
               style={{ width: 140 }}
               value={rarityFilter}
-              onChange={setRarityFilter}
+              onChange={(v) => { setRarityFilter(v); setPage(1) }}
               options={[{ value: '', label: '全部评级' }, ...rarityOptions]}
             />
             <Input.Search
@@ -281,7 +282,7 @@ const PetSpecies: React.FC = () => {
               style={{ width: 200 }}
               onSearch={setCodeFilter}
             />
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRows()}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setPage(1); void loadRows() }}>
               刷新
             </Button>
           </Space>
@@ -303,7 +304,7 @@ const PetSpecies: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={groups}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: page, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
         size="middle"
         scroll={{ x: 1100 }}
       />

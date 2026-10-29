@@ -36,6 +36,7 @@ const AchievementsTab: React.FC<{ onRowsChange: (rows: AchievementOption[]) => v
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetAchievementRow | null>(null)
   const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
   const [tierFilter, setTierFilter] = useState('')
   const [enabledFilter, setEnabledFilter] = useState('')
   const catalog = usePetItemCatalog()
@@ -123,18 +124,18 @@ const AchievementsTab: React.FC<{ onRowsChange: (rows: AchievementOption[]) => v
               allowClear
               placeholder="搜索编码 / 名称"
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => { setKeyword(e.target.value); setPage(1) }}
             />
             <Select
               style={{ width: 130 }}
               value={tierFilter}
-              onChange={setTierFilter}
+              onChange={(v) => { setTierFilter(v); setPage(1) }}
               options={[{ value: '', label: '全部档位' }, ...PET_ACH_TIER_OPTIONS]}
             />
             <Select
               style={{ width: 130 }}
               value={enabledFilter}
-              onChange={setEnabledFilter}
+              onChange={(v) => { setEnabledFilter(v); setPage(1) }}
               options={[
                 { value: '', label: '全部状态' },
                 { value: 'on', label: '已启用' },
@@ -163,7 +164,7 @@ const AchievementsTab: React.FC<{ onRowsChange: (rows: AchievementOption[]) => v
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: page, pageSize: PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
         size="middle"
         scroll={{ x: 1100 }}
       />

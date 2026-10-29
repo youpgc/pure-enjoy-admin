@@ -101,6 +101,9 @@ const PetEvents: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetRandomEventRow | null>(null)
   const [keyword, setKeyword] = useState('')
+  const [eventPage, setEventPage] = useState(1)
+  const [logPage, setLogPage] = useState(1)
+  const [rollPage, setRollPage] = useState(1)
   const [enabledFilter, setEnabledFilter] = useState('')
 
   // —— 选择记录（Tab2）——
@@ -212,19 +215,19 @@ const PetEvents: React.FC = () => {
               allowClear
               placeholder="搜索编码 / 上下文"
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => { setKeyword(e.target.value); setEventPage(1) }}
             />
             <Select
               style={{ width: 130 }}
               value={enabledFilter}
-              onChange={setEnabledFilter}
+              onChange={(v) => { setEnabledFilter(v); setEventPage(1) }}
               options={[
                 { value: '', label: '全部状态' },
                 { value: 'on', label: '已启用' },
                 { value: 'off', label: '已停用' },
               ]}
             />
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={loadRows}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setEventPage(1); void loadRows() }}>
               刷新
             </Button>
           </Space>
@@ -246,7 +249,7 @@ const PetEvents: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: eventPage, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setEventPage(p), showSizeChanger: false }}
         size="middle"
       />
     </>
@@ -275,7 +278,7 @@ const PetEvents: React.FC = () => {
               value={logKeyword}
               onChange={(e) => setLogKeyword(e.target.value)}
             />
-            <Button icon={<ReloadOutlined />} loading={logLoading} onClick={loadLogs}>
+            <Button icon={<ReloadOutlined />} loading={logLoading} onClick={() => { setLogPage(1); void loadLogs() }}>
               刷新
             </Button>
           </Space>
@@ -286,7 +289,7 @@ const PetEvents: React.FC = () => {
         loading={logLoading}
         columns={logColumns}
         dataSource={filteredLogs}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: logPage, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setLogPage(p), showSizeChanger: false }}
         size="middle"
       />
     </>
@@ -371,7 +374,7 @@ const PetEvents: React.FC = () => {
               value={rollKeyword}
               onChange={(e) => setRollKeyword(e.target.value)}
             />
-            <Button icon={<ReloadOutlined />} loading={rollLoading} onClick={loadRolls}>
+            <Button icon={<ReloadOutlined />} loading={rollLoading} onClick={() => { setRollPage(1); void loadRolls() }}>
               刷新
             </Button>
           </Space>
@@ -382,7 +385,7 @@ const PetEvents: React.FC = () => {
         loading={rollLoading}
         columns={rollColumns}
         dataSource={filteredRolls}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: rollPage, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setRollPage(p), showSizeChanger: false }}
         size="middle"
       />
     </>
@@ -395,7 +398,7 @@ const PetEvents: React.FC = () => {
         showIcon
         className={common.mb16}
         message="随机事件说明"
-        description="事件为单表模型：文案、2~3 个选项与各选项奖惩包存在「事件内容」里（定版 schema：content.options）。App 在打开宠物页 / 照料动作成功后按概率触发（触发率与每日上限在「全局参数 → 随机事件」卡调整）；奖惩在触发时原样公示、选择时按同包结算。「选择记录」页签为流水审计（只读）。"
+        description="事件为单表模型：文案、2~3 个选项与各选项奖惩包都在「事件内容」里。App 在打开宠物页 / 照料动作成功后按概率触发（触发率与每日上限在「全局参数 → 随机事件」卡调整）；奖惩在触发时原样公示、选择时按同包结算。「选择记录」页签为流水（只读）。"
       />
       <Tabs
         defaultActiveKey="config"

@@ -43,6 +43,9 @@ const StagesTab: React.FC<{
   const [species, setSpecies] = useState<Array<{ value: string; label: string }>>([])
   const [items, setItems] = useState<Array<{ item_code: string; name: string }>>([])
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  // 选中链切换=数据集切换，页码归一
+  useEffect(() => { setPage(1) }, [chainId])
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetEvoStageRow | null>(null)
@@ -199,7 +202,7 @@ const StagesTab: React.FC<{
           loading={loading}
           columns={columns}
           dataSource={rows}
-          pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+          pagination={{ current: page, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
           size="middle"
           scroll={{ x: 1000 }}
         />

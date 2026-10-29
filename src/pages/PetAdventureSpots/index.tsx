@@ -15,12 +15,13 @@ import SpotFormModal, { type SpotFormValues } from './SpotFormModal'
 import { DropTableCell, usePetItemCatalog } from '../../components/pet/RewardCells'
 import common from '../../styles/common.module.css'
 
-// ==================== 历险地管理（pet_adventure_spots） ====================
+// ==================== 游历地管理（pet_adventure_spots） ====================
 
 const PetAdventureSpots: React.FC = () => {
   const { hasPermission } = usePermission()
   const canWrite = hasPermission('pets:write')
   const canDelete = hasPermission('pets:delete')
+  const [page, setPage] = useState(1)
 
   const [rows, setRows] = useState<PetAdventureSpotRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -188,7 +189,7 @@ const PetAdventureSpots: React.FC = () => {
         label: '删除',
         danger: true,
         disabled: !canDelete,
-        confirm: '确认删除该历险地？进行中的历险实例不受影响',
+        confirm: '确认删除该游历地？进行中的游历实例不受影响',
         onClick: () => handleDelete(record.id),
       },
     ]),
@@ -200,13 +201,13 @@ const PetAdventureSpots: React.FC = () => {
         type="info"
         showIcon
         className={common.mb16}
-        message="历险地说明"
-        description="历险三档时长与三档收益倍率（adventure_tier_mult）在「全局参数」页配置，历险地本身不区分档位。本页可配：解锁条件（当前仅 level 类型）、四类结果权重（play/danger/help/memory 纯权重 roll）、掉落包（结算只发 play/help/memory 与 long_only，遇险不掉落走救援）、属性要求（全达标必不遇险；不达标保留遇险判定）、失败惩罚（遇险救援结算：道具自救 ×0.5 / 超窗 NPC ×1.0，无慰问金）与救助参数（自救窗口分钟）。"
+        message="游历地说明"
+        description="本页可配：解锁条件（当前仅 level 类型）、四类结果权重（play/danger/help/memory 纯权重 roll）、掉落包（结算只发 play/help/memory 与 long_only，遇险不掉落走救援）、属性要求（全达标必不遇险；不达标保留遇险判定）、失败惩罚（遇险救援结算：道具自救 ×0.5 / 超窗 NPC ×1.0，无慰问金）与救助参数（自救窗口分钟）。游历三档时长在「全局参数」，收益倍率与长途保底在本页下方参数卡维护。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
           <Space wrap>
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRows()}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setPage(1); void loadRows() }}>
               刷新
             </Button>
           </Space>
@@ -219,7 +220,7 @@ const PetAdventureSpots: React.FC = () => {
               setModalOpen(true)
             }}
           >
-            新增历险地
+            新增游历地
           </Button>
         </div>
       </Card>
@@ -228,7 +229,7 @@ const PetAdventureSpots: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: page, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
         size="middle"
         scroll={{ x: 1000 }}
       />

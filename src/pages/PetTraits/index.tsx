@@ -26,6 +26,7 @@ const PetTraits: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetTraitRow | null>(null)
   const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
   const [familyFilter, setFamilyFilter] = useState('')
   const [enabledFilter, setEnabledFilter] = useState('')
 
@@ -113,7 +114,7 @@ const PetTraits: React.FC = () => {
         showIcon
         className={common.mb16}
         message="特性池说明"
-        description="特性在孵化/繁育时由服务端加权随机掷取（三级池优先级：种属 > 体系 > 全局，未命中任何池则宠物无特性）。权重是池内相对值，不是百分比。effect_type/effect_params 值域待 P2 定版，当前服务端只掷不读。"
+        description="特性在孵化/繁育时由服务端加权随机掷取（三级池优先级：种属 > 体系 > 全局，未命中任何池则宠物无特性）。权重是池内相对值，不是百分比。effect_type 候补值域 11 项已登记（表单可录入新码）；效果值由特性生态各消费点读取。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>
@@ -123,12 +124,12 @@ const PetTraits: React.FC = () => {
               allowClear
               placeholder="搜索编码 / 名称"
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => { setKeyword(e.target.value); setPage(1) }}
             />
             <Select
               style={{ width: 160 }}
               value={familyFilter}
-              onChange={setFamilyFilter}
+              onChange={(v) => { setFamilyFilter(v); setPage(1) }}
               options={[
                 { value: '', label: '全部归属池' },
                 { value: '__global__', label: '仅全局池' },
@@ -141,14 +142,14 @@ const PetTraits: React.FC = () => {
             <Select
               style={{ width: 130 }}
               value={enabledFilter}
-              onChange={setEnabledFilter}
+              onChange={(v) => { setEnabledFilter(v); setPage(1) }}
               options={[
                 { value: '', label: '全部状态' },
                 { value: 'on', label: '已启用' },
                 { value: 'off', label: '已停用' },
               ]}
             />
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={loadRows}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setPage(1); void loadRows() }}>
               刷新
             </Button>
           </Space>
@@ -170,7 +171,7 @@ const PetTraits: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: page, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
         size="middle"
       />
       <TraitFormModal

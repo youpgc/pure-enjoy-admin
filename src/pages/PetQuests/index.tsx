@@ -48,6 +48,7 @@ const PetQuests: React.FC = () => {
   const [editing, setEditing] = useState<PetQuestRow | null>(null)
   const [items, setItems] = useState<Array<{ item_code: string; name: string; category: string }>>([])
   const [typeFilter, setTypeFilter] = useState('')
+  const [page, setPage] = useState(1)
   const [difficultyFilter, setDifficultyFilter] = useState('')
   const catalog = usePetItemCatalog()
 
@@ -135,7 +136,7 @@ const PetQuests: React.FC = () => {
         if (!v || !v.type) return '-'
         const type = String(v.type)
         const typeText = PET_QUEST_CONDITION_TYPE_LABELS[type] ?? type
-        // 历险类时长维度与 App 标题同口径（「长途历险」，取自 condition.tier）
+        // 游历类时长维度与 App 标题同口径（「长途游历」，取自 condition.tier）
         const tier = type === 'adventure' ? String(v.tier ?? '') : ''
         const label = tier
           ? `${PET_QUEST_TIER_LABELS[tier] ?? tier}${typeText.replace('游历次数', '游历')}`
@@ -200,16 +201,16 @@ const PetQuests: React.FC = () => {
             <Select
               style={{ width: 120 }}
               value={typeFilter}
-              onChange={setTypeFilter}
+              onChange={(v) => { setTypeFilter(v); setPage(1) }}
               options={[{ value: '', label: '全部类型' }, ...PET_QUEST_TYPE_OPTIONS]}
             />
             <Select
               style={{ width: 120 }}
               value={difficultyFilter}
-              onChange={setDifficultyFilter}
+              onChange={(v) => { setDifficultyFilter(v); setPage(1) }}
               options={[{ value: '', label: '全部难度' }, ...PET_QUEST_DIFFICULTY_OPTIONS]}
             />
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRows()}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setPage(1); void loadRows() }}>
               刷新
             </Button>
           </Space>
@@ -231,7 +232,7 @@ const PetQuests: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: page, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
         size="middle"
       />
       <QuestFormModal

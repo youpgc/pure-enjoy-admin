@@ -45,6 +45,7 @@ const PetItems: React.FC = () => {
   const [subFilter, setSubFilter] = useState<string | undefined>(undefined)
   const [shelfFilter, setShelfFilter] = useState<string | undefined>(undefined)
   const [keyword, setKeyword] = useState('')
+  const [page, setPage] = useState(1)
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -63,6 +64,7 @@ const PetItems: React.FC = () => {
   const handleCategoryChange = (v: string) => {
     setCategoryFilter(v)
     setSubFilter(undefined)
+    setPage(1)
   }
 
   const matchSub = (r: PetItemRow, v: string) => {
@@ -243,7 +245,7 @@ const PetItems: React.FC = () => {
             <Select
               style={{ width: 160 }}
               value={subFilter}
-              onChange={setSubFilter}
+              onChange={(v) => { setSubFilter(v); setPage(1) }}
               options={subOptions}
               placeholder={subOptions.length ? '子类型' : '该类型无子类型'}
               allowClear
@@ -252,7 +254,7 @@ const PetItems: React.FC = () => {
             <Select
               style={{ width: 110 }}
               value={shelfFilter}
-              onChange={setShelfFilter}
+              onChange={(v) => { setShelfFilter(v); setPage(1) }}
               options={[
                 { value: 'true', label: '已上架' },
                 { value: 'false', label: '已下架' },
@@ -264,9 +266,9 @@ const PetItems: React.FC = () => {
               placeholder="编码/名称搜索"
               allowClear
               style={{ width: 200 }}
-              onSearch={setKeyword}
+              onSearch={(v) => { setKeyword(v); setPage(1) }}
             />
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRows()}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setPage(1); void loadRows() }}>
               刷新
             </Button>
           </Space>
@@ -288,7 +290,7 @@ const PetItems: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: page, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
         size="middle"
         scroll={{ x: 1100 }}
       />

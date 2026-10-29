@@ -22,6 +22,7 @@ const PetScenes: React.FC = () => {
 
   const [rows, setRows] = useState<PetSceneRow[]>([])
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetSceneRow | null>(null)
@@ -113,14 +114,14 @@ const PetScenes: React.FC = () => {
             <Select
               style={{ width: 140 }}
               value={shelfFilter}
-              onChange={setShelfFilter}
+              onChange={(v) => { setShelfFilter(v); setPage(1) }}
               options={[
                 { value: '', label: '全部上架状态' },
                 { value: 'on', label: '已上架' },
                 { value: 'off', label: '未上架' },
               ]}
             />
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={loadRows}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setPage(1); void loadRows() }}>
               刷新
             </Button>
           </Space>
@@ -142,7 +143,7 @@ const PetScenes: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: page, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
         size="middle"
       />
       <SceneFormModal

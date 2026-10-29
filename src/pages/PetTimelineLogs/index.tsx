@@ -7,7 +7,7 @@ import { usePermission } from '../../hooks/usePermission'
 import { useUsernames } from '../../hooks/useUsernames'
 import { petTimelineLogService, petAdventureSpotService } from '../../services/petService'
 import { UserName } from '../../components/common/UserName'
-import { PET_TABLE_PAGE_SIZE, PET_TIMELINE_EVENT_META, PET_ADVENTURE_RESULT_LABELS } from '../../constants/pet'
+import { PET_TABLE_PAGE_SIZE, PET_TIMELINE_EVENT_META, PET_ADVENTURE_RESULT_LABELS, PET_QUEST_TIER_LABELS } from '../../constants/pet'
 import common from '../../styles/common.module.css'
 
 // ==================== 宠物时间线查询（pet_timeline_logs，只读审计） ====================
@@ -18,8 +18,8 @@ import common from '../../styles/common.module.css'
 // 事件类型中文标签统一取 constants（PET_TIMELINE_EVENT_META），未登记码回退原样
 const TYPE_META = PET_TIMELINE_EVENT_META
 
-/// 历险档位码 → 中文（adventure_tiers 固定三档）
-const TIER_LABELS: Record<string, string> = { short: '短途', medium: '中途', long: '长途' }
+/// 游历档位码 → 中文（adventure_tiers 固定三档）
+const TIER_LABELS = PET_QUEST_TIER_LABELS
 
 function payloadSummary(
   type: string,
@@ -73,7 +73,8 @@ const PetTimelineLogs: React.FC = () => {
   const [rows, setRows] = useState<PetTimelineLogRow[]>([])
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
-  // 历险地码 → 中文名（历险归来/失败概要转译）
+  const [page, setPage] = useState(1)
+  // 游历地码 → 中文名（游历归来/失败概要转译）
   const [spotNames, setSpotNames] = useState<Record<string, string>>({})
 
   const loadRows = useCallback(async () => {
@@ -169,9 +170,9 @@ const PetTimelineLogs: React.FC = () => {
               allowClear
               placeholder="搜索用户 / 事件类型 / 宠物"
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
+              onChange={(e) => { setKeyword(e.target.value); setPage(1) }}
             />
-            <Button icon={<ReloadOutlined />} loading={loading} onClick={loadRows}>
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setPage(1); void loadRows() }}>
               刷新
             </Button>
           </Space>
@@ -182,7 +183,7 @@ const PetTimelineLogs: React.FC = () => {
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: page, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
         size="middle"
       />
     </div>

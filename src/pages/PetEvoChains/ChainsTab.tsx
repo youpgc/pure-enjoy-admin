@@ -32,6 +32,7 @@ const ChainsTab: React.FC<{
   const [saving, setSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PetEvoChainRow | null>(null)
+  const [page, setPage] = useState(1)
   const [keyword, setKeyword] = useState('')
   const [familyFilter, setFamilyFilter] = useState('')
 
@@ -134,7 +135,7 @@ const ChainsTab: React.FC<{
             <Select
               style={{ width: 130 }}
               value={familyFilter}
-              onChange={setFamilyFilter}
+              onChange={(v) => { setFamilyFilter(v); setPage(1) }}
               options={[{ value: '', label: '全部体系' }, ...PET_FAMILY_OPTIONS]}
             />
             <Button icon={<ReloadOutlined />} loading={loading} onClick={loadRows}>
@@ -159,7 +160,7 @@ const ChainsTab: React.FC<{
         loading={loading}
         columns={columns}
         dataSource={filtered}
-        pagination={{ pageSize: PET_TABLE_PAGE_SIZE, showSizeChanger: false }}
+        pagination={{ current: page, pageSize: PET_TABLE_PAGE_SIZE, onChange: (p) => setPage(p), showSizeChanger: false }}
         size="middle"
       />
       <ChainFormModal
