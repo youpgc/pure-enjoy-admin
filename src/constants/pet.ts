@@ -185,7 +185,7 @@ export const PET_QUEST_DIFFICULTY_OPTIONS = Object.entries(PET_QUEST_DIFFICULTY_
   ([value, label]) => ({ value, label })
 )
 
-// ---------- 历险结果四类 ----------
+// ---------- 游历结果四类 ----------
 
 export const PET_ADVENTURE_RESULT_LABELS: Record<string, string> = {
   play: '游玩',
@@ -242,12 +242,12 @@ export const PET_PERMS = {
 // - 任务 condition：rpc_pet_daily_quests_draw 读 type + target（int，缺省 1）；
 // - 任务 rewards：rpc_pet_daily_quests_claim 读 gold + points + items[{code,count}]；
 // - 蛋池 weights：hatch 读 fixed_species / families / rarity(取首键) / gender.male(0~1 概率)；
-// - 历险 result_weights：claim 按 jsonb_each_text 累计权重与 random() 比较（和应为 1）；
-// - 历险 rescue_params：读 self_window_minutes（缺省 120）；
-// - 历险 drop_table：<result>.gold[min,max] / exp[min,max] / items[{code,min,max,p}]。
+// - 游历 result_weights：claim 按 jsonb_each_text 累计权重与 random() 比较（和应为 1）；
+// - 游历 rescue_params：读 self_window_minutes（缺省 120）；
+// - 游历 drop_table：<result>.gold[min,max] / exp[min,max] / items[{code,min,max,p}]。
 
 /// 道具效果类型（rpc_pet_use_item 认 feed/clean/toy/heal/refine_point；
-/// rescue 只用于历险自救（sub_type='rescue' 或 effect.type='rescue' 二者之一）；
+/// rescue 只用于游历自救（sub_type='rescue' 或 effect.type='rescue' 二者之一）；
 /// P2 三类各由专属 RPC 卡键——hatch_accel→rpc_pet_hatch_accelerate、
 /// trait_wash→rpc_pet_wash_trait（category 必须 consumable）、unlock→rpc_pet_unlock_feature；
 /// refine_reassign 是旧属性洗练语义，仅历史数据兜底展示，新配置不得再写。
@@ -257,6 +257,7 @@ export const PET_EFFECT_TYPE_LABELS: Record<string, string> = {
   clean: '清洁（心情）',
   toy: '玩耍（心情）',
   heal: '疗伤（健康，effect.value）',
+  exp_double: '双倍经验（effect.hours 时长）',
   rescue: '游历自救',
   refine_point: '洗练点补给',
   refine_reassign: '属性重掷（已下线）',
@@ -275,15 +276,15 @@ export const PET_EFFECT_TYPE_OPTIONS = Object.entries(PET_EFFECT_TYPE_LABELS)
 
 /// 任务条件 type（服务端 _pet_quest_bump 进度键：十类按事实表实况重算
 /// （feed/interact/adventure/clean/play/heal/hatch/exchange/breed/evolve）+ scene 增量。
-/// 值域与 App PetQuestConditionType 一致（铁律 12）；历险类可带 tier 时长维度）
+/// 值域与 App PetQuestConditionType 一致（铁律 12）；游历类可带 tier 时长维度）
 export const PET_CONDITION_TYPE_LABELS: Record<string, string> = PET_QUEST_CONDITION_TYPE_LABELS
 
 export const PET_CONDITION_TYPE_OPTIONS = Object.entries(PET_CONDITION_TYPE_LABELS).map(
   ([value, label]) => ({ value, label })
 )
 
-/// 历险条件时长维度（condition.tier；服务端历险重算按 a.tier 过滤，
-/// App 任务标题前缀显示「短途/中途/长途历险」，双端同口径）
+/// 游历条件时长维度（condition.tier；服务端游历重算按 a.tier 过滤，
+/// App 任务标题前缀显示「短途/中途/长途游历」，双端同口径）
 export const PET_QUEST_TIER_LABELS: Record<string, string> = {
   short: '短途',
   medium: '中途',
@@ -368,7 +369,7 @@ export const PET_TIMELINE_EVENT_META: Record<string, { label: string; color: str
 // ---------- 四维属性（2026-09-17 属性系统，与 App/SQL 对齐） ----------
 // 消费点实证（feature_pet_attributes_20260917.sql）：
 // - 种属 base_attributes.base 键 / hatch roll 维度；
-// - 历险 attr_requirements[].attr（claim 结算判据）；
+// - 游历 attr_requirements[].attr（claim 结算判据）；
 // - 性格 condition 键（{attr:阈值} 全维度 ≥ AND）；
 // - rpc_pet_allocate_attr 的 p_attr_key 白名单（前三维加点，末维收尾）。
 
@@ -384,7 +385,7 @@ export const PET_ATTR_OPTIONS = Object.entries(PET_ATTR_LABELS).map(([value, lab
   label: `${label}（${value}）`,
 }))
 
-/// 历险失败惩罚键（penalty jsonb；数值均为负值扣减）
+/// 游历失败惩罚键（penalty jsonb；数值均为负值扣减）
 export const PET_PENALTY_LABELS: Record<string, string> = {
   health: '健康',
   mood: '心情',
@@ -441,7 +442,7 @@ export const PET_EVO_COND_TYPE_OPTIONS = Object.entries(PET_EVO_COND_TYPE_LABELS
 
 // ---------- P2 成就（pet_achievements，2026-09-23 rpc_pet_achievement_check 已上线） ----------
 //
-// condition_type 11 值 = rpc_pet_achievement_check 的 case 分支白名单；
+// condition_type 13 值 = rpc_pet_achievement_check 的 case 分支白名单（11 基础 + collection_total/tree_full_claim 收藏批扩展）；
 // 未列入的取值进度恒为 0（服务端不报错，靠后台配置自检发现拼写错误）。
 // 目标值读取优先级 condition_value.value → .target → 1（_pet_ach_target）。
 
@@ -457,13 +458,6 @@ export const PET_ACH_CONDITION_TYPE_LABELS: Record<string, string> = {
   pets_owned: '拥有宠物数达到',
   families_owned: '拥有系别数达到',
   rarity_owned: '拥有指定评级宠物（condition_value.rarity）',
-  clean_total: '累计清洁次数',
-  play_total: '累计游玩次数',
-  heal_total: '累计治疗次数',
-  exchange_total: '累计积分兑换次数',
-  scene_total: '累计场景装扮次数',
-  gold_earned_total: '累计获得金币',
-  dex_total: '图鉴收集形态数',
   collection_total: '累计获得收藏品',
   tree_full_claim: '成就树圆满度（全树领取数）',
 }
@@ -544,6 +538,7 @@ export const PET_EVENT_CONTEXT_OPTIONS = Object.entries(
 /// 奖惩包数值键（choose 结算与 App 公示同源；hunger 允许负值=代价型选项）
 export const PET_EVENT_REWARD_FIELDS = [
   { key: 'gold', label: '金币', min: 0 },
+  { key: 'points', label: '积分', min: 0 },
   { key: 'exp', label: '经验', min: 0 },
   { key: 'mood', label: '心情', min: 0 },
   { key: 'intimacy', label: '亲密', min: 0 },

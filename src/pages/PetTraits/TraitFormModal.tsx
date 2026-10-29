@@ -1,14 +1,15 @@
 import React from 'react'
-import { Form, Input, InputNumber, Modal, Select, Switch } from 'antd'
+import { AutoComplete, Form, Input, InputNumber, Modal, Select, Switch } from 'antd'
 import type { PetTraitRow } from '../../types/pet'
-import { PET_FAMILY_OPTIONS } from '../../constants/pet'
+import { PET_FAMILY_OPTIONS, PET_TRAIT_EFFECT_TYPE_LABELS } from '../../constants/pet'
 import { JsonFormItem } from '../../components/form/pet/JsonFormItem'
 import { asObject } from '../../components/form/pet/editors/shared'
 
 // ==================== 特性编辑弹窗（pet_traits） ====================
 //
 // 掷取规则（_pet_trait_roll）：三级池优先级 种属 > 体系 > 全局，池内按 weight 加权随机；
-// ⚠️ effect_type / effect_params 值域 P2 尚未定版，服务端只掷不读，故此处按文本/JSON 录入。
+// effect_type 值域 11 项见 PET_TRAIT_EFFECT_TYPE_LABELS（候补可选、也允许录入新码）；
+// effect_params 服务端只掷不读，按 JSON 录入。
 
 export interface TraitFormValues {
   code: string
@@ -83,10 +84,17 @@ const TraitFormModal: React.FC<Props> = ({
         <Form.Item
           name="effect_type"
           label="效果类型"
-          tooltip="值域未定版（服务端掷取时不读该列）；请填小写下划线英文码，便于后续 RPC 接入"
-          rules={[{ required: true, message: '请输入效果类型' }]}
+          tooltip="候补为已登记 11 值域；也允许录入新码（便于后续 RPC 接入）"
+          rules={[{ required: true, message: '请选择或输入效果类型' }]}
         >
-          <Input placeholder="如 attr_bonus / exp_rate" />
+          <AutoComplete
+            options={Object.entries(PET_TRAIT_EFFECT_TYPE_LABELS).map(([value, label]) => ({
+              value,
+              label: `${value}·${label}`,
+            }))}
+            filterOption={false}
+            placeholder="选择或输入小写下划线英文码"
+          />
         </Form.Item>
         <JsonFormItem
           name="effect_params"

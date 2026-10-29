@@ -163,7 +163,10 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
         </Form.Item>
 
         {category === 'egg' || category === 'consumable' ? (
-          <Form.Item name="effect" label="使用效果">
+          // preserve 显式开启：打开弹窗时 category 从 undefined 落到实际值会触发
+          // 本分支与 JSON 分支互切，preserve=false 的 Form.Item 卸载时会把 effect
+          // 值从 store 带走（= 编辑回显全空的根因）
+          <Form.Item name="effect" label="使用效果" preserve>
             <EffectEditor category={category} poolOptions={poolOptions} />
           </Form.Item>
         ) : (
@@ -173,6 +176,7 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
             tooltip='工具类为开放结构（如救援 {"type":"rescue"}、扩容 {"ladder":"backpack"}），保留 JSON 编辑'
             placeholder='{"type":"rescue"}'
             rows={3}
+            preserve
           />
         )}
 
@@ -221,12 +225,12 @@ const ItemFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
             >
               <InputNumber min={1} className={common.fullWidth} addonAfter="格" />
             </Form.Item>
-            <Form.Item name="purchase_limit" label="限购次数">
+            <Form.Item name="purchase_limit" label="限购次数" preserve>
               <InputNumber min={1} max={1} disabled className={common.fullWidth} addonAfter="阶梯道具固定 1 次" />
             </Form.Item>
           </>
         ) : (
-          <Form.Item name="purchase_limit" label="通用限购" tooltip="留空 = 不限购">
+          <Form.Item name="purchase_limit" label="通用限购" tooltip="留空 = 不限购" preserve>
             <InputNumber min={1} className={common.fullWidth} />
           </Form.Item>
         )}

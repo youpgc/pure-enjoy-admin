@@ -105,7 +105,7 @@ export const EffectEditor: React.FC<EffectEditorProps> = ({
 
   // —— 消耗品：type + hunger/mood/exp + value ——
   if (category === 'consumable') {
-    const known = ['type', 'hunger', 'mood', 'exp', 'value']
+    const known = ['type', 'hunger', 'mood', 'exp', 'value', 'hours']
     const extra = extraKeys(value, known)
     const type = typeof obj.type === 'string' ? obj.type : ''
     const setField = (key: string, v: unknown) => {
@@ -154,6 +154,20 @@ export const EffectEditor: React.FC<EffectEditorProps> = ({
               placeholder={type === 'refine_point' ? '留空 = 1 点' : '留空 = 不恢复'}
               disabled={disabled}
               onChange={(v) => setField('value', typeof v === 'number' ? v : null)}
+            />
+          </div>
+        )}
+        {(type === 'exp_double' || obj.hours !== undefined) && (
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+            <Typography.Text style={{ width: 110, flexShrink: 0 }}>双倍时长</Typography.Text>
+            <InputNumber
+              style={{ width: 160 }}
+              min={1}
+              addonAfter="小时"
+              value={numOf(obj.hours, undefined) ?? undefined}
+              placeholder="留空 = 服务端缺省"
+              disabled={disabled}
+              onChange={(v) => setField('hours', typeof v === 'number' ? v : null)}
             />
           </div>
         )}

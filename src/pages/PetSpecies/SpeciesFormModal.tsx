@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Modal, Form, Input, InputNumber, Select, Switch } from 'antd'
-import type { PetSpeciesRow } from '../../types/pet'
+import type { PetEvoChainRow, PetSpeciesRow } from '../../types/pet'
 import { PET_FAMILY_OPTIONS } from '../../constants/pet'
+import { petEvoChainService } from '../../services/petService'
 import { Render2dEditor } from '../../components/form/pet/editors/RenderEditors'
 import {
   SpeciesAttrEditor,
@@ -54,6 +55,19 @@ const SpeciesFormModal: React.FC<Props> = ({
   onCancel,
 }) => {
   const [form] = Form.useForm()
+  const [chainRows, setChainRows] = useState<PetEvoChainRow[]>([])
+
+  useEffect(() => {
+    if (!open) return
+    petEvoChainService.findAll().then((res) => {
+      if (res.success && res.data) setChainRows(res.data)
+    })
+  }, [open])
+
+  const chainOptions = chainRows.map((c) => ({
+    value: c.id,
+    label: `${c.code}·${c.family}`,
+  }))
 
   return (
     <Modal
@@ -142,10 +156,16 @@ const SpeciesFormModal: React.FC<Props> = ({
 
         <Form.Item
           name="evolution_chain_id"
-          label="进化链 ID"
+          label="进化链"
           tooltip="基础形不挂链；一阶/二阶形态挂所属链（uuid 或空串均视为未挂载）"
         >
-          <Input placeholder="留空 = 未挂载进化链" allowClear />
+          <Select
+            options={chainOptions}
+            showSearch
+            optionFilterProp="label"
+            allowClear
+            placeholder="留空 = 未挂载进化链"
+          />
         </Form.Item>
 
         <Form.Item

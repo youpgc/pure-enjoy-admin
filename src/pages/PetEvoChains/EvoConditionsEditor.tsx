@@ -51,7 +51,7 @@ export const EvoConditionsEditor: React.FC<Props> = ({ value, onChange, items, d
               options={PET_EVO_COND_TYPE_OPTIONS}
               onChange={(v) => {
                 // 换类型时清掉上一类型的互斥键，避免留下无效 value/item（服务端忽略但会误导运营）
-                if (isItem && v !== 'item') patch(index, { type: v, item: undefined, cost: undefined })
+                if (isItem && v !== 'item') patch(index, { type: v, item: undefined, item_id: undefined, cost: undefined })
                 else if (!isItem && v === 'item') patch(index, { type: v, value: undefined })
                 else patch(index, { type: v })
               }}
@@ -63,7 +63,11 @@ export const EvoConditionsEditor: React.FC<Props> = ({ value, onChange, items, d
                   showSearch
                   optionFilterProp="label"
                   value={typeof row.item === 'string' ? row.item : undefined}
-                  placeholder="选择道具（item_code）"
+                  placeholder={
+                    row.item
+                      ? '选择道具（item_code）'
+                      : '该行按 item_id 配置，重选道具将覆盖'
+                  }
                   disabled={disabled}
                   options={itemOptions}
                   onChange={(v) => patch(index, { item: v })}

@@ -104,7 +104,7 @@ const PersonalityFormModal: React.FC<Props> = ({ open, editing, saving, onOk, on
           name="enabled"
           label="启用"
           valuePropName="checked"
-          tooltip="关闭后孵化匹配跳过该性格（当前 24 条全量启用，2026-10-08 起）"
+          tooltip="关闭后孵化匹配跳过该性格（当前 24 条全量启用）"
         >
           <Switch checkedChildren="启用" unCheckedChildren="停用" />
         </Form.Item>

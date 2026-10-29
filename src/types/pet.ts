@@ -168,7 +168,8 @@ export interface PetAdventureSpotRow {
 }
 
 /// 1.12 性格字典（pet_personalities，2026-09-17 属性系统）
-/// condition：{attr: 阈值} —— 四维全部 ≥ 阈值（AND）才候选，weight 加权随机
+/// condition：{四维: 下界占比%} + {四维_max: 上界占比%}（20261011 占比口径）；
+/// 解析为确定序：条件键数 desc → 下界占比和 desc → weight desc → code asc，非加权随机。
 export interface PetPersonalityRow {
   id: string
   code: string
@@ -263,8 +264,8 @@ export interface PetEvoStageRow {
 }
 
 /// 1.6 特性池（pet_traits；三级池优先级 species_code > family > 全局）
-/// ⚠️ effect_type/effect_params 值域 P2 未定版，服务端 _pet_trait_roll 只掷不读，
-/// 故后台按文本录入，不建枚举常量（不发明值域）。
+/// effect_type 值域 11 项见 constants PET_TRAIT_EFFECT_TYPE_LABELS（服务端 _pet_trait_roll
+/// 只掷取不消费效果值，效果消费走特性生态批的 11 类接线）。
 export interface PetTraitRow {
   id: string
   code: string
@@ -280,8 +281,8 @@ export interface PetTraitRow {
 }
 
 /// 1.10 随机事件（pet_random_events，单表；选项内嵌 content）
-/// ⚠️ content 结构（文案 + 2~3 选项 + 奖惩包）与 context 值域均未定版、暂无 RPC 消费，
-/// 后台走 JsonFormItem 编辑，不发明 schema 校验。
+/// content = {title, text, options:[{label, rewards:{gold,points,exp,mood,intimacy,hunger,item_code?,item_count?}}]}，
+/// context 值域 home_open/action_done；rpc_pet_event_roll/choose 消费（2026-10-08 实装），后台结构化编辑。
 export interface PetRandomEventRow {
   id: string
   code: string

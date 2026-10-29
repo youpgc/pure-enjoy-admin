@@ -12,8 +12,8 @@ import { PET_ATTR_OPTIONS, PET_ATTR_LABELS, PET_PENALTY_LABELS } from '../../../
 //   （rpc_pet_hatch_instant：每维 [base±variance] roll → 差值随机分摊守恒到 total）
 // - hatch_config：{ inherit_ratio 0~1, potential_min, potential_max }
 // - refine_config：{ base 每级洗练点, potential_bonus:[{min,max,bonus}] 潜力加成档 }
-// - 历险 attr_requirements：[{attr, value}]（结算判据，claim 判 failed）
-// - 历险 penalty：{health, mood, gold（负值扣减）, lose_item:{p 概率}}
+// - 游历 attr_requirements：[{attr, value}]（遇险开关：全达标必不遇险，未达标保留遇险判定）
+// - 游历 penalty：{health, mood, gold（负值扣减）, lose_item:{p 概率}}
 // 未知键一律保留（防覆写清空服务端写入的扩展键）。
 
 /// 四维键：派生自 constants（ENUM 单一源，禁止本地副本）
@@ -265,7 +265,7 @@ export const RefineConfigEditor: React.FC<{
   )
 }
 
-// ---------- 历险属性要求 [{attr, value}] ----------
+// ---------- 游历属性要求 [{attr, value}] ----------
 export const AttrRequirementsEditor: React.FC<{
   value?: unknown
   onChange?: (v: Array<Record<string, unknown>>) => void
@@ -279,7 +279,7 @@ export const AttrRequirementsEditor: React.FC<{
   return (
     <div>
       <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-        结算判据（非硬门槛）：不达标仍可出发，结算时判为失败并触发惩罚
+        遇险开关（非硬门槛）：全达标必不遇险；不达标仍可出发，途中保留遇险判定
       </Typography.Text>
       {rows.map((row, idx) => (
         <Space.Compact key={idx} style={{ display: 'flex', marginBottom: 8 }} block>
@@ -325,7 +325,7 @@ export const AttrRequirementsEditor: React.FC<{
   )
 }
 
-// ---------- 历险失败惩罚 { health, mood, gold, lose_item:{p} } ----------
+// ---------- 游历失败惩罚 { health, mood, gold, lose_item:{p} } ----------
 export const PenaltyEditor: React.FC<{
   value?: unknown
   onChange?: (v: Record<string, unknown>) => void

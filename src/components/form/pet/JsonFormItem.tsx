@@ -16,6 +16,8 @@ interface JsonFormItemProps {
   rows?: number
   tooltip?: string
   required?: boolean
+  /** 条件分支互切时保留 store 值（preserve=false 的卸载项会带走表单值） */
+  preserve?: boolean
 }
 
 /// TextArea ↔ 表单值桥接：编辑中保留草稿文本，解析成功即向表单提交对象
@@ -60,11 +62,13 @@ export const JsonFormItem: React.FC<JsonFormItemProps> = ({
   rows = 4,
   tooltip,
   required,
+  preserve,
 }) => (
   <Form.Item
     name={name}
     label={label}
     tooltip={tooltip}
+    preserve={preserve}
     rules={[
       ...(required ? [{ required: true, message: `请输入${label}` }] : []),
       {

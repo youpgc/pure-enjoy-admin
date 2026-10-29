@@ -16,7 +16,7 @@ import common from '../../styles/common.module.css'
 // ==================== 成就编辑弹窗（pet_achievements） ====================
 //
 // 与服务端同源（feature_pet_p2_rpcs_20260923 §6）：
-// - condition_type 必须落在 11 值白名单内，否则 rpc_pet_achievement_check 算出的进度恒为 0；
+// - condition_type 必须落在 13 值白名单内，否则 rpc_pet_achievement_check 算出的进度恒为 0；
 // - 目标值键位 value 优先（兼容 target，缺省 1）；rarity_owned 额外读 condition_value.rarity；
 // - reward_package 与任务 rewards 同 schema：{gold?, points?, items:[{code,count}]}。
 
@@ -179,7 +179,7 @@ const AchievementFormModal: React.FC<Props> = ({
           name="enabled"
           label="启用"
           valuePropName="checked"
-          tooltip="停用后 rpc_pet_achievement_check 不再重算该成就进度（存量进度保留）"
+          tooltip="停用后不再重算该成就进度（存量进度保留）"
         >
           <Switch checkedChildren="启用" unCheckedChildren="停用" />
         </Form.Item>
