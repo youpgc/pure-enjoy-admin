@@ -5,13 +5,26 @@ import type { PetSceneRow } from '../../types/pet'
 
 // ==================== 场景主题预览弹窗 ====================
 //
-// 按手机主页构图预览背景：竖版相框（1024×1352 同比例）+ 布局参考线
-// （顶部 UI 区 ~15% / 宠物站位区 / 底部状态卡区 ~22%，与 App 主页沉底卡、
-// 站位下沉约束同口径，参考线为近似值，用于判断遮挡与站立区干净度）。
+// 按手机主页构图预览背景：竖版相框（390×844 与 App 逻辑分辨率同比例，
+// cover 裁切口径一致）+ 布局参考线（顶部 UI 区 ~15% / 宠物箱 / 底部状态卡区
+// ~20%，由 App pet_home_screen_layout.dart 常量推导：舞台左右边距
+// _kEdgeInset(64)+40=104/390、宠物箱=正方形（边=舞台宽）且底缘锚状态卡上方
+// 30px、面板常态高 168（游历提示行 +~30）——20261028 主体下移改版后同步）。
 // 图片约定：public/pet-scenes/<scene_code>.png（与 App assets/pets/scenes 同名同步）。
 
-/** 相框宽（高按 1024:1352 自动推导） */
-const FRAME_W = 300
+/** 相框宽（高按 390:844 自动推导） */
+const FRAME_W = 220
+
+// ---- 宠物箱几何（% 相对相框，推导自 App 布局常量，勿手调单值） ----
+// 左右内边距占比 = 104/390；箱宽占比 = 1 − 2×26.67% = 46.67%（宽）
+// 箱高占比 = 宽占比 × (390/844) = 21.6%（高，正方形换算）
+// 底距占比 = (面板168+30)/844 = 23.5%；箱 top = 100% − 底距 − 箱高 = 55.0%
+const BOX_LEFT = 26.7
+const BOX_WIDTH = 46.6
+const BOX_TOP = 55.0
+const BOX_HEIGHT = 21.6
+const PANEL_HEIGHT = 20.0
+const TOP_UI_HEIGHT = 15.0
 
 interface Props {
   open: boolean
@@ -67,7 +80,7 @@ const ScenePreviewModal: React.FC<Props> = ({ open, rows, scene, onCancel }) => 
               unCheckedChildren="参考线"
             />
             <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-              模拟 App 主页构图（宠物叠加渲染于站位区）
+              模拟 App 主页构图（宠物叠加渲染于宠物箱，底缘=状态卡上方 30px）
             </Typography.Text>
           </div>
 
@@ -87,11 +100,11 @@ const ScenePreviewModal: React.FC<Props> = ({ open, rows, scene, onCancel }) => 
               onClick={() => go(-1)}
               aria-label="上一场景"
             />
-            {/* 手机相框：竖版 1024:1352，cover 裁切与 App BoxFit.cover 同口径 */}
+            {/* 手机相框：竖版 390:844，cover 裁切与 App BoxFit.cover 同口径 */}
             <div
               style={{
                 width: FRAME_W,
-                aspectRatio: '1024 / 1352',
+                aspectRatio: '390 / 844',
                 position: 'relative',
                 borderRadius: 16,
                 overflow: 'hidden',
@@ -132,7 +145,7 @@ const ScenePreviewModal: React.FC<Props> = ({ open, rows, scene, onCancel }) => 
                       top: 0,
                       left: 0,
                       right: 0,
-                      height: '15%',
+                      height: `${TOP_UI_HEIGHT}%`,
                       borderBottom: '1.5px dashed rgba(255,255,255,0.9)',
                       background: 'rgba(0,0,0,0.18)',
                       display: 'flex',
@@ -144,22 +157,23 @@ const ScenePreviewModal: React.FC<Props> = ({ open, rows, scene, onCancel }) => 
                       顶部 UI 区
                     </span>
                   </div>
+                  {/* 宠物箱：正方形，底缘 = 状态卡上方 30px（App 同构） */}
                   <div
                     style={{
                       position: 'absolute',
-                      left: '22%',
-                      width: '56%',
-                      top: '40%',
-                      height: '34%',
+                      left: `${BOX_LEFT}%`,
+                      width: `${BOX_WIDTH}%`,
+                      top: `${BOX_TOP}%`,
+                      height: `${BOX_HEIGHT}%`,
                       border: '1.5px dashed rgba(255,255,255,0.9)',
-                      borderRadius: '50%',
+                      borderRadius: 8,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
                     <span style={{ color: '#fff', fontSize: 11, textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
-                      宠物站位
+                      宠物箱
                     </span>
                   </div>
                   <div
@@ -168,7 +182,7 @@ const ScenePreviewModal: React.FC<Props> = ({ open, rows, scene, onCancel }) => 
                       bottom: 0,
                       left: 0,
                       right: 0,
-                      height: '22%',
+                      height: `${PANEL_HEIGHT}%`,
                       borderTop: '1.5px dashed rgba(255,255,255,0.9)',
                       background: 'rgba(0,0,0,0.18)',
                       display: 'flex',
