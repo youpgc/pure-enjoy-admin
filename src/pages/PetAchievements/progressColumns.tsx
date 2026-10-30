@@ -62,6 +62,13 @@ export function buildProgressColumns(
       width: 120,
       render: (_, r) => `${r.progress} / ${targetOf(r)}`,
     },
+    {
+      // 领取时进度快照（20261022 起 claim 落库，只增不减；未领取为 null）
+      title: '领取时进度',
+      key: 'claimed_progress',
+      width: 110,
+      render: (_, r) => (r.claimed_progress != null ? `${r.claimed_progress} / ${targetOf(r)}` : '-'),
+    },
     { title: '状态', key: 'status', width: 110, render: (_, r) => <StatusTag row={r} /> },
     {
       title: '达标时间',

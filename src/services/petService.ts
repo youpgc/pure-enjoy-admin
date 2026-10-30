@@ -46,7 +46,7 @@ class PetConfigService extends BaseService<PetConfigRow> {
     super('pet_config', {
       defaultOrder: { column: 'id', ascending: true },
       select:
-        'id,pet_enabled,free_feed_daily,free_feed_cooldown_min,interact_cooldown_min,free_feed_cooldown_sec,interact_cooldown_sec,interact_daily,daily_task_draw_count,adventure_tiers,adventure_hunger_threshold,adventure_mood_threshold,adventure_health_threshold,adventure_health_recover,levelup_attr_points,breeding_cooldown_hours,points_per_gold,stack_limit_default,backpack_capacity_init,backpack_capacity_max,rearing_capacity_init,rearing_capacity_max,foster_capacity_init,foster_capacity_max,ssr_hatch_wait_hours,newbie_package,config_version,reserved,level_exp_base,level_exp_growth,free_feed_hunger,free_feed_exp,feed_full_hunger,interact_mood,decay_hunger_per_hour,decay_mood_per_hour,rescue_consolation_gold,render3d_enabled,asset_manifest,feed_intimacy,interact_intimacy,intimacy_daily_cap,event_rate_home_open,event_rate_action_done,event_daily_limit,release_gold_per_level,created_at,updated_at',
+        'id,pet_enabled,free_feed_daily,free_feed_cooldown_min,interact_cooldown_min,free_feed_cooldown_sec,interact_cooldown_sec,interact_daily,daily_task_draw_count,adventure_tiers,adventure_hunger_threshold,adventure_mood_threshold,adventure_health_threshold,adventure_health_recover,levelup_attr_points,breeding_cooldown_hours,points_per_gold,stack_limit_default,backpack_capacity_init,backpack_capacity_max,rearing_capacity_init,rearing_capacity_max,foster_capacity_init,foster_capacity_max,ssr_hatch_wait_hours,newbie_package,config_version,reserved,level_exp_base,level_exp_growth,free_feed_hunger,free_feed_exp,feed_full_hunger,interact_mood,decay_hunger_per_hour,decay_mood_per_hour,render3d_enabled,asset_manifest,feed_intimacy,interact_intimacy,intimacy_daily_cap,event_rate_home_open,event_rate_action_done,event_daily_limit,release_gold_per_level,level_max,health_recover_per_hour,weak_health_threshold,weak_mood_decay_mult,rescue_timeout_health,intimacy_level_base,intimacy_level_growth,level_exp_table,created_at,updated_at',
     })
   }
 
@@ -117,7 +117,7 @@ class PetAdventureSpotService extends BaseService<PetAdventureSpotRow> {
     super('pet_adventure_spots', {
       defaultOrder: { column: 'sort_order', ascending: true },
       select:
-        'id,code,name,unlock_conditions,attr_requirements,result_weights,drop_table,rescue_params,penalty,enabled,sort_order,created_at,updated_at',
+        'id,code,name,hidden,unlock_conditions,attr_requirements,result_weights,drop_table,rescue_params,penalty,enabled,sort_order,created_at,updated_at',
     })
   }
 }
@@ -300,7 +300,7 @@ class PetPetAdminService extends BaseService<PetPetRow> {
     super('pet_pets', {
       defaultOrder: { column: 'created_at', ascending: false },
       select:
-        'id,user_id,show_no,nickname,stage,gender,level,exp,hunger,mood,intimacy,health,status,base_attributes,bonus_attributes,personality_code,created_at,species:pet_species(name_cn,rarity_code,family)',
+        'id,user_id,show_no,nickname,stage,gender,level,exp,hunger,mood,intimacy,health,status,base_attributes,bonus_attributes,personality_code,rename_count,released_at,today_intimacy_gain,last_intimacy_gain_at,sort_order,created_at,species:pet_species(name_cn,rarity_code,family)',
     })
   }
 
@@ -352,6 +352,27 @@ class PetEventLotteryService extends BaseService<PetLotteryRecordRow> {
   }
 }
 
+// 幸运蛋礼盒抽取记录（pet_lottery_records biz='egg_hatch' 且 pool_code 限礼盒两池；
+// rpc_pet_lottery_draw 建蛋后走 hatch 全链写入本表，结果含评级/形态/性别/性格/潜力/特性）
+class PetLotteryDrawService extends BaseService<PetLotteryRecordRow> {
+  constructor() {
+    super('pet_lottery_records', {
+      defaultOrder: { column: 'created_at', ascending: false },
+      select: 'id,user_id,biz,pool_code,config_version,input,result,created_at',
+    })
+  }
+
+  async pageDraws(
+    page: number,
+    pageSize: number,
+  ): Promise<ApiResponse<{ data: PetLotteryRecordRow[]; total: number }>> {
+    // 双过滤均下推服务端（全局审计大表，禁全量拉取客户端筛）
+    return this.paginate(page, pageSize, (q) =>
+      q.eq('biz', 'egg_hatch').in('pool_code', ['lottery_s1', 'lottery_s1_pity']),
+    )
+  }
+}
+
 // 宠物时间线（pet_timeline_logs，只读审计；RLS is_admin 全量）
 class PetTimelineLogService extends BaseService<PetTimelineLogRow> {
   constructor() {
@@ -397,7 +418,7 @@ class PetAchievementProgressService extends BaseService<PetAchievementProgressRo
     super('pet_achievement_progress', {
       defaultOrder: { column: 'created_at', ascending: false },
       select:
-        'id,user_id,achievement_id,progress,completed_at,claimed_at,created_at,pet_achievements(code,title,tier,condition_value)',
+        'id,user_id,achievement_id,progress,completed_at,claimed_at,claimed_progress,created_at,pet_achievements(code,title,tier,condition_value)',
     })
   }
 
@@ -472,6 +493,7 @@ export const petRandomEventService = new PetRandomEventService()
 export const petEventChoiceLogService = new PetEventChoiceLogService()
 export const petPetAdminService = new PetPetAdminService()
 export const petEventLotteryService = new PetEventLotteryService()
+export const petLotteryDrawService = new PetLotteryDrawService()
 export const petTimelineLogService = new PetTimelineLogService()
 export const petAchievementService = new PetAchievementService()
 export const petSceneService = new PetSceneService()

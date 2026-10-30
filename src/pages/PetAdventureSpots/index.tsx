@@ -55,6 +55,7 @@ const PetAdventureSpots: React.FC = () => {
         drop_table: values.drop_table as unknown as Record<string, unknown>,
         rescue_params: values.rescue_params as unknown as Record<string, unknown>,
         penalty: values.penalty as unknown as Record<string, unknown>,
+        hidden: !!values.hidden,
         enabled: !!values.enabled,
         sort_order: Number(values.sort_order) || 0,
       }
@@ -170,8 +171,13 @@ const PetAdventureSpots: React.FC = () => {
     {
       title: '状态',
       dataIndex: 'enabled',
-      width: 80,
-      render: (v: boolean) => (v ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>),
+      width: 110,
+      render: (v: boolean, record) => (
+        <Space wrap size={4}>
+          {v ? <Tag color="green">启用</Tag> : <Tag>停用</Tag>}
+          {record.hidden ? <Tag color="purple">秘境</Tag> : null}
+        </Space>
+      ),
     },
     { title: '排序', dataIndex: 'sort_order', width: 70 },
     getActionColumn<PetAdventureSpotRow>((record) => [
@@ -202,7 +208,7 @@ const PetAdventureSpots: React.FC = () => {
         showIcon
         className={common.mb16}
         message="游历地说明"
-        description="本页可配：解锁条件（当前仅 level 类型）、四类结果权重（play/danger/help/memory 纯权重 roll）、掉落包（结算只发 play/help/memory 与 long_only，遇险不掉落走救援）、属性要求（全达标必不遇险；不达标保留遇险判定）、失败惩罚（遇险救援结算：道具自救 ×0.5 / 超窗 NPC ×1.0，无慰问金）与救助参数（自救窗口分钟）。游历三档时长在「全局参数」，收益倍率与长途保底在本页下方参数卡维护。"
+        description="本页可配：解锁条件（当前仅 level 类型）、四类结果权重（play/danger/help/memory 纯权重 roll）、掉落包（结算只发 play/help/memory 与 long_only，遇险不掉落走救援）、属性要求（全达标必不遇险；不达标保留遇险判定）、失败惩罚（遇险救援结算：道具自救 ×0.5 / 超窗 NPC ×1.0，无慰问金）与救助参数（自救窗口分钟）。游历三档时长、收益倍率与长途保底在「全局参数 → 游历」页签维护。"
       />
       <Card className={common.mb16}>
         <div className={common.toolbar}>

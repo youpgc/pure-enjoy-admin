@@ -45,7 +45,6 @@ export interface PetConfigRow {
   interact_mood: number
   decay_hunger_per_hour: number
   decay_mood_per_hour: number
-  rescue_consolation_gold: number
   // —— asset 批补列（3D 渲染开关 / 资源包清单）——
   render3d_enabled: boolean
   asset_manifest: Json
@@ -65,6 +64,19 @@ export interface PetConfigRow {
   event_rate_action_done: number
   event_daily_limit: number
   release_gold_per_level: number
+  // —— 2026-10 批补列（等级上限/健康体系/亲密度等级曲线/经验定版表）——
+  /// 等级上限（feature_pet_level_cap_and_rename_20261008.sql）
+  level_max: number
+  /// 健康体系四参（fix_pet_health_system_20261023.sql）
+  health_recover_per_hour: number
+  weak_health_threshold: number
+  weak_mood_decay_mult: number
+  rescue_timeout_health: number
+  /// 亲密度等级曲线（fix_pet_intimacy_level_reorder_20261021.sql）
+  intimacy_level_base: number
+  intimacy_level_growth: number
+  /// 等级经验定版表（jsonb：{"1":91,...}；fix_pet_level_exp_table_20261023.sql）
+  level_exp_table: Json | null
   created_at: string
   updated_at: string
 }
@@ -161,6 +173,8 @@ export interface PetAdventureSpotRow {
   drop_table: Json
   rescue_params: Json
   penalty: Json
+  /// 隐秘境隐藏标记（fix_pet_p3_hidden_buff_20261023.sql；true = 需隐藏 buff 解锁）
+  hidden: boolean
   enabled: boolean
   sort_order: number
   created_at: string
@@ -343,6 +357,8 @@ export interface PetAchievementProgressRow {
   progress: number
   completed_at: string | null
   claimed_at: string | null
+  /// 领取时进度快照（fix_pet_ach_snapshot_20261023.sql；null = 领取前版本无快照）
+  claimed_progress: number | null
   created_at: string
   pet_achievements?: { code: string; title: string; tier: string; condition_value: Json } | null
 }
@@ -364,6 +380,16 @@ export interface PetPetRow {
   base_attributes: Json
   bonus_attributes: Json
   personality_code: string | null
+  /// 以下 2026-10 批补列（只读展示暂未消费，类型对齐 DDL 防漂移）
+  /// 改名次数（feature_pet_level_cap_and_rename_20261008.sql）
+  rename_count: number
+  /// 放生时间（feature_pet_release_and_dex_20261009.sql）
+  released_at: string | null
+  /// 今日亲密增量与锚点（feature_pet_attr_baseline_20261008.sql）
+  today_intimacy_gain: number
+  last_intimacy_gain_at: string | null
+  /// 亲密度等级（fix_pet_intimacy_level_reorder_20261021.sql）
+  sort_order: number
   created_at: string
   species: { name_cn: string; rarity_code: string; family: string } | null
 }

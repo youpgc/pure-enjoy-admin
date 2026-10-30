@@ -34,6 +34,7 @@ export interface SpotFormValues {
   drop_table: Record<string, unknown>
   rescue_params: Record<string, unknown>
   penalty: Record<string, unknown>
+  hidden: boolean
   enabled: boolean
   sort_order: number
 }
@@ -111,6 +112,7 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
                   drop_table: {},
                   rescue_params: { self_window_minutes: 120 },
                   penalty: {},
+                  hidden: false,
                   enabled: false,
                   sort_order: 0,
                 }
@@ -174,6 +176,14 @@ const SpotFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel 
 
         <Form.Item name="sort_order" label="排序号">
           <InputNumber min={0} className={common.fullWidth} />
+        </Form.Item>
+        <Form.Item
+          name="hidden"
+          label="秘境隐藏"
+          valuePropName="checked"
+          tooltip="开启后不直接出现在 App 游历地图；持有隐藏解锁 buff 的用户可见（PET_SPOT_HIDDEN_LOCKED）"
+        >
+          <Switch checkedChildren="隐藏" unCheckedChildren="常规" />
         </Form.Item>
         <Form.Item name="enabled" label="启用" valuePropName="checked" tooltip="关闭后 App 游历地列表不可见">
           <Switch checkedChildren="启用" unCheckedChildren="停用" />
