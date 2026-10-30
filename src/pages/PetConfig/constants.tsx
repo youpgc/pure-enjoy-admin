@@ -33,6 +33,8 @@ export const MODULES: ModuleMeta[] = [
     fields: [
       { field: 'level_exp_base', label: '升级基础经验（Lv1→2 所需）', format: fmtNum },
       { field: 'level_exp_growth', label: '经验增长系数（每级 ×N）', desc: '下一级所需 = 上一级 × 增长系数', format: fmtNum },
+      { field: 'level_max', label: '等级上限', desc: '宠物等级封顶值，rpc_pet_add_exp 到顶不再累积', format: fmtNum },
+      { field: 'level_exp_table', label: '等级经验定版表', desc: 'jsonb：{"1":91,...}；非空时优先于公式曲线', format: fmtJson },
       { field: 'levelup_attr_points', label: '每级加点数（属性系统）', desc: '升级发放可分配属性点（pending_attr_points），同时按种属/评级/潜力发洗练点', format: fmtNum },
     ],
   },
@@ -51,14 +53,20 @@ export const MODULES: ModuleMeta[] = [
       { field: 'feed_intimacy', label: '喂养亲密度 / 次', desc: '每次成功喂养加的亲密；受每日上限约束', format: fmtNum },
       { field: 'interact_intimacy', label: '互动亲密度 / 次', desc: '每次成功互动加的亲密', format: fmtNum },
       { field: 'intimacy_daily_cap', label: '亲密度每日上限 / 宠', desc: '每宠每日从照料（喂养+互动）获得的亲密上限，北京日归零；事件奖励不受此限', format: fmtNum },
+      { field: 'intimacy_level_base', label: '亲密度等级基础需求', desc: 'Lv1→2 所需亲密度；区间 = base × growth^(n-1)', format: fmtNum },
+      { field: 'intimacy_level_growth', label: '亲密度等级增长系数（×N）', format: fmtNum },
     ],
   },
   {
     key: 'decay',
-    title: '离线衰减',
+    title: '离线衰减与健康',
     fields: [
       { field: 'decay_hunger_per_hour', label: '饱食衰减 / 小时', desc: '离线结算：打开页面按时间戳补算', format: fmtNum },
       { field: 'decay_mood_per_hour', label: '心情衰减 / 小时', format: fmtNum },
+      { field: 'health_recover_per_hour', label: '自然回血 / 小时', desc: '健康状态值每小时自然恢复量', format: fmtNum },
+      { field: 'weak_health_threshold', label: '虚弱健康线（/100）', desc: '健康低于此值进入虚弱态：心情衰减 × 虚弱倍率', format: fmtNum },
+      { field: 'weak_mood_decay_mult', label: '虚弱心情衰减倍率', desc: '虚弱态下心情衰减速率乘数', format: fmtNum },
+      { field: 'rescue_timeout_health', label: '救援超窗扣健康', desc: '游历遇险超出自救窗口被 NPC 救回时的健康扣减', format: fmtNum },
     ],
   },
   {
@@ -118,6 +126,17 @@ export const MODULES: ModuleMeta[] = [
     ],
   },
   {
+    key: 'lottery',
+    title: '幸运蛋礼盒',
+    fields: [
+      { field: 'reserved.lottery.price', label: '单价（金币）', desc: '每次抽取消耗的金币', format: fmtNum },
+      { field: 'reserved.lottery.limit_total', label: '终身限购（次）', desc: '每个账号累计可抽取次数', format: fmtNum },
+      { field: 'reserved.lottery.limit_window_hours', label: '时段窗口（小时）', desc: '滚动窗口时长，与窗口限购组成时段限购', format: fmtNum },
+      { field: 'reserved.lottery.limit_per_window', label: '窗口内限购（次）', desc: '窗口内最多可抽取次数', format: fmtNum },
+      { field: 'reserved.lottery.ssr_pity_at', label: 'SSR 保底（次）', desc: '连续未出 SSR 达此值，下一抽必出 SSR（出即清零）', format: fmtNum },
+    ],
+  },
+  {
     key: 'economy',
     title: '经济与背包',
     fields: [
@@ -152,8 +171,8 @@ export const MODULES: ModuleMeta[] = [
     fields: [],
   },
   {
-    // 繁育与健康参数卡（特性/孵化/游历倍率/长途保底/礼盒/周任务
-    // 各键已迁对应玩法页参数卡，本卡只留繁育参数与健康横切项）
+    // 繁育与健康参数卡（四卡归位定案：特性概率/任务参数/游历倍率+长途保底/孵化加速
+    // 各键归位本页对应模块卡；礼盒 5 键@商城页「幸运蛋礼盒」页签）
     // 键域与 p2_seed §1 种子 + 各 RPC 消费点同源；dotted field 由 rawValue 深取值
     key: 'reserved_p2',
     title: '繁育与健康参数',

@@ -212,7 +212,7 @@ const LongOnlySection: React.FC<{
       </Button>
       <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
         仅长途派遣结算时逐件独立 roll（短/中途不掉）；数量缺省 1。约「10 次长途出 1 个」配 p=0.10；
-        保底次数在 全局参数 → reserved 卡「长途稀有保底」配置
+        保底次数在「全局参数 → 游历」页签「长途保底」配置
       </Typography.Text>
     </div>
   )

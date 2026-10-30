@@ -335,7 +335,7 @@ const WeightsFields: React.FC<{
           type="secondary"
           style={{ display: 'block', fontSize: 12, marginBottom: 8 }}
         >
-          礼盒的 SSR 保底阈值（缺省 40）、单价与终身/窗口限购在「宠物配置 → 全局参数」维护
+          礼盒的 SSR 保底阈值（缺省 40）、单价与终身/窗口限购在「商品目录 → 幸运蛋礼盒」页签维护
         </Typography.Text>
       )}
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>

@@ -276,6 +276,7 @@ const PetConfig: React.FC = () => {
               <Table
                 rowKey="key"
                 size="small"
+                tableLayout="fixed"
                 columns={ROW_COLUMNS}
                 dataSource={tierRows}
                 pagination={false}
@@ -284,6 +285,7 @@ const PetConfig: React.FC = () => {
                 rowKey="key"
                 size="small"
                 className={common.mt16}
+                tableLayout="fixed"
                 columns={ROW_COLUMNS}
                 dataSource={buildFieldRows(row, mod)}
                 pagination={false}
@@ -293,6 +295,7 @@ const PetConfig: React.FC = () => {
             <Table
               rowKey="key"
               size="small"
+              tableLayout="fixed"
               columns={ROW_COLUMNS}
               dataSource={newbieRows}
               pagination={false}
@@ -315,6 +318,7 @@ const PetConfig: React.FC = () => {
             <Table
               rowKey="field"
               size="small"
+              tableLayout="fixed"
               columns={valueColumns}
               dataSource={mod.fields}
               pagination={false}

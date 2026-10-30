@@ -29,7 +29,7 @@ export const buildValueColumns = (row: PetConfigRow | null): ColumnsType<FieldMe
     render: (_: unknown, record: FieldMeta) => {
       const text = record.format ? record.format(rawValue(row, record.field)) : fmtNum(rawValue(row, record.field))
       return (
-        <Typography.Text style={{ fontSize: 13 }} ellipsis>
+        <Typography.Text style={{ fontSize: 13 }} ellipsis={{ tooltip: true }}>
           {text}
         </Typography.Text>
       )
@@ -46,7 +46,7 @@ export const ROW_COLUMNS: ColumnsType<ValueRow> = [
     dataIndex: 'value',
     width: 300,
     render: (v: string) => (
-      <Typography.Text style={{ fontSize: 13 }} ellipsis>
+      <Typography.Text style={{ fontSize: 13 }} ellipsis={{ tooltip: true }}>
         {v}
       </Typography.Text>
     ),

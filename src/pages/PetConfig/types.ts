@@ -9,6 +9,7 @@ export type ModuleKey =
   | 'quest'
   | 'event'
   | 'hatch'
+  | 'lottery'
   | 'economy'
   | 'newbie'
   | 'collection_exchange'

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { Form, Input, InputNumber, Switch } from 'antd'
 import { TierListEditor } from '../../components/form/pet/editors/BasicEditors'
 import { NewbiePackageEditor } from '../../components/form/pet/editors/ItemEditors'
+import { JsonFormItem } from '../../components/form/pet/JsonFormItem'
 import common from '../../styles/common.module.css'
 import type { ItemOption, ModuleKey } from './types'
 
@@ -29,6 +30,16 @@ export const renderModuleControls = (
           <Form.Item name="level_exp_growth" label="经验增长系数（每级 ×N）" rules={[{ required: true }]}>
             <InputNumber min={1} step={0.1} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
+          <Form.Item name="level_max" label="等级上限" tooltip="宠物等级封顶值，rpc_pet_add_exp 到顶不再累积" rules={[{ required: true }]}>
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <JsonFormItem
+            name="level_exp_table"
+            label="等级经验定版表"
+            rows={8}
+            tooltip='jsonb：{"1":91,"2":96,...}；非空时优先于「基础×系数」公式曲线（fix_pet_level_exp_table_20261023 定版 89 项）'
+            placeholder='{"1": 91, "2": 96}'
+          />
           <Form.Item
             name="levelup_attr_points"
             label="每级加点数（属性系统）"
@@ -90,6 +101,12 @@ export const renderModuleControls = (
           >
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
+          <Form.Item name="intimacy_level_base" label="亲密度等级基础需求" tooltip="Lv1→2 所需亲密度；区间 = base × growth^(n-1)" rules={[{ required: true }]}>
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name="intimacy_level_growth" label="亲密度等级增长系数（×N）" rules={[{ required: true }]}>
+            <InputNumber min={1} step={0.1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
         </>
       )
     case 'decay':
@@ -100,6 +117,18 @@ export const renderModuleControls = (
           </Form.Item>
           <Form.Item name="decay_mood_per_hour" label="心情衰减 / 小时" rules={[{ required: true }]}>
             <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name="health_recover_per_hour" label="自然回血 / 小时" tooltip="健康状态值每小时自然恢复量" rules={[{ required: true }]}>
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name="weak_health_threshold" label="虚弱健康线（/100）" tooltip="健康低于此值进入虚弱态：心情衰减 × 虚弱倍率" rules={[{ required: true }]}>
+            <InputNumber min={0} max={100} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name="weak_mood_decay_mult" label="虚弱心情衰减倍率" tooltip="虚弱态下心情衰减速率乘数" rules={[{ required: true }]}>
+            <InputNumber min={0} step={0.1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name="rescue_timeout_health" label="救援超窗扣健康" tooltip="游历遇险超出自救窗口被 NPC 救回时的健康扣减" rules={[{ required: true }]}>
+            <InputNumber min={0} max={100} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
         </>
       )
@@ -210,10 +239,31 @@ export const renderModuleControls = (
           </Form.Item>
         </>
       )
+    case 'lottery':
+      return (
+        <>
+          {/* 幸运蛋礼盒定价与限购（reserved.lottery；rpc_pet_lottery_draw 消费） */}
+          <Form.Item name={['reserved', 'lottery', 'price']} label="单价（金币）" tooltip="每次抽取消耗的金币" rules={[{ required: true }]}>
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'lottery', 'limit_total']} label="终身限购（次）" tooltip="每个账号累计可抽取次数" rules={[{ required: true }]}>
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'lottery', 'limit_window_hours']} label="时段窗口（小时）" tooltip="滚动窗口时长，与窗口限购组成时段限购" rules={[{ required: true }]}>
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'lottery', 'limit_per_window']} label="窗口内限购（次）" tooltip="窗口内最多可抽取次数" rules={[{ required: true }]}>
+            <InputNumber min={0} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+          <Form.Item name={['reserved', 'lottery', 'ssr_pity_at']} label="SSR 保底（次）" tooltip="连续未出 SSR 达此值，下一抽必出 SSR（出即清零）" rules={[{ required: true }]}>
+            <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
+          </Form.Item>
+        </>
+      )
     case 'economy':
       return (
         <>
-          <Form.Item name="points_per_gold" label="1 金币 = N 积分（单向兑换）" rules={[{ required: true }]}>
+          <Form.Item name="points_per_gold" label="1 金币 = N 积分（仅积分兑金币）" rules={[{ required: true }]}>
             <InputNumber min={1} className={common.fullWidth} disabled={disabled} />
           </Form.Item>
           <Form.Item name="stack_limit_default" label="默认单格堆叠上限" rules={[{ required: true }]}>
