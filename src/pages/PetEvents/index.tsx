@@ -48,7 +48,6 @@ const fmtRewards = (v: unknown, itemName: (code: string) => string): string => {
     if (typeof val === 'number' && val !== 0) parts.push(`${val > 0 ? '+' : ''}${val}${unit}`)
   }
   n('gold', '金币')
-  n('points', '积分')
   n('exp', '经验')
   n('mood', '心情')
   n('intimacy', '亲密')

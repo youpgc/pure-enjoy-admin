@@ -101,6 +101,8 @@ const EventFormModal: React.FC<Props> = ({ open, editing, saving, onOk, onCancel
         prev.rewards && typeof prev.rewards === 'object'
           ? { ...(prev.rewards as Record<string, unknown>) }
           : {}
+      // 积分奖励已废除（20261024）：残余 points 键随保存剥除，防已删字段经编辑复活
+      delete rewards.points
       for (const f of PET_EVENT_REWARD_FIELDS) {
         const v = o.rewards?.[f.key]
         if (typeof v === 'number' && v !== 0) rewards[f.key] = v

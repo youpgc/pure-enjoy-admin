@@ -55,24 +55,22 @@ export const ItemChip: React.FC<{
   )
 }
 
-/** 奖励包单元格：{gold, points, exp, items:[{code,count}]} → 中文 + 道具图标
- *  （任务 rewards 与成就 reward_package 同 schema） */
+/** 奖励包单元格：{gold, exp, items:[{code,count}]} → 中文 + 道具图标
+ *  （任务 rewards 与成就 reward_package 同 schema；points 已废止 20261024） */
 export const RewardPackageCell: React.FC<{ value: unknown; catalog: PetItemCatalog }> = ({
   value,
   catalog,
 }) => {
   const obj = asObject(value)
   const gold = numOf(obj.gold)
-  const points = numOf(obj.points)
   const exp = numOf(obj.exp)
   const items = asArray(obj.items)
     .map((i) => asObject(i))
     .filter((i) => typeof i.code === 'string')
-  if (!gold && !points && !exp && items.length === 0) return <>-</>
+  if (!gold && !exp && items.length === 0) return <>-</>
   return (
     <span style={{ display: 'inline-flex', flexWrap: 'wrap', gap: 4, alignItems: 'center' }}>
       {gold ? <Tag color="gold" style={{ marginInlineEnd: 0 }}>金币 {gold}</Tag> : null}
-      {points ? <Tag color="blue" style={{ marginInlineEnd: 0 }}>积分 {points}</Tag> : null}
       {exp ? <Tag color="purple" style={{ marginInlineEnd: 0 }}>经验 {exp}</Tag> : null}
       {items.map((i, idx) => (
         <ItemChip

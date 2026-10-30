@@ -7,7 +7,8 @@ import type { ItemOption } from './ItemEditors'
 // ==================== 任务奖励包编辑器 ====================
 //
 // rewards 结构实证（rpc_pet_daily_quests_claim）：
-//   {gold?: int, points?: int, items?: [{code, count}]}
+//   {gold?: int, items?: [{code, count}]}
+//   （points 已废止：20261024 拍板宠物模块不再奖励积分，编辑器不再提供积分输入）
 // 成就奖励包与任务共用 schema（蓝图 §9）。
 
 interface RewardsEditorProps {
@@ -18,9 +19,11 @@ interface RewardsEditorProps {
 }
 
 export const RewardsEditor: React.FC<RewardsEditorProps> = ({ value, onChange, items, disabled }) => {
-  const known = ['gold', 'points', 'items']
+  const known = ['gold', 'items']
   const obj = asObject(value)
-  const extra = extraKeys(value, known)
+  // 积分已废止（20261024）：历史残留 points 键不进编辑器（保存即消失）
+  delete obj.points
+  const extra = extraKeys(obj, known)
   const itemRows = asArray(obj.items)
 
   const itemOptions = items.map((i) => ({ value: i.item_code, label: `${i.name}（${i.item_code}）` }))
@@ -44,17 +47,6 @@ export const RewardsEditor: React.FC<RewardsEditorProps> = ({ value, onChange, i
           placeholder="留空 = 不奖励金币"
           disabled={disabled}
           onChange={(v) => setField('gold', typeof v === 'number' ? v : null)}
-        />
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-        <Typography.Text style={{ width: 110, flexShrink: 0 }}>积分</Typography.Text>
-        <InputNumber
-          style={{ width: 160 }}
-          min={0}
-          value={numOf(obj.points, undefined) ?? undefined}
-          placeholder="留空 = 不奖励积分"
-          disabled={disabled}
-          onChange={(v) => setField('points', typeof v === 'number' ? v : null)}
         />
       </div>
       <Typography.Text style={{ display: 'block', marginBottom: 4 }}>道具奖励</Typography.Text>
