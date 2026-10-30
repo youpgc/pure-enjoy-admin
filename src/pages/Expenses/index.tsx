@@ -4,7 +4,7 @@ import type { ColumnsType } from 'antd/es/table'
 import EllipsisText from '../../components/common/EllipsisText'
 import UserDimensionList from '../../components/user/UserDimensionList'
 import type { ModuleConfig, RecordItem } from '../../components/user/UserDimensionList'
-import { EXPENSE_CATEGORY_MAP } from '../../constants'
+import { EXPENSE_CATEGORY_MAP, INCOME_CATEGORY_MAP, RECORD_TYPE_MAP } from '../../constants'
 import { formatDate, formatDateTime } from '../../utils/format'
 
 // ==================== 详情弹窗列定义 ====================
@@ -15,14 +15,34 @@ const detailColumns: ColumnsType<RecordItem> = [
     dataIndex: 'amount',
     key: 'amount',
     width: 100,
-    render: (v: number) => <Tag color="red">{`¥${Number(v).toFixed(2)}`}</Tag>,
+    render: (v: number, record) => {
+      const isIncome = record.type === 'income'
+      return (
+        <Tag color={isIncome ? 'green' : 'red'}>
+          {`${isIncome ? '+' : '-'}¥${Number(v).toFixed(2)}`}
+        </Tag>
+      )
+    },
+  },
+  {
+    title: '类型',
+    dataIndex: 'type',
+    key: 'type',
+    width: 80,
+    render: (v: string) => {
+      const isIncome = v === 'income'
+      return <Tag color={isIncome ? 'green' : 'red'}>{RECORD_TYPE_MAP[v] || v || '-'}</Tag>
+    },
   },
   {
     title: '分类',
     dataIndex: 'category',
     key: 'category',
     width: 80,
-    render: (v: string) => EXPENSE_CATEGORY_MAP[v] || v || '-',
+    render: (v: string, record) => {
+      const categoryMap = record.type === 'income' ? INCOME_CATEGORY_MAP : EXPENSE_CATEGORY_MAP
+      return categoryMap[v] || v || '-'
+    },
   },
   { title: '备注', dataIndex: 'description', key: 'description', render: (v: string) => <EllipsisText text={v} maxWidth={220} /> },
   {

@@ -12,6 +12,24 @@ export const EXPENSE_CATEGORY_MAP: Record<string, string> = {
   other: '其他',
 }
 
+// ==================== 收入分类 ====================
+
+export const INCOME_CATEGORY_MAP: Record<string, string> = {
+  salary: '工资',
+  bonus: '奖金',
+  investment: '理财',
+  redpacket: '红包',
+  reimbursement: '报销',
+  other: '其他',
+}
+
+// ==================== 记账收支类型 ====================
+
+export const RECORD_TYPE_MAP: Record<string, string> = {
+  expense: '支出',
+  income: '收入',
+}
+
 // ==================== 心情 ====================
 
 export const MOOD_TYPE_MAP: Record<string, string> = {
