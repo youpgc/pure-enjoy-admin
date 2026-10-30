@@ -91,7 +91,6 @@ export const PET_ITEM_CATEGORY_COLORS: Record<string, string> = {
   egg: 'geekblue',
   consumable: 'green',
   tool: 'orange',
-  equip: 'default',
 }
 
 export const PET_ITEM_CATEGORY_OPTIONS = Object.entries(PET_ITEM_CATEGORY_LABELS).map(
@@ -303,9 +302,9 @@ export const PET_QUEST_ELIGIBILITY_LABELS: Record<string, string> = {
   counter: '累计次数达标',
   evo_ready: '即将可进化',
   scene_available: '仍有主题未解锁',
-  points_enough: '积分充足',
   any_damaged: '存在伤员',
 }
+// points_enough（积分充足）已废止（20261030，定版积分单向：宠物模块不产出/不消费积分）
 
 /// counter 资格的计数键（服务端 draw 过滤 case 枚举，新增计数须同步服务端）
 export const PET_QUEST_ELIGIBILITY_COUNTER_LABELS: Record<string, string> = {
@@ -321,6 +320,14 @@ export const PET_RARITY_CODE_OPTIONS = [
   { value: 'SR', label: 'SR 史诗' },
   { value: 'SSR', label: 'SSR 传说' },
 ]
+
+/// 评级 Tag 展示色（礼盒抽取记录等审计列表用；与 App PetRarity 视觉档位一致）
+export const PET_RARITY_TAG_COLORS: Record<string, string> = {
+  N: 'default',
+  R: 'blue',
+  SR: 'purple',
+  SSR: 'gold',
+}
 
 /// 蛋孵化 mode（item effect.mode / weights.mode）
 export const PET_EGG_MODE_OPTIONS = [
@@ -469,13 +476,42 @@ export const PET_ACH_CONDITION_TYPE_OPTIONS = Object.entries(
 /// 需填 condition_value.rarity 的条件类型（其余类型只需目标值）
 export const PET_ACH_CONDITION_RARITY_KEYS = ['rarity_owned']
 
-/// 评级值域（pet_rarities.code 种子四档，与 App PetRarity 对齐）
-export const PET_RARITY_CODE_SELECT_OPTIONS = [
-  { value: 'N', label: 'N 普通' },
-  { value: 'R', label: 'R 稀有' },
-  { value: 'SR', label: 'SR 史诗' },
-  { value: 'SSR', label: 'SSR 传说' },
-]
+/// 评级值域（20261030 去重：与 PET_RARITY_CODE_OPTIONS 同一常量别名，消除文件内双副本）
+export const PET_RARITY_CODE_SELECT_OPTIONS = PET_RARITY_CODE_OPTIONS
+
+/// 宠物状态标签（pet_pets.status；值域=rearing/fostered/adventuring/breeding
+/// （20260916 建表 CHECK）+ released（20261009 软删除扩展）——新增状态先扩 DB 再补此表）
+export const PET_PET_STATUS_META: Record<string, { text: string; color: string }> = {
+  rearing: { text: '养育中', color: 'green' },
+  adventuring: { text: '游历中', color: 'blue' },
+  breeding: { text: '繁育中', color: 'purple' },
+  released: { text: '已放生', color: 'default' },
+  fostered: { text: '寄养', color: 'orange' },
+}
+
+/// 进化阶文案（species_code `_sN` 后缀约定；N=0 即基础形）
+export const PET_STAGE_LABELS = ['基础形', '一阶', '二阶', '三阶', '四阶']
+
+export const stageNum = (code: string): number => {
+  const m = /_s(\d+)$/.exec(code)
+  return m ? Number(m[1]) : 0
+}
+
+/// 性别符号（male/female；与 App PetGender.label 同源）
+export const PET_GENDER_LABELS: Record<string, string> = {
+  male: '♂',
+  female: '♀',
+}
+
+/// 任务条件概要（游历类带档位前缀；「游历次数→游历」短名收敛此处，
+/// 消除 QuestFormModal / 列表两处魔法串 replace）
+export const questConditionSummary = (type: string, tier: string | null): string => {
+  const typeText = PET_QUEST_CONDITION_TYPE_LABELS[type] ?? type
+  if (type === 'adventure' && tier) {
+    return `${PET_QUEST_TIER_LABELS[tier] ?? tier}${typeText.replace('游历次数', '游历')}`
+  }
+  return typeText
+}
 
 /// 成就档位（pet_achievements.tier；值域与文案与 App PetAchTier 枚举一致
 /// ——经典/铜银金/彩/传说/纪念/史诗，20261023 成就树批起 bronze~epic 投产）
@@ -536,9 +572,10 @@ export const PET_EVENT_CONTEXT_OPTIONS = Object.entries(
 ).map(([value, label]) => ({ value, label }))
 
 /// 奖惩包数值键（choose 结算与 App 公示同源；hunger 允许负值=代价型选项）
+/// ⚠️ 不含 points：20261024 拍板宠物模块不再奖励积分（fix_pet_event_points_remove_20261024.sql
+/// 已全量剥除存量，保存时残余 points 键一并剔除）——积分只经「积分兑换」渠道产出。
 export const PET_EVENT_REWARD_FIELDS = [
   { key: 'gold', label: '金币', min: 0 },
-  { key: 'points', label: '积分', min: 0 },
   { key: 'exp', label: '经验', min: 0 },
   { key: 'mood', label: '心情', min: 0 },
   { key: 'intimacy', label: '亲密', min: 0 },

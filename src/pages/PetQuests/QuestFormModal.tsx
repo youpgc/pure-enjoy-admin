@@ -12,6 +12,7 @@ import {
   PET_QUEST_TYPE_OPTIONS,
   PET_QUEST_DIFFICULTY_TYPES,
   PET_QUEST_DIFFICULTY_OPTIONS,
+  questConditionSummary,
 } from '../../constants/pet'
 import { RewardsEditor } from '../../components/form/pet/editors/QuestEditors'
 import { asObject } from '../../components/form/pet/editors/shared'
@@ -24,7 +25,8 @@ import common from '../../styles/common.module.css'
 //   （draw 取 target 为目标次数，bump 按事实表实况重算；tier 仅游历类，
 //   服务端按 a.tier 过滤、App 标题前缀「短途/中途/长途游历」；缺省 target=1）；
 // - eligibility：下发资格 jsonb（多键 OR，不满足不进抽取候选；缺省 = 无门槛）；
-// - rewards：{gold?, points?, items:[{code,count}]}（claim 发放，与成就共用 schema）。
+// - rewards：{gold?, items:[{code,count}]}（claim 发放，与成就共用 schema；
+//   points 已废止 20261024，保存时残余键剥除防复活）。
 
 export interface QuestFormValues {
   code: string
@@ -103,6 +105,16 @@ const QuestFormModal: React.FC<Props> = ({ open, editing, saving, items, onOk, o
           message.error('已选「累计次数达标」资格，须填写 ≥1 的达标次数')
           return
         }
+        // counter 计数键白名单：拼写错误的键服务端 case 不命中 = 永不满足的死资格
+        if (
+          elig.counter &&
+          !Object.keys(PET_QUEST_ELIGIBILITY_COUNTER_LABELS).includes(String(elig.counter))
+        ) {
+          message.error(
+            `未知的累计计数键「${String(elig.counter)}」——须为 ${Object.keys(PET_QUEST_ELIGIBILITY_COUNTER_LABELS).join(' / ')}`
+          )
+          return
+        }
         if (elig.feature !== undefined && !(typeof elig.feature === 'string' && elig.feature)) {
           message.error('已选「功能已解锁」资格，须填写功能键（如 breeding）')
           return
@@ -114,7 +126,12 @@ const QuestFormModal: React.FC<Props> = ({ open, editing, saving, items, onOk, o
         onOk({
           ...values,
           condition: asObject(values.condition),
-          rewards: asObject(values.rewards),
+          rewards: (() => {
+            // 积分奖励已废止（20261024）：残余 points 键剥除，防已删字段经编辑复活
+            const rw = asObject(values.rewards)
+            delete rw.points
+            return rw
+          })(),
           // 空对象规范化为 null：服务端判 `eligibility is null or (各臂)`，
           // {} 非 null 且无臂命中 = 永不可抽，与「无门槛」语义必须区分开
           eligibility: Object.keys(elig).length > 0 ? elig : null,
@@ -174,7 +191,7 @@ const QuestFormModal: React.FC<Props> = ({ open, editing, saving, items, onOk, o
         <Form.Item
           name="eligibility"
           label="下发资格（多键之间满足其一即可被抽到；全部留空 = 无门槛）"
-          tooltip="抽取过滤：资格不满足的任务不进候选——孵化/繁育/进化/治疗/装扮/兑换等有前置的动作类任务务必配置，避免抽到即死任务。注意：evo_ready/scene_available/points_enough/any_damaged 四臂仅在每周任务的抽取过滤中生效"
+          tooltip="抽取过滤：资格不满足的任务不进候选——孵化/繁育/进化/治疗/装扮/兑换等有前置的动作类任务务必配置，避免抽到即死任务。注意：evo_ready/scene_available/any_damaged 三臂仅在每周任务的抽取过滤中生效"
         >
           <EligibilityFields
             items={items}
@@ -215,7 +232,6 @@ const ConditionFields: React.FC<{
   onChange,
   options,
   labels,
-  tierLabels,
   tierOptions,
   onTypeChange,
   onTargetChange,
@@ -259,7 +275,7 @@ const ConditionFields: React.FC<{
         {typeof obj.type === 'string' && labels[obj.type] && (
           <span style={{ fontSize: 12, color: '#999' }}>
             {isAdventure && typeof obj.tier === 'string' && obj.tier
-              ? `${tierLabels[obj.tier] ?? obj.tier}${(labels[obj.type] ?? '').replace('游历次数', '游历')}`
+              ? questConditionSummary(obj.type, obj.tier)
               : labels[obj.type]}
           </span>
         )}
@@ -276,16 +292,17 @@ const ConditionFields: React.FC<{
 // ---------- eligibility 结构化字段（下发资格，多键 OR） ----------
 //
 // 键集与服务端 draw 过滤臂一一对应且按任务类型分集（allowKeys）：
-// 日抽仅 feature/item_any/counter 三臂；周抽全七键（evo_ready/scene_available/
-// points_enough/any_damaged 四臂只在周抽过滤块，见 fix_pet_quest_ecosystem_
-// 20261026 / fix_pet_quest_eligibility_align_20261026 / fix_pet_evolve_levels_3060）：
-// - 布尔臂：evo_ready / scene_available / points_enough / any_damaged（存在即生效）
+// 日抽仅 feature/item_any/counter 三臂；周抽全六键（evo_ready/scene_available/
+// any_damaged 三臂只在周抽过滤块，见 fix_pet_quest_ecosystem_
+// 20261026 / fix_pet_quest_eligibility_align_20261026 / fix_pet_evolve_levels_3060；
+// points_enough 积分充足臂已废止 20261030，定版积分单向）：
+// - 布尔臂：evo_ready / scene_available / any_damaged（存在即生效）
 // - feature：功能解锁键（现网值 breeding）
 // - item_any：持有任一所列道具（jsonb 字符串数组）
 // - counter + min：累计计数达标（计数键枚举 hatch_total/evolve_total/breed_egg_total；
 //   服务端 min 缺省按 2147483647 处理 = 永不满足，故选 counter 时 min 必填且缺省 1）
 // 未知键原样保留展示，不丢失。
-const ELIGIBILITY_BOOLEAN_KEYS = new Set(['evo_ready', 'scene_available', 'points_enough', 'any_damaged'])
+const ELIGIBILITY_BOOLEAN_KEYS = new Set(['evo_ready', 'scene_available', 'any_damaged'])
 
 const EligibilityFields: React.FC<{
   value?: unknown

@@ -7,7 +7,7 @@ import { usePermission } from '../../hooks/usePermission'
 import { petPetAdminService, petPersonalityService } from '../../services/petService'
 import { userService } from '../../services/userService'
 import type { PetPersonalityRow } from '../../types/pet'
-import { PET_TABLE_PAGE_SIZE, PET_RARITY_CODE_SELECT_OPTIONS } from '../../constants/pet'
+import { PET_PET_STATUS_META, PET_RARITY_CODE_SELECT_OPTIONS, PET_RARITY_TAG_COLORS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import common from '../../styles/common.module.css'
@@ -17,20 +17,9 @@ import common from '../../styles/common.module.css'
 // 2026-10-08 复审 B4：客服排查用（昵称/等级/状态/四维/健康/性格，按用户搜索）。
 // 无写操作——昵称/状态等变更仍走各自业务通道，避免客服侧出现第二写入路径。
 
-const STATUS_LABELS: Record<string, { text: string; color: string }> = {
-  rearing: { text: '养育中', color: 'green' },
-  adventuring: { text: '游历中', color: 'blue' },
-  breeding: { text: '繁育中', color: 'purple' },
-  released: { text: '已放生', color: 'default' },
-  fostered: { text: '寄养', color: 'orange' },
-}
-
-const RARITY_COLORS: Record<string, string> = {
-  N: 'default',
-  R: 'blue',
-  SR: 'purple',
-  SSR: 'gold',
-}
+// 20261030 收敛手抄副本：状态/评级色单一源 = constants
+const STATUS_LABELS = PET_PET_STATUS_META
+const RARITY_COLORS = PET_RARITY_TAG_COLORS
 
 /** base||bonus 合并当前值（与 App/summary 同口径） */
 function mergedAttrs(row: PetPetRow): Record<string, number> {

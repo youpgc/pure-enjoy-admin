@@ -6,7 +6,7 @@ import type { PetSpeciesRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petSpeciesService, petRarityService } from '../../services/petService'
-import { PET_FAMILY_LABELS, PET_FAMILY_OPTIONS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { PET_FAMILY_LABELS, PET_FAMILY_OPTIONS, PET_RARITY_TAG_COLORS, PET_STAGE_LABELS, PET_TABLE_PAGE_SIZE, stageNum } from '../../constants/pet'
 import SpeciesFormModal, { type SpeciesFormValues } from './SpeciesFormModal'
 import SpeciesPreviewModal from './SpeciesPreviewModal'
 import common from '../../styles/common.module.css'
@@ -21,20 +21,10 @@ import common from '../../styles/common.module.css'
 // App 编译期 kPetBendGeo 登记」（不靠 render2d），只有走整图补间的形态才由 render2d 决定。
 // 3D 一期已下线：render3d 列与存量数据保留，本页不再编辑/展示（后期迭代重写渲染层时恢复）。
 
-const RARITY_COLORS: Record<string, string> = {
-  N: 'default',
-  R: 'blue',
-  SR: 'purple',
-  SSR: 'gold',
-}
-
-const STAGE_LABELS = ['基础形', '一阶', '二阶', '三阶', '四阶']
-
-/** species_code → 阶段号（cat_ssr1 = 0 基础形，cat_ssr1_s1 = 1） */
-const stageNum = (code: string): number => {
-  const m = /_s(\d+)$/.exec(code)
-  return m ? Number(m[1]) : 0
-}
+// 20261030 收敛手抄副本：评级色/阶文案/阶号单一源 = constants
+const RARITY_COLORS = PET_RARITY_TAG_COLORS
+const STAGE_LABELS = PET_STAGE_LABELS
+// stageNum 由 constants 导入（20261030 收敛双副本）
 
 interface SpeciesGroup {
   /** 分组键：进化链 id，未挂链的独立种属用 solo:<id> */

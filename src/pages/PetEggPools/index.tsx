@@ -6,7 +6,7 @@ import type { PetEggPoolRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petEggPoolService, petSpeciesService } from '../../services/petService'
-import { PET_EGG_MODE_LABELS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { PET_EGG_MODE_LABELS, PET_FAMILY_LABELS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import PoolFormModal, { type PoolFormValues } from './PoolFormModal'
 import OddsPreviewModal from './OddsPreviewModal'
@@ -16,8 +16,7 @@ import common from '../../styles/common.module.css'
 // 铁律：概率服务端判定 + config_version 审计；App 公示与判定同源（同版本）。
 
 // weights 键结构与 PoolFormModal / rpc_pet_hatch_instant 消费同源
-const RARITY_LABELS: Record<string, string> = { N: 'N', R: 'R', SR: 'SR', SSR: 'SSR' }
-const FAMILY_LABELS: Record<string, string> = { cat: '猫', dog: '犬', rabbit: '兔', mouse: '鼠' }
+const FAMILY_LABELS = PET_FAMILY_LABELS
 
 /** 权重概览 → 可读文本（替代纯键名 Tag）；speciesName 把种属码译为中文名 */
 function weightsSummaryText(
@@ -33,14 +32,14 @@ function weightsSummaryText(
     const entries = Object.entries(rarity as Record<string, unknown>)
     const first = entries[0]
     if (first && entries.length === 1) {
-      parts.push(`锁定 ${RARITY_LABELS[first[0]] ?? first[0]}`)
+      parts.push(`锁定 ${first[0]}`)
     } else if (entries.length > 1) {
       const total = entries.reduce((acc, [, w]) => acc + Number(w), 0)
       const text = entries
         .map(([k, w]) => {
           const n = Number(w)
           const shown = total > 0 ? `${Math.round((n / total) * 100)}%` : String(w)
-          return `${RARITY_LABELS[k] ?? k}${shown}`
+          return `${k}${shown}`
         })
         .join('/')
       parts.push(text)

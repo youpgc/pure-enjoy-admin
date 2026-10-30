@@ -6,7 +6,7 @@ import type { PetQuestRow } from '../../types/pet'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { petQuestService, petItemService } from '../../services/petService'
-import { PET_QUEST_TYPE_LABELS, PET_QUEST_DIFFICULTY_LABELS, PET_QUEST_DIFFICULTY_COLORS, PET_QUEST_TYPE_OPTIONS, PET_QUEST_DIFFICULTY_OPTIONS, PET_QUEST_CONDITION_TYPE_LABELS, PET_QUEST_TIER_LABELS, PET_QUEST_ELIGIBILITY_LABELS, PET_QUEST_ELIGIBILITY_COUNTER_LABELS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
+import { PET_QUEST_TYPE_LABELS, PET_QUEST_DIFFICULTY_LABELS, PET_QUEST_DIFFICULTY_COLORS, PET_QUEST_TYPE_OPTIONS, PET_QUEST_DIFFICULTY_OPTIONS, PET_QUEST_ELIGIBILITY_LABELS, PET_QUEST_ELIGIBILITY_COUNTER_LABELS, PET_TABLE_PAGE_SIZE, questConditionSummary } from '../../constants/pet'
 import { RewardPackageCell, usePetItemCatalog } from '../../components/pet/RewardCells'
 import QuestFormModal, { type QuestFormValues } from './QuestFormModal'
 import common from '../../styles/common.module.css'
@@ -135,12 +135,9 @@ const PetQuests: React.FC = () => {
       render: (v: Record<string, unknown>) => {
         if (!v || !v.type) return '-'
         const type = String(v.type)
-        const typeText = PET_QUEST_CONDITION_TYPE_LABELS[type] ?? type
-        // 游历类时长维度与 App 标题同口径（「长途游历」，取自 condition.tier）
-        const tier = type === 'adventure' ? String(v.tier ?? '') : ''
-        const label = tier
-          ? `${PET_QUEST_TIER_LABELS[tier] ?? tier}${typeText.replace('游历次数', '游历')}`
-          : typeText
+        // 游历类时长维度与 App 标题同口径（20261030 收敛拼接单一源）
+        const tier = type === 'adventure' && v.tier != null ? String(v.tier) : null
+        const label = questConditionSummary(type, tier)
         return `${label} · 目标 ${String(v.target ?? 1)} 次`
       },
       ellipsis: true,

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Modal, Button, Tag, Typography } from 'antd'
 import { LeftOutlined, RightOutlined } from '@ant-design/icons'
+import { PET_STAGE_LABELS, stageNum } from '../../constants/pet'
 import type { PetSpeciesRow } from '../../types/pet'
 import { petBendForm } from '../../constants/petAnim/petBendManifest'
 import PetBendPreview from '../../components/pet/PetBendPreview'
@@ -11,12 +12,8 @@ import PetBendPreview from '../../components/pet/PetBendPreview'
 // 左右切换浏览，默认展示基础形。
 // 图片约定：public/pet-art/<species_code>.png（未落位资源时回退占位图标）。
 
-const STAGE_LABELS = ['基础形', '一阶', '二阶', '三阶', '四阶']
-
-const stageNum = (code: string): number => {
-  const m = /_s(\d+)$/.exec(code)
-  return m ? Number(m[1]) : 0
-}
+// 20261030 收敛手抄副本：阶文案/阶号单一源 = constants
+const STAGE_LABELS = PET_STAGE_LABELS
 
 interface Props {
   open: boolean

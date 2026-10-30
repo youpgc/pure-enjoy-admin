@@ -4,6 +4,7 @@ import { ReloadOutlined } from '@ant-design/icons'
 import { supabase } from '../../utils/supabase'
 import common from '../../styles/common.module.css'
 import { apiQuery } from '../../utils/apiClient'
+import { PET_SOURCE_TYPE_LABELS } from '../../constants/pet'
 
 // ==================== 宠物数据看板（rpc_pet_admin_dashboard，运营工具第 4 签） ====================
 //
@@ -33,6 +34,8 @@ interface DashboardData {
   timeline_total: number
 }
 
+// 20261030 收敛：label 单一源 = constants 评级选项；hex 为图表专用色
+// （与 AntD Tag 色词 PET_RARITY_TAG_COLORS 不同域，图表库需具体色值）
 const RARITY_META: Record<string, { label: string; color: string }> = {
   N: { label: 'N 普通', color: '#8c8c8c' },
   R: { label: 'R 稀有', color: '#4A90D9' },
@@ -40,15 +43,8 @@ const RARITY_META: Record<string, { label: string; color: string }> = {
   SSR: { label: 'SSR 传说', color: '#D9A441' },
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  pet_shop_buy: '商城消费',
-  pet_system_reward: '系统发放',
-  pet_achievement: '成就发放',
-  pet_exchange: '积分兑换',
-  pet_admin_grant: '客服调整',
-  pet_adventure_penalty: '游历惩罚',
-  pet_feature_spend: '功能消耗',
-}
+// 来源类型标签 = constants 单一源（禁止页面手抄副本，新增来源类型看板不掉队）
+const SOURCE_LABELS = PET_SOURCE_TYPE_LABELS
 
 const PetDashboard: React.FC = () => {
   const [data, setData] = useState<DashboardData | null>(null)

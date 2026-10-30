@@ -18,7 +18,7 @@ import common from '../../styles/common.module.css'
 // 与服务端同源（feature_pet_p2_rpcs_20260923 §6）：
 // - condition_type 必须落在 13 值白名单内，否则 rpc_pet_achievement_check 算出的进度恒为 0；
 // - 目标值键位 value 优先（兼容 target，缺省 1）；rarity_owned 额外读 condition_value.rarity；
-// - reward_package 与任务 rewards 同 schema：{gold?, points?, items:[{code,count}]}。
+// - reward_package 与任务 rewards 同 schema：{gold?, items:[{code,count}]}（points 已废止 20261024）。
 
 export interface AchievementFormValues {
   code: string
