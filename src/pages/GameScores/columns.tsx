@@ -84,6 +84,9 @@ export function buildScoreColumns(
       render: (_: unknown, record) => {
         // 无尽会话主行：链式累计得分（每局目标随关卡阶梯上升，逐局见局明细展开表）
         if (isEndlessRow(record)) return '无尽模式 · 累计得分'
+        // 自由/乱斗等合成关：条件由 App 开局随机后随记录上传（level_id 为空，
+        // 关卡 config 无法推导）
+        if (record.condition_text) return record.condition_text
         const gameCode = gameMap[record.game_id]?.code
         // 有 level_id 用该关 config；无 level_id 用该模式 L001 的 config 兜底
         const lv = record.level_id

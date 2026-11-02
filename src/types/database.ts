@@ -713,6 +713,7 @@ export interface Database {
           level_id: string | null
           status: string
           duration_ms: number | null
+          condition_text: string | null
           played_at: string
           created_at: string
           mode_id: string | null
