@@ -112,6 +112,8 @@ export const GAME_SHARED_ICON_OPTIONS: { label: string; value: string; group: st
   { group: '模式', label: '食材模式', value: 'mode_ingredient' },
   { group: '模式', label: '订单模式', value: 'mode_order' },
   { group: '模式', label: '混合模式', value: 'mode_blended' },
+  { group: '模式', label: '自由模式', value: 'mode_free' },
+  { group: '模式', label: '乱斗模式', value: 'mode_brawl' },
   // 牧场主题（羊了个羊图块）
   { group: '牧场', label: '小羊', value: 'sheep_01_lamb' },
   { group: '牧场', label: '小鸡', value: 'sheep_02_chick' },
