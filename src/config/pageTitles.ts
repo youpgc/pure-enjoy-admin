@@ -39,6 +39,7 @@ export const PAGE_TITLES: Record<PageKey, string> = {
   game_achievements: '游戏成就配置',
   game_reward_records: '游戏奖励记录',
   game_modes: '模式管理',
+  game_leaderboard: '游戏排行榜',
   game_items: '道具管理',
   pet_config: '宠物全局参数',
   pet_form: '形态体系',
