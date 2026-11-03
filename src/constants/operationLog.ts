@@ -95,6 +95,14 @@ export const OP_MODULE_MAP: Record<string, { color: string; label: string }> = {
   // ── 系统 / 错误上报专用 ──
   api: { color: 'default', label: '接口请求' },
   unknown: { color: 'default', label: '未知模块' },
+
+  // ── 客户端错误上报（error_logs.module，App report_client_error 写入；
+  //    客户端 ErrorReporter module 值域，新增埋点域时同步本段）──
+  app: { color: 'default', label: '客户端' },
+  flutter: { color: 'default', label: 'Flutter 框架' },
+  platform: { color: 'default', label: '平台层' },
+  games: { color: 'geekblue', label: '游戏' },
+  pets: { color: 'orange', label: '宠物' },
 }
 
 /** 仅取 label 的便捷视图（供 RecentActivities 等轻量场景） */
