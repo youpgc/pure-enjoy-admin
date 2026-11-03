@@ -20,6 +20,8 @@ export const PET_SOURCE_TYPES = {
   ADMIN_GRANT: 'pet_admin_grant',
   ADVENTURE_PENALTY: 'pet_adventure_penalty',
   FEATURE_SPEND: 'pet_feature_spend',
+  CHECKIN: 'pet_checkin',
+  CHECKIN_MILESTONE: 'pet_checkin_milestone',
 } as const
 
 export const PET_SOURCE_TYPE_LABELS: Record<string, string> = {
@@ -30,6 +32,8 @@ export const PET_SOURCE_TYPE_LABELS: Record<string, string> = {
   pet_admin_grant: '客服调整',
   pet_adventure_penalty: '游历惩罚',
   pet_feature_spend: '功能消耗',
+  pet_checkin: '签到发放',
+  pet_checkin_milestone: '累计签到发放',
 }
 
 export const PET_SOURCE_TYPE_COLORS: Record<string, string> = {
@@ -40,6 +44,8 @@ export const PET_SOURCE_TYPE_COLORS: Record<string, string> = {
   pet_admin_grant: 'purple',
   pet_adventure_penalty: 'red',
   pet_feature_spend: 'cyan',
+  pet_checkin: 'lime',
+  pet_checkin_milestone: 'geekblue',
 }
 
 export const PET_SOURCE_TYPE_OPTIONS = Object.entries(PET_SOURCE_TYPE_LABELS).map(
