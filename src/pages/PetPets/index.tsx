@@ -10,6 +10,8 @@ import type { PetPersonalityRow } from '../../types/pet'
 import { PET_PET_STATUS_META, PET_RARITY_CODE_SELECT_OPTIONS, PET_RARITY_TAG_COLORS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
+import DateRangeFilter, { rangeToParams } from '../../components/common/DateRangeFilter'
+import type { Dayjs } from 'dayjs'
 import common from '../../styles/common.module.css'
 
 // ==================== 宠物个体查询（pet_pets，只读） ====================
@@ -41,6 +43,8 @@ const PetPets: React.FC = () => {
   const [rows, setRows] = useState<PetPetRow[]>([])
   const [personalities, setPersonalities] = useState<PetPersonalityRow[]>([])
   const [loading, setLoading] = useState(false)
+  // 创建时间范围（服务端 created_at gte/lte）
+  const [createdRange, setCreatedRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   // 检索词：Input.Search 触发才生效（此前 onChange 每击键即发一次用户解析请求）
@@ -74,6 +78,7 @@ const PetPets: React.FC = () => {
         petPetAdminService.paginatePets(target, PET_TABLE_PAGE_SIZE, {
           userIds: opts && 'userIds' in opts ? (opts.userIds ?? null) : undefined,
           text: opts?.text,
+          createdRange: rangeToParams(createdRange),
         }),
         petPersonalityService.findAll(),
       ])
@@ -84,12 +89,12 @@ const PetPets: React.FC = () => {
       setPage(target)
       if (perRes.success) setPersonalities(perRes.data ?? [])
     },
-    [page]
+    [page, createdRange]
   )
 
   useEffect(() => {
     if (canRead) loadRows()
-  }, [canRead]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canRead, createdRange]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 检索词/用户解析结果变化 → 重查第 1 页
   useEffect(() => {
@@ -201,6 +206,10 @@ const PetPets: React.FC = () => {
               enterButton
               placeholder="搜索用户 / 编号 / 昵称"
               onSearch={(v) => setSearchText(v)}
+            />
+            <DateRangeFilter
+              value={createdRange}
+              onChange={setCreatedRange}
             />
             <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRows()}>
               刷新

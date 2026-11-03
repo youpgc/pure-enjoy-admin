@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Card, Space, Input, Table, Tag, Typography } from 'antd'
+import DateRangeFilter, { rangeToParams } from '../../components/common/DateRangeFilter'
+import type { Dayjs } from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import { petLotteryDrawService, petSpeciesService, petPersonalityService, petTraitService } from '../../services/petService'
 import type { PetLotteryRecordRow, PetSpeciesRow, PetPersonalityRow, PetTraitRow } from '../../types/pet'
@@ -23,6 +25,8 @@ const LotteryRecords: React.FC = () => {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
+  // 日期范围（服务端 created_at gte/lte）
+  const [lotRange, setLotRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [species, setSpecies] = useState<PetSpeciesRow[]>([])
   const [personalities, setPersonalities] = useState<PetPersonalityRow[]>([])
   const [traits, setTraits] = useState<PetTraitRow[]>([])
@@ -30,7 +34,7 @@ const LotteryRecords: React.FC = () => {
   const loadRows = useCallback(async (p: number, kw: string) => {
     setLoading(true)
     try {
-      const res = await petLotteryDrawService.pageDraws(p, PET_TABLE_PAGE_SIZE)
+      const res = await petLotteryDrawService.pageDraws(p, PET_TABLE_PAGE_SIZE, rangeToParams(lotRange))
       if (!res.success || !res.data) {
         setRows([])
         setTotal(0)
@@ -53,7 +57,7 @@ const LotteryRecords: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [lotRange])
 
   useEffect(() => {
     loadRows(page, search)
@@ -93,7 +97,12 @@ const LotteryRecords: React.FC = () => {
       width: 180,
       render: (v: string) => <UserName userId={v} userMap={userMap} />,
     },
-    { title: '时间', dataIndex: 'created_at', width: 170, render: (v: string) => formatDateTime(v) },
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      width: 170,
+      render: (v: string) => formatDateTime(v),
+    },
     {
       title: '结果',
       key: 'result',
@@ -175,6 +184,10 @@ const LotteryRecords: React.FC = () => {
     <Card className={common.mb16}>
       <div className={common.toolbar}>
         <Space wrap>
+          <DateRangeFilter
+            value={lotRange}
+            onChange={(d) => { setLotRange(d); setPage(1) }}
+          />
           <Input.Search
             placeholder="搜索用户或形态编码"
             allowClear

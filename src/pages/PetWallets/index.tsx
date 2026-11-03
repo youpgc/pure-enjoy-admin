@@ -15,6 +15,8 @@ import {
 import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import { formatDateTime } from '../../utils/format'
+import DateRangeFilter, { rangeToParams } from '../../components/common/DateRangeFilter'
+import type { Dayjs } from 'dayjs'
 import common from '../../styles/common.module.css'
 
 // ==================== 金币钱包与流水（pet_wallets / pet_wallet_records） ====================
@@ -36,6 +38,8 @@ const WalletsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
+  // 更新时间范围（服务端 updated_at gte/lte）
+  const [updatedRange, setUpdatedRange] = useState<[Dayjs, Dayjs] | null>(null)
 
   const loadRows = useCallback(
     async (targetPage: number, keyword: string) => {
@@ -52,19 +56,19 @@ const WalletsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
           return
         }
       }
-      const res = await petWalletService.paginateWallets(targetPage, PAGE_SIZE, userIds)
+      const res = await petWalletService.paginateWallets(targetPage, PAGE_SIZE, userIds, rangeToParams(updatedRange))
       if (!res.success || !res.data) return setLoading(false)
       setRows(res.data.data)
       setTotal(res.data.total)
       setLoading(false)
     },
-    []
+    [updatedRange]
   )
 
   useEffect(() => {
     loadRows(page, searchText)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, refreshKey, searchText])
+  }, [page, refreshKey, searchText, updatedRange])
 
   const ids = rows.map((r) => r.user_id)
   const userMap = useUsernames(ids)
@@ -79,7 +83,12 @@ const WalletsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
     { title: '金币余额', dataIndex: 'gold_balance', width: 120, render: (v: number) => `${v}` },
     { title: '累计获得', dataIndex: 'total_earned', width: 120, render: (v: number) => `${v}` },
     { title: '累计消费', dataIndex: 'total_spent', width: 120, render: (v: number) => `${v}` },
-    { title: '更新时间', dataIndex: 'updated_at', width: 180, render: (v: string) => formatDateTime(v) },
+    {
+      title: '更新时间',
+      dataIndex: 'updated_at',
+      width: 180,
+      render: (v: string) => formatDateTime(v),
+    },
   ]
 
   return (
@@ -95,6 +104,10 @@ const WalletsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
                 setSearchText(v)
                 setPage(1)
               }}
+            />
+            <DateRangeFilter
+              value={updatedRange}
+              onChange={(d) => { setUpdatedRange(d); setPage(1) }}
             />
             <Button
               icon={<ReloadOutlined />}
@@ -134,6 +147,8 @@ const RecordsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
   const [loading, setLoading] = useState(false)
   const [sourceFilter, setSourceFilter] = useState('')
   const [searchText, setSearchText] = useState('')
+  // 日期范围（服务端 created_at gte/lte）
+  const [recordRange, setRecordRange] = useState<[Dayjs, Dayjs] | null>(null)
 
   const loadRows = useCallback(
     async (targetPage: number, sourceType: string, keyword: string) => {
@@ -153,19 +168,20 @@ const RecordsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
       const res = await petWalletRecordService.paginateRecords(targetPage, PAGE_SIZE, {
         sourceType: sourceType || undefined,
         userIds,
+        createdRange: rangeToParams(recordRange),
       })
       if (!res.success || !res.data) return setLoading(false)
       setRows(res.data.data)
       setTotal(res.data.total)
       setLoading(false)
     },
-    []
+    [recordRange]
   )
 
   useEffect(() => {
     loadRows(page, sourceFilter, searchText)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, sourceFilter, refreshKey, searchText])
+  }, [page, sourceFilter, refreshKey, searchText, recordRange])
 
   const ids = rows.map((r) => r.user_id)
   const userMap = useUsernames(ids)
@@ -190,7 +206,12 @@ const RecordsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
       ),
     },
     { title: '备注', dataIndex: 'remark', ellipsis: true },
-    { title: '时间', dataIndex: 'created_at', width: 180, render: (v: string) => formatDateTime(v) },
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      width: 180,
+      render: (v: string) => formatDateTime(v),
+    },
   ]
 
   return (
@@ -218,6 +239,10 @@ const RecordsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
                 setSearchText(v)
                 setPage(1)
               }}
+            />
+            <DateRangeFilter
+              value={recordRange}
+              onChange={(d) => { setRecordRange(d); setPage(1) }}
             />
             <Button icon={<ReloadOutlined />} loading={loading} onClick={() => loadRows(page, sourceFilter, searchText)}>
               刷新

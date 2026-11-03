@@ -23,6 +23,8 @@ import { useUsernames } from '../../hooks/useUsernames'
 import { UserName } from '../../components/common/UserName'
 import { PET_FLOW_BIZ_LABELS, PET_FLOW_BIZ_OPTIONS, PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { formatDateTime } from '../../utils/format'
+import DateRangeFilter, { rangeToParams } from '../../components/common/DateRangeFilter'
+import type { Dayjs } from 'dayjs'
 import common from '../../styles/common.module.css'
 
 // ==================== 宠物运营（客服金币调整 + 道具流水/丢弃审计） ====================
@@ -168,6 +170,8 @@ const DiscardFlowsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
   const [bizFilter, setBizFilter] = useState('')
   const [searchText, setSearchText] = useState('')
   const [itemNames, setItemNames] = useState<Record<string, string>>({})
+  // 日期范围（服务端 created_at gte/lte）
+  const [flowRange, setFlowRange] = useState<[Dayjs, Dayjs] | null>(null)
 
   // 道具名转译映射（一次拉取道具目录，量级 ≤ 数百行）
   const loadItemNames = useCallback(async () => {
@@ -196,13 +200,14 @@ const DiscardFlowsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
       const res = await petItemFlowService.paginateFlows(targetPage, PAGE_SIZE, {
         bizTypes,
         userIds,
+        createdRange: rangeToParams(flowRange),
       })
       if (!res.success || !res.data) return setLoading(false)
       setRows(res.data.data)
       setTotal(res.data.total)
       setLoading(false)
     },
-    []
+    [flowRange]
   )
 
   useEffect(() => {
@@ -254,7 +259,12 @@ const DiscardFlowsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
     },
     { title: '余量', dataIndex: 'quantity_after', width: 80, render: (v: number | null) => v ?? '-' },
     { title: '备注/单据', dataIndex: 'ref_id', ellipsis: true, render: (v: string | null) => v ?? '-' },
-    { title: '时间', dataIndex: 'created_at', width: 180, render: (v: string) => formatDateTime(v) },
+    {
+      title: '时间',
+      dataIndex: 'created_at',
+      width: 180,
+      render: (v: string) => formatDateTime(v),
+    },
   ]
 
   return (
@@ -262,6 +272,10 @@ const DiscardFlowsTab: React.FC<{ refreshKey: number }> = ({ refreshKey }) => {
       <Card className={common.mb16}>
         <div className={common.toolbar}>
           <Space wrap>
+            <DateRangeFilter
+              value={flowRange}
+              onChange={(d) => { setFlowRange(d); setPage(1) }}
+            />
             <Select
               style={{ width: 180 }}
               value={bizFilter}

@@ -19,6 +19,8 @@ import { PET_TABLE_PAGE_SIZE, PET_EVENT_CONTEXT_LABELS } from '../../constants/p
 import { usePetItemCatalog } from '../../components/pet/RewardCells'
 import { buildEventColumns } from './columns'
 import EventFormModal, { type EventFormValues } from './EventFormModal'
+import DateRangeFilter, { rangeToParams } from '../../components/common/DateRangeFilter'
+import type { Dayjs } from 'dayjs'
 import common from '../../styles/common.module.css'
 
 // ==================== 随机事件管理（pet_random_events + 选择流水审计） ====================
@@ -108,6 +110,10 @@ const PetEvents: React.FC = () => {
   // —— 选择记录（Tab2）——
   const [logs, setLogs] = useState<PetEventChoiceLogRow[]>([])
   const [logLoading, setLogLoading] = useState(false)
+  // 选择记录日期范围（服务端 created_at gte/lte）
+  const [choiceRange, setChoiceRange] = useState<[Dayjs, Dayjs] | null>(null)
+  // 掷中记录日期范围（服务端 created_at gte/lte）
+  const [rollRange, setRollRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [logKeyword, setLogKeyword] = useState('')
   const [rolls, setRolls] = useState<PetLotteryRecordRow[]>([])
   const [rollLoading, setRollLoading] = useState(false)
@@ -123,19 +129,19 @@ const PetEvents: React.FC = () => {
 
   const loadLogs = useCallback(async () => {
     setLogLoading(true)
-    const res = await petEventChoiceLogService.recentLogs()
+    const res = await petEventChoiceLogService.recentLogs(200, rangeToParams(choiceRange))
     setLogLoading(false)
     if (!res.success) return
     setLogs(res.data ?? [])
-  }, [])
+  }, [choiceRange])
 
   const loadRolls = useCallback(async () => {
     setRollLoading(true)
-    const res = await petEventLotteryService.recentEventRolls()
+    const res = await petEventLotteryService.recentEventRolls(200, rangeToParams(rollRange))
     setRollLoading(false)
     if (!res.success) return
     setRolls(res.data ?? [])
-  }, [])
+  }, [rollRange])
 
   useEffect(() => {
     loadRows()
@@ -277,6 +283,10 @@ const PetEvents: React.FC = () => {
               value={logKeyword}
               onChange={(e) => setLogKeyword(e.target.value)}
             />
+            <DateRangeFilter
+              value={choiceRange}
+              onChange={(d) => { setChoiceRange(d); setLogPage(1) }}
+            />
             <Button icon={<ReloadOutlined />} loading={logLoading} onClick={() => { setLogPage(1); void loadLogs() }}>
               刷新
             </Button>
@@ -366,6 +376,10 @@ const PetEvents: React.FC = () => {
       <Card className={common.mb16}>
         <div className={common.toolbar}>
           <Space wrap>
+            <DateRangeFilter
+              value={rollRange}
+              onChange={(d) => { setRollRange(d); setRollPage(1) }}
+            />
             <Input
               style={{ width: 260 }}
               allowClear

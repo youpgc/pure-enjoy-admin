@@ -8,6 +8,8 @@ import { useUsernames } from '../../hooks/useUsernames'
 import { petTimelineLogService, petAdventureSpotService } from '../../services/petService'
 import { UserName } from '../../components/common/UserName'
 import { PET_TABLE_PAGE_SIZE, PET_TIMELINE_EVENT_META, PET_ADVENTURE_RESULT_LABELS, PET_QUEST_TIER_LABELS } from '../../constants/pet'
+import DateRangeFilter, { rangeToParams } from '../../components/common/DateRangeFilter'
+import type { Dayjs } from 'dayjs'
 import common from '../../styles/common.module.css'
 
 // ==================== 宠物时间线查询（pet_timeline_logs，只读审计） ====================
@@ -55,7 +57,14 @@ function payloadSummary(
       const result = PET_ADVENTURE_RESULT_LABELS[s('result')] ?? s('result')
       const gold = p['gold'] != null ? `，金 ${p['gold']}` : ''
       const exp = p['exp'] != null ? `，经验 ${p['exp']}` : ''
-      return `${spotName(s('spot'))} · ${tier} · ${result}${gold}${exp}`
+      // 掉落明细（20261103 起落库：[{code,name,qty}]；历史记录无此键不显示）
+      const items = Array.isArray(p['items'])
+        ? (p['items'] as Array<Record<string, unknown>>)
+            .map((it) => `${String(it.name ?? it.code ?? '?')}×${String(it.qty ?? 1)}`)
+            .join('、')
+        : ''
+      const itemText = items ? `，道具 ${items}` : ''
+      return `${spotName(s('spot'))} · ${tier} · ${result}${gold}${exp}${itemText}`
     }
     case 'adventure_failed':
       return `${spotName(s('spot'))} · ${TIER_LABELS[s('tier')] ?? s('tier')} · 结算失败（惩罚已执行）`
@@ -73,17 +82,19 @@ const PetTimelineLogs: React.FC = () => {
   const [rows, setRows] = useState<PetTimelineLogRow[]>([])
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
+  // 日期范围（服务端 created_at gte/lte）
+  const [range, setRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [page, setPage] = useState(1)
   // 游历地码 → 中文名（游历归来/失败概要转译）
   const [spotNames, setSpotNames] = useState<Record<string, string>>({})
 
   const loadRows = useCallback(async () => {
     setLoading(true)
-    const res = await petTimelineLogService.listLogs()
+    const res = await petTimelineLogService.listLogs(200, rangeToParams(range))
     setLoading(false)
     if (!res.success) return
     setRows(res.data ?? [])
-  }, [])
+  }, [range])
 
   useEffect(() => {
     if (canRead) loadRows()
@@ -104,7 +115,11 @@ const PetTimelineLogs: React.FC = () => {
         if (!kw) return true
         const petName =
           r.pet && typeof r.pet === 'object'
-            ? `${(r.pet as Record<string, unknown>).show_no ?? ''} ${(r.pet as Record<string, unknown>).nickname ?? ''}`
+            ? `${(r.pet as Record<string, unknown>).show_no ?? ''} ${
+                (r.pet as Record<string, unknown>).nickname ||
+                ((r.pet as Record<string, unknown>).species as { name_cn: string } | null)?.name_cn ||
+                ''
+              }`
             : ''
         return `${r.user_id} ${r.event_type} ${petName}`.toLowerCase().includes(kw)
       }),
@@ -139,12 +154,15 @@ const PetTimelineLogs: React.FC = () => {
     {
       title: '宠物',
       key: 'pet',
-      width: 150,
-      ellipsis: true,
-      render: (_, r) =>
-        r.pet && typeof r.pet === 'object'
-          ? `${(r.pet as Record<string, unknown>).show_no ?? ''} ${(r.pet as Record<string, unknown>).nickname ?? ''}`
-          : r.pet_id,
+      width: 220,
+      render: (_, r) => {
+        if (!r.pet || typeof r.pet !== 'object') return r.pet_id ?? '—'
+        const p = r.pet as Record<string, unknown>
+        const sp = p.species as Record<string, unknown> | null
+        // 默认名宠物 nickname 为空 → 回退种属名（pet_species.name_cn）
+        const name = (p.nickname as string) || (sp?.name_cn as string) || ''
+        return `${p.show_no ?? ''} ${name}`.trim()
+      },
     },
     {
       title: '内容',
@@ -171,6 +189,10 @@ const PetTimelineLogs: React.FC = () => {
               placeholder="搜索用户 / 事件类型 / 宠物"
               value={keyword}
               onChange={(e) => { setKeyword(e.target.value); setPage(1) }}
+            />
+            <DateRangeFilter
+              value={range}
+              onChange={(d) => { setRange(d); setPage(1) }}
             />
             <Button icon={<ReloadOutlined />} loading={loading} onClick={() => { setPage(1); void loadRows() }}>
               刷新

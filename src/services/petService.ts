@@ -7,6 +7,7 @@ import {
   type ApiResponse,
 } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
+import type { DateRangeValue } from '../components/common/DateRangeFilter'
 import type {
   PetConfigRow,
   PetRarityRow,
@@ -152,12 +153,21 @@ class PetWalletService extends BaseService<PetWalletRow> {
     })
   }
 
-  paginateWallets(page: number, pageSize: number, userIds?: string[]) {
+  paginateWallets(
+    page: number,
+    pageSize: number,
+    userIds?: string[],
+    updatedRange?: DateRangeValue | null,
+  ) {
     return this.paginate(page, pageSize, (q) => {
+      let builder = q
       if (userIds && userIds.length > 0) {
-        return (q as any).in('user_id', userIds)
+        builder = (builder as any).in('user_id', userIds)
       }
-      return q
+      if (updatedRange) {
+        builder = (builder as any).gte('updated_at', updatedRange.start).lte('updated_at', updatedRange.end)
+      }
+      return builder
     })
   }
 }
@@ -174,13 +184,16 @@ class PetWalletRecordService extends BaseService<PetWalletRecordRow> {
   paginateRecords(
     page: number,
     pageSize: number,
-    options?: { sourceType?: string; userIds?: string[] }
+    options?: { sourceType?: string; userIds?: string[]; createdRange?: DateRangeValue | null }
   ) {
     return this.paginate(page, pageSize, (q) => {
       let builder = q
       if (options?.sourceType) builder = builder.eq('source_type', options.sourceType)
       if (options?.userIds && options.userIds.length > 0) {
         builder = (builder as any).in('user_id', options.userIds)
+      }
+      if (options?.createdRange) {
+        builder = (builder as any).gte('created_at', options.createdRange.start).lte('created_at', options.createdRange.end)
       }
       return builder
     })
@@ -199,7 +212,7 @@ class PetItemFlowService extends BaseService<PetItemFlowRow> {
   paginateFlows(
     page: number,
     pageSize: number,
-    options?: { bizTypes?: string[]; userIds?: string[] }
+    options?: { bizTypes?: string[]; userIds?: string[]; createdRange?: DateRangeValue | null }
   ) {
     return this.paginate(page, pageSize, (q) => {
       let builder = q
@@ -208,6 +221,9 @@ class PetItemFlowService extends BaseService<PetItemFlowRow> {
       }
       if (options?.userIds && options.userIds.length > 0) {
         builder = (builder as any).in('user_id', options.userIds)
+      }
+      if (options?.createdRange) {
+        builder = (builder as any).gte('created_at', options.createdRange.start).lte('created_at', options.createdRange.end)
       }
       return builder
     })
@@ -287,8 +303,16 @@ class PetEventChoiceLogService extends BaseService<PetEventChoiceLogRow> {
   }
 
   /// 最近流水（服务端限量；审查 2026-10-08 修正——findAll 全表拉取会随数据增长劣化）
-  async recentLogs(limit = 200): Promise<ApiResponse<PetEventChoiceLogRow[]>> {
-    const res = await this.paginate(1, limit, (q) => q)
+  async recentLogs(
+    limit = 200,
+    createdRange?: DateRangeValue | null,
+  ): Promise<ApiResponse<PetEventChoiceLogRow[]>> {
+    const res = await this.paginate(1, limit, (q) => {
+      if (createdRange) {
+        return (q as any).gte('created_at', createdRange.start).lte('created_at', createdRange.end)
+      }
+      return q
+    })
     if (!res.success) return errorResponse(res.errorMessage ?? '查询失败')
     return successResponse(res.data?.data ?? [])
   }
@@ -316,12 +340,21 @@ class PetPetAdminService extends BaseService<PetPetRow> {
   paginatePets(
     page: number,
     pageSize: number,
-    options?: { userIds?: string[] | null; text?: string }
+    options?: { userIds?: string[] | null; text?: string; createdRange?: DateRangeValue | null }
   ) {
     return this.paginate(page, pageSize, (q) => {
       let builder = q
       if (options?.userIds && options.userIds.length > 0) {
-        return (builder as any).in('user_id', options.userIds)
+        builder = (builder as any).in('user_id', options.userIds)
+        if (options?.createdRange) {
+          builder = (builder as any)
+            .gte('created_at', options.createdRange.start)
+            .lte('created_at', options.createdRange.end)
+        }
+        return builder
+      }
+      if (options?.createdRange) {
+        builder = (builder as any).gte('created_at', options.createdRange.start).lte('created_at', options.createdRange.end)
       }
       // id 次排序键:新手包批量发宠同 created_at 时页界不稳(复审 P3)
       builder = (builder as any).order('id', { ascending: true })
@@ -343,10 +376,19 @@ class PetEventLotteryService extends BaseService<PetLotteryRecordRow> {
     })
   }
 
-  async recentEventRolls(limit = 200): Promise<ApiResponse<PetLotteryRecordRow[]>> {
+  async recentEventRolls(
+    limit = 200,
+    createdRange?: DateRangeValue | null,
+  ): Promise<ApiResponse<PetLotteryRecordRow[]>> {
     // biz 过滤必须下推服务端：pet_lottery_records 是全局审计大表（孵化/特性/历险/事件），
     // findAll 全量拉取再客户端过滤会随数据增长线性劣化（审查 2026-10-08 修正）
-    const res = await this.paginate(1, limit, (q) => q.eq('biz', 'event'))
+    const res = await this.paginate(1, limit, (q) => {
+      let builder = q.eq('biz', 'event')
+      if (createdRange) {
+        builder = (builder as any).gte('created_at', createdRange.start).lte('created_at', createdRange.end)
+      }
+      return builder
+    })
     if (!res.success) return errorResponse(res.errorMessage ?? '查询失败')
     return successResponse(res.data?.data ?? [])
   }
@@ -365,11 +407,16 @@ class PetLotteryDrawService extends BaseService<PetLotteryRecordRow> {
   async pageDraws(
     page: number,
     pageSize: number,
+    createdRange?: DateRangeValue | null,
   ): Promise<ApiResponse<{ data: PetLotteryRecordRow[]; total: number }>> {
     // 双过滤均下推服务端（全局审计大表，禁全量拉取客户端筛）
-    return this.paginate(page, pageSize, (q) =>
-      q.eq('biz', 'egg_hatch').in('pool_code', ['lottery_s1', 'lottery_s1_pity']),
-    )
+    return this.paginate(page, pageSize, (q) => {
+      let builder = q.eq('biz', 'egg_hatch').in('pool_code', ['lottery_s1', 'lottery_s1_pity'])
+      if (createdRange) {
+        builder = (builder as any).gte('created_at', createdRange.start).lte('created_at', createdRange.end)
+      }
+      return builder
+    })
   }
 }
 
@@ -379,13 +426,21 @@ class PetTimelineLogService extends BaseService<PetTimelineLogRow> {
     super('pet_timeline_logs', {
       defaultOrder: { column: 'created_at', ascending: false },
       select:
-        'id,user_id,pet_id,event_type,payload,created_at,pet:pet_pets(show_no,nickname)',
+        'id,user_id,pet_id,event_type,payload,created_at,pet:pet_pets(show_no,nickname,species:pet_species(name_cn))',
     })
   }
 
   /// 最近流水（服务端限量；审查口径同 choice_logs）
-  async listLogs(limit = 200): Promise<ApiResponse<PetTimelineLogRow[]>> {
-    const res = await this.paginate(1, limit, (q) => q)
+  async listLogs(
+    limit = 200,
+    createdRange?: DateRangeValue | null,
+  ): Promise<ApiResponse<PetTimelineLogRow[]>> {
+    const res = await this.paginate(1, limit, (q) => {
+      if (createdRange) {
+        return (q as any).gte('created_at', createdRange.start).lte('created_at', createdRange.end)
+      }
+      return q
+    })
     if (!res.success) return errorResponse(res.errorMessage ?? '查询失败')
     return successResponse(res.data?.data ?? [])
   }
@@ -425,13 +480,16 @@ class PetAchievementProgressService extends BaseService<PetAchievementProgressRo
   paginateProgress(
     page: number,
     pageSize: number,
-    options?: { achievementId?: string; userIds?: string[] }
+    options?: { achievementId?: string; userIds?: string[]; completedRange?: DateRangeValue | null }
   ) {
     return this.paginate(page, pageSize, (q) => {
       let builder = q
       if (options?.achievementId) builder = builder.eq('achievement_id', options.achievementId)
       if (options?.userIds && options.userIds.length > 0) {
         builder = (builder as any).in('user_id', options.userIds)
+      }
+      if (options?.completedRange) {
+        builder = (builder as any).gte('completed_at', options.completedRange.start).lte('completed_at', options.completedRange.end)
       }
       return builder
     })

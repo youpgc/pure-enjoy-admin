@@ -7,6 +7,8 @@ import { userService } from '../../services/userService'
 import { useUsernames } from '../../hooks/useUsernames'
 import { PET_TABLE_PAGE_SIZE } from '../../constants/pet'
 import { buildProgressColumns } from './progressColumns'
+import DateRangeFilter, { rangeToParams } from '../../components/common/DateRangeFilter'
+import type { Dayjs } from 'dayjs'
 import common from '../../styles/common.module.css'
 
 // ==================== 用户成就进度查询（Tab 2，只读） ====================
@@ -20,6 +22,8 @@ const ProgressTab: React.FC<{
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
+  // 达标时间范围（服务端 completed_at gte/lte）
+  const [completedRange, setCompletedRange] = useState<[Dayjs, Dayjs] | null>(null)
   const [achievementFilter, setAchievementFilter] = useState('')
   const [searchText, setSearchText] = useState('')
 
@@ -40,17 +44,18 @@ const ProgressTab: React.FC<{
     const res = await petAchievementProgressService.paginateProgress(targetPage, PAGE_SIZE, {
       achievementId: achId || undefined,
       userIds,
+      completedRange: rangeToParams(completedRange),
     })
     setLoading(false)
     if (!res.success || !res.data) return
     setRows(res.data.data)
     setTotal(res.data.total)
-  }, [])
+  }, [completedRange])
 
   useEffect(() => {
     loadRows(page, achievementFilter, searchText)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, achievementFilter, searchText])
+  }, [page, achievementFilter, searchText, completedRange])
 
   const userMap = useUsernames(rows.map((r) => r.user_id))
   const columns = buildProgressColumns(userMap)
@@ -60,6 +65,10 @@ const ProgressTab: React.FC<{
       <Card className={common.mb16}>
         <div className={common.toolbar}>
           <Space wrap>
+            <DateRangeFilter
+              value={completedRange}
+              onChange={(d) => { setCompletedRange(d); setPage(1) }}
+            />
             <Select
               style={{ width: 260 }}
               value={achievementFilter}
