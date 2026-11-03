@@ -408,9 +408,10 @@ export interface PetLotteryRecordRow {
 export interface PetTimelineLogRow {
   id: string
   user_id: string
-  pet_id: string
+  /** 用户级事件（如秘境解锁）无宠物归属，20261103 起可为 null */
+  pet_id: string | null
   event_type: string
   payload: Json
   created_at: string
-  pet: { show_no: string; nickname: string | null } | null
+  pet: { show_no: string; nickname: string | null; species: { name_cn: string } | null } | null
 }
