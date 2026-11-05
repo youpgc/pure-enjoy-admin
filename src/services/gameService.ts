@@ -16,6 +16,21 @@ import type {
   DbGameMode,
   DbGameItem,
   DbPointRecord,
+  DbJourneyRegion,
+  DbJourneyMapObject,
+  DbJourneyHeatZone,
+  DbJourneyWave,
+  DbJourneyMonster,
+  DbJourneyWeapon,
+  DbJourneyWeaponLevel,
+  DbJourneyEvoRecipe,
+  DbJourneyPickup,
+  DbJourneyDrop,
+  DbJourneyCharacter,
+  DbJourneyTalent,
+  DbJourneyRelicUnlock,
+  DbJourneyGlobals,
+  DbJourneyWeaponSlot,
 } from '../types/database'
 
 /// 游戏中心数据服务（9 表各继承 BaseService 八法，非标聚合走 RPC/专用方法）
@@ -68,10 +83,18 @@ class GameLevelService extends BaseService<DbGameLevel> {
     return this.findAll((q) => q.eq('game_id', gameId))
   }
 
-  paginateByGame(gameId: string, page: number, pageSize: number, modeId?: string | null) {
+  paginateByGame(
+    gameId: string,
+    page: number,
+    pageSize: number,
+    modeId?: string | null,
+    /// config jsonb 条件过滤（西行分类筛选）：key=顶层键，值 eq 匹配
+    configFilter?: { key: string; value: string },
+  ) {
     return this.paginate(page, pageSize, (q) => {
       q = q.eq('game_id', gameId)
       if (modeId) q = q.eq('mode_id', modeId)
+      if (configFilter) q = q.eq(`config->>${configFilter.key}`, configFilter.value)
       return q
     })
   }
@@ -311,6 +334,107 @@ class GamePointFlowService extends BaseService<DbPointRecord> {
   }
 }
 
+// ==================== 西行（journey）配置服务（journey_* 静态配置表） ====================
+// 表结构以 /workspace/sql journey DDL 为准；SQL 执行前页面查询会得到空表/报错提示。
+
+// J1. 区域（关卡分组）
+class JourneyRegionService extends BaseService<DbJourneyRegion> {
+  constructor() {
+    super('journey_regions', { defaultOrder: { column: 'seq', ascending: true } })
+  }
+}
+
+// J2. 关卡配置已退役：西行关卡统一走 game_levels（GameLevelService），
+// 西行专属属性存 game_levels.config jsonb（region_code/level_kind 等）。
+
+// J3. 地图参照物（按关卡）
+class JourneyMapObjectService extends BaseService<DbJourneyMapObject> {
+  constructor() {
+    super('journey_map_objects', { defaultOrder: { column: 'kind', ascending: true } })
+  }
+}
+
+// J4. 密度热区（按关卡）
+class JourneyHeatZoneService extends BaseService<DbJourneyHeatZone> {
+  constructor() {
+    super('journey_heat_zones', { defaultOrder: { column: 'kind', ascending: true } })
+  }
+}
+
+// J5. 波次（按关卡时间轴）
+class JourneyWaveService extends BaseService<DbJourneyWave> {
+  constructor() {
+    super('journey_waves', { defaultOrder: { column: 'seq', ascending: true } })
+  }
+}
+
+// J6. 怪物静态属性
+class JourneyMonsterService extends BaseService<DbJourneyMonster> {
+  constructor() {
+    super('journey_monsters', { defaultOrder: { column: 'code', ascending: true } })
+  }
+}
+
+// J7. 法宝主表（三分类合一；被动加持=category passive + attr_key/value）
+class JourneyWeaponService extends BaseService<DbJourneyWeapon> {
+  constructor() {
+    super('journey_weapons', { defaultOrder: { column: 'code', ascending: true } })
+  }
+}
+
+// J8. 法宝分级数值（1~8 级）
+class JourneyWeaponLevelService extends BaseService<DbJourneyWeaponLevel> {
+  constructor() {
+    super('journey_weapon_levels', { defaultOrder: { column: 'lv', ascending: true } })
+  }
+
+  findAllByWeapon(weaponId: string) {
+    return this.findAll((q) => q.eq('weapon_id', weaponId))
+  }
+}
+
+// J9. 炼化配方（表顺序=宝箱多命中优先级）
+class JourneyEvoRecipeService extends BaseService<DbJourneyEvoRecipe> {
+  constructor() {
+    super('journey_evo_recipes', { defaultOrder: { column: 'seq', ascending: true } })
+  }
+}
+
+// J10. 拾取物
+class JourneyPickupService extends BaseService<DbJourneyPickup> {
+  constructor() {
+    super('journey_pickups', { defaultOrder: { column: 'code', ascending: true } })
+  }
+}
+
+// J11. 掉落表（按 table_code 聚组）
+class JourneyDropService extends BaseService<DbJourneyDrop> {
+  constructor() {
+    super('journey_drops', { defaultOrder: { column: 'table_code', ascending: true } })
+  }
+}
+
+// J12. 角色（解锁=通关关卡号+功德门槛）
+class JourneyCharacterService extends BaseService<DbJourneyCharacter> {
+  constructor() {
+    super('journey_characters', { defaultOrder: { column: 'unlock_level_no', ascending: true } })
+  }
+}
+
+// J13. 天赋层（5 系×(16 常规+1 标志层)）
+class JourneyTalentService extends BaseService<DbJourneyTalent> {
+  constructor() {
+    super('journey_talents', { defaultOrder: { column: 'seq', ascending: true } })
+  }
+}
+
+// J14. 图鉴解锁（达成资格+功德定价）
+class JourneyRelicUnlockService extends BaseService<DbJourneyRelicUnlock> {
+  constructor() {
+    super('journey_relic_unlocks', { defaultOrder: { column: 'seq', ascending: true } })
+  }
+}
+
 export const gameService = new GameService()
 export const gameDimensionService = new GameDimensionService()
 export const gameLevelService = new GameLevelService()
@@ -324,6 +448,33 @@ export const gameScoreValueService = new GameScoreValueService()
 export const gameEndlessRoundService = new GameEndlessRoundService()
 export const userGameAchievementService = new UserGameAchievementService()
 export const gameRewardClaimService = new GameRewardClaimService()
+export const journeyRegionService = new JourneyRegionService()
+export const journeyMapObjectService = new JourneyMapObjectService()
+export const journeyHeatZoneService = new JourneyHeatZoneService()
+export const journeyWaveService = new JourneyWaveService()
+export const journeyMonsterService = new JourneyMonsterService()
+export const journeyWeaponService = new JourneyWeaponService()
+export const journeyWeaponLevelService = new JourneyWeaponLevelService()
+export const journeyEvoRecipeService = new JourneyEvoRecipeService()
+export const journeyPickupService = new JourneyPickupService()
+export const journeyDropService = new JourneyDropService()
+export const journeyCharacterService = new JourneyCharacterService()
+export const journeyTalentService = new JourneyTalentService()
+export const journeyRelicUnlockService = new JourneyRelicUnlockService()
+
+// J15. 全局参数（单行表：id 恒为 1；同屏怪上限等运营参数）
+class JourneyGlobalsService extends BaseService<DbJourneyGlobals> {
+  constructor() {
+    super('journey_globals', { defaultOrder: { column: 'id', ascending: true } })
+  }
+
+  /// 读取单行（表未就绪/行缺失时返回 null，不抛异常）
+  async findSingleton(): Promise<DbJourneyGlobals | null> {
+    const res = await this.findAll()
+    return res.data?.[0] ?? null
+  }
+}
+export const journeyGlobalsService = new JourneyGlobalsService()
 
 /// 游戏最佳成绩聚合（走 get_game_best_scores RPC）。
 /// 注意：函数内按 get_user_business_id() 过滤，仅返回当前登录用户本人数据；
@@ -387,3 +538,13 @@ export async function getGameLeaderboard(
   if (error) throw new Error(error.message || 'get_game_leaderboard 调用失败')
   return (Array.isArray(data) ? data : []) as GameLeaderboardRow[]
 }
+
+// J3. 武器维度槽定义（6 主动槽=维度槽：属性/特效，等级上限后台可调）
+class JourneyWeaponSlotService extends BaseService<DbJourneyWeaponSlot> {
+  constructor() {
+    super('journey_weapon_slots', {
+      defaultOrder: { column: 'sort_order', ascending: true },
+    })
+  }
+}
+export const journeyWeaponSlotService = new JourneyWeaponSlotService()

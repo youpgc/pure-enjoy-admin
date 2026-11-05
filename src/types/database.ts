@@ -2598,3 +2598,181 @@ export type DbGameEndlessRound = Database['public']['Tables']['game_endless_roun
 export type DbGameMode = Database['public']['Tables']['game_modes']['Row']
 
 export type DbGameItem = Database['public']['Tables']['game_items']['Row']
+
+// ==================== 西行（journey）模块类型 ====================
+// 手工维护镜像：journey_* 表由 /workspace/sql 的 journey DDL 创建（SQL 随双端交付后执行），
+// 待 supabase gen types 包含后可切换为 Database['public']['Tables'] 别名。
+// 列名以真实 DDL 为准，禁止凭本文件臆测线上结构。
+
+export interface DbJourneyRegion {
+  id: string
+  code: string
+  name: string
+  seq: number
+  theme_color: string | null
+  decoration_key: string | null
+  /** 本段妖王编码（journey_monsters.code）；NULL=叙事段无妖王战 */
+  boss_code: string | null
+}
+
+// DbJourneyLevel 已移除：西行关卡统一走 game_levels（81 难，
+// 西行属性在 config jsonb），见 game_levels 关卡配置体系。
+
+export interface DbJourneyMapObject {
+  id: string
+  level_id: string
+  kind: string
+  x: number
+  y: number
+  radius: number
+  hp: number | null
+  drop_table_code: string | null
+}
+
+export interface DbJourneyHeatZone {
+  id: string
+  level_id: string
+  kind: string
+  x: number
+  y: number
+  radius: number
+  density_mult: number
+}
+
+export interface DbJourneyWave {
+  id: string
+  level_id: string
+  seq: number
+  start_sec: number
+  monster_code: string | null
+  count: number
+  spawn_interval_ms: number
+  buff_mult: number
+}
+
+export interface DbJourneyMonster {
+  id: string
+  code: string
+  name: string
+  ai_tier: string
+  base_hp: number
+  base_speed: number
+  contact_damage: number
+  size_scale: number
+  exp_drop: number
+  merit_drop: number
+  drop_table_code: string | null
+  behavior: string | null
+  sprite_key: string | null
+}
+
+export interface DbJourneyWeapon {
+  id: string
+  code: string
+  name: string
+  category: string
+  attack_kind: string | null
+  description: string | null
+  base_damage: number | null
+  base_interval_ms: number | null
+  range_px: number | null
+  projectile_speed: number | null
+  pierce: number | null
+  aoe_radius: number | null
+  heal_fixed: number | null
+  attr_key: string | null
+  attr_value: number | null
+  sprite_key: string | null
+}
+
+export interface DbJourneyWeaponLevel {
+  id: string
+  weapon_id: string
+  lv: number
+  damage: number | null
+  interval_ms: number | null
+  proj_count: number | null
+  heal_amount: number | null
+  value_num: number | null
+}
+
+export interface DbJourneyEvoRecipe {
+  id: string
+  weapon_id: string
+  required_passive_id: string | null
+  required_passive_lv: number
+  result_code: string
+  result_name: string
+  seq: number
+}
+
+export interface DbJourneyPickup {
+  id: string
+  code: string
+  name: string
+  effect: string
+  value: number
+  radius: number
+  magnet_range: number
+}
+
+export interface DbJourneyDrop {
+  id: string
+  table_code: string
+  source_kind: string
+  pickup_code: string | null
+  weight: number
+  qty_min: number
+  qty_max: number
+}
+
+export interface DbJourneyCharacter {
+  id: string
+  code: string
+  name: string
+  base_hp: number
+  aura_name: string | null
+  aura_key: string | null
+  aura_value: number | null
+  aura_desc: string | null
+  weapon_code: string | null
+  unlock_level_no: number
+  unlock_merit_cost: number
+  sprite_key: string | null
+}
+
+export interface DbJourneyTalent {
+  id: string
+  element: string
+  seq: number
+  name: string
+  attr_key: string
+  value_per_level: number
+  is_signature: boolean
+  signature_desc: string | null
+}
+
+export interface DbJourneyRelicUnlock {
+  id: string
+  weapon_id: string
+  achievement_code: string | null
+  merit_cost: number
+  seq: number
+}
+
+export interface DbJourneyGlobals {
+  id: number
+  code: string
+  monster_cap: number
+  updated_at: string
+}
+
+export interface DbJourneyWeaponSlot {
+  id: string
+  code: string
+  name: string
+  kind: string
+  effect_per_level: string
+  max_level: number
+  sort_order: number
+}

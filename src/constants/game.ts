@@ -206,3 +206,80 @@ export const ACHIEVEMENT_ICON_OPTIONS: { label: string; value: string }[] = [
   { label: '消消乐·得分8000', value: 'ach_score_match3_8000' },
   { label: '消消乐·得分10000', value: 'ach_score_match3_10000' },
 ]
+
+// ==================== 西行（journey）枚举 ====================
+// 取值须与 /workspace/sql journey DDL 的 CHECK 约束一致；App 端 journey_seed 同步维护。
+
+// 关卡类型（journey_levels.level_kind）
+export const JOURNEY_LEVEL_KIND_MAP: Record<string, { color: string; label: string }> = {
+  story: { color: 'blue', label: '叙事' },
+  battle: { color: 'green', label: '战斗' },
+  trial: { color: 'orange', label: '试炼' },
+  race: { color: 'cyan', label: '竞速' },
+  node: { color: 'purple', label: '节点' },
+  boss: { color: 'red', label: '妖王战' },
+  final: { color: 'gold', label: '终章' },
+}
+
+// 怪物 AI 档（journey_monsters.ai_tier）
+export const JOURNEY_AI_TIER_MAP: Record<string, { color: string; label: string }> = {
+  normal: { color: 'default', label: '普通' },
+  elite: { color: 'orange', label: '精英' },
+  boss: { color: 'red', label: '妖王' },
+}
+
+// 法宝分类（journey_weapons.category）
+export const JOURNEY_WEAPON_CATEGORY_MAP: Record<string, { color: string; label: string }> = {
+  active: { color: 'red', label: '主动法宝' },
+  passive: { color: 'blue', label: '被动加持' },
+  effect: { color: 'purple', label: '特效触发' },
+}
+
+// 法宝攻击形态（journey_weapons.attack_kind）
+export const JOURNEY_ATTACK_KIND_MAP: Record<string, { color: string; label: string }> = {
+  orbit: { color: 'volcano', label: '环绕收割' },
+  melee_arc: { color: 'orange', label: '近战横扫' },
+  projectile: { color: 'blue', label: '弹体' },
+  aura: { color: 'green', label: '光环' },
+  boomerang: { color: 'cyan', label: '回旋' },
+  beam: { color: 'purple', label: '射线' },
+  magnet: { color: 'gold', label: '磁吸' },
+}
+
+// 五行（journey_talents.element）：相生顺序 金→水→木→火→土→金
+export const JOURNEY_ELEMENT_MAP: Record<string, { color: string; label: string }> = {
+  metal: { color: 'gold', label: '金' },
+  water: { color: 'blue', label: '水' },
+  wood: { color: 'green', label: '木' },
+  fire: { color: 'red', label: '火' },
+  earth: { color: 'orange', label: '土' },
+}
+
+// 地图参照物类型（journey_map_objects.kind）
+export const JOURNEY_MAP_OBJECT_KIND_MAP: Record<string, { color: string; label: string }> = {
+  breakable: { color: 'orange', label: '可破坏' },
+  unbreakable: { color: 'default', label: '不可破坏' },
+  chest_point: { color: 'gold', label: '宝箱点' },
+  milestone: { color: 'purple', label: '里程碑' },
+  waypoint: { color: 'blue', label: '路径点' },
+}
+
+// 密度热区类型（journey_heat_zones.kind）
+export const JOURNEY_HEAT_KIND_MAP: Record<string, { color: string; label: string }> = {
+  demon_den: { color: 'red', label: '妖穴' },
+  safe_valley: { color: 'green', label: '安全谷' },
+}
+
+// 拾取物效果（journey_pickups.effect）
+export const JOURNEY_PICKUP_EFFECT_MAP: Record<string, { color: string; label: string }> = {
+  exp: { color: 'blue', label: '香火(经验)' },
+  merit: { color: 'gold', label: '功德' },
+  heal: { color: 'green', label: '治疗' },
+  chest: { color: 'purple', label: '宝箱' },
+}
+
+// 掉落来源（journey_drops.source_kind）
+export const JOURNEY_DROP_SOURCE_MAP: Record<string, { color: string; label: string }> = {
+  monster: { color: 'red', label: '怪物' },
+  breakable: { color: 'orange', label: '可破坏物' },
+}

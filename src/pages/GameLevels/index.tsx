@@ -25,15 +25,16 @@ import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
-import { gameService, gameLevelService, gameModeService } from '../../services/gameService'
+import { gameService, gameLevelService, gameModeService, journeyRegionService } from '../../services/gameService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import { refreshGameMeta } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../contexts/NavigationContext'
 import type { DbGame, DbGameLevel } from '../../types/database'
+import LevelFormModal, { JOURNEY_LEVEL_CONFIG_KEYS } from './LevelFormModal'
+import { JOURNEY_LEVEL_KIND_MAP } from '../../constants/game'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
 import { formatDateTime } from '../../utils/format'
-import LevelFormModal from './LevelFormModal'
 
 const { Text } = Typography
 
@@ -56,6 +57,12 @@ const GameLevels: React.FC = () => {
   const [selectedModeId, setSelectedModeId] = useState<string>(
     (restoredFiltersRef.current.selectedModeId as string) ?? ''
   )
+  // 西行分类筛选（仅所属游戏=西行时显示；config jsonb 条件，远端过滤）
+  const [regions, setRegions] = useState<{ value: string; label: string }[]>([])
+  const [regionFilter, setRegionFilter] = useState<string>('')
+  const [kindFilter, setKindFilter] = useState<string>('')
+  const selectedGameCode = games.find((g) => g.id === selectedGameId)?.code ?? ''
+  const isJourneyGame = selectedGameCode === 'journey'
   // 用 ref 持有最新模式筛选值，避免 loadLevels 因 selectedModeId 变化而重建身份、
   // 进而触发「游戏切换」副作用把模式筛选重置为空。
   const selectedModeIdRef = useRef<string>('')
@@ -85,6 +92,16 @@ const GameLevels: React.FC = () => {
         if (firstId) setSelectedGameId(firstId)
       }
     }
+  }, [mountedRef])
+
+  // 西行区域选项（条件表单/分类筛选共用；失败静默留空）
+  useEffect(() => {
+    journeyRegionService.findAll().then((res) => {
+      if (!mountedRef.current || !res.success) return
+      setRegions(
+        (res.data ?? []).map((r) => ({ value: r.code, label: r.name }))
+      )
+    }).catch(() => {})
   }, [mountedRef])
 
   const loadModes = useCallback(
@@ -125,7 +142,13 @@ const GameLevels: React.FC = () => {
         selectedGameId,
         pager.pagination.current,
         pager.pagination.pageSize,
-        selectedModeId || null
+        selectedModeId || null,
+        // 西行分类筛选走 config jsonb 条件（远端过滤，分页语义不变）
+        regionFilter
+          ? { key: 'region_code', value: regionFilter }
+          : kindFilter
+            ? { key: 'level_kind', value: kindFilter }
+            : undefined
       )
       if (!result.success) {
         handleApiError(result.errorMessage, 'GameLevels-加载')
@@ -139,7 +162,7 @@ const GameLevels: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [selectedGameId, selectedModeId, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
+  }, [selectedGameId, selectedModeId, regionFilter, kindFilter, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
 
   useEffect(() => {
     loadGames()
@@ -200,7 +223,7 @@ const GameLevels: React.FC = () => {
     if (!selectedGameId) return
     if (modePendingRef.current) return
     loadLevels()
-  }, [selectedGameId, selectedModeId, pager.pagination.current, pager.pagination.pageSize, loadLevels])
+  }, [selectedGameId, selectedModeId, regionFilter, kindFilter, pager.pagination.current, pager.pagination.pageSize, loadLevels])
 
   // 页签刷新筛选持久化（卸载时写回快照）
   usePersistTabFilters('game_levels', { selectedGameId, selectedModeId })
@@ -219,9 +242,18 @@ const GameLevels: React.FC = () => {
 
   const formInitialValues = (): Record<string, any> => {
     if (editing) {
+      const cfg = (editing.config && typeof editing.config === 'object'
+        ? (editing.config as Record<string, any>)
+        : {}) as Record<string, any>
       return {
         ...editing,
         config: JSON.stringify(editing.config ?? {}),
+        // 西行条件字段从 config jsonb 解出回显（保存时并回）
+        region_code: cfg.region_code,
+        level_kind: cfg.level_kind,
+        boss_fights: cfg.boss_fights ?? 0,
+        first_clear_merit: cfg.first_clear_merit ?? 0,
+        duration_target_sec: cfg.duration_target_sec,
         propUnlock:
           editing.config && typeof editing.config === 'object' && (editing.config as Record<string, any>).propUnlock
             ? JSON.stringify((editing.config as Record<string, any>).propUnlock)
@@ -238,6 +270,8 @@ const GameLevels: React.FC = () => {
       sort_order: 0,
       config: '{}',
       target: '{}',
+      boss_fights: 0,
+      first_clear_merit: 0,
     }
   }
 
@@ -260,6 +294,8 @@ const GameLevels: React.FC = () => {
       const payload: Record<string, any> = { ...values }
       // 模式为空（未选 / 清空）时存 NULL，避免写入空串触发 FK 类型问题
       payload.mode_id = values.mode_id || null
+      // 西行表单隐藏 config/target/propUnlock JSON 输入（属性走结构化字段），
+      // 隐藏项不出现在 values 中——统一判存在再解析。
       try {
         payload.config = values.config ? JSON.parse(values.config) : {}
         payload.target = values.target ? JSON.parse(values.target) : {}
@@ -273,6 +309,18 @@ const GameLevels: React.FC = () => {
         }
         // propUnlock 属 config 内嵌键，顶层残留会触发 42703（列不存在）
         delete payload.propUnlock
+        // 西行条件字段并入 config jsonb（顶层不落列，防 42703）
+        const saveGameCode = games.find((g) => g.id === payload.game_id)?.code
+        if (saveGameCode === 'journey') {
+          for (const key of JOURNEY_LEVEL_CONFIG_KEYS) {
+            if (values[key] !== undefined && values[key] !== null && values[key] !== '') {
+              payload.config[key] = values[key]
+            }
+            delete payload[key]
+          }
+        } else {
+          for (const key of JOURNEY_LEVEL_CONFIG_KEYS) delete payload[key]
+        }
       } catch {
         message.error('config / target / propUnlock 不是合法 JSON')
         setSaving(false)
@@ -309,40 +357,77 @@ const GameLevels: React.FC = () => {
   const columns: ColumnsType<DbGameLevel> = [
     { title: '关卡号', dataIndex: 'level_no', key: 'level_no', width: 90, render: (v: number) => <Text strong>{v}</Text> },
     { title: '名称', dataIndex: 'name', key: 'name' },
-    {
-      title: '计入每日首通',
-      dataIndex: 'count_for_daily_clear',
-      key: 'count_for_daily_clear',
-      width: 130,
-      render: (v: boolean, record: DbGameLevel) => (
-        <Switch
-          checked={v}
-          disabled={!canWrite}
-          checkedChildren="计入"
-          unCheckedChildren="不计"
-          onChange={async () => {
-            const r = await gameLevelService.update(record.id, { count_for_daily_clear: !v })
-            if (!r.success) handleApiError(r.errorMessage, 'GameLevels-切换首通')
-            else loadLevels()
-          }}
-        />
-      ),
-    },
-    {
-      title: '通关奖励',
-      key: 'reward',
-      width: 140,
-      render: (_: unknown, record: DbGameLevel) => (
-        record.reward_points > 0 ? (
-          <Space>
-            <Tag color="gold">+{record.reward_points}分</Tag>
-            {record.reward_repeatable && <Tag>可重复</Tag>}
-          </Space>
-        ) : (
-          <Text type="secondary">无</Text>
-        )
-      ),
-    },
+    ...(isJourneyGame
+      ? [{
+          title: '区域',
+          key: 'region_code',
+          width: 110,
+          render: (_: unknown, record: DbGameLevel) => {
+            const code = (record.config as Record<string, any> | null)?.region_code as string | undefined
+            if (!code) return <Text type="secondary">-</Text>
+            return <Tag color="blue">{regions.find((r) => r.value === code)?.label ?? code}</Tag>
+          },
+        },
+        {
+          title: '难别',
+          key: 'level_kind',
+          width: 90,
+          render: (_: unknown, record: DbGameLevel) => {
+            const kind = (record.config as Record<string, any> | null)?.level_kind as string | undefined
+            if (!kind) return <Text type="secondary">-</Text>
+            const info = JOURNEY_LEVEL_KIND_MAP[kind] ?? { color: 'default', label: kind }
+            return <Tag color={info.color}>{info.label}</Tag>
+          },
+        },
+        {
+          title: '妖王战',
+          key: 'boss_fights',
+          width: 80,
+          render: (_: unknown, record: DbGameLevel) => {
+            const n = (record.config as Record<string, any> | null)?.boss_fights as number | undefined
+            return n ? <Tag color="red">{n} 场</Tag> : <Text type="secondary">-</Text>
+          },
+        }]
+      : []),
+    // 西行走功德体系（config.first_clear_merit），积分/每日首通不适用 → 条件隐藏
+    ...(!isJourneyGame
+      ? [
+          {
+            title: '计入每日首通',
+            dataIndex: 'count_for_daily_clear',
+            key: 'count_for_daily_clear',
+            width: 130,
+            render: (v: boolean, record: DbGameLevel) => (
+              <Switch
+                checked={v}
+                disabled={!canWrite}
+                checkedChildren="计入"
+                unCheckedChildren="不计"
+                onChange={async () => {
+                  const r = await gameLevelService.update(record.id, { count_for_daily_clear: !v })
+                  if (!r.success) handleApiError(r.errorMessage, 'GameLevels-切换首通')
+                  else loadLevels()
+                }}
+              />
+            ),
+          },
+          {
+            title: '通关奖励',
+            key: 'reward',
+            width: 140,
+            render: (_: unknown, record: DbGameLevel) => (
+              record.reward_points > 0 ? (
+                <Space>
+                  <Tag color="gold">+{record.reward_points}分</Tag>
+                  {record.reward_repeatable && <Tag>可重复</Tag>}
+                </Space>
+              ) : (
+                <Text type="secondary">无</Text>
+              )
+            ),
+          },
+        ]
+      : []),
     {
       title: '状态',
       dataIndex: 'enabled',
@@ -414,6 +499,36 @@ const GameLevels: React.FC = () => {
               }}
               options={modes.map((m) => ({ value: m.id, label: `${m.name}（${m.code}）` }))}
             />
+            {isJourneyGame && (
+              <>
+                <Text>区域：</Text>
+                <Select
+                  className={styles.sel200}
+                  placeholder="全部区域"
+                  allowClear
+                  value={regionFilter || undefined}
+                  onChange={(v) => {
+                    setRegionFilter(v || '')
+                    setKindFilter('')
+                    pager.resetPage()
+                  }}
+                  options={regions}
+                />
+                <Text>难别：</Text>
+                <Select
+                  className={styles.sel200}
+                  placeholder="全部难别"
+                  allowClear
+                  value={kindFilter || undefined}
+                  onChange={(v) => {
+                    setKindFilter(v || '')
+                    setRegionFilter('')
+                    pager.resetPage()
+                  }}
+                  options={Object.entries(JOURNEY_LEVEL_KIND_MAP).map(([value, v]) => ({ value, label: v.label }))}
+                />
+              </>
+            )}
             <Button icon={<ReloadOutlined />} onClick={loadLevels} loading={loading}>
               刷新
             </Button>
@@ -452,6 +567,7 @@ const GameLevels: React.FC = () => {
         resolveValues={formInitialValues}
         games={games}
         modes={modes}
+        regions={regions}
         formKey={`${editing?.id ?? 'create'}-${selectedGameId}`}
         onSubmit={handleSave}
         onClose={() => {
