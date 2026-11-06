@@ -30,6 +30,7 @@ import styles from './journey.module.css'
 import common from '../../styles/common.module.css'
 import {
   columnsFromSchema,
+  journeyIconColumn,
   type JourneyFieldDef,
   type JourneyLookups,
   type JourneyTabSchema,
@@ -40,25 +41,29 @@ const { Text } = Typography
 interface JourneyCrudTabProps {
   schema: JourneyTabSchema
   lookups: JourneyLookups
+  /// 锁定过滤值（关卡配置抽屉场景）：固定按该值过滤并隐藏过滤条
+  lockedFilterValue?: string
 }
 
 /// 西行配置通用 CRUD Tab：按 schema 渲染过滤条 / 表格 / 结构化表单弹窗。
 /// 表单字段与 journey_* 表列一一对应（类型化控件，无 JSON 编辑器）；
 /// 各 Tab 仅在 journeySchemas.ts 声明差异，渲染逻辑收敛于此组件。
-const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups }) => {
+const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, lockedFilterValue }) => {
   const mountedRef = useMounted()
   const { hasPermission } = usePermission()
   const canWrite = hasPermission('games:write')
   const canDelete = hasPermission('games:delete')
 
-  const restoredFilters = loadTabFilters(`journey_${schema.key}`)
+  const restoredFilters = lockedFilterValue !== undefined
+    ? null
+    : loadTabFilters(`journey_${schema.key}`)
   const [filterValue, setFilterValue] = useState<string>(
-    (restoredFilters.filterValue as string) ?? ''
+    lockedFilterValue ?? (restoredFilters?.filterValue as string) ?? ''
   )
   const [rows, setRows] = useState<Record<string, any>[]>([])
   const [loading, setLoading] = useState(false)
   const pager = usePagination()
-  usePersistTabFilters(`journey_${schema.key}`, { filterValue })
+  usePersistTabFilters(`journey_${schema.key}`, lockedFilterValue !== undefined ? {} : { filterValue })
 
   const [modalVisible, setModalVisible] = useState(false)
   const [editing, setEditing] = useState<Record<string, any> | null>(null)
@@ -68,14 +73,19 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups }) => {
   const loadRows = useCallback(async () => {
     setLoading(true)
     try {
+      // 生效过滤：关卡配置抽屉（lockedFilterValue）固定按 level_id 锁定，
+      // 与 schema.filter 有无无关（修复抽屉展示全量数据的问题）
+      const lockedActive = lockedFilterValue !== undefined && lockedFilterValue !== ''
+      const effectiveField = lockedActive ? 'level_id' : schema.filter?.field
+      const effectiveValue = lockedActive ? lockedFilterValue : filterValue
       const result = await schema.service.paginate(
         pager.pagination.current,
         pager.pagination.pageSize,
         (q) => {
-          if (schema.filter && filterValue) {
-            return schema.filter.kind === 'lookup' || schema.filter.kind === 'static'
-              ? q.eq(schema.filter.field, filterValue)
-              : q.ilike(schema.filter.field, `${filterValue}%`)
+          if (effectiveField && effectiveValue) {
+            return schema.filter?.kind === 'text' && !lockedActive
+              ? q.ilike(effectiveField, `${effectiveValue}%`)
+              : q.eq(effectiveField, effectiveValue)
           }
           return q
         }
@@ -121,9 +131,15 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups }) => {
 
   const handleSave = async () => {
     if (saving) return
+    // 校验失败（reject {errorFields}）走行内红字，不误报为 API 错误
+    let values: Record<string, any>
+    try {
+      values = await form.validateFields()
+    } catch {
+      return
+    }
     try {
       setSaving(true)
-      const values = await form.validateFields()
       if (editing) {
         const result = await schema.service.update(editing.id, values)
         if (!result.success) {
@@ -157,8 +173,11 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups }) => {
       if (f.type === 'switch') base[f.name] = false
       if (f.type === 'number') base[f.name] = f.min ?? 0
     }
-    // level-scoped 表：新增时预填当前过滤的关卡
-    if (schema.filter && schema.prefillFromFilter && filterValue) {
+    // level-scoped 表：新增时预填当前过滤的关卡（抽屉锁定场景同样预填）
+    const lockedActive = lockedFilterValue !== undefined && lockedFilterValue !== ''
+    if (lockedActive) {
+      base.level_id = lockedFilterValue
+    } else if (schema.filter && schema.prefillFromFilter && filterValue) {
       base[schema.filter.field] = filterValue
     }
     return base
@@ -196,7 +215,7 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups }) => {
     }
   }
 
-  const filterControl = schema.filter && (
+  const filterControl = lockedFilterValue !== undefined ? null : schema.filter && (
     schema.filter.kind === 'text' ? (
       <Input
         className={styles.sel280}
@@ -251,6 +270,8 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups }) => {
 
       <Table
         columns={[
+          // 精灵图列（schema.iconPrefix 非空时首列展示 App 端同源 SVG 图标）
+          ...(journeyIconColumn(schema) ? [journeyIconColumn(schema)!] : []),
           ...columnsFromSchema(schema.fields, lookups),
           getActionColumn<Record<string, any>>((record) => [
             {

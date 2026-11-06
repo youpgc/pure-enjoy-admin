@@ -43,6 +43,7 @@ const GameRewardRecords = lazy(() => import('../pages/GameRewardRecords'))
 const GameModes = lazy(() => import('../pages/GameModes'))
 const GameLeaderboard = lazy(() => import('../pages/GameLeaderboard'))
 const JourneyConfig = lazy(() => import('../pages/JourneyConfig'))
+const JourneyWallet = lazy(() => import('../pages/JourneyWallet'))
 const PetForm = lazy(() => import('../pages/PetForm'))
 const PetShop = lazy(() => import('../pages/PetShop'))
 const PetPlay = lazy(() => import('../pages/PetPlay'))
@@ -88,6 +89,7 @@ export const PAGE_COMPONENTS: Record<PageKey, LazyExoticComponent<any>> = {
   game_reward_records: GameRewardRecords,
   game_modes: GameModes,
   journey_config: JourneyConfig,
+  journey_wallet: JourneyWallet,
   game_leaderboard: GameLeaderboard,
   pet_form: PetForm,
   pet_shop: PetShop,

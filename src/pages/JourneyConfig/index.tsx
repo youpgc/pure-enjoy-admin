@@ -7,16 +7,18 @@ import {
   journeyMonsterService,
   journeyWeaponService,
   journeyPickupService,
+  journeyCharacterService,
   gameService,
   gameLevelService,
 } from '../../services/gameService'
-import type { DbGameLevel, DbJourneyRegion, DbJourneyMonster, DbJourneyWeapon, DbJourneyPickup } from '../../types/database'
+import type { DbGameLevel, DbJourneyRegion, DbJourneyMonster, DbJourneyWeapon, DbJourneyPickup, DbJourneyCharacter } from '../../types/database'
 import JourneyCrudTab from './JourneyCrudTab'
 import { JOURNEY_TAB_SCHEMAS } from './journeySchemas'
 import type { JourneyLookups } from './journeyTabSchema'
 import common from '../../styles/common.module.css'
 
-/// 西行（journey）配置中心：14 张扩展配置表按类型分 Tab 维护。
+/// 西行（journey）配置中心：扩展配置表按类型分 Tab 维护（关卡级三表
+/// 在 GameLevels 关卡配置抽屉；无尽妖潮/游历地图在 GameLevels「模式关卡」区）。
 /// 关卡走 GameLevels（game_levels，81 难）；本页 lookup 中的「关卡」选项
 /// 即 game_levels 西行行的 level_no→难名。表由 /workspace/sql/journey DDL
 /// 创建，执行前各 Tab 查询报错属预期。
@@ -28,9 +30,11 @@ const JourneyConfig: React.FC = () => {
     regions: [],
     levels: [],
     monsters: [],
+    monstersById: [],
     weapons: [],
     passiveWeapons: [],
     pickups: [],
+    characters: [],
   })
 
   const loadLookups = useCallback(async () => {
@@ -40,7 +44,7 @@ const JourneyConfig: React.FC = () => {
       // 关卡选项改自 game_levels（journey_levels 已退役）：先取西行 game id
       const gamesRes = await gameService.findAll((q) => q.eq('code', 'journey'))
       const journeyId = gamesRes.data?.[0]?.id
-      const [regions, levels, monsters, weapons, pickups] = await Promise.all([
+      const [regions, levels, monsters, weapons, pickups, characters] = await Promise.all([
         journeyRegionService.findAll(),
         journeyId
           ? gameLevelService.findAllByGame(journeyId)
@@ -48,9 +52,10 @@ const JourneyConfig: React.FC = () => {
         journeyMonsterService.findAll(),
         journeyWeaponService.findAll(),
         journeyPickupService.findAll(),
+        journeyCharacterService.findAll(),
       ])
       // 表未建（SQL 未执行）时 findAll 走失败分支返回 success=false，不抛异常
-      const failed = [regions, monsters, weapons, pickups].some((r) => !r.success)
+      const failed = [regions, monsters, weapons, pickups, characters].some((r) => !r.success)
       if (failed) {
         if (mountedRef.current) {
           setLoadError('journey 配置表暂不可用（SQL 未执行或网络异常），下拉选项可能为空')
@@ -62,15 +67,19 @@ const JourneyConfig: React.FC = () => {
       const monsterRows = (monsters.data ?? []) as DbJourneyMonster[]
       const weaponRows = (weapons.data ?? []) as DbJourneyWeapon[]
       const pickupRows = (pickups.data ?? []) as DbJourneyPickup[]
+      const characterRows = (characters.data ?? []) as DbJourneyCharacter[]
       setLookups({
         regions: regionRows.map((r) => ({ value: r.id, label: `${r.name}（${r.code}）` })),
         levels: levelRows.map((l) => ({ value: l.id, label: `第${l.level_no}难 ${l.name}` })),
         monsters: monsterRows.map((m) => ({ value: m.code, label: `${m.name}（${m.code}）` })),
+        // uuid 外键列专用（monster_params.monster_id），value=id 而非 code
+        monstersById: monsterRows.map((m) => ({ value: m.id, label: `${m.name}（${m.code}）` })),
         weapons: weaponRows.map((w) => ({ value: w.id, label: `${w.name}（${w.code}）` })),
         passiveWeapons: weaponRows
           .filter((w) => w.category === 'passive')
           .map((w) => ({ value: w.id, label: `${w.name}（${w.code}）` })),
         pickups: pickupRows.map((p) => ({ value: p.code, label: `${p.name}（${p.code}）` })),
+        characters: characterRows.map((c) => ({ value: c.code, label: `${c.name}（${c.code}）` })),
       })
     } catch (error) {
       handleApiError(error, 'JourneyConfig-查找表加载')

@@ -35,9 +35,13 @@ export interface JourneyLookups {
   regions: { value: string; label: string }[]
   levels: { value: string; label: string }[]
   monsters: { value: string; label: string }[]
+  /// 以怪物 id（uuid）为 value 的查找表：monster_params.monster_id 等
+  /// uuid 外键列专用（monsters 表 value=code 仅用于 code 语义列）
+  monstersById: { value: string; label: string }[]
   weapons: { value: string; label: string }[]
   passiveWeapons: { value: string; label: string }[]
   pickups: { value: string; label: string }[]
+  characters: { value: string; label: string }[]
 }
 
 /// 列表过滤：按外键（如 level_id）、静态枚举（如 element）或文本前缀（如 table_code）
@@ -63,6 +67,55 @@ export interface JourneyTabSchema {
   prefillFromFilter?: boolean
   /// Tab 顶部说明
   intro?: string
+  /// 精灵图列前缀（App 端 SVG 资源镜像 public/journey-assets/{prefix}_{code}.svg）；
+  /// 非空时表格首列展示图标（资源缺失自动隐藏）
+  iconPrefix?: string
+  /// 图标取值字段（默认 code；怪物波次类传 monster_code）
+  iconField?: string
+  /// 取值→资源名映射（code 与资源名不一致时，如 baoxiang→chest）
+  iconNameMap?: Record<string, string>
+}
+
+/// 西行精灵图 URL（与 App assets/games/journey/ 文件一一对应）；
+/// ⚠️ 必须带 import.meta.env.BASE_URL 前缀：vite base 为 /pure-enjoy-admin/，
+/// 硬编码根路径在 dev 与构建产物下都会 404（同 game-icons 教训）
+export function journeySpriteUrl(prefix: string, name: string): string {
+  return `${import.meta.env.BASE_URL}journey-assets/${prefix}_${name}.svg`
+}
+
+/// 表格首列精灵图列（iconPrefix 为空返回 null，调用方按需展开）
+export function journeyIconColumn(
+  schema: JourneyTabSchema,
+): ColumnsType<Record<string, any>>[number] | null {
+  if (!schema.iconPrefix) return null
+  const field = schema.iconField ?? 'code'
+  return {
+    title: '图',
+    key: '_sprite',
+    width: 64,
+    render: (_: any, record: Record<string, any>) => {
+      const raw = String(record[field] ?? '')
+      const name = schema.iconNameMap?.[raw] ?? raw
+      if (!name) return '-'
+      return (
+        <img
+          src={journeySpriteUrl(schema.iconPrefix!, name)}
+          alt={name}
+          loading="lazy"
+          onError={(e) => {
+            // 资源缺失（code 无对应 SVG）时隐藏图片位，不显破图
+            e.currentTarget.style.visibility = 'hidden'
+          }}
+          onLoad={(e) => {
+            // src 换成有效资源后自愈恢复（onError 的隐藏是命令式样式，
+            // React 重渲染不会重置）
+            e.currentTarget.style.visibility = 'visible'
+          }}
+          style={{ width: 34, height: 34, objectFit: 'contain' }}
+        />
+      )
+    },
+  }
 }
 
 /// 由 schema 生成表格列（enumMap → Tag / lookup → label / switch → 启停 Tag）

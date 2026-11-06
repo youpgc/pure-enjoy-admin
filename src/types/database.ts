@@ -2663,6 +2663,7 @@ export interface DbJourneyMonster {
   merit_drop: number
   drop_table_code: string | null
   behavior: string | null
+  ability_key: string | null
   sprite_key: string | null
 }
 
@@ -2675,6 +2676,11 @@ export interface DbJourneyWeapon {
   description: string | null
   base_damage: number | null
   base_interval_ms: number | null
+  orbit_speed: number | null
+  inner_radius: number | null
+  outer_radius: number | null
+  blade_width: number | null
+  starter_effect: string | null
   range_px: number | null
   projectile_speed: number | null
   pierce: number | null
@@ -2682,6 +2688,7 @@ export interface DbJourneyWeapon {
   heal_fixed: number | null
   attr_key: string | null
   attr_value: number | null
+  character_code: string | null
   sprite_key: string | null
 }
 
@@ -2703,6 +2710,7 @@ export interface DbJourneyEvoRecipe {
   required_passive_lv: number
   result_code: string
   result_name: string
+  evo_mult?: number
   seq: number
 }
 
@@ -2726,6 +2734,41 @@ export interface DbJourneyDrop {
   qty_max: number
 }
 
+export interface DbJourneyDailyMap {
+  id: string
+  code: string
+  name: string
+  theme_color: string | null
+  milestone_li: number | null
+  duration_target_sec: number | null
+  description: string | null
+  sort: number | null
+  enabled: boolean | null
+  monster_pool?: string | null
+}
+
+export interface DbJourneyEndlessWave {
+  id: string
+  wave_no: number
+  monster_code: string | null
+  count: number | null
+  buff_mult: number | null
+}
+
+export interface DbJourneyWeaponParam {
+  id: string
+  weapon_id: string
+  code: string
+  value_num: number | null
+}
+
+export interface DbJourneyMonsterParam {
+  id: string
+  monster_id: string
+  code: string
+  value_num: number | null
+}
+
 export interface DbJourneyCharacter {
   id: string
   code: string
@@ -2738,18 +2781,8 @@ export interface DbJourneyCharacter {
   weapon_code: string | null
   unlock_level_no: number
   unlock_merit_cost: number
+  enabled: boolean
   sprite_key: string | null
-}
-
-export interface DbJourneyTalent {
-  id: string
-  element: string
-  seq: number
-  name: string
-  attr_key: string
-  value_per_level: number
-  is_signature: boolean
-  signature_desc: string | null
 }
 
 export interface DbJourneyRelicUnlock {
@@ -2764,6 +2797,14 @@ export interface DbJourneyGlobals {
   id: number
   code: string
   monster_cap: number
+  talent_drop_rate?: number
+  char_level_cap?: number
+  upgrade_move?: number
+  upgrade_hp?: number
+  upgrade_regen?: number
+  upgrade_pickup?: number
+  exp_base?: number
+  exp_per_lv?: number
   updated_at: string
 }
 
@@ -2773,6 +2814,67 @@ export interface DbJourneyWeaponSlot {
   name: string
   kind: string
   effect_per_level: string
+  value_per_level?: number
   max_level: number
   sort_order: number
+}
+
+// 功德流水（append-only；source_type ∈ run_settle/talent_spend/character_unlock，
+// balance_after 为入账/扣减后的余额快照）
+export interface DbJourneyMeritRecord {
+  id: string
+  user_id: string
+  delta: number
+  balance_after: number
+  source_type: string
+  ref_type: string | null
+  ref_id: string | null
+  remark: string | null
+  created_at: string
+}
+
+// 对局流水（一场对局一条；level_no 1..81 对应 81 难）
+export interface DbJourneyRun {
+  id: string
+  user_id: string
+  level_no: number
+  kills: number
+  merit_gained: number
+  duration_ms: number
+  cleared: boolean
+  created_at: string
+}
+
+// 局外进度快照（服务端化：一行=一个用户，user_id 为主键、无自增 id；
+// talent_levels 键=branch_code、值=0..max_lv；解锁列存角色/武器 code 数组）
+export interface DbJourneyProgress {
+  user_id: string
+  merit_balance: number
+  farthest_level_no: number
+  total_kills: number
+  talent_pool: number
+  talent_levels: Record<string, number>
+  unlocked_characters: string[]
+  unlocked_weapons: string[]
+  selected_character: string
+  updated_at: string
+}
+
+// 五行天赋分支静态配置（Admin 可编辑；v4 分支树制：character_code+element+
+// branch_type 唯一，每系 core 8/growth 5/sig 3 层；点亮双消耗 = 1 天赋点 +
+// cost_base×层号 功德；相生/相克前置在 App 端判定；加强点效果走 App 端常量）
+export interface DbJourneyTalentBranch {
+  id: string
+  character_code: string
+  element: string
+  branch_type: string
+  branch_code: string
+  seq: number
+  name: string
+  attr_key: string
+  value_per_level: number
+  max_lv: number
+  cost_base: number
+  effect_desc: string | null
+  created_at: string
 }

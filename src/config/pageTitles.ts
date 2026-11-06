@@ -42,6 +42,7 @@ export const PAGE_TITLES: Record<PageKey, string> = {
   game_leaderboard: '游戏排行榜',
   game_items: '道具管理',
   journey_config: '西行配置',
+  journey_wallet: '西行钱包',
   pet_config: '宠物全局参数',
   pet_form: '形态体系',
   pet_shop: '商品目录',

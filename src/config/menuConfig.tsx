@@ -155,6 +155,7 @@ export const buildMenuItems = (
         { key: 'game_items', icon: <ToolOutlined />, label: '道具管理' },
         { key: 'game_reward_records', icon: <FundOutlined />, label: '游戏奖励记录' },
         { key: 'journey_config', icon: <CompassOutlined />, label: '西行配置' },
+        { key: 'journey_wallet', icon: <WalletOutlined />, label: '西行钱包' },
       ].filter((item): item is MenuItem => !!item),
     },
   ] : []),

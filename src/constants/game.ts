@@ -283,3 +283,85 @@ export const JOURNEY_DROP_SOURCE_MAP: Record<string, { color: string; label: str
   monster: { color: 'red', label: '怪物' },
   breakable: { color: 'orange', label: '可破坏物' },
 }
+
+// 维度槽编码（journey_weapon_slots.code，主动法宝初始特效槽取值同源）
+export const JOURNEY_SLOT_CODE_MAP: Record<string, { color: string; label: string }> = {
+  radius: { color: 'blue', label: '臂展' },
+  speed: { color: 'cyan', label: '转速' },
+  damage: { color: 'red', label: '伤害' },
+  knockback: { color: 'orange', label: '击退' },
+  lifesteal: { color: 'green', label: '吸血' },
+  pierce: { color: 'purple', label: '穿刺' },
+  magnet: { color: 'gold', label: '磁吸' },
+  burn: { color: 'volcano', label: '灼烧' },
+  clone: { color: 'geekblue', label: '分身' },
+  crit_rate: { color: 'gold', label: '暴击' },
+  crit_damage: { color: 'magenta', label: '暴伤' },
+  armor: { color: 'purple', label: '护甲' },
+}
+
+// 妖王能力（journey_monsters.ability_key，西游记背景扩展；空=无特殊能力）
+export const JOURNEY_BOSS_ABILITY_MAP: Record<string, { color: string; label: string }> = {
+  unmovable: { color: 'orange', label: '不动如山·抗击退高护甲' },
+  swift_wind: { color: 'cyan', label: '三昧神风·高移速阵风' },
+  roc_speed: { color: 'geekblue', label: '金翅迅影·极速冲撞' },
+  samadhi_fire: { color: 'volcano', label: '三昧真火·火圈AOE' },
+  bone_split: { color: 'purple', label: '分魂化形·分裂妖卫' },
+  gourd_pull: { color: 'magenta', label: '紫金摄魂·拉拽玩家' },
+  iron_horn: { color: 'gold', label: '金刚琢护体·受击减伤' },
+  spider_web: { color: 'blue', label: '金光缚身·定身玩家' },
+  blood_frenzy: { color: 'red', label: '血怒狂暴·低血增伤' },
+  poison_mist: { color: 'green', label: '倒马毒桩·禁疗' },
+}
+
+// 妖王能力参数键（journey_monster_params.code，引擎逻辑判断用；展示映射）
+export const JOURNEY_MONSTER_PARAM_KEY_MAP: Record<string, { color: string; label: string }> = {
+  knock_resist: { color: 'orange', label: '抗击退比例' },
+  armor: { color: 'gold', label: '附加护甲' },
+  move_mult: { color: 'cyan', label: '移速倍率' },
+  charge_cd: { color: 'geekblue', label: '冲撞冷却(秒)' },
+  wind_period: { color: 'blue', label: '阵风周期(秒)' },
+  wind_push: { color: 'blue', label: '吹离距离' },
+  fire_period: { color: 'volcano', label: '火圈周期(秒)' },
+  fire_range: { color: 'volcano', label: '火圈半径' },
+  fire_ratio: { color: 'red', label: '火圈伤害比例' },
+  pull_period: { color: 'magenta', label: '摄魂周期(秒)' },
+  pull_dist: { color: 'magenta', label: '拉拽距离' },
+  frenzy_mult: { color: 'red', label: '狂暴增幅' },
+  frenzy_hp: { color: 'red', label: '狂暴触发线' },
+  web_root: { color: 'purple', label: '定身秒数' },
+  poison_block: { color: 'green', label: '禁疗秒数' },
+}
+
+// 法宝数值参数键（journey_weapon_params.code，引擎逻辑判断用；展示映射）
+export const JOURNEY_WEAPON_PARAM_KEY_MAP: Record<string, { color: string; label: string }> = {
+  move: { color: 'blue', label: '移速加成' },
+  hp: { color: 'green', label: '生命上限' },
+  regen: { color: 'green', label: '回复/秒' },
+  exp: { color: 'gold', label: '经验加成' },
+  spin: { color: 'cyan', label: '转速加成' },
+  radius: { color: 'blue', label: '臂长+' },
+  damage: { color: 'red', label: '伤害加成' },
+  magnet: { color: 'gold', label: '磁吸范围' },
+  heal: { color: 'green', label: '回血比例' },
+  invuln: { color: 'purple', label: '无敌秒数' },
+  period: { color: 'geekblue', label: '触发周期(秒)' },
+  elite: { color: 'volcano', label: '精英增伤倍率' },
+  chance: { color: 'purple', label: '触发概率' },
+  root: { color: 'magenta', label: '定身秒数' },
+  thorns: { color: 'orange', label: '反伤比例' },
+  chain: { color: 'cyan', label: '链伤比例' },
+  range: { color: 'blue', label: '作用范围' },
+  targets: { color: 'geekblue', label: '目标数' },
+  hits: { color: 'volcano', label: '触发次数' },
+  weak: { color: 'orange', label: '虚弱秒数' },
+  burn: { color: 'red', label: '灼烧比例' },
+}
+
+// 功德流水来源（journey_merit_records.source_type，append-only 四类）
+export const JOURNEY_MERIT_SOURCE_MAP: Record<string, { color: string; label: string }> = {
+  run_settle: { color: 'green', label: '对局结算' },
+  talent_spend: { color: 'orange', label: '天赋升级' },
+  character_unlock: { color: 'purple', label: '角色解锁' },
+  revive_spend: { color: 'red', label: '还魂丹复活' },
+}

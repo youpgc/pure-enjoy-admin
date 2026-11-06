@@ -7,7 +7,7 @@ import { formatSupabaseErrorMessage } from './errorCode'
 // 如需强类型可改用 PostgrestQueryBuilder<GenericTable, GenericSchema, T>，
 // 但需根据实际安装的 @supabase/supabase-js 版本确认导入路径。
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type SupabaseQuery = any
+export type SupabaseQuery = any
 
 /// 统一 API 响应封装
 export interface ApiResponse<T> {

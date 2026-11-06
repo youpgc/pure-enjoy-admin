@@ -7,7 +7,7 @@ export type PageKey = 'dashboard' | 'users' | 'roles' | 'expenses' | 'mood' | 'w
   'favorites' | 'reminders' | 'habits' | 'app_configs' | 'dict_management' |
   'sensitive_words' | 'sensitive_word_analytics' | 'file_management' | 'announcements' | 'notifications' | 'feedback'
   | 'anniversaries' | 'points' | 'error_logs' | 'login_logs' | 'checkin'
-  | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics' | 'game_items' | 'game_achievements' | 'game_reward_records' | 'game_modes' | 'game_leaderboard' | 'journey_config'
+  | 'game_configs' | 'game_levels' | 'game_reward_rules' | 'game_scores' | 'game_analytics' | 'game_items' | 'game_achievements' | 'game_reward_records' | 'game_modes' | 'game_leaderboard' | 'journey_config' | 'journey_wallet'
   | 'pet_form' | 'pet_shop' | 'pet_play' | 'pet_ops' | 'pet_config'
   | 'profile'
 
