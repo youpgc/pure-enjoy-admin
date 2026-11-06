@@ -18,6 +18,7 @@ import {
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { handleApiError } from '../../utils/apiClient'
@@ -25,12 +26,15 @@ import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
-import { gameService, gameLevelService, gameModeService, journeyRegionService } from '../../services/gameService'
+import { gameService, gameLevelService, gameModeService, journeyRegionService, journeyDailyMapService } from '../../services/gameService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import { refreshGameMeta } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../contexts/NavigationContext'
-import type { DbGame, DbGameLevel } from '../../types/database'
+import type { DbGame, DbGameLevel, DbJourneyDailyMap } from '../../types/database'
 import LevelFormModal, { JOURNEY_LEVEL_CONFIG_KEYS } from './LevelFormModal'
+import JourneyLevelConfigDrawer from './JourneyLevelConfigDrawer'
+import JourneyEndlessEditor from './JourneyEndlessEditor'
+import JourneyDailyMapModal from './JourneyDailyMapModal'
 import { JOURNEY_LEVEL_KIND_MAP } from '../../constants/game'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
@@ -63,6 +67,14 @@ const GameLevels: React.FC = () => {
   const [kindFilter, setKindFilter] = useState<string>('')
   const selectedGameCode = games.find((g) => g.id === selectedGameId)?.code ?? ''
   const isJourneyGame = selectedGameCode === 'journey'
+  // 西行模式分流：无尽妖潮/每日游历模式 → 整页展示对应模式编辑器，
+  // 隐藏主线关卡列表（关卡行入口口径：每模式独立配置视图）
+  const selectedModeCode =
+    modes.find((m) => m.id === selectedModeId)?.code ?? ''
+  // 西行模式编辑器视图（无尽妖潮/每日游历）：隐藏主线列表与主线专用控件
+  const modeEditorView =
+    isJourneyGame &&
+    (selectedModeCode === 'endless' || selectedModeCode === 'daily')
   // 用 ref 持有最新模式筛选值，避免 loadLevels 因 selectedModeId 变化而重建身份、
   // 进而触发「游戏切换」副作用把模式筛选重置为空。
   const selectedModeIdRef = useRef<string>('')
@@ -71,6 +83,11 @@ const GameLevels: React.FC = () => {
   const pager = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editing, setEditing] = useState<DbGameLevel | null>(null)
+  // 西行关卡配置抽屉（波次/热区/参照物）
+  const [configLevel, setConfigLevel] = useState<DbGameLevel | null>(null)
+  // 每日游历逐图独立表单（模式=每日游历的地图行「配置」入口）
+  const [dailyMaps, setDailyMaps] = useState<DbJourneyDailyMap[]>([])
+  const [dailyEditRow, setDailyEditRow] = useState<DbJourneyDailyMap | null>(null)
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
 
@@ -103,6 +120,20 @@ const GameLevels: React.FC = () => {
       )
     }).catch(() => {})
   }, [mountedRef])
+
+  // 西行游历地图行（模式关卡区：逐图独立表单入口；失败静默留空）
+  useEffect(() => {
+    if (!isJourneyGame) {
+      setDailyMaps([])
+      return
+    }
+    journeyDailyMapService.findAll().then((res) => {
+      if (!mountedRef.current || !res.success) return
+      const rows = [...(res.data ?? [])]
+      rows.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+      setDailyMaps(rows)
+    }).catch(() => {})
+  }, [isJourneyGame, mountedRef])
 
   const loadModes = useCallback(
     async (): Promise<{ id: string; code: string; name: string }[]> => {
@@ -218,12 +249,14 @@ const GameLevels: React.FC = () => {
   }, [selectedGameId, loadModes])
 
   // 列表加载：随 游戏 / 模式筛选 / 分页 变化触发；模式默认选中未落定时跳过
-  // （防止同批次内用「旧游戏模式过滤」发出空查询）
+  // （防止同批次内用「旧游戏模式过滤」发出空查询）；模式编辑器视图
+  // （无尽妖潮/每日游历）不消费关卡表，跳过请求避免无效远端查询
   useEffect(() => {
     if (!selectedGameId) return
     if (modePendingRef.current) return
+    if (modeEditorView) return
     loadLevels()
-  }, [selectedGameId, selectedModeId, regionFilter, kindFilter, pager.pagination.current, pager.pagination.pageSize, loadLevels])
+  }, [selectedGameId, selectedModeId, regionFilter, kindFilter, pager.pagination.current, pager.pagination.pageSize, loadLevels, modeEditorView])
 
   // 页签刷新筛选持久化（卸载时写回快照）
   usePersistTabFilters('game_levels', { selectedGameId, selectedModeId })
@@ -443,6 +476,15 @@ const GameLevels: React.FC = () => {
       render: (d: string) => formatDateTime(d),
     },
     getActionColumn<DbGameLevel>((record) => [
+      ...(isJourneyGame
+        ? [{
+            key: 'level_config',
+            label: '配置',
+            icon: <SettingOutlined />,
+            disabled: !canWrite,
+            onClick: () => setConfigLevel(record),
+          }]
+        : []),
       {
         key: 'edit',
         label: '编辑',
@@ -460,6 +502,50 @@ const GameLevels: React.FC = () => {
         onClick: () => handleDelete(record.id),
       },
     ], { width: 150 }),
+  ]
+
+  const dailyColumns: ColumnsType<DbJourneyDailyMap> = [
+    { title: '地图', key: 'name', render: (_: unknown, r) => (
+        <Space>
+          <Tag color="cyan">游历</Tag>
+          {r.name}
+          <Text type="secondary">（{r.code}）</Text>
+        </Space>
+      ) },
+    { title: '主题色', dataIndex: 'theme_color', key: 'theme_color', width: 100 },
+    { title: '功成时长(秒)', dataIndex: 'duration_target_sec', key: 'duration_target_sec', width: 120 },
+    {
+      title: '怪物池',
+      key: 'monster_pool',
+      width: 140,
+      render: (_: unknown, r) => {
+        const n = (r.monster_pool ?? '').split(',').map((s) => s.trim()).filter(Boolean).length
+        return n > 0 ? <Tag color="blue">{n} 种</Tag> : <Text type="secondary">全怪池</Text>
+      },
+    },
+    { title: '排序', dataIndex: 'sort', key: 'sort', width: 80 },
+    {
+      title: '状态',
+      dataIndex: 'enabled',
+      key: 'enabled',
+      width: 90,
+      render: (v: boolean | null) => (v !== false ? <Tag color="green">开放</Tag> : <Tag>禁用</Tag>),
+    },
+    {
+      title: '操作',
+      key: 'act',
+      width: 110,
+      render: (_: unknown, r) => (
+        <Button
+          size="small"
+          icon={<SettingOutlined />}
+          disabled={!canWrite}
+          onClick={() => setDailyEditRow(r)}
+        >
+          配置
+        </Button>
+      ),
+    },
   ]
 
   return (
@@ -481,6 +567,9 @@ const GameLevels: React.FC = () => {
               value={selectedGameId || undefined}
               onChange={(v) => {
                 setSelectedGameId(v)
+                // 跨游戏切换清残留的西行分类筛选（防「筛选隐藏+列表恒空」）
+                setRegionFilter('')
+                setKindFilter('')
                 pager.resetPage()
               }}
               options={games.map((g) => ({ value: g.id, label: `${g.name}（${g.code}）` }))}
@@ -495,11 +584,14 @@ const GameLevels: React.FC = () => {
                 const next = v || ''
                 setSelectedModeId(next)
                 selectedModeIdRef.current = next
+                // 模式切换清残留的西行分类筛选（仅主线消费）
+                setRegionFilter('')
+                setKindFilter('')
                 pager.resetPage()
               }}
               options={modes.map((m) => ({ value: m.id, label: `${m.name}（${m.code}）` }))}
             />
-            {isJourneyGame && (
+            {!modeEditorView && isJourneyGame && (
               <>
                 <Text>区域：</Text>
                 <Select
@@ -529,34 +621,46 @@ const GameLevels: React.FC = () => {
                 />
               </>
             )}
-            <Button icon={<ReloadOutlined />} onClick={loadLevels} loading={loading}>
-              刷新
-            </Button>
+            {!modeEditorView && (
+              <Button icon={<ReloadOutlined />} onClick={loadLevels} loading={loading}>
+                刷新
+              </Button>
+            )}
           </Space>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            disabled={!canWrite || !selectedGameId}
-            onClick={openAdd}
-          >
-            新增关卡
-          </Button>
+          {!modeEditorView && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              disabled={!canWrite || !selectedGameId}
+              onClick={openAdd}
+            >
+              新增关卡
+            </Button>
+          )}
         </div>
       </Card>
 
-      {selectedGameId ? (
-        <>
-          <Table
-            columns={columns}
-            dataSource={levels}
-            rowKey="id"
-            loading={loading}
-            pagination={pager.tablePagination}
-            scroll={{ x: 'max-content' }}
-          />
-        </>
-      ) : (
+      {!selectedGameId ? (
         <Empty description="请先创建游戏后再配置关卡" />
+      ) : modeEditorView && selectedModeCode === 'endless' ? (
+        <JourneyEndlessEditor />
+      ) : modeEditorView && selectedModeCode === 'daily' ? (
+        <Table
+          columns={dailyColumns}
+          dataSource={dailyMaps}
+          rowKey="id"
+          pagination={false}
+          size="small"
+        />
+      ) : (
+        <Table
+          columns={columns}
+          dataSource={levels}
+          rowKey="id"
+          loading={loading}
+          pagination={pager.tablePagination}
+          scroll={{ x: 'max-content' }}
+        />
       )}
 
       <LevelFormModal
@@ -574,6 +678,26 @@ const GameLevels: React.FC = () => {
           setModalVisible(false)
           setEditing(null)
           form.resetFields()
+        }}
+      />
+
+      <JourneyLevelConfigDrawer
+        open={configLevel !== null}
+        level={configLevel}
+        onClose={() => setConfigLevel(null)}
+      />
+
+      <JourneyDailyMapModal
+        open={dailyEditRow !== null}
+        mapRow={dailyEditRow}
+        onClose={() => setDailyEditRow(null)}
+        onSaved={() => {
+          journeyDailyMapService.findAll().then((res) => {
+            if (!mountedRef.current || !res.success) return
+            const rows = [...(res.data ?? [])]
+            rows.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+            setDailyMaps(rows)
+          }).catch(() => {})
         }}
       />
     </div>
