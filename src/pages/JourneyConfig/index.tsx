@@ -13,6 +13,7 @@ import {
 } from '../../services/gameService'
 import type { DbGameLevel, DbJourneyRegion, DbJourneyMonster, DbJourneyWeapon, DbJourneyPickup, DbJourneyCharacter } from '../../types/database'
 import JourneyCrudTab from './JourneyCrudTab'
+import JourneyGlobalsTab from './JourneyGlobalsTab'
 import { JOURNEY_TAB_SCHEMAS } from './journeySchemas'
 import type { JourneyLookups } from './journeyTabSchema'
 import common from '../../styles/common.module.css'
@@ -118,7 +119,9 @@ const JourneyConfig: React.FC = () => {
         items={JOURNEY_TAB_SCHEMAS.map((schema) => ({
           key: schema.key,
           label: schema.label,
-          children: <JourneyCrudTab schema={schema} lookups={lookups} />,
+          children: schema.key === 'globals'
+            ? <JourneyGlobalsTab />
+            : <JourneyCrudTab schema={schema} lookups={lookups} />,
         }))}
       />
     </div>

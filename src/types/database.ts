@@ -2797,6 +2797,9 @@ export interface DbJourneyGlobals {
   id: number
   code: string
   monster_cap: number
+  revive_merit_base?: number
+  initial_pack_size?: number
+  spawn_den_ratio?: number
   talent_drop_rate?: number
   char_level_cap?: number
   upgrade_move?: number
@@ -2805,6 +2808,18 @@ export interface DbJourneyGlobals {
   upgrade_pickup?: number
   exp_base?: number
   exp_per_lv?: number
+  boss_spawn_delay_sec?: number | null
+  early_game_protect_sec?: number | null
+  elite_rate_per_min?: number | null
+  buff_time_slope?: number | null
+  buff_level_mult?: number | null
+  buff_mult_cap?: number | null
+  monster_speed_cap?: number | null
+  level_attack_per_lv?: number | null
+  level_hp_per_lv?: number | null
+  upgrade_attack?: number | null
+  attack_upgrade_cap?: number | null
+  boss_hp_time_k?: number | null
   updated_at: string
 }
 

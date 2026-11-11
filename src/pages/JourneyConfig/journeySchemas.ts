@@ -301,17 +301,32 @@ const relicFields: JourneyFieldDef[] = [
 ]
 
 // ---- 全局参数（单行表）----
-const globalsFields: JourneyFieldDef[] = [
+export const globalsFields: JourneyFieldDef[] = [
   { name: 'code', label: '参数编码', type: 'text', required: true, width: 130, placeholder: 'globals' },
   { name: 'monster_cap', label: '同屏怪上限', type: 'number', required: true, min: 10, max: 500, width: 110 },
   { name: 'talent_drop_rate', label: '妖王天赋点掉率', type: 'number', step: 0.01, min: 0, max: 1, width: 130 },
   { name: 'char_level_cap', label: '角色等级上限', type: 'number', min: 10, max: 999, width: 115 },
+  { name: 'revive_merit_base', label: '还魂功德基准', type: 'number', min: 0, width: 140 },
+  { name: 'initial_pack_size', label: '开局铺场怪物数', type: 'number', min: 0, max: 200, width: 150 },
+  { name: 'spawn_den_ratio', label: '妖穴集中刷怪概率', type: 'number', step: 0.01, min: 0, max: 1, width: 150 },
   { name: 'upgrade_move', label: '成长卡·移速加成', type: 'number', step: 0.01, min: 0, width: 150 },
   { name: 'upgrade_hp', label: '成长卡·生命上限', type: 'number', min: 0, width: 150 },
   { name: 'upgrade_regen', label: '成长卡·回复/秒', type: 'number', step: 0.1, min: 0, width: 140 },
   { name: 'upgrade_pickup', label: '成长卡·拾取范围', type: 'number', min: 0, width: 150 },
   { name: 'exp_base', label: '经验曲线基数', type: 'number', min: 0, width: 120 },
   { name: 'exp_per_lv', label: '经验曲线每级增量', type: 'number', min: 0, width: 150 },
+  { name: 'boss_spawn_delay_sec', label: '妖王降临延迟（秒）', type: 'number', min: 0, max: 3600, width: 160 },
+  { name: 'early_game_protect_sec', label: '前期发育保护（秒）', type: 'number', min: 0, max: 3600, width: 160 },
+  { name: 'elite_rate_per_min', label: '精英率每分钟增量', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
+  { name: 'buff_time_slope', label: '强度每分钟增长斜率', type: 'number', step: 0.01, min: 0, max: 5, width: 160 },
+  { name: 'buff_level_mult', label: '每点难度乘区增量', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
+  { name: 'buff_mult_cap', label: '强度乘区上限', type: 'number', step: 0.1, min: 1, max: 100, width: 140 },
+  { name: 'monster_speed_cap', label: '怪物移速上限（px/s）', type: 'number', step: 1, min: 0, max: 1000, width: 175 },
+  { name: 'level_attack_per_lv', label: '等级成长·基础攻击', type: 'number', step: 1, min: 0, max: 500, width: 175 },
+  { name: 'level_hp_per_lv', label: '等级成长·生命上限', type: 'number', step: 1, min: 0, max: 500, width: 175 },
+  { name: 'upgrade_attack', label: '成长卡·攻击力提升', type: 'number', step: 1, min: 0, max: 1000, width: 175 },
+  { name: 'attack_upgrade_cap', label: '攻击卡累计上限', type: 'number', step: 10, min: 0, max: 10000, width: 175 },
+  { name: 'boss_hp_time_k', label: '妖王血量时间系数', type: 'number', step: 0.01, min: 0, max: 2, width: 175 },
 ]
 
 // ---- 武器维度槽 ----
@@ -411,7 +426,7 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
   },
   {
     key: 'globals', label: '全局参数', service: journeyGlobalsService, fields: globalsFields,
-    intro: '单行参数表（id 恒为 1）：同屏怪上限等运营参数，App 端拉取兜底 120。勿删除该行、勿新增第二行（id 唯一约束）。',
+    intro: '单行参数表（id 恒为 1）：按分组信息卡只读展示，每组独立弹窗编辑，不提供新增与删除；列未填值时 App 回落内置兜底。',
   },
   {
     key: 'weapon_slots', label: '武器维度槽', service: journeyWeaponSlotService, fields: weaponSlotFields,
