@@ -1,4 +1,4 @@
-import { Tag, Typography } from 'antd'
+import { Tag, Tooltip, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { formatDurationSmart } from '../../utils/durationFormat'
 import { formatDateTime } from '../../utils/format'
@@ -22,6 +22,13 @@ const { Text } = Typography
 
 type GameMeta = NonNullable<ReturnType<typeof useGameMeta>>
 type UserMap = ReturnType<typeof useUsernames>
+
+/// 对局详情快照（game_scores.run_detail，西行首个接入；database.ts 生成
+/// 类型滞后于线上新增列，此处局部扩展，勿改生成文件）
+type RunDetail = Record<string, unknown>
+
+const runDetailOf = (record: DbGameScore): RunDetail | null =>
+  (record as { run_detail?: RunDetail | null }).run_detail ?? null
 
 // 毫秒类维度（value_type=duration_ms 或 unit=ms）统一按秒展示
 const isMsDim = (dim?: { value_type?: string; unit?: string | null }) =>
@@ -115,6 +122,35 @@ export function buildScoreColumns(
       width: 130,
       // 进阶时间单位（2026-09-11）：秒→分秒→时分秒，与 App 端同口径
       render: (v: number | null) => (v == null ? '-' : formatDurationSmart(v)),
+    },
+    {
+      title: '对局详情',
+      key: 'run_detail',
+      width: 180,
+      render: (_, record) => {
+        const detail = runDetailOf(record)
+        if (!detail || Object.keys(detail).length === 0) return '-'
+        // 摘要优先展示西行角色口径（其他游戏未来接入时回落条目数）
+        const charCode = detail.character_code
+        const charLevel = detail.char_level
+        const summary =
+          typeof charCode === 'string' && charCode
+            ? `角色 ${charCode}${
+                charLevel != null ? ` · Lv${charLevel}` : ''
+              } · ${Object.keys(detail).length} 项`
+            : `${Object.keys(detail).length} 项`
+        return (
+          <Tooltip
+            title={
+              <pre style={{ margin: 0, maxWidth: 420, whiteSpace: 'pre-wrap' }}>
+                {JSON.stringify(detail, null, 2)}
+              </pre>
+            }
+          >
+            <Text style={{ cursor: 'help' }}>{summary}</Text>
+          </Tooltip>
+        )
+      },
     },
     {
       title: '游玩时间',
