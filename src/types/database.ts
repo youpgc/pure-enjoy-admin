@@ -2648,6 +2648,7 @@ export interface DbJourneyWave {
   count: number
   spawn_interval_ms: number
   buff_mult: number
+  loop: boolean
 }
 
 export interface DbJourneyMonster {
@@ -2753,6 +2754,7 @@ export interface DbJourneyEndlessWave {
   monster_code: string | null
   count: number | null
   buff_mult: number | null
+  elite_count: number
 }
 
 export interface DbJourneyWeaponParam {
