@@ -5,12 +5,8 @@ import type { DbGame, DbGameLevel } from '../../types/database'
 import { JOURNEY_LEVEL_KIND_MAP } from '../../constants/game'
 import common from '../../styles/common.module.css'
 
-// 关卡新增/编辑弹窗（从 GameLevels/index.tsx 抽离，审查 P1 单文件超 500 行）
-// 纯代码搬迁：form 实例、初始值与保存逻辑仍由父页持有。
+// 关卡新增/编辑弹窗：form 实例、初始值与保存逻辑由父页持有。
 // 西行条件字段组：所属游戏=西行（code=journey）时显示，保存并入 config jsonb。
-
-/// 西行关卡条件字段名（保存并入 config，顶层不落列）
-export const JOURNEY_LEVEL_CONFIG_KEYS = ['region_code', 'level_kind', 'boss_fights', 'first_clear_merit', 'duration_target_sec'] as const
 
 interface LevelFormModalProps {
   open: boolean

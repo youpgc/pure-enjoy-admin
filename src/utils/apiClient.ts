@@ -65,13 +65,13 @@ export class BaseService<T extends Record<string, any>> {
     'users',
   ])
 
-  /// 解析实际 select 列：未配置时回退 '*'（审查报告 P2-8：显式配置 select 可减小传输与脱敏面）
+  /// 解析实际 select 列：未配置时回退全列，避免新增列未同步清单导致编辑回显空、保存覆写云端值。
   private resolvedSelect(): string {
     return this.options?.select || '*'
   }
 
   /// 操作审计（best-effort，不阻塞主流程）：写入 operation_logs
-  /// 审查 P3-3：target_id 存储为数组（而非逗号拼接字符串），便于事后按 id 关联
+  /// target_id 存储为数组（而非逗号拼接字符串），便于事后按 id 关联
   private audit(action: string, targetId: string | number | Array<string | number>, detail?: object) {
     if (BaseService.AUDIT_EXCLUDED.has(this.tableName)) return
     const targetIdArray = Array.isArray(targetId)
@@ -192,7 +192,7 @@ export class BaseService<T extends Record<string, any>> {
       }
 
       // PostgREST 删除 0 行命中时 data=[]、error=null，若不校验会静默返回 success=true。
-      // 必须校验 affected rows，与 update/batchUpdate 对齐（审查报告 P1-1）
+      // 必须校验 affected rows，与 update/batchUpdate 对齐
       const { data, error } = await supabase.from(this.tableName).delete().eq('id', id).select('id')
       if (error) throw error
       if (!data || data.length === 0) {
@@ -219,7 +219,7 @@ export class BaseService<T extends Record<string, any>> {
         snapshots = []
       }
 
-      // 同 delete：校验 affected rows，避免 0 行命中静默成功（审查报告 P1-1）
+      // 同 delete：校验 affected rows，避免 0 行命中静默成功
       const { data, error } = await supabase.from(this.tableName).delete().in('id', ids).select('id')
       if (error) throw error
       if (!data || data.length === 0) {
