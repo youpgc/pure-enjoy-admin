@@ -6,7 +6,7 @@ import { usePermission } from '../../hooks/usePermission'
 import type { DbJourneyDailyMap } from '../../types/database'
 
 /// 每日游历 · 地图配置弹窗（GameLevels「游历·XX」行 → 配置入口）：
-/// 独立表单编辑该地图基础字段（名称/主题色/里程碑/功成时长/排序/启用）
+/// 独立表单编辑该地图基础字段（名称/主题色/里程碑/排序/启用）
 /// + 按图怪物池（多选普通怪；journey_daily_maps.monster_pool 逗号分隔，
 /// 空=引擎内置全怪池兜底；妖王不进每日池）。
 const JourneyDailyMapModal: React.FC<{
@@ -56,7 +56,6 @@ const JourneyDailyMapModal: React.FC<{
             ...values,
             // NOT NULL 数值列归一（清空→0），主题色空串回落默认色
             milestone_li: values.milestone_li ?? 0,
-            duration_target_sec: values.duration_target_sec ?? 0,
             sort: values.sort ?? 0,
             theme_color:
               values.theme_color && String(values.theme_color).trim() !== ''
@@ -91,7 +90,6 @@ const JourneyDailyMapModal: React.FC<{
             name: mapRow.name,
             theme_color: mapRow.theme_color ?? '',
             milestone_li: mapRow.milestone_li ?? 0,
-            duration_target_sec: mapRow.duration_target_sec ?? 0,
             description: mapRow.description ?? '',
             sort: mapRow.sort ?? 0,
             enabled: mapRow.enabled ?? false,
@@ -105,9 +103,6 @@ const JourneyDailyMapModal: React.FC<{
             <Input placeholder="#6FBF9A" disabled={!canWrite} />
           </Form.Item>
           <Form.Item name="milestone_li" label="里程碑里数（进关播报）">
-            <InputNumber min={0} className="w-full" disabled={!canWrite} />
-          </Form.Item>
-          <Form.Item name="duration_target_sec" label="功成坚持时长（秒，0=缺省 300）">
             <InputNumber min={0} className="w-full" disabled={!canWrite} />
           </Form.Item>
           <Form.Item

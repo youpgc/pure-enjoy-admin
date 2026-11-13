@@ -172,7 +172,6 @@ const dailyMapFields: JourneyFieldDef[] = [
   { name: 'name', label: '地图名称', type: 'text', required: true, placeholder: '如 花果山' },
   { name: 'theme_color', label: '主题色', type: 'text', placeholder: '#6FBF9A' },
   { name: 'milestone_li', label: '里程碑里数', type: 'number', min: 0, width: 110 },
-  { name: 'duration_target_sec', label: '功成时长(秒)', type: 'number', min: 0, width: 120 },
   { name: 'description', label: '描述', type: 'textarea', hideInTable: true },
   { name: 'monster_pool', label: '怪物池', type: 'text', hideInTable: true, placeholder: '怪 code 逗号分隔；空=全怪池兜底（关卡列表「游历」行可用多选编辑）' },
   { name: 'sort', label: '排序', type: 'number', min: 0, width: 80 },
