@@ -307,6 +307,7 @@ export const globalsFields: JourneyFieldDef[] = [
   { name: 'talent_drop_rate', label: '妖王天赋点掉率', type: 'number', step: 0.01, min: 0, max: 1, width: 130 },
   { name: 'char_level_cap', label: '角色等级上限', type: 'number', min: 10, max: 999, width: 115 },
   { name: 'revive_merit_base', label: '还魂功德基准', type: 'number', min: 0, width: 140 },
+  { name: 'merit_cap', label: '每日游历功德局内上限', type: 'number', min: 0, max: 999999, width: 150 },
   { name: 'initial_pack_size', label: '开局铺场怪物数', type: 'number', min: 0, max: 200, width: 150 },
   { name: 'spawn_den_ratio', label: '妖穴集中刷怪概率', type: 'number', step: 0.01, min: 0, max: 1, width: 150 },
   { name: 'upgrade_move', label: '成长卡·移速加成', type: 'number', step: 0.01, min: 0, width: 150 },
@@ -327,6 +328,7 @@ export const globalsFields: JourneyFieldDef[] = [
   { name: 'upgrade_attack', label: '成长卡·攻击力提升', type: 'number', step: 1, min: 0, max: 1000, width: 175 },
   { name: 'attack_upgrade_cap', label: '攻击卡累计上限', type: 'number', step: 10, min: 0, max: 10000, width: 175 },
   { name: 'boss_hp_time_k', label: '妖王血量时间系数', type: 'number', step: 0.01, min: 0, max: 2, width: 175 },
+  { name: 'boss_damage_lv_k', label: '妖王伤害等级系数', type: 'number', step: 0.01, min: 0, max: 2, width: 160 },
 ]
 
 // ---- 武器维度槽 ----
@@ -418,7 +420,7 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     key: 'talent_branches', label: '五行天赋', service: journeyTalentBranchService, fields: talentBranchFields,
     filter: { field: 'character_code', kind: 'lookup', lookup: 'characters', placeholder: '按角色筛选' },
     prefillFromFilter: true,
-    intro: 'v4 分支树制：每角色一棵五行树（5 系 × 3 分支，character_code+element+branch_type 唯一）——本源枝 8 层（核心属性）/ 生息枝 5 层（第二属性）/ 化形枝 3 层（标志强化），共 80 层 + 第 81 点加强点（五系修满后点亮解锁角色特殊能力，效果走 App 端常量）；点亮双消耗 = 1 天赋点 + cost_base×层号 功德；相生 1:1 循环锁（每系第 2 层起需「生我者」系 ≥ 本系点亮后层数）与相克制衡（化形枝需「克我者」系 ≥4 层）在 App 端判定；天赋点角色独立点池（关卡首通各 +1、击败妖王按全局参数 talent_drop_rate 概率掉落）。',
+    intro: 'v4 分支树制：每角色一棵五行树（5 系 × 3 分支，character_code+element+branch_type 唯一）——本源枝 8 层（核心属性）/ 生息枝 5 层（第二属性）/ 化形枝 3 层（标志强化），共 80 层 + 第 81 点加强点（五系修满后点亮解锁角色特殊能力，效果走 App 端常量）；点亮双消耗 = 1 天赋点 + cost_base×层号 功德；相生 1:1 循环锁（每系第 2 层起需「生我者」系 ≥ 本系点亮后层数）与相克制衡（化形枝需「克我者」系 ≥4 层）在 App 端判定；天赋点全账号共享点池（关卡首通 +1、击败妖王/无尽妖潮妖王波按全局参数 talent_drop_rate 概率掉落）。',
   },
   {
     key: 'relic_unlocks', label: '图鉴解锁', service: journeyRelicUnlockService, fields: relicFields,

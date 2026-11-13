@@ -2822,6 +2822,8 @@ export interface DbJourneyGlobals {
   upgrade_attack?: number | null
   attack_upgrade_cap?: number | null
   boss_hp_time_k?: number | null
+  boss_damage_lv_k?: number | null
+  merit_cap?: number
   updated_at: string
 }
 

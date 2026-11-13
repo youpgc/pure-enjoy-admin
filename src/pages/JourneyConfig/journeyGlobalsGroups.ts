@@ -39,6 +39,7 @@ export const JOURNEY_GLOBALS_GROUPS: JourneyGlobalsGroup[] = [
       item('talent_drop_rate', '末场妖王伏诛掉落天赋点的概率（0~1）'),
       item('char_level_cap', '局内角色等级上限'),
       item('revive_merit_base', '还魂消耗的功德基准价'),
+      item('merit_cap', '每日游历获取功德上限：局内达上限后不再增长'),
       item('initial_pack_size', '开局一次性铺场的怪物数量'),
       item('spawn_den_ratio', '刷怪集中到妖穴的概率（0~1）'),
     ],
@@ -87,6 +88,7 @@ export const JOURNEY_GLOBALS_GROUPS: JourneyGlobalsGroup[] = [
       item('buff_mult_cap', '最终强度乘区的硬上限'),
       item('monster_speed_cap', '怪物移速硬上限（px/s）'),
       item('boss_hp_time_k', '妖王血量时间项系数，妖王血量不随关卡难度放大'),
+      item('boss_damage_lv_k', '妖王接触伤害随玩家等级成长的系数（玩家每升 1 级伤害+该比例）'),
     ],
   },
 ]
