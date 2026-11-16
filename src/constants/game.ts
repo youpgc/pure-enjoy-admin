@@ -320,6 +320,8 @@ export const JOURNEY_MONSTER_PARAM_KEY_MAP: Record<string, { color: string; labe
   armor: { color: 'gold', label: '附加护甲' },
   move_mult: { color: 'cyan', label: '移速倍率' },
   charge_cd: { color: 'geekblue', label: '冲撞冷却(秒)' },
+  charge_ratio: { color: 'geekblue', label: '冲撞伤害倍率' },
+  charge_knockback: { color: 'geekblue', label: '冲撞击退距离' },
   wind_period: { color: 'blue', label: '阵风周期(秒)' },
   wind_push: { color: 'blue', label: '吹离距离' },
   fire_period: { color: 'volcano', label: '火圈周期(秒)' },
