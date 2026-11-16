@@ -39,6 +39,7 @@ interface ScoreColumnsParams {
   gameMap: GameMeta['gameMapById']
   levelMap: GameMeta['levelMap']
   modeById: Record<string, DbGameMode>
+  modes: DbGameMode[]
   baseLevelByMode: Record<string, DbGameLevel>
   isEndlessRow: (record: DbGameScore) => boolean
 }
@@ -47,8 +48,15 @@ interface ScoreColumnsParams {
 export function buildScoreColumns(
   params: ScoreColumnsParams
 ): ColumnsType<DbGameScore> {
-  const { userMap, gameMap, levelMap, modeById, baseLevelByMode, isEndlessRow } =
-    params
+  const {
+    userMap,
+    gameMap,
+    levelMap,
+    modeById,
+    modes,
+    baseLevelByMode,
+    isEndlessRow,
+  } = params
   return [
     {
       title: '用户',
@@ -79,7 +87,16 @@ export function buildScoreColumns(
           const prefix = gameName ? `${gameName}·` : ''
           return prefix && raw.startsWith(prefix) ? raw.slice(prefix.length) : raw
         }
-        // 无 level_id（无尽会话 / 2048 等无关卡感对局）：回退模式名
+        // 无 level_id（无尽会话 / 西行非关卡模式 / 2048 等无关卡感对局）：
+        // 西行快照带 mode 码，按 game_id+code 回退后台配置模式名，
+        // 不硬编码文案；其余仍按 mode_id 回退
+        const modeCode = runDetailOf(record)?.['mode']
+        if (typeof modeCode === 'string' && modeCode) {
+          const mode = modes.find(
+            (m) => m.game_id === record.game_id && m.code === modeCode
+          )
+          if (mode) return mode.name
+        }
         return record.mode_id != null
           ? modeById[record.mode_id]?.name ?? '-'
           : '-'

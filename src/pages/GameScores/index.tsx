@@ -292,6 +292,7 @@ const GameScores: React.FC = () => {
     gameMap,
     levelMap,
     modeById,
+    modes: meta?.modes ?? [],
     baseLevelByMode,
     isEndlessRow,
   })
