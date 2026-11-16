@@ -259,6 +259,7 @@ const characterFields: JourneyFieldDef[] = [
   { name: 'aura_value', label: '光环数值', type: 'number', step: 0.01, width: 100 },
   { name: 'aura_desc', label: '光环说明', type: 'textarea', hideInTable: true },
   { name: 'aura_params', label: '光环参数(JSON)', type: 'textarea', hideInTable: true, placeholder: '{"regen":0.8}' },
+  { name: 'realm_titles', label: '境界名号(JSON)', type: 'textarea', hideInTable: true, placeholder: '["石猴","美猴王","悟空","弼马温","齐天大圣","孙行者","神通大成","功圆行满","斗战胜佛"]' },
   { name: 'weapon_code', label: '特性法宝', type: 'select', optionsFrom: 'weapons', width: 150 },
   { name: 'unlock_level_no', label: '解锁关卡号', type: 'number', required: true, min: 1, max: 81, width: 110 },
   { name: 'unlock_merit_cost', label: '解锁功德', type: 'number', required: true, min: 0, width: 100 },
@@ -336,6 +337,15 @@ export const globalsFields: JourneyFieldDef[] = [
   { name: 'boss_damage_lv_k', label: '妖王伤害等级系数', type: 'number', step: 0.01, min: 0, max: 2, width: 160 },
   { name: 'armor_curve_k', label: '护甲减伤曲线 K', type: 'number', step: 1, min: 1, max: 1000, width: 160 },
   { name: 'monster_armor_reduction_cap', label: '怪物减伤上限', type: 'number', step: 0.01, min: 0, max: 1, width: 150 },
+  { name: 'exp_curve_pow', label: '经验曲线幂次', type: 'number', step: 0.1, min: 1, max: 3, width: 140 },
+  { name: 'exp_mult_k', label: '经验乘区缩放系数', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
+  { name: 'monster_lv_k', label: '普怪血量等级系数', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
+  { name: 'boss_hp_lv_k', label: '妖王血量等级系数', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
+  { name: 'elite_chest_rate', label: '精英宝箱掉率', type: 'number', step: 0.01, min: 0, max: 1, width: 140 },
+  { name: 'realm_amp_per', label: '境界突破增伤', type: 'number', step: 0.01, min: 0, max: 1, width: 140 },
+  { name: 'realm_hp_per', label: '境界突破生命增幅', type: 'number', step: 0.01, min: 0, max: 1, width: 165 },
+  { name: 'realm_step', label: '境界步长（级/档）', type: 'number', step: 1, min: 1, max: 99, width: 155 },
+  { name: 'weapon_grade_per_lv', label: '品阶 L9+ 每级增幅', type: 'number', step: 0.005, min: 0, max: 0.5, width: 170 },
 ]
 
 // ---- 武器维度槽 ----
