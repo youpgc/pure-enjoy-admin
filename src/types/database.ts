@@ -2755,6 +2755,7 @@ export interface DbJourneyEndlessWave {
   count: number | null
   buff_mult: number | null
   elite_count: number
+  boss_count: number
 }
 
 export interface DbJourneyWeaponParam {

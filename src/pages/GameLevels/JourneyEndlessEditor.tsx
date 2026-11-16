@@ -23,6 +23,7 @@ interface EndlessWaveRow {
   count: number | null
   buff_mult: number | null
   elite_count: number
+  boss_count: number
 }
 
 /// 无尽妖潮 · 模式关卡编辑器（GameLevels 模式切到「无尽妖潮」时整页展示）：
@@ -46,6 +47,7 @@ const JourneyEndlessEditor: React.FC = () => {
     count: number
     buff_mult: number
     elite_count: number
+    boss_count: number
   } | null>(null)
 
   const load = useCallback(async () => {
@@ -99,6 +101,7 @@ const JourneyEndlessEditor: React.FC = () => {
       count: row.count ?? 10,
       buff_mult: row.buff_mult ?? 1,
       elite_count: row.elite_count ?? 0,
+      boss_count: row.boss_count ?? 0,
     })
   }
 
@@ -111,6 +114,7 @@ const JourneyEndlessEditor: React.FC = () => {
         count: draft.count,
         buff_mult: draft.buff_mult,
         elite_count: draft.elite_count,
+        boss_count: draft.boss_count,
       })
       if (!res.success) {
         handleApiError(res.errorMessage, 'JourneyEndlessEditor-保存')
@@ -176,6 +180,13 @@ const JourneyEndlessEditor: React.FC = () => {
       title: '末尾精英',
       dataIndex: 'elite_count',
       key: 'elite_count',
+      width: 100,
+      render: (v: number | null) => (v ? `${v} 只` : '公式兜底'),
+    },
+    {
+      title: '妖王配额',
+      dataIndex: 'boss_count',
+      key: 'boss_count',
       width: 100,
       render: (v: number | null) => (v ? `${v} 只` : '公式兜底'),
     },
@@ -286,6 +297,18 @@ const JourneyEndlessEditor: React.FC = () => {
                 value={draft.elite_count}
                 disabled={!canWrite}
                 onChange={(v) => v != null && setDraft({ ...draft, elite_count: v })}
+              />
+            </div>
+            <div>
+              <Text>妖王配额（妖潮期本波妖王只数，0=全局公式兜底；同屏在场数由全局并发上限独立约束）：</Text>
+              <InputNumber
+                className="w-full"
+                style={{ marginTop: 4 }}
+                min={0}
+                max={99}
+                value={draft.boss_count}
+                disabled={!canWrite}
+                onChange={(v) => v != null && setDraft({ ...draft, boss_count: v })}
               />
             </div>
             <div>

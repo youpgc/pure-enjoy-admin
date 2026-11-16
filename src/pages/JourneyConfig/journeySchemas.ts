@@ -346,6 +346,20 @@ export const globalsFields: JourneyFieldDef[] = [
   { name: 'realm_hp_per', label: '境界突破生命增幅', type: 'number', step: 0.01, min: 0, max: 1, width: 165 },
   { name: 'realm_step', label: '境界步长（级/档）', type: 'number', step: 1, min: 1, max: 99, width: 155 },
   { name: 'weapon_grade_per_lv', label: '品阶 L9+ 每级增幅', type: 'number', step: 0.005, min: 0, max: 0.5, width: 170 },
+  { name: 'endless_boss_tide_start_wave', label: '妖潮起点波号', type: 'number', step: 1, min: 1, max: 99, width: 145 },
+  { name: 'endless_boss_count_cap', label: '同波妖王上限', type: 'number', step: 1, min: 1, max: 99, width: 140 },
+  { name: 'endless_boss_chest_rate', label: '妖王宝箱概率', type: 'number', step: 0.01, min: 0, max: 1, width: 145 },
+  { name: 'endless_boss_refine_per_wave', label: '宝葫每波炼化', type: 'number', step: 1, min: 1, max: 20, width: 145 },
+  { name: 'endless_exp_base', label: '无尽经验基数', type: 'number', step: 1, min: 0, max: 1000, width: 145 },
+  { name: 'endless_exp_per_lv', label: '无尽经验每级系数', type: 'number', step: 1, min: 1, max: 1000, width: 160 },
+  { name: 'endless_exp_pow', label: '无尽经验幂次', type: 'number', step: 0.1, min: 1, max: 4, width: 145 },
+  { name: 'endless_boss_concurrent', label: '同场并发妖王数', type: 'number', step: 1, min: 1, max: 10, width: 150 },
+  { name: 'endless_boss_arrive_cd', label: '妖王降临倒计时(秒)', type: 'number', step: 1, min: 0, max: 60, width: 165 },
+  { name: 'endless_boss_amp_per_wave', label: '妖王每波增幅', type: 'number', step: 0.01, min: 0, max: 1, width: 140 },
+  { name: 'endless_boss_hp_amp', label: '妖王血量每波增幅', type: 'number', step: 0.005, min: 0, max: 0.2, width: 165 },
+  { name: 'endless_boss_territory_radius', label: '妖王领地半径(px)', type: 'number', step: 10, min: 100, max: 2000, width: 165 },
+  { name: 'endless_boss_spread_min_dist', label: '妖王锚点最小间距(px)', type: 'number', step: 50, min: 0, max: 3000, width: 190 },
+  { name: 'endless_boss_guard_elite_ratio', label: '妖潮护卫精英占比', type: 'number', step: 0.05, min: 0, max: 1, width: 160 },
 ]
 
 // ---- 武器维度槽 ----
