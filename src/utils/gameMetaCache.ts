@@ -1,13 +1,18 @@
-// 全局游戏元数据缓存（games / levels / dimensions）。
+// 全局游戏元数据缓存（games / modes / dimensions）。
 //
-// 用途：后台「道具管理 / 成绩看板 / 关卡 / 维度」等多页都会用到游戏名、关卡名、
-//       维度名等映射。此前各页在挂载时各自拉取 games / levels / dimensions，
-//       成绩看板还因 meta 就绪触发二次重查，造成多接口缝合、看板闪烁。
+// 用途：后台「道具管理 / 成绩看板 / 关卡 / 维度」等多页共用游戏名、
+//       模式名、维度名映射，在此集中加载并缓存，避免各页重复请求以及
+//       映射就绪前后的二次重查。
 //
 // 本模块用「模块级单例 Promise + 内存缓存」保证整个后台会话内只请求一次，
 // 之后所有页面直接复用，不再重复调度接口。配置（非用户数据）适合此模式。
 //
 // 仅暴露只读映射；若配置确有变更，调用 refreshGameMeta() 主动失效重拉。
+//
+// 关卡表（game_levels 全量 1900+ 行）不进本缓存：仅成绩看板需要关卡名/
+// 关卡 config，其余页只需 games/modes/dimensions。关卡改为按需加载——
+// 成绩行自身的关卡由 DB 侧内嵌关联随分页返回，看板兜底只需各模式首关
+// （见 useGameBaseLevels），避免为不需要的行付出全量拉取代价。
 
 import { useEffect, useState } from 'react'
 import { gameService, gameLevelService, gameDimensionService, gameModeService } from '../services/gameService'
@@ -16,7 +21,6 @@ import type { DbGame, DbGameLevel, DbGameDimension, DbGameMode } from '../types/
 export interface GameMeta {
   games: DbGame[]
   modes: DbGameMode[]
-  levels: DbGameLevel[]
   dimensions: DbGameDimension[]
   // 按 id（成绩看板用 game_id 关联）
   gameMapById: Record<string, DbGame>
@@ -24,7 +28,6 @@ export interface GameMeta {
   gameMapByCode: Record<string, DbGame>
   // 按所属游戏分组（成绩看板模式筛选联动）
   modesByGameId: Record<string, DbGameMode[]>
-  levelMap: Record<string, DbGameLevel>
   dimMap: Record<string, DbGameDimension>
 }
 
@@ -36,30 +39,11 @@ let metaCache: GameMeta | null = null
 // useGameMeta 只在挂载时取值，配置变更后整个会话内映射永不更新。
 const listeners = new Set<(m: GameMeta | null) => void>()
 
-// game_levels 全量 1200 行（12 模式 × 100 关），单请求会被 PostgREST
-// db-max-rows=1000 静默钳制（成绩看板 L84+ 关卡/通关条件不展示的根因），
-// 必须按 1000/页 offset 循环拉全。
-async function fetchAllLevels(): Promise<DbGameLevel[]> {
-  const all: DbGameLevel[] = []
-  const pageSize = 1000
-  for (let page = 1; ; page++) {
-    const res = await gameLevelService.paginate(page, pageSize)
-    if (!res.success) {
-      throw new Error(res.errorMessage ?? 'game_levels 拉取失败')
-    }
-    const rows = (res.data?.data as DbGameLevel[] | null) || []
-    all.push(...rows)
-    const total = res.data?.total ?? all.length
-    if (all.length >= total || rows.length < pageSize) break
-  }
-  return all
-}
-
+// 各表独立容错：单表失败只缺该表映射，不让整个 meta 变 null。
 async function fetchMeta(): Promise<GameMeta> {
-  const [gRes, mRes, levels, dRes] = await Promise.all([
+  const [gRes, mRes, dRes] = await Promise.all([
     gameService.findAll(),
     gameModeService.findAllModes(),
-    fetchAllLevels(),
     gameDimensionService.findAll(),
   ])
   const games = (gRes.success ? (gRes.data as DbGame[] | null) : null) || []
@@ -72,10 +56,6 @@ async function fetchMeta(): Promise<GameMeta> {
     gameMapById[g.id] = g
     gameMapByCode[g.code] = g
   })
-  const levelMap: Record<string, DbGameLevel> = {}
-  levels.forEach((l) => {
-    levelMap[l.id] = l
-  })
   const dimMap: Record<string, DbGameDimension> = {}
   dimensions.forEach((d) => {
     dimMap[d.id] = d
@@ -86,7 +66,7 @@ async function fetchMeta(): Promise<GameMeta> {
     ;(modesByGameId[m.game_id] ??= []).push(m)
   })
 
-  return { games, modes, levels, dimensions, gameMapById, gameMapByCode, modesByGameId, levelMap, dimMap }
+  return { games, modes, dimensions, gameMapById, gameMapByCode, modesByGameId, dimMap }
 }
 
 // 单例：首次调用触发请求，之后复用同一 Promise（StrictMode 双调用也不会重复请求）。
@@ -138,4 +118,76 @@ export function useGameMeta(): GameMeta | null {
     }
   }, [])
   return meta
+}
+
+// ==================== 模式首关（按需加载，不进共享 meta） ====================
+//
+// 成绩看板「通关条件」列在成绩行无 level_id 时（无尽会话 / 合成关），
+// 需用所属模式的首关（level_no = 1）config/target 兜底推导条件。
+// 只需每个模式这一档关卡，不必拉全量关卡表（1900+ 行，含 config/target
+// 两个 jsonb，单次请求体积近 250KB）。
+//
+// 成绩行自身引用的关卡（关卡名 / 条件）由 DB 侧内嵌关联随分页返回，
+// 见 GameScoreService.paginateWithLevels。
+
+let baseLevelsPromise: Promise<DbGameLevel[]> | null = null
+let baseLevelsCache: DbGameLevel[] | null = null
+
+// 关卡变更后失效重拉（关卡页增删改成功后调用）。
+export function refreshGameBaseLevels(): Promise<DbGameLevel[]> {
+  baseLevelsPromise = null
+  baseLevelsCache = null
+  return getGameBaseLevels()
+}
+
+async function fetchBaseLevels(): Promise<DbGameLevel[]> {
+  const res = await gameLevelService.findBaseLevels()
+  if (!res.success) {
+    throw new Error(res.errorMessage ?? 'game_levels 首关拉取失败')
+  }
+  return (res.data as DbGameLevel[] | null) || []
+}
+
+// 单例：首次调用触发请求，之后复用（StrictMode 双调用不重复请求）。
+// 失败时置回 null 允许下次重试，避免 rejected Promise 被永久复用。
+export function getGameBaseLevels(): Promise<DbGameLevel[]> {
+  if (!baseLevelsPromise) {
+    baseLevelsPromise = fetchBaseLevels()
+      .then((rows) => {
+        baseLevelsCache = rows
+        return rows
+      })
+      .catch((e) => {
+        baseLevelsPromise = null
+        throw e
+      })
+  }
+  return baseLevelsPromise
+}
+
+// React hook：挂载即按需拉取模式首关（返回 { baseLevels, loading }）。
+// 仅成绩看板需要，其余页不触发该请求。
+export function useGameBaseLevels(): {
+  baseLevels: DbGameLevel[]
+  loading: boolean
+} {
+  const [baseLevels, setBaseLevels] = useState<DbGameLevel[]>(baseLevelsCache ?? [])
+  const [loading, setLoading] = useState(baseLevelsCache === null)
+  useEffect(() => {
+    let cancelled = false
+    getGameBaseLevels()
+      .then((rows) => {
+        if (cancelled) return
+        setBaseLevels(rows)
+        setLoading(false)
+      })
+      .catch(() => {
+        // 失败保持空数组，交由页面空态兜底；下次挂载经 getGameBaseLevels 重试
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  return { baseLevels, loading }
 }

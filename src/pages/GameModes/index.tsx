@@ -24,7 +24,7 @@ import type { ColumnsType } from 'antd/es/table'
 import type { Database } from '../../types/database'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
-import { useGameMeta, refreshGameMeta } from '../../utils/gameMetaCache'
+import { useGameMeta, refreshGameMeta, refreshGameBaseLevels } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../contexts/NavigationContext'
 import { gameModeService, gameScoreService } from '../../services/gameService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
@@ -198,6 +198,8 @@ const GameModes: React.FC = () => {
     if (!res.success) return // service 已统一弹窗 + 记日志
     message.success('已删除模式')
     refreshGameMeta().catch(() => {})
+    // 删模式会级联删其关卡（on delete cascade），模式首关缓存需一并失效
+    refreshGameBaseLevels().catch(() => {})
     loadModes()
   }
 

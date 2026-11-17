@@ -121,15 +121,19 @@ export class BaseService<T extends Record<string, any>> {
   }
 
   /// 分页查询
+  /// [selectOverride] 按次覆盖 select 列（默认取构造器配置，缺省为全列）：
+  /// 用于需要内嵌关联资源（如成绩随行返回其关卡）的单次查询。
   async paginate(
     page: number,
     pageSize: number,
-    query?: (q: SupabaseQuery) => SupabaseQuery
+    query?: (q: SupabaseQuery) => SupabaseQuery,
+    selectOverride?: { select?: string }
   ): Promise<ApiResponse<{ data: T[]; total: number }>> {
     try {
       const from = (page - 1) * pageSize
       const to = from + pageSize - 1
-      let q = supabase.from(this.tableName).select(this.resolvedSelect(), { count: 'exact', head: false })
+      const columns = selectOverride?.select ?? this.resolvedSelect()
+      let q = supabase.from(this.tableName).select(columns, { count: 'exact', head: false })
       if (query) q = query(q)
       q = q.order(this.options?.defaultOrder?.column || 'created_at', {
         ascending: this.options?.defaultOrder?.ascending ?? false,

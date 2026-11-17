@@ -21,7 +21,7 @@ import EndlessRoundsExpand, { type EndlessRoundRow } from './EndlessRoundsExpand
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { useUsernames } from '../../hooks/useUsernames'
-import { useGameMeta } from '../../utils/gameMetaCache'
+import { useGameMeta, useGameBaseLevels } from '../../utils/gameMetaCache'
 import { userService } from '../../services/userService'
 import { useNavigation } from '../../contexts/NavigationContext'
 import {
@@ -49,12 +49,14 @@ const { Text } = Typography
 const GameScores: React.FC = () => {
   const mountedRef = useMounted()
 
-  // 全局游戏元数据（games/levels/dimensions 仅请求一次，跨页复用，消除看板闪烁）。
+  // 全局游戏元数据（games/modes/dimensions 仅请求一次，跨页复用，消除看板闪烁）。
   const meta = useGameMeta()
   const gameMap = meta?.gameMapById ?? {}
-  const levelMap = meta?.levelMap ?? {}
   const dimMap = meta?.dimMap ?? {}
   const games = meta?.games ?? []
+  // 各模式首关（level_no=1）：仅用于成绩行无 level_id 时兜底推导通关条件。
+  // 成绩行自身引用的关卡由分页查询内嵌关联返回，不在此拉取。
+  const { baseLevels } = useGameBaseLevels()
 
   // ===== 无尽模式会话聚合（2026-09-10）=====
   // 无尽链式对局每局一条 score（level_id 为空，合成关非 uuid），明细行显示
@@ -72,16 +74,16 @@ const GameScores: React.FC = () => {
       ),
     [meta]
   )
-  // level_id 为空的行（无尽/部分 2048 对局）用该模式 L001 的 config 兜底展示条件
+  // level_id 为空的行（无尽/部分 2048 对局）用该模式首关的 config 兜底展示条件
   const baseLevelByMode = useMemo(() => {
     const m: Record<string, DbGameLevel> = {}
-    ;(meta?.levels ?? []).forEach((l) => {
+    baseLevels.forEach((l) => {
       if (l.mode_id == null) return
       const cur = m[l.mode_id]
       if (!cur || l.level_no < cur.level_no) m[l.mode_id] = l
     })
     return m
-  }, [meta])
+  }, [baseLevels])
 
   // 页签刷新筛选恢复（tabs 右键刷新=重挂载，保持用户当前筛选）
   const restoredFilters = loadTabFilters('game_scores')
@@ -162,7 +164,7 @@ const GameScores: React.FC = () => {
           return
         }
       }
-      const result = await gameScoreService.paginate(
+      const result = await gameScoreService.paginateWithLevels(
         pager.pagination.current,
         pager.pagination.pageSize,
         (q) => {
@@ -290,7 +292,6 @@ const GameScores: React.FC = () => {
   const columns = buildScoreColumns({
     userMap,
     gameMap,
-    levelMap,
     modeById,
     modes: meta?.modes ?? [],
     baseLevelByMode,

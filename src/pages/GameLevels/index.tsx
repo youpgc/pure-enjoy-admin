@@ -6,7 +6,7 @@ import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { gameService, gameLevelService, gameModeService, journeyRegionService, journeyDailyMapService } from '../../services/gameService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
-import { refreshGameMeta } from '../../utils/gameMetaCache'
+import { refreshGameMeta, refreshGameBaseLevels } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../contexts/NavigationContext'
 import type { DbGame, DbGameLevel, DbJourneyDailyMap } from '../../types/database'
 import JourneyEndlessEditor from './JourneyEndlessEditor'
@@ -256,6 +256,8 @@ const GameLevels: React.FC = () => {
     }
     message.success('删除成功')
     refreshGameMeta().catch(() => {})
+    // 模式首关缓存独立于共享 meta，需单独失效以刷新成绩看板兜底条件
+    refreshGameBaseLevels().catch(() => {})
     loadLevels()
   }
 
@@ -299,6 +301,8 @@ const GameLevels: React.FC = () => {
       }
       // 关卡变更 → 全局 meta 缓存失效重拉（GameScores 等页同步）
       refreshGameMeta().catch(() => {})
+      // 模式首关缓存需单独失效重拉（成绩看板兜底条件依赖）
+      refreshGameBaseLevels().catch(() => {})
       setModalVisible(false)
       setEditing(null)
       form.resetFields()

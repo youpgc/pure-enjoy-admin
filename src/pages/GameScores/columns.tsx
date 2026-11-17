@@ -13,7 +13,7 @@ import type {
   DbGameLevel,
 } from '../../types/database'
 import { levelConditionDesc } from './levelCondition'
-import type { BestOverviewRow } from './types'
+import type { BestOverviewRow, ScoreRow } from './types'
 
 // GameScores 三张表格的列定义（从 index.tsx 抽离，审查 P1 单文件超 500 行）
 // 纯代码搬迁，渲染逻辑与文案零变更。
@@ -37,7 +37,6 @@ const isMsDim = (dim?: { value_type?: string; unit?: string | null }) =>
 interface ScoreColumnsParams {
   userMap: UserMap
   gameMap: GameMeta['gameMapById']
-  levelMap: GameMeta['levelMap']
   modeById: Record<string, DbGameMode>
   modes: DbGameMode[]
   baseLevelByMode: Record<string, DbGameLevel>
@@ -51,7 +50,6 @@ export function buildScoreColumns(
   const {
     userMap,
     gameMap,
-    levelMap,
     modeById,
     modes,
     baseLevelByMode,
@@ -78,10 +76,11 @@ export function buildScoreColumns(
       key: 'level_id',
       width: 200,
       render: (v: string | null, record) => {
+        const row = record as ScoreRow
         if (v) {
           // 关卡名种子自带「游戏·模式」前缀（如「2048·经典模式 L001」），
           // 「游戏」列已展示游戏名，此处剥掉前缀避免重复
-          const raw = levelMap[v]?.name
+          const raw = row.game_levels?.name
           if (!raw) return '关卡'
           const gameName = gameMap[record.game_id]?.name
           const prefix = gameName ? `${gameName}·` : ''
@@ -112,9 +111,10 @@ export function buildScoreColumns(
         // 关卡 config 无法推导）
         if (record.condition_text) return record.condition_text
         const gameCode = gameMap[record.game_id]?.code
-        // 有 level_id 用该关 config；无 level_id 用该模式 L001 的 config 兜底
+        // 有 level_id 用该关 config；无 level_id 用该模式首关 config 兜底
+        const row = record as ScoreRow
         const lv = record.level_id
-          ? levelMap[record.level_id]
+          ? row.game_levels
           : record.mode_id != null
             ? baseLevelByMode[record.mode_id]
             : null

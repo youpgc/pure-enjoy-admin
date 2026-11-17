@@ -1,4 +1,4 @@
-import { BaseService, apiQuery } from '../utils/apiClient'
+import { BaseService, apiQuery, type SupabaseQuery } from '../utils/apiClient'
 import { supabase } from '../utils/supabase'
 import { GAME_FLOW_TYPES } from '../constants/points'
 import type {
@@ -82,6 +82,13 @@ class GameLevelService extends BaseService<DbGameLevel> {
       return q
     })
   }
+
+  /// 每个模式的首关（level_no = 1）：成绩看板在成绩行无 level_id 时，
+  /// 用所属模式的首关 config/target 兜底推导「通关条件」。
+  /// 只取这一档关卡（而非全量关卡表）即可覆盖所有模式。
+  findBaseLevels() {
+    return this.findAll((q) => q.eq('level_no', 1))
+  }
 }
 
 // 52. 成就定义（全局）
@@ -114,6 +121,22 @@ class GameScoreService extends BaseService<DbGameScore> {
 
   paginateByGame(gameId: string, page: number, pageSize: number) {
     return this.paginate(page, pageSize, (q) => q.eq('game_id', gameId))
+  }
+
+  /// 成绩分页（关卡内嵌）：DB 侧按 level_id 关联 game_levels，只随当页
+  /// 记录返回其引用的关卡（名 / config / target），供看板「关卡」与
+  /// 「通关条件」两列直接消费——避免前端为拿关卡名而拉全量关卡表。
+  /// 内嵌值为 many-to-one 单对象（level_id 为空时为 null）。
+  paginateWithLevels(
+    page: number,
+    pageSize: number,
+    query?: (q: SupabaseQuery) => SupabaseQuery
+  ) {
+    return this.paginate(page, pageSize, query, {
+      select:
+        'id,user_id,game_id,level_id,mode_id,status,duration_ms,condition_text,run_detail,played_at,created_at,' +
+        'game_levels(id,name,level_no,config,target)',
+    })
   }
 
   /// 某模式关联的成绩条数（删除模式前的级联保护检查）
