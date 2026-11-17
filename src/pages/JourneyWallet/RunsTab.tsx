@@ -8,6 +8,7 @@ import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { handleApiError } from '../../utils/apiClient'
 import { useUsernames } from '../../hooks/useUsernames'
+import { useGameMeta } from '../../utils/gameMetaCache'
 import { UserName } from '../../components/common/UserName'
 import { formatDateTime } from '../../utils/format'
 import common from '../../styles/common.module.css'
@@ -42,14 +43,14 @@ const RunsTab: React.FC = () => {
         }
       )
       if (!res.success || !res.data) {
-        handleApiError(res.errorMessage, 'JourneyWallet-对局记录加载')
+        handleApiError(res.errorMessage, 'JourneyWallet-西行记录加载')
         return
       }
       if (!mountedRef.current) return
       setRows(res.data.data)
       setTotal(res.data.total)
     } catch (error) {
-      handleApiError(error, 'JourneyWallet-对局记录加载')
+      handleApiError(error, 'JourneyWallet-西行记录加载')
     } finally {
       if (mountedRef.current) setLoading(false)
     }
@@ -62,6 +63,12 @@ const RunsTab: React.FC = () => {
 
   const ids = rows.map((r) => r.user_id)
   const userMap = useUsernames(ids)
+  const meta = useGameMeta()
+  const journeyGameId = meta?.gameMapByCode['journey']?.id
+  const modeNameByCode: Record<string, string> = {}
+  ;(journeyGameId ? meta?.modesByGameId[journeyGameId] ?? [] : []).forEach((m) => {
+    modeNameByCode[m.code] = m.name
+  })
 
   const columns: ColumnsType<DbJourneyRun> = [
     {
@@ -70,7 +77,19 @@ const RunsTab: React.FC = () => {
       width: 190,
       render: (v: string) => <UserName userId={v} userMap={userMap} />,
     },
-    { title: '难数', dataIndex: 'level_no', width: 90, render: (v: number) => `第${v}难` },
+    {
+      title: '关卡',
+      dataIndex: 'level_no',
+      width: 110,
+      render: (v: number, record) => {
+        const modeCode = record.run_detail?.['mode']
+        if (typeof modeCode === 'string' && modeNameByCode[modeCode]) {
+          return modeNameByCode[modeCode]
+        }
+        // 旧数据未存模式码：主线仍按关卡序号展示，虚拟关无法还原模式留空
+        return v > 0 ? `第${v}难` : '-'
+      },
+    },
     { title: '击杀', dataIndex: 'kills', width: 90 },
     { title: '功德', dataIndex: 'merit_gained', width: 100 },
     {

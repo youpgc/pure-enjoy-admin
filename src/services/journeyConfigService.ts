@@ -202,7 +202,7 @@ class JourneyRunService extends BaseService<DbJourneyRun> {
   constructor() {
     super('journey_runs', {
       defaultOrder: { column: 'created_at', ascending: false },
-      select: 'id,user_id,level_no,kills,merit_gained,duration_ms,cleared,created_at',
+      select: 'id,user_id,level_no,kills,merit_gained,duration_ms,cleared,created_at,run_detail',
     })
   }
 

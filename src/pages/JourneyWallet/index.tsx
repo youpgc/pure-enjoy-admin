@@ -25,7 +25,7 @@ const JourneyWallet: React.FC = () => (
       destroyInactiveTabPane
       items={[
         { key: 'merit', label: '功德流水', children: <MeritRecordsTab /> },
-        { key: 'runs', label: '对局记录', children: <RunsTab /> },
+        { key: 'runs', label: '西行记录', children: <RunsTab /> },
         { key: 'progress', label: '进度快照', children: <ProgressTab /> },
       ]}
     />
