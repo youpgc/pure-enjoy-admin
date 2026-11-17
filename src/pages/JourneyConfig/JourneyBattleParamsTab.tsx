@@ -1,11 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Form, Input, InputNumber, Modal, Select, Space, Switch, Table, Tag, Typography, message } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
+import { Alert, Button, Card, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Spin, Switch, Tag, Typography, message } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { handleApiError } from '../../utils/apiClient'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
-import { getActionColumn } from '../../components/common/ActionColumn'
 import { journeyBattleParamService, type DbJourneyBattleParam } from '../../services/journeyConfigService'
 import {
   JOURNEY_BATTLE_PARAM_GROUPS,
@@ -15,6 +13,14 @@ import {
 import common from '../../styles/common.module.css'
 
 const { Text } = Typography
+
+/// 参数类型到中文标签的映射，用于卡片角标。
+const KIND_LABEL: Record<BattleParamDef['kind'], string> = {
+  number: '数值',
+  percent: '比例',
+  duration: '时长',
+  integer: '整数',
+}
 
 interface JourneyBattleParamsTabProps {
   /// 当前二级 tab 对应的分组码；组件只管理该组参数
@@ -186,78 +192,6 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
     .filter((p) => !byCode[p.code] || p.code === editing?.code)
     .map((p) => ({ value: p.code, label: p.label }))
 
-  const columns: ColumnsType<ParamRow> = [
-    {
-      title: '参数',
-      dataIndex: 'label',
-      key: 'label',
-      width: 220,
-      render: (v: string, r) => (
-        <Space size={4}>
-          <Text>{v}</Text>
-          <Text type="secondary" style={{ fontSize: 11 }}>{r.code}</Text>
-        </Space>
-      ),
-    },
-    {
-      title: '类型',
-      dataIndex: 'kind',
-      key: 'kind',
-      width: 90,
-      render: (_: unknown, r) => {
-        const label = { number: '数值', percent: '比例', duration: '时长', integer: '整数' }[r.def.kind]
-        return <Tag>{label}</Tag>
-      },
-    },
-    {
-      title: '当前值',
-      dataIndex: 'value',
-      key: 'value',
-      width: 130,
-      render: (_: unknown, r) =>
-        r.value === null ? (
-          <Text type="secondary">未配置（默认 {r.def.default}）</Text>
-        ) : (
-          <Space size={4}>
-            <Text strong>{r.value}</Text>
-            {!r.enabled && <Tag color="default">停用</Tag>}
-          </Space>
-        ),
-    },
-    {
-      title: '默认值',
-      dataIndex: 'default',
-      key: 'default',
-      width: 90,
-      render: (_: unknown, r) => <Text type="secondary">{r.def.default}</Text>,
-    },
-    {
-      title: '说明',
-      dataIndex: 'hint',
-      key: 'hint',
-      ellipsis: true,
-      render: (_: unknown, r) => r.def.hint ?? '-',
-    },
-    getActionColumn<ParamRow>((row) => [
-      {
-        key: 'edit',
-        label: row.record ? '编辑' : '配置',
-        icon: <EditOutlined />,
-        disabled: !canWrite,
-        onClick: () => openEdit(row),
-      },
-      {
-        key: 'reset',
-        label: '重置',
-        icon: <DeleteOutlined />,
-        danger: true,
-        disabled: !canDelete || !row.record,
-        confirm: '确认重置为默认？',
-        onClick: () => handleReset(row),
-      },
-    ], { width: 150 }),
-  ]
-
   const selectedDef = group?.params.find((p) => p.code === selectedCode)
 
   return (
@@ -282,16 +216,74 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
           </Button>
         </div>
       </Card>
-      <Table
-        rowKey="key"
-        size="small"
-        tableLayout="fixed"
-        columns={columns}
-        dataSource={paramRows}
-        loading={loading}
-        pagination={false}
-        scroll={{ y: 520 }}
-      />
+      {loading ? (
+        <div className={common.flexCenter} style={{ padding: '80px 0' }}>
+          <Spin tip="加载战斗参数…" />
+        </div>
+      ) : (
+        <Row gutter={[16, 16]}>
+          {paramRows.map((row) => (
+            <Col key={row.key} xs={24} sm={12} lg={8} xxl={6}>
+              <Card
+                size="small"
+                title={
+                  <Space size={6} wrap>
+                    <Text>{row.label}</Text>
+                    <Tag color="blue">{KIND_LABEL[row.def.kind]}</Tag>
+                    {!row.enabled && <Tag>停用</Tag>}
+                  </Space>
+                }
+                extra={
+                  <Text type="secondary" style={{ fontSize: 11 }}>{row.code}</Text>
+                }
+              >
+                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>当前值 · </Text>
+                    {row.value === null ? (
+                      <Text type="secondary">未配置（回落默认 {row.def.default}）</Text>
+                    ) : (
+                      <Text strong style={{ fontSize: 16 }}>{row.value}</Text>
+                    )}
+                  </div>
+                  <div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>默认值 · </Text>
+                    <Text style={{ fontSize: 12 }}>{row.def.default}</Text>
+                  </div>
+                  {row.def.hint && (
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>{row.def.hint}</Text>
+                    </div>
+                  )}
+                  <div style={{ paddingTop: 6 }}>
+                    <Space size={4}>
+                      <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        disabled={!canWrite}
+                        onClick={() => openEdit(row)}
+                      >
+                        {row.record ? '编辑' : '配置'}
+                      </Button>
+                      {row.record && (
+                        <Popconfirm
+                          title="确认重置为默认？"
+                          onConfirm={() => handleReset(row)}
+                          disabled={!canDelete}
+                        >
+                          <Button size="small" danger icon={<DeleteOutlined />} disabled={!canDelete}>
+                            重置
+                          </Button>
+                        </Popconfirm>
+                      )}
+                    </Space>
+                  </div>
+                </Space>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
       <Modal
         title={`${editing ? '编辑' : '配置'} · ${selectedDef?.label ?? '参数'}`}
         open={modalOpen}

@@ -469,12 +469,12 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     key: 'weapon_params', label: '法宝参数', service: journeyWeaponParamService, fields: weaponParamFields,
     filter: { field: 'weapon_id', kind: 'lookup', lookup: 'weapons', placeholder: '按法宝筛选' },
     prefillFromFilter: true,
-    intro: '被动加持/特效法宝的数值参数（一行一键，code=参数语义键）：App 引擎按法宝+参数键读取，行缺失回落内置默认值。常用键：移速 move/生命 hp/回复 regen/经验 exp/转速 spin/臂长 radius/伤害 damage/磁吸 magnet/回血比例 heal/无敌秒数 invuln/触发周期 period/精英增伤 elite/触发概率 chance/定身秒数 root/反伤比例 thorns/链伤比例 chain/作用范围 range/目标数 targets/触发次数 hits/虚弱秒数 weak/灼烧比例 burn。',
+    intro: '被动加持(passive)/特效(effect)法宝的数值参数（一行一键，code=参数语义键）：App 引擎按法宝+参数键读取，行缺失回落内置默认值。主动法宝(category=active)不读本表——其初始环绕参数在「法宝」页的 orbit_speed/inner_radius/outer_radius/blade_width/base_damage 列，1~8 级成长在「法宝分级」页，升级效果在「武器维度槽」页；本表对其无效，无需补空行。常用键：移速 move/生命 hp/回复 regen/经验 exp/转速 spin/臂长 radius/伤害 damage/磁吸 magnet/回血比例 heal/无敌秒数 invuln/触发周期 period/精英增伤 elite/触发概率 chance/定身秒数 root/反伤比例 thorns/链伤比例 chain/作用范围 range/目标数 targets/触发次数 hits/虚弱秒数 weak/灼烧比例 burn。',
   },
   {
     key: 'monster_params', label: '妖王参数', service: journeyMonsterParamService, fields: monsterParamFields,
     filter: { field: 'monster_id', kind: 'lookup', lookup: 'monstersById', placeholder: '按怪物筛选' },
     prefillFromFilter: true,
-    intro: '妖王能力数值参数（一行一键，code=参数语义键）：App 引擎按怪物+参数键读取，行缺失回落内置默认值。常用键：抗击退 knock_resist/附加护甲 armor/移速倍率 move_mult/冲撞冷却 charge_cd/阵风周期 wind_period/吹离距离 wind_push/火圈周期 fire_period/火圈半径 fire_range/火圈伤害比例 fire_ratio/摄魂周期 pull_period/拉拽距离 pull_dist/狂暴增幅 frenzy_mult/狂暴触发线 frenzy_hp/定身秒数 web_root/禁疗秒数 poison_block。',
+    intro: '妖王能力数值参数（一行一键，code=参数语义键）：App 引擎按怪物+参数键读取，行缺失回落内置默认值。常用键：抗击退 knock_resist/附加护甲 armor/移速倍率 move_mult/冲撞伤害倍率 charge_ratio/冲撞击退距离 charge_knockback/冲撞冷却 charge_cd/阵风周期 wind_period/吹离距离 wind_push/火圈周期 fire_period/火圈半径 fire_range/火圈伤害比例 fire_ratio/摄魂周期 pull_period/拉拽距离 pull_dist/狂暴增幅 frenzy_mult/狂暴触发线 frenzy_hp/定身秒数 web_root/禁疗秒数 poison_block。',
   },
 ]
