@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Table, Button, Select, InputNumber, Tag, Typography, Alert, Space, Modal, message } from 'antd'
+import { Table, Button, Select, InputNumber, Typography, Alert, Space, Modal, message } from 'antd'
 import { ReloadOutlined, SettingOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { buildEndlessRebuildRows } from '../../utils/journeyExpPool'
 import type { ColumnsType } from 'antd/es/table'
@@ -28,9 +28,10 @@ interface EndlessWaveRow {
 
 /// 无尽妖潮 · 模式关卡编辑器（GameLevels 模式切到「无尽妖潮」时整页展示）：
 /// 99 波推演数据分页表格（每页 10 波），每波「配置」打开独立弹窗表单——
-/// 总量/末尾精英数/增强倍数可调（精英 0=公式兜底）；怪种留空=分阶随机
-/// 小妖，选妖王=首只妖王 + 小怪护卫。另提供「按经验池重算 99 波」批量
-/// 生成，避免逐波手工填写。
+/// 总量/末尾精英数/妖王配额/增强倍数可调（精英、妖王配额 0=公式兜底）；
+/// 怪种仅指定普通段/护卫怪种（留空=分阶随机池），妖王波由配额（>0）判定、
+/// 妖王种类由引擎从全妖王池随机，后台不逐波指定。另提供「按经验池重算 99 波」
+/// 批量生成，避免逐波手工填写。
 const JourneyEndlessEditor: React.FC = () => {
   const mountedRef = useMounted()
   const { hasPermission } = usePermission()
@@ -79,25 +80,24 @@ const JourneyEndlessEditor: React.FC = () => {
   }, [])
 
   const monsterOptions = (() => {
-    const boss = monsters.filter((m) => m.ai_tier === 'boss')
     const mob = monsters.filter((m) => m.ai_tier !== 'boss')
     const opt = (m: MonsterRow) => ({ value: m.code, label: `${m.name}（${m.code}）` })
-    return [
-      ...(boss.length ? [{ key: 'boss', label: '妖王（任意波可选）', options: boss.map(opt) }] : []),
-      { key: 'mob', label: '普通怪物 / 精英', options: mob.map(opt) },
-    ]
+    return [{ key: 'mob', label: '普通怪物 / 精英', options: mob.map(opt) }]
   })()
 
   const monsterName = (code: string | null) =>
     code ? (monsters.find((m) => m.code === code)?.name ?? code) : null
 
-  const isBoss = (code: string | null) =>
-    monsters.find((m) => m.code === code)?.ai_tier === 'boss'
+  /// 妖王波由妖王配额判定（boss_count>0）；妖王种类由引擎从全妖王池随机，
+  /// 后台不再逐波指定妖王。存量行的怪种可能残留历史妖王 code，按「引擎随机」回显。
+  const isBossWave = (row: EndlessWaveRow) => (row.boss_count ?? 0) > 0
+  const isResidualBossCode = (code: string | null) =>
+    !!code && monsters.find((m) => m.code === code)?.ai_tier === 'boss'
 
   const openEdit = (row: EndlessWaveRow) => {
     setEditRow(row)
     setDraft({
-      monster_code: row.monster_code,
+      monster_code: isResidualBossCode(row.monster_code) ? null : row.monster_code,
       count: row.count ?? 10,
       buff_mult: row.buff_mult ?? 1,
       elite_count: row.elite_count ?? 0,
@@ -131,7 +131,7 @@ const JourneyEndlessEditor: React.FC = () => {
     Modal.confirm({
       title: '按经验池重算 99 波？',
       content:
-        '每波总量改为 50~120 只、末尾精英 2~14 只、增强倍率改为 1+0.03×波号；妖王波怪种保留。原数值会被覆盖，重算后可逐波微调。',
+        '每波总量改为 50~120 只、末尾精英 2~14 只、增强倍率改为 1+0.03×波号；怪种与妖王配额保留。原数值会被覆盖，重算后可逐波微调。',
       okText: '确认重算',
       cancelText: '取消',
       onOk: async () => {
@@ -151,7 +151,7 @@ const JourneyEndlessEditor: React.FC = () => {
     })
   }
 
-  const bossCount = waves.filter((w) => isBoss(w.monster_code)).length
+  const bossCount = waves.filter(isBossWave).length
 
   const columns: ColumnsType<EndlessWaveRow> = [
     {
@@ -166,11 +166,8 @@ const JourneyEndlessEditor: React.FC = () => {
       dataIndex: 'monster_code',
       key: 'monster_code',
       render: (v: string | null) =>
-        v ? (
-          <Space>
-            {isBoss(v) && <Tag color="red">妖王</Tag>}
-            {monsterName(v)}
-          </Space>
+        v && !isResidualBossCode(v) ? (
+          monsterName(v)
         ) : (
           <Text type="secondary">内置曲线随机</Text>
         ),
@@ -220,7 +217,7 @@ const JourneyEndlessEditor: React.FC = () => {
         type="info"
         showIcon
         className="mb16"
-        message="每波按「先小妖发育、末尾精英施压」分段刷怪：波内普通怪由怪种配置（留空=分阶随机池），末尾精英数由「末尾精英」指定（0=引擎按波号公式兜底）。选妖王的波次=首只妖王 + 小怪护卫。第 99 波清空即终局结算。"
+        message="每波按「先小妖发育、末尾精英施压」分段刷怪：波内普通怪由怪种配置（留空=分阶随机池），末尾精英数由「末尾精英」指定（0=引擎按波号公式兜底）。妖王波由「妖王配额」>0 判定，妖王种类由引擎从全妖王池随机、后台不逐波指定。第 99 波清空即终局结算。"
       />
       <Space wrap className="mb16">
         <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
@@ -235,7 +232,7 @@ const JourneyEndlessEditor: React.FC = () => {
           按经验池重算 99 波
         </Button>
         <Text type="secondary">
-          共 {waves.length} / 99 波 · 妖王波 {bossCount} 波（9/19/…/99 默认妖王，可自由调整）
+          共 {waves.length} / 99 波 · 妖王波 {bossCount} 波（按妖王配额 &gt;0 判定，妖王种类引擎随机）
         </Text>
       </Space>
 
@@ -261,7 +258,7 @@ const JourneyEndlessEditor: React.FC = () => {
         {draft && (
           <div style={{ display: 'grid', gap: 16 }}>
             <div>
-              <Text>怪种（普通段刷该怪；留空=分阶随机池；选妖王=首只妖王+护卫）：</Text>
+              <Text>怪种（仅普通段/护卫刷该怪；留空=分阶随机池；妖王波由下方妖王配额判定）：</Text>
               <Select
                 className="w-full"
                 style={{ marginTop: 4 }}
@@ -300,7 +297,7 @@ const JourneyEndlessEditor: React.FC = () => {
               />
             </div>
             <div>
-              <Text>妖王配额（妖潮期本波妖王只数，0=全局公式兜底；同屏在场数由全局并发上限独立约束）：</Text>
+              <Text>妖王配额（&gt;0 即妖王波；本波妖王只数，0=全局公式兜底；妖王种类引擎随机，同屏在场数由全局并发上限独立约束）：</Text>
               <InputNumber
                 className="w-full"
                 style={{ marginTop: 4 }}

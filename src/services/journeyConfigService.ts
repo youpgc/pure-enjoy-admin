@@ -132,7 +132,7 @@ class JourneyDailyMapService extends BaseService<DbJourneyDailyMap> {
   }
 }
 
-// J16. 无尽妖潮波次（独立表单；wave_no 1..99，monster_code 命中妖王即妖王波）
+// J16. 无尽妖潮波次（独立表单；wave_no 1..99，boss_count>0 即妖王波，妖王种类引擎随机）
 class JourneyEndlessWaveService extends BaseService<DbJourneyEndlessWave> {
   constructor() {
     super('journey_endless_waves', { defaultOrder: { column: 'wave_no', ascending: true } })
