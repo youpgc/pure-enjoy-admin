@@ -191,3 +191,70 @@ export const JOURNEY_BATTLE_PARAM_INDEX: Record<string, BattleParamDef> =
       g.params.map((p) => [`${g.code}.${p.code}`, p]),
     ),
   )
+
+export interface BattleParamSubGroupDef {
+  /// 子分类码，组内唯一
+  code: string
+  /// 子分类中文名（卡片标题）
+  label: string
+  /// 子分类口径说明
+  intro?: string
+  /// 该子分类包含的参数键，顺序即展示顺序
+  params: string[]
+}
+
+/// 分组内的子分类：每组参数按语义聚合成卡片，与全局参数的信息卡形态一致。
+/// params 必须覆盖所属分组的全部参数键且不重不漏，未列入的参数不会展示。
+export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupDef[]> = {
+  damage: [
+    { code: 'rhythm', label: '伤害节拍', params: ['hurt_interval'] },
+    { code: 'defense', label: '护甲与虚弱', params: ['player_armor_cap', 'weaken_mult'] },
+    { code: 'crit', label: '增伤与暴击', params: ['amp_cap', 'crit_rate_cap', 'crit_dmg_min', 'crit_dmg_cap'] },
+  ],
+  weapon: [
+    { code: 'hit', label: '命中冷却', params: ['hit_cd'] },
+    { code: 'pierce', label: '穿刺', params: ['pierce_base', 'pierce_cap'] },
+    { code: 'lifesteal', label: '吸血', params: ['lifesteal_base', 'lifesteal_cap', 'lifesteal_floor', 'lifesteal_sec_cap'] },
+  ],
+  spawn: [
+    { code: 'cadence', label: '兜底刷怪节奏', params: ['interval_base', 'interval_tier', 'interval_minute', 'interval_min', 'batch_minutes'] },
+    { code: 'guard', label: '妖王据点守卫', params: ['boss_guard_count', 'boss_guard_ring_min', 'boss_guard_ring_span'] },
+  ],
+  monster: [
+    { code: 'growth', label: '怪速与接触成长', params: ['speed_base', 'speed_per_buff', 'contact_base', 'contact_per_buff'] },
+    { code: 'aggro', label: '索敌与脱战', params: ['aggro_boss', 'aggro_normal', 'leash_mult', 'regen_per_sec'] },
+    { code: 'freeze', label: '离屏冻结', params: ['freeze_dist'] },
+    { code: 'split', label: '分裂阈值', params: ['split_hp_ratio', 'split_hp_mult'] },
+  ],
+  boss: [
+    { code: 'charge', label: '冲撞时序', params: ['charge_trigger_dist', 'charge_windup_sec', 'charge_dash_sec', 'charge_speed_mult', 'charge_recover_sec'] },
+    { code: 'stage', label: '逐场递增', params: ['stage_damage_gain', 'stage_hp_gain'] },
+  ],
+  ability: [
+    { code: 'bajie', label: '八戒', params: ['bajie_guard_mult', 'bajie_knock_mult'] },
+    { code: 'sha', label: '沙僧', params: ['fumo_charge_sec'] },
+    { code: 'nezha', label: '哪吒', params: ['nezha_period_sec', 'nezha_window_sec', 'nezha_amp'] },
+    { code: 'laojun', label: '老君', params: ['laojun_period_sec', 'laojun_window_sec', 'laojun_burn_ratio', 'laojun_burn_sec'] },
+    { code: 'tieshan', label: '铁扇', params: ['tieshan_period_sec', 'tieshan_knockback', 'tieshan_root_sec'] },
+    { code: 'jinjiao', label: '金角', params: ['jinjiao_per_stack', 'jinjiao_max_stacks', 'jinjiao_heal_per_stack'] },
+    { code: 'tang', label: '唐僧', params: ['tang_heal_period_sec', 'tang_heal_ratio', 'tang_fatal_heal_ratio'] },
+    { code: 'honghaier', label: '红孩儿', params: ['honghaier_burn_mult', 'honghaier_burn_sec'] },
+  ],
+  economy: [
+    { code: 'chest', label: '宝箱收益', params: ['chest_choice_rate', 'chest_merit_base', 'chest_merit_double', 'chest_merit_double_rate'] },
+    { code: 'revive', label: '还魂', params: ['revive_hp_ratio', 'revive_push_from', 'revive_push_to'] },
+    { code: 'drop', label: '掉落表', params: ['drop_coin_fallback', 'drop_peach_fallback'] },
+    { code: 'elite_chest', label: '精英宝箱', params: ['elite_chest_rate'] },
+    { code: 'daily_coin', label: '每日铜钱雨', params: ['daily_coin_period_sec', 'daily_coin_count', 'daily_coin_unit'] },
+    { code: 'repeat_clear', label: '通关奖励', params: ['repeat_clear_ratio', 'repeat_clear_flat'] },
+  ],
+  endless: [
+    { code: 'rhythm', label: '波次节奏', params: ['wave_rest_sec', 'wave_spread_sec'] },
+    { code: 'boss', label: '妖王配额与领地', params: ['boss_quota_gain', 'boss_leash_gain'] },
+    { code: 'pool', label: '妖王候选池', params: ['boss_pool_hp_base', 'boss_pool_hp_per_lv'] },
+    { code: 'develop', label: '发育期', params: ['develop_extra_count', 'develop_exp_mult'] },
+  ],
+  player: [
+    { code: 'move', label: '基础移动', params: ['base_speed', 'units_per_li'] },
+  ],
+}

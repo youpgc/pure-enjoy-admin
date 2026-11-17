@@ -1,26 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Spin, Switch, Tag, Typography, message } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, Col, Form, InputNumber, Modal, Popconfirm, Row, Space, Spin, Table, Tag, Typography, message } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import { EditOutlined, ReloadOutlined } from '@ant-design/icons'
 import { handleApiError } from '../../utils/apiClient'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { journeyBattleParamService, type DbJourneyBattleParam } from '../../services/journeyConfigService'
 import {
   JOURNEY_BATTLE_PARAM_GROUPS,
+  JOURNEY_BATTLE_PARAM_SUBGROUPS,
   type BattleParamDef,
   type BattleParamGroupDef,
+  type BattleParamSubGroupDef,
 } from '../../constants/journeyBattleParams'
 import common from '../../styles/common.module.css'
 
 const { Text } = Typography
-
-/// 参数类型到中文标签的映射，用于卡片角标。
-const KIND_LABEL: Record<BattleParamDef['kind'], string> = {
-  number: '数值',
-  percent: '比例',
-  duration: '时长',
-  integer: '整数',
-}
 
 interface JourneyBattleParamsTabProps {
   /// 当前二级 tab 对应的分组码；组件只管理该组参数
@@ -35,11 +30,16 @@ interface ParamRow {
   /// 已落库的行（null=未配置，回落默认）
   record: DbJourneyBattleParam | null
   value: number | null
-  enabled: boolean
 }
 
-/// 通用战斗参数编辑器：按分组展示参数字典，未配置显示默认值占位；
-/// 「新增」从组内字典选择参数键 + 填数值，行内可编辑/重置（重置=删行回落默认）。
+/// 整组编辑表单里每项的值：数值留空即回落默认值。
+interface EditField {
+  value?: number
+}
+
+/// 通用战斗参数编辑器：分组内按子分类聚合信息卡，每张卡只读展示该子分类参数，
+/// 卡片右上「编辑」打开整组表单一次保存本组变更（差异项 upsert/回落默认），
+/// 「重置」删除本组全部落库行回落默认值（需删除权限+二次确认）。
 const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCode }) => {
   const mountedRef = useMounted()
   const { hasPermission } = usePermission()
@@ -55,9 +55,13 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
   const [loading, setLoading] = useState(false)
   const [form] = Form.useForm()
   const [modalOpen, setModalOpen] = useState(false)
-  const [editing, setEditing] = useState<ParamRow | null>(null)
-  const [selectedCode, setSelectedCode] = useState<string | undefined>(undefined)
+  const [editingSub, setEditingSub] = useState<BattleParamSubGroupDef | null>(null)
   const [saving, setSaving] = useState(false)
+  /// 正在重置的子分类码（null=无重置任务），用于逐卡禁用按钮防重复点击
+  const [resettingSub, setResettingSub] = useState<string | null>(null)
+  /// 表单值随弹窗重挂载注入，避免未挂载时回显丢失
+  const [formKey, setFormKey] = useState(0)
+  const [formInitial, setFormInitial] = useState<Record<string, EditField>>({})
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -87,89 +91,133 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
     return map
   }, [rows])
 
-  const paramRows = useMemo<ParamRow[]>(
+  const rowsByCode = useMemo(() => {
+    const map: Record<string, ParamRow> = {}
+    for (const def of group?.params ?? []) {
+      const record = byCode[def.code] ?? null
+      map[def.code] = {
+        key: `${groupCode}.${def.code}`,
+        code: def.code,
+        label: def.label,
+        def,
+        record,
+        /// 停用的历史行按未配置口径展示（App 加载同样跳过回落默认），避免卡片显示不生效的旧值
+        value: record && record.enabled !== false ? record.value_num : null,
+      }
+    }
+    return map
+  }, [group, groupCode, byCode])
+
+  const subGroups = useMemo<BattleParamSubGroupDef[]>(
     () =>
-      (group?.params ?? []).map((def) => {
-        const record = byCode[def.code] ?? null
-        return {
-          key: `${groupCode}.${def.code}`,
-          code: def.code,
-          label: def.label,
-          def,
-          record,
-          value: record?.value_num ?? null,
-          enabled: record?.enabled ?? true,
-        }
-      }),
-    [group, groupCode, byCode],
+      JOURNEY_BATTLE_PARAM_SUBGROUPS[groupCode] ??
+      (group ? [{ code: 'all', label: group.label, params: group.params.map((p) => p.code) }] : []),
+    [groupCode, group],
   )
 
-  const openAdd = () => {
-    const unconfigured = (group?.params ?? []).filter((p) => !byCode[p.code])
-    setEditing(null)
-    setSelectedCode(unconfigured[0]?.code)
-    form.resetFields()
-    form.setFieldsValue({ enabled: true })
+  /// 打开整组编辑：本组每项当前值作为初值，未配置项用默认值占位（留空=回落默认）。
+  const openEdit = (sub: BattleParamSubGroupDef) => {
+    const initial: Record<string, EditField> = {}
+    for (const code of sub.params) {
+      const row = rowsByCode[code]
+      if (!row) continue
+      initial[code] = {
+        value: row.value ?? undefined,
+      }
+    }
+    setEditingSub(sub)
+    setFormInitial(initial)
+    setFormKey((k) => k + 1)
     setModalOpen(true)
   }
 
-  const openEdit = (row: ParamRow) => {
-    setEditing(row)
-    setSelectedCode(row.code)
-    form.resetFields()
-    form.setFieldsValue({
-      value: row.value ?? row.def.default,
-      enabled: row.enabled,
-      remark: row.record?.remark ?? '',
-    })
-    setModalOpen(true)
+  /// 重置整组：删除该子分类所有已落库行，全部参数回落 App 默认值。
+  const handleResetSub = async (sub: BattleParamSubGroupDef) => {
+    if (!canDelete || resettingSub) return
+    const records = sub.params
+      .map((code) => rowsByCode[code]?.record)
+      .filter((r): r is DbJourneyBattleParam => !!r)
+    if (records.length === 0) {
+      message.info('本组没有已配置的参数')
+      return
+    }
+    setResettingSub(sub.code)
+    try {
+      let deleted = 0
+      for (const record of records) {
+        const res = await journeyBattleParamService.delete(record.id)
+        if (res.success) {
+          deleted++
+        } else {
+          handleApiError(res.errorMessage, `JourneyConfig-战斗参数-重置-${record.param_code}`)
+        }
+      }
+      if (deleted > 0) {
+        message.success(`已重置「${sub.label}」${deleted} 项，回落默认值`)
+        await loadRows()
+      }
+    } catch (error) {
+      handleApiError(error, 'JourneyConfig-战斗参数-重置')
+    } finally {
+      setResettingSub(null)
+    }
   }
 
+  /// 保存整组：仅落差异项；值回默认则删行回落，其余有行 update、无行 create。
+  /// 配置行恒为启用（App 一律采纳），停用的历史行在编辑保存时一并恢复启用。
   const handleSave = async () => {
-    if (saving) return
-    let values: { value?: number; enabled?: boolean; remark?: string }
+    if (saving || !editingSub) return
+    let values: Record<string, EditField>
     try {
       values = await form.validateFields()
     } catch {
       return
     }
-    if (!selectedCode) {
-      message.warning('请选择参数')
-      return
-    }
-    const def = group?.params.find((p) => p.code === selectedCode)
-    const valueNum = values.value ?? def?.default ?? 0
     setSaving(true)
+    let changed = 0
     try {
-      if (editing?.record) {
-        const res = await journeyBattleParamService.update(editing.record.id, {
-          value_num: valueNum,
-          enabled: values.enabled ?? true,
-          remark: values.remark?.trim() || null,
-        })
-        if (!res.success) {
-          handleApiError(res.errorMessage, 'JourneyConfig-战斗参数-更新')
-          return
+      for (const code of editingSub.params) {
+        const row = rowsByCode[code]
+        if (!row) continue
+        const field = values[code] ?? {}
+        const valueNum = field.value ?? row.def.default
+        const oldValue = row.value ?? row.def.default
+        const wasDisabled = row.record?.enabled === false
+        if (valueNum === oldValue && !wasDisabled) continue
+
+        const isDefault = valueNum === row.def.default
+        let res
+        if (isDefault && row.record) {
+          res = await journeyBattleParamService.delete(row.record.id)
+        } else if (row.record) {
+          res = await journeyBattleParamService.update(row.record.id, {
+            value_num: valueNum,
+            enabled: true,
+          })
+        } else {
+          res = await journeyBattleParamService.create({
+            group_code: groupCode,
+            param_code: code,
+            value_num: valueNum,
+            value_text: null,
+            enabled: true,
+            remark: null,
+          })
         }
-        message.success('已保存')
-      } else {
-        const res = await journeyBattleParamService.create({
-          group_code: groupCode,
-          param_code: selectedCode,
-          value_num: valueNum,
-          value_text: null,
-          enabled: values.enabled ?? true,
-          remark: values.remark?.trim() || null,
-        })
         if (!res.success) {
-          handleApiError(res.errorMessage, 'JourneyConfig-战斗参数-新增')
-          return
+          handleApiError(res.errorMessage, `JourneyConfig-战斗参数-保存-${code}`)
+          continue
         }
-        message.success('已新增')
+        changed++
       }
-      setModalOpen(false)
-      setEditing(null)
-      await loadRows()
+      if (changed > 0) {
+        message.success(`已保存 ${changed} 项变更`)
+        setModalOpen(false)
+        setEditingSub(null)
+        await loadRows()
+      } else {
+        message.info('没有变更')
+      }
     } catch (error) {
       handleApiError(error, 'JourneyConfig-战斗参数-保存')
     } finally {
@@ -177,22 +225,73 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
     }
   }
 
-  const handleReset = async (row: ParamRow) => {
-    if (!row.record || !canDelete) return
-    const res = await journeyBattleParamService.delete(row.record.id)
-    if (!res.success) {
-      handleApiError(res.errorMessage, 'JourneyConfig-战斗参数-重置')
-      return
-    }
-    message.success(`已重置「${row.label}」，回落默认值 ${row.def.default}`)
-    await loadRows()
-  }
+  /// 卡片只读信息表：参数 / 当前值 / 默认值。
+  const columns: ColumnsType<ParamRow> = [
+    {
+      title: '参数',
+      dataIndex: 'label',
+      width: 170,
+      render: (_, row) => (
+        <Space direction="vertical" size={0}>
+          <Text>{row.label}</Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>{row.code}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: '当前值',
+      key: 'value',
+      width: 120,
+      render: (_, row) =>
+        row.value === null ? (
+          <Text type="secondary">默认 {row.def.default}</Text>
+        ) : (
+          <Text strong>{row.value}</Text>
+        ),
+    },
+    {
+      title: '默认值',
+      key: 'default',
+      width: 80,
+      render: (_, row) => <Text type="secondary">{row.def.default}</Text>,
+    },
+  ]
 
-  const addOptions = (group?.params ?? [])
-    .filter((p) => !byCode[p.code] || p.code === editing?.code)
-    .map((p) => ({ value: p.code, label: p.label }))
+  /// 弹窗整组编辑表：参数列只读，数值为表单项，name 用 [code, 字段] 嵌套路径。
+  const editColumns: ColumnsType<ParamRow> = [
+    {
+      title: '参数',
+      dataIndex: 'label',
+      width: 190,
+      render: (_, row) => (
+        <Space direction="vertical" size={0}>
+          <Text>{row.label}</Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>默认 {row.def.default}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: '数值',
+      key: 'value',
+      width: 150,
+      render: (_, row) => (
+        <Form.Item name={[row.code, 'value']} noStyle>
+          <InputNumber
+            className={common.fullWidth}
+            min={row.def.min}
+            max={row.def.max}
+            step={row.def.step}
+            placeholder={String(row.def.default)}
+          />
+        </Form.Item>
+      ),
+    },
+  ]
 
-  const selectedDef = group?.params.find((p) => p.code === selectedCode)
+  const editRows = useMemo<ParamRow[]>(
+    () => (editingSub?.params ?? []).map((code) => rowsByCode[code]).filter((r): r is ParamRow => !!r),
+    [editingSub, rowsByCode],
+  )
 
   return (
     <div>
@@ -211,9 +310,6 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
               已配置 {rows.length} / {group?.params.length ?? 0} 项 · 未配置项回落 App 默认值
             </Text>
           </Space>
-          <Button type="primary" icon={<PlusOutlined />} disabled={!canWrite} onClick={openAdd}>
-            配置参数
-          </Button>
         </div>
       </Card>
       {loading ? (
@@ -222,106 +318,95 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
         </div>
       ) : (
         <Row gutter={[16, 16]}>
-          {paramRows.map((row) => (
-            <Col key={row.key} xs={24} sm={12} lg={8} xxl={6}>
-              <Card
-                size="small"
-                title={
-                  <Space size={6} wrap>
-                    <Text>{row.label}</Text>
-                    <Tag color="blue">{KIND_LABEL[row.def.kind]}</Tag>
-                    {!row.enabled && <Tag>停用</Tag>}
-                  </Space>
-                }
-                extra={
-                  <Text type="secondary" style={{ fontSize: 11 }}>{row.code}</Text>
-                }
-              >
-                <Space direction="vertical" size={4} style={{ width: '100%' }}>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>当前值 · </Text>
-                    {row.value === null ? (
-                      <Text type="secondary">未配置（回落默认 {row.def.default}）</Text>
-                    ) : (
-                      <Text strong style={{ fontSize: 16 }}>{row.value}</Text>
-                    )}
-                  </div>
-                  <div>
-                    <Text type="secondary" style={{ fontSize: 12 }}>默认值 · </Text>
-                    <Text style={{ fontSize: 12 }}>{row.def.default}</Text>
-                  </div>
-                  {row.def.hint && (
-                    <div>
-                      <Text type="secondary" style={{ fontSize: 12 }}>{row.def.hint}</Text>
-                    </div>
-                  )}
-                  <div style={{ paddingTop: 6 }}>
+          {subGroups.map((sub) => {
+            const subRows = sub.params.map((code) => rowsByCode[code]).filter((r): r is ParamRow => !!r)
+            const configured = subRows.filter((r) => r.record).length
+            return (
+              <Col key={sub.code} xs={24} xl={12}>
+                <Card
+                  size="small"
+                  title={
+                    <Space size={6} wrap>
+                      <Text>{sub.label}</Text>
+                      <Tag color="blue">{configured}/{subRows.length} 已配置</Tag>
+                    </Space>
+                  }
+                  extra={
                     <Space size={4}>
+                      <Popconfirm
+                        title="重置本组参数？"
+                        description={`「${sub.label}」下已配置的 ${configured} 项将删除并回落 App 默认值`}
+                        okText="确认重置"
+                        okButtonProps={{ danger: true, loading: resettingSub === sub.code }}
+                        cancelText="取消"
+                        disabled={!canDelete || configured === 0}
+                        onConfirm={() => handleResetSub(sub)}
+                      >
+                        <Button
+                          size="small"
+                          danger
+                          icon={<ReloadOutlined />}
+                          disabled={!canDelete || configured === 0 || resettingSub !== null}
+                          loading={resettingSub === sub.code}
+                        >
+                          重置
+                        </Button>
+                      </Popconfirm>
                       <Button
                         size="small"
+                        type="link"
                         icon={<EditOutlined />}
-                        disabled={!canWrite}
-                        onClick={() => openEdit(row)}
+                        disabled={!canWrite || resettingSub !== null}
+                        onClick={() => openEdit(sub)}
                       >
-                        {row.record ? '编辑' : '配置'}
+                        编辑
                       </Button>
-                      {row.record && (
-                        <Popconfirm
-                          title="确认重置为默认？"
-                          onConfirm={() => handleReset(row)}
-                          disabled={!canDelete}
-                        >
-                          <Button size="small" danger icon={<DeleteOutlined />} disabled={!canDelete}>
-                            重置
-                          </Button>
-                        </Popconfirm>
-                      )}
                     </Space>
-                  </div>
-                </Space>
-              </Card>
-            </Col>
-          ))}
+                  }
+                >
+                  {sub.intro && <Text type="secondary" style={{ fontSize: 12 }}>{sub.intro}</Text>}
+                  <Table
+                    className={common.mt8}
+                    rowKey="key"
+                    size="small"
+                    tableLayout="fixed"
+                    columns={columns}
+                    dataSource={subRows}
+                    pagination={false}
+                  />
+                </Card>
+              </Col>
+            )
+          })}
         </Row>
       )}
       <Modal
-        title={`${editing ? '编辑' : '配置'} · ${selectedDef?.label ?? '参数'}`}
+        title={`编辑 · ${editingSub?.label ?? ''}`}
         open={modalOpen}
         onOk={handleSave}
         confirmLoading={saving}
         onCancel={() => {
           setModalOpen(false)
-          setEditing(null)
+          setEditingSub(null)
         }}
         destroyOnHidden
-        width={480}
+        width={720}
       >
-        <Form form={form} layout="vertical" preserve={false}>
-          <Form.Item label="参数" required>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              value={selectedCode}
-              onChange={setSelectedCode}
-              disabled={!!editing}
-              options={addOptions}
-              placeholder="选择参数"
-            />
-          </Form.Item>
-          <Form.Item name="value" label={`数值${selectedDef ? `（默认 ${selectedDef.default}）` : ''}`}>
-            <InputNumber
-              className={common.fullWidth}
-              min={selectedDef?.min}
-              max={selectedDef?.max}
-              step={selectedDef?.step}
-            />
-          </Form.Item>
-          <Form.Item name="enabled" label="启用" valuePropName="checked">
-            <Switch checkedChildren="启用" unCheckedChildren="停用" />
-          </Form.Item>
-          <Form.Item name="remark" label="备注">
-            <Input.TextArea rows={2} placeholder="可选：改动原因/口径说明" />
-          </Form.Item>
+        <Alert
+          type="info"
+          showIcon
+          className={common.mb16}
+          message="数值留空即回落默认值；改回默认值将移除该配置行回落 App 内置值。保存只提交发生变更的项。"
+        />
+        <Form key={formKey} form={form} layout="vertical" preserve={false} initialValues={formInitial}>
+          <Table
+            rowKey="key"
+            size="small"
+            tableLayout="fixed"
+            columns={editColumns}
+            dataSource={editRows}
+            pagination={false}
+          />
         </Form>
       </Modal>
     </div>
