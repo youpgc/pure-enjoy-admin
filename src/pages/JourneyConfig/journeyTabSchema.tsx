@@ -39,6 +39,8 @@ export interface JourneyLookups {
   /// uuid 外键列专用（monsters 表 value=code 仅用于 code 语义列）
   monstersById: { value: string; label: string }[]
   weapons: { value: string; label: string }[]
+  /// 以法宝 code 为 value 的查找表：character_fields.weapon_code 等 code 语义列
+  weaponsByCode: { value: string; label: string }[]
   passiveWeapons: { value: string; label: string }[]
   pickups: { value: string; label: string }[]
   characters: { value: string; label: string }[]

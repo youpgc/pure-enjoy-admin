@@ -33,6 +33,7 @@ const JourneyConfig: React.FC = () => {
     monsters: [],
     monstersById: [],
     weapons: [],
+    weaponsByCode: [],
     passiveWeapons: [],
     pickups: [],
     characters: [],
@@ -76,6 +77,7 @@ const JourneyConfig: React.FC = () => {
         // uuid 外键列专用（monster_params.monster_id），value=id 而非 code
         monstersById: monsterRows.map((m) => ({ value: m.id, label: `${m.name}（${m.code}）` })),
         weapons: weaponRows.map((w) => ({ value: w.id, label: `${w.name}（${w.code}）` })),
+        weaponsByCode: weaponRows.map((w) => ({ value: w.code, label: `${w.name}（${w.code}）` })),
         passiveWeapons: weaponRows
           .filter((w) => w.category === 'passive')
           .map((w) => ({ value: w.id, label: `${w.name}（${w.code}）` })),

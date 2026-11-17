@@ -3,7 +3,7 @@ import { Table, Alert, Card, Button, Tag, Row, Col, Statistic, Space } from 'ant
 import { ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { DbJourneyProgress } from '../../types/database'
-import { journeyProgressService } from '../../services/gameService'
+import { journeyProgressService, journeyCharacterService } from '../../services/gameService'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { handleApiError } from '../../utils/apiClient'
@@ -25,6 +25,19 @@ const ProgressTab: React.FC = () => {
     avgFarthest: number
   } | null>(null)
   const [snapshotError, setSnapshotError] = useState(false)
+  // 出战角色列展示角色名：selected_character 存的是角色 code，按 journey_characters 字典翻译
+  const [charNames, setCharNames] = useState<Map<string, string>>(() => new Map())
+
+  useEffect(() => {
+    let cancelled = false
+    journeyCharacterService.findAll().then((res) => {
+      if (cancelled || !res.success || !res.data) return
+      setCharNames(new Map(res.data.map((c) => [c.code, c.name])))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const loadRows = useCallback(async () => {
     setLoading(true)
@@ -103,7 +116,12 @@ const ProgressTab: React.FC = () => {
     },
     { title: '总击杀', dataIndex: 'total_kills', width: 100 },
     { title: '剩余天赋点', dataIndex: 'talent_pool', width: 110 },
-    { title: '出战角色', dataIndex: 'selected_character', width: 110 },
+    {
+      title: '出战角色',
+      dataIndex: 'selected_character',
+      width: 110,
+      render: (v: string) => charNames.get(v) ?? v,
+    },
     {
       title: '更新时间',
       dataIndex: 'updated_at',

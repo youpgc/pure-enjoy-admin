@@ -12,6 +12,7 @@ const emptyLookups: JourneyLookups = {
   monsters: [],
   monstersById: [],
   weapons: [],
+  weaponsByCode: [],
   passiveWeapons: [],
   pickups: [],
   characters: [],

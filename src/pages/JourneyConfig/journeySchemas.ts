@@ -258,7 +258,7 @@ const characterFields: JourneyFieldDef[] = [
   { name: 'aura_desc', label: '光环说明', type: 'textarea', hideInTable: true },
   { name: 'aura_params', label: '光环参数(JSON)', type: 'textarea', hideInTable: true, placeholder: '{"regen":0.8}' },
   { name: 'realm_titles', label: '境界名号(JSON)', type: 'textarea', hideInTable: true, placeholder: '["石猴","美猴王","悟空","弼马温","齐天大圣","孙行者","神通大成","功圆行满","斗战胜佛"]' },
-  { name: 'weapon_code', label: '特性法宝', type: 'select', optionsFrom: 'weapons', width: 150 },
+  { name: 'weapon_code', label: '特性法宝', type: 'select', optionsFrom: 'weaponsByCode', width: 150 },
   { name: 'unlock_level_no', label: '解锁关卡号', type: 'number', required: true, min: 1, max: 81, width: 110 },
   { name: 'unlock_merit_cost', label: '解锁功德', type: 'number', required: true, min: 0, width: 100 },
   { name: 'enabled', label: '开放', type: 'switch', width: 80 },
