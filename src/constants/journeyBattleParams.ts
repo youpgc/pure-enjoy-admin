@@ -150,6 +150,7 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
       { code: 'revive_push_to', label: '还魂推开目标距离(px)', kind: 'number', default: 420, min: 0, max: 2000, step: 10 },
       { code: 'drop_coin_fallback', label: '掉落表空兜底·铜钱概率', kind: 'percent', default: 0.35, min: 0, max: 1, step: 0.05 },
       { code: 'drop_peach_fallback', label: '掉落表空兜底·蟠桃概率', kind: 'percent', default: 0.04, min: 0, max: 1, step: 0.01 },
+      { code: 'elite_chest_rate', label: '精英宝箱掉率', kind: 'percent', default: 0.01, min: 0, max: 1, step: 0.001, hint: '精英以经验为主，宝箱为惊喜彩蛋' },
       { code: 'daily_coin_period_sec', label: '每日铜钱雨周期(秒)', kind: 'duration', default: 4, min: 0.5, max: 60, step: 0.5 },
       { code: 'daily_coin_count', label: '每日铜钱雨每轮枚数', kind: 'integer', default: 4, min: 1, max: 50, step: 1 },
       { code: 'daily_coin_unit', label: '每日铜钱单价', kind: 'integer', default: 8, min: 1, max: 1000, step: 1 },
@@ -166,6 +167,10 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
       { code: 'wave_spread_sec', label: '每波铺怪总时长(秒)', kind: 'duration', default: 18, min: 1, max: 120, step: 1 },
       { code: 'boss_quota_gain', label: '妖王配额递增系数', kind: 'number', default: 1.1, min: 0.1, max: 5, step: 0.1, hint: '配额≈(波号−起点+1)×该值' },
       { code: 'boss_leash_gain', label: '妖王软领地脱战倍率', kind: 'number', default: 1.3, min: 1, max: 5, step: 0.1 },
+      { code: 'boss_pool_hp_base', label: '妖王候选·血量档基数', kind: 'number', default: 0, min: 0, max: 1000000, step: 1000, hint: '候选上限=基数+每级增量×玩家等级；档内随机' },
+      { code: 'boss_pool_hp_per_lv', label: '妖王候选·每级血量增量', kind: 'number', default: 3000, min: 0, max: 100000, step: 500, hint: '低等级只在低血档抽妖王，避免早波撞终盘妖王' },
+      { code: 'develop_extra_count', label: '发育期每波追加怪数', kind: 'integer', default: 0, min: 0, max: 200, step: 5, hint: '妖潮起点前的发育波，撑起角色经验池' },
+      { code: 'develop_exp_mult', label: '发育期经验倍率', kind: 'number', default: 1.0, min: 0, max: 10, step: 0.1, hint: '仅发育波的经验掉落；1=不加成' },
     ],
   },
   {
