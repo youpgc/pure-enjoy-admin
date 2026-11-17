@@ -2690,6 +2690,7 @@ export interface DbJourneyWeapon {
   attr_key: string | null
   attr_value: number | null
   character_code: string | null
+  owner_name: string | null
   sprite_key: string | null
 }
 
@@ -2741,7 +2742,6 @@ export interface DbJourneyDailyMap {
   name: string
   theme_color: string | null
   milestone_li: number | null
-  duration_target_sec: number | null
   description: string | null
   sort: number | null
   enabled: boolean | null
@@ -2777,10 +2777,12 @@ export interface DbJourneyCharacter {
   code: string
   name: string
   base_hp: number
+  base_attack: number
+  armor: number
   aura_name: string | null
-  aura_key: string | null
-  aura_value: number | null
   aura_desc: string | null
+  aura_params: Record<string, number>
+  realm_titles: string[] | null
   weapon_code: string | null
   unlock_level_no: number
   unlock_merit_cost: number
@@ -2825,6 +2827,35 @@ export interface DbJourneyGlobals {
   boss_hp_time_k?: number | null
   boss_damage_lv_k?: number | null
   merit_cap?: number
+  revive_merit_cap?: number
+  armor_curve_k?: number
+  monster_armor_reduction_cap?: number
+  exp_curve_pow?: number
+  exp_mult_k?: number
+  monster_lv_k?: number
+  boss_hp_lv_k?: number
+  elite_chest_rate?: number
+  realm_amp_per?: number
+  realm_hp_per?: number
+  realm_step?: number
+  weapon_grade_per_lv?: number
+  boss_respawn_cd_sec?: number | null
+  boss_warn_sec?: number | null
+  elite_rate_cap?: number
+  endless_boss_tide_start_wave?: number
+  endless_boss_count_cap?: number
+  endless_boss_chest_rate?: number
+  endless_boss_refine_per_wave?: number
+  endless_exp_base?: number
+  endless_exp_per_lv?: number
+  endless_exp_pow?: number
+  endless_boss_concurrent?: number
+  endless_boss_arrive_cd?: number
+  endless_boss_amp_per_wave?: number
+  endless_boss_hp_amp?: number
+  endless_boss_territory_radius?: number
+  endless_boss_spread_min_dist?: number
+  endless_boss_guard_elite_ratio?: number
   updated_at: string
 }
 
@@ -2863,6 +2894,7 @@ export interface DbJourneyRun {
   duration_ms: number
   cleared: boolean
   created_at: string
+  run_detail?: Record<string, unknown> | null
 }
 
 // 局外进度快照（服务端化：一行=一个用户，user_id 为主键、无自增 id；
