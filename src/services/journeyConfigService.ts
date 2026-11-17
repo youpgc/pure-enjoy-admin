@@ -167,6 +167,29 @@ class JourneyMonsterParamService extends BaseService<DbJourneyMonsterParam> {
   }
 }
 
+// 通用战斗参数行（journey_battle_params）。表由
+// /workspace/sql/pending/feature_journey_battle_params_20261117.sql 建立，
+// 生成类型尚未随 DDL 刷新，此处按该脚本列定义本地声明，不臆测 database.ts。
+export interface DbJourneyBattleParam {
+  id: string
+  group_code: string
+  param_code: string
+  value_num: number | null
+  value_text: string | null
+  enabled: boolean
+  remark: string | null
+}
+
+// J19. 通用战斗参数（group_code+param_code 一行一参数；
+//      App 引擎按分组+语义键读取，行缺失/停用回落内置常量）
+class JourneyBattleParamService extends BaseService<DbJourneyBattleParam> {
+  constructor() {
+    super('journey_battle_params', {
+      defaultOrder: { column: 'group_code', ascending: true },
+    })
+  }
+}
+
 // J17. 功德流水（append-only 只读；source_type 三类，balance_after 余额快照）
 class JourneyMeritRecordService extends BaseService<DbJourneyMeritRecord> {
   constructor() {
@@ -301,6 +324,7 @@ export const journeyDailyMapService = new JourneyDailyMapService()
 export const journeyEndlessWaveService = new JourneyEndlessWaveService()
 export const journeyWeaponParamService = new JourneyWeaponParamService()
 export const journeyMonsterParamService = new JourneyMonsterParamService()
+export const journeyBattleParamService = new JourneyBattleParamService()
 export const journeyMeritRecordService = new JourneyMeritRecordService()
 export const journeyRunService = new JourneyRunService()
 export const journeyTalentBranchService = new JourneyTalentBranchService()

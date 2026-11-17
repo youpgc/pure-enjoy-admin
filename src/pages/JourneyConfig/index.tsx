@@ -14,15 +14,85 @@ import {
 import type { DbGameLevel, DbJourneyRegion, DbJourneyMonster, DbJourneyWeapon, DbJourneyPickup, DbJourneyCharacter } from '../../types/database'
 import JourneyCrudTab from './JourneyCrudTab'
 import JourneyGlobalsTab from './JourneyGlobalsTab'
+import JourneyBattleParamsTab from './JourneyBattleParamsTab'
 import { JOURNEY_TAB_SCHEMAS } from './journeySchemas'
-import type { JourneyLookups } from './journeyTabSchema'
+import { JOURNEY_BATTLE_PARAM_GROUPS } from '../../constants/journeyBattleParams'
+import type { JourneyLookups, JourneyTabSchema } from './journeyTabSchema'
 import common from '../../styles/common.module.css'
 
-/// 西行（journey）配置中心：扩展配置表按类型分 Tab 维护（关卡级三表
-/// 在 GameLevels 关卡配置抽屉；无尽妖潮/游历地图在 GameLevels「模式关卡」区）。
-/// 关卡走 GameLevels（game_levels，81 难）；本页 lookup 中的「关卡」选项
-/// 即 game_levels 西行行的 level_no→难名。表由 /workspace/sql/journey DDL
-/// 创建，执行前各 Tab 查询报错属预期。
+/// 二级 tab：一张配置表 / 全局参数 / 一组通用战斗参数。
+type SecondaryTab = {
+  key: string
+  label: string
+  kind: 'crud' | 'globals' | 'params'
+  schema?: JourneyTabSchema
+  groupCode?: string
+}
+
+/// 一级分类：按业务域聚合二级 tab。
+type PrimaryTab = {
+  key: string
+  label: string
+  children: SecondaryTab[]
+}
+
+const schemaOf = (key: string): JourneyTabSchema | undefined =>
+  JOURNEY_TAB_SCHEMAS.find((s) => s.key === key)
+
+const crud = (key: string, label?: string): SecondaryTab => {
+  const schema = schemaOf(key)
+  return { key, label: label ?? schema?.label ?? key, kind: 'crud', schema }
+}
+
+/// 西行配置中心：一级分类 + 二级具体内容两级菜单。
+/// 关卡级三表在 GameLevels 关卡配置抽屉；无尽妖潮波次与游历地图编辑器
+/// 在 GameLevels「模式关卡」区；本页 lookup 的「关卡」选项即 game_levels
+/// 西行行的 level_no→难名。表由 /workspace/sql/journey DDL 创建。
+const PRIMARY_TABS: PrimaryTab[] = [
+  {
+    key: 'basic',
+    label: '基础数据',
+    children: [
+      crud('regions'),
+      crud('monsters'),
+      crud('weapons'),
+      crud('weapon_levels'),
+      crud('pickups'),
+      crud('drops'),
+      crud('relic_unlocks'),
+    ],
+  },
+  {
+    key: 'character',
+    label: '角色与养成',
+    children: [
+      crud('characters'),
+      crud('talent_branches'),
+      crud('weapon_slots'),
+      crud('evo_recipes'),
+    ],
+  },
+  {
+    key: 'balance',
+    label: '数值与平衡',
+    children: [
+      { key: 'globals', label: '全局参数', kind: 'globals' },
+      crud('weapon_params'),
+      crud('monster_params'),
+      ...JOURNEY_BATTLE_PARAM_GROUPS.map<SecondaryTab>((g) => ({
+        key: `battle_${g.code}`,
+        label: g.label,
+        kind: 'params',
+        groupCode: g.code,
+      })),
+    ],
+  },
+  {
+    key: 'level',
+    label: '关卡与玩法',
+    children: [crud('daily_maps')],
+  },
+]
 const JourneyConfig: React.FC = () => {
   const mountedRef = useMounted()
   const [loading, setLoading] = useState(true)
@@ -104,6 +174,22 @@ const JourneyConfig: React.FC = () => {
     )
   }
 
+  const renderSecondary = (child: SecondaryTab): React.ReactNode => {
+    switch (child.kind) {
+      case 'globals':
+        return <JourneyGlobalsTab />
+      case 'params':
+        return child.groupCode ? (
+          <JourneyBattleParamsTab groupCode={child.groupCode} />
+        ) : null
+      case 'crud':
+      default:
+        return child.schema ? (
+          <JourneyCrudTab schema={child.schema} lookups={lookups} />
+        ) : null
+    }
+  }
+
   return (
     <div>
       {loadError && (
@@ -116,14 +202,22 @@ const JourneyConfig: React.FC = () => {
         />
       )}
       <Tabs
-        defaultActiveKey="regions"
+        defaultActiveKey="basic"
         destroyInactiveTabPane
-        items={JOURNEY_TAB_SCHEMAS.map((schema) => ({
-          key: schema.key,
-          label: schema.label,
-          children: schema.key === 'globals'
-            ? <JourneyGlobalsTab />
-            : <JourneyCrudTab schema={schema} lookups={lookups} />,
+        items={PRIMARY_TABS.map((primary) => ({
+          key: primary.key,
+          label: primary.label,
+          children: (
+            <Tabs
+              defaultActiveKey={primary.children[0]?.key}
+              destroyInactiveTabPane
+              items={primary.children.map((child) => ({
+                key: child.key,
+                label: child.label,
+                children: renderSecondary(child),
+              }))}
+            />
+          ),
         }))}
       />
     </div>
