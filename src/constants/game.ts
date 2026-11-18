@@ -368,6 +368,7 @@ export const JOURNEY_MONSTER_PARAM_KEY_MAP: Record<string, { color: string; labe
 export const JOURNEY_WEAPON_PARAM_KEY_MAP: Record<string, { color: string; label: string }> = {
   move: { color: 'blue', label: '移速加成' },
   hp: { color: 'green', label: '生命上限' },
+  hp_ratio: { color: 'green', label: '生命上限比例(随成长)' },
   regen: { color: 'green', label: '回复/秒' },
   exp: { color: 'gold', label: '经验加成' },
   spin: { color: 'cyan', label: '转速加成' },

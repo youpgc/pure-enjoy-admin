@@ -198,7 +198,7 @@ const weaponParamFields: JourneyFieldDef[] = [
     name: 'code', label: '参数键', type: 'select', required: true, width: 140,
     options: opts(JOURNEY_WEAPON_PARAM_KEY_MAP), enumMap: mapOf(JOURNEY_WEAPON_PARAM_KEY_MAP),
   },
-  { name: 'value_num', label: '数值', type: 'number', required: true, step: 0.01, width: 100 },
+  { name: 'value_num', label: '数值', type: 'number', required: true, min: 0, step: 0.01, width: 100 },
 ]
 
 // ---- 法宝分级 ----
