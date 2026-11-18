@@ -53,6 +53,7 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
     intro: '命中冷却、穿刺与吸血基准/上限。维度槽的每级增量仍在「武器维度槽」表配置。',
     params: [
       { code: 'hit_cd', label: '单怪命中冷却(秒)', kind: 'duration', default: 0.3, min: 0.05, max: 2, step: 0.05 },
+      { code: 'burn_dwell_sec', label: '灼烧驻留触发(秒)', kind: 'duration', default: 1, min: 0.1, max: 30, step: 0.1, hint: '处于武器臂展圆内累计驻留满该时长即点燃全部灼烧，每满一次续燃；离开范围清零' },
       { code: 'pierce_base', label: '穿刺基准比例', kind: 'percent', default: 0.1, min: 0, max: 1, step: 0.01 },
       { code: 'pierce_cap', label: '穿刺比例上限', kind: 'percent', default: 0.3, min: 0, max: 1, step: 0.01 },
       { code: 'lifesteal_base', label: '吸血基准比例', kind: 'percent', default: 0.03, min: 0, max: 1, step: 0.005 },
@@ -215,7 +216,7 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
     { code: 'crit', label: '增伤与暴击', params: ['amp_cap', 'crit_rate_cap', 'crit_dmg_min', 'crit_dmg_cap'] },
   ],
   weapon: [
-    { code: 'hit', label: '命中冷却', params: ['hit_cd'] },
+    { code: 'hit', label: '命中冷却与灼烧驻留', params: ['hit_cd', 'burn_dwell_sec'] },
     { code: 'pierce', label: '穿刺', params: ['pierce_base', 'pierce_cap'] },
     { code: 'lifesteal', label: '吸血', params: ['lifesteal_base', 'lifesteal_cap', 'lifesteal_floor', 'lifesteal_sec_cap'] },
   ],
