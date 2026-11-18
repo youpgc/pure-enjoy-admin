@@ -163,7 +163,7 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
     }
   }
 
-  /// 保存整组：仅落差异项；值回默认则删行回落，其余有行 update、无行 create。
+  /// 保存整组：填值按原样落库（含等于默认值），留空才删行回落默认。
   /// 配置行恒为启用（App 一律采纳），停用的历史行在编辑保存时一并恢复启用。
   const handleSave = async () => {
     if (saving || !editingSub) return
@@ -180,29 +180,31 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
         const row = rowsByCode[code]
         if (!row) continue
         const field = values[code] ?? {}
-        const valueNum = field.value ?? row.def.default
-        const oldValue = row.value ?? row.def.default
-        const wasDisabled = row.record?.enabled === false
-        if (valueNum === oldValue && !wasDisabled) continue
-
-        const isDefault = valueNum === row.def.default
+        const valueNum = field.value
         let res
-        if (isDefault && row.record) {
+        if (valueNum === undefined || valueNum === null) {
+          // 留空=回落默认：仅已有配置行需要删除
+          if (!row.record) continue
           res = await journeyBattleParamService.delete(row.record.id)
-        } else if (row.record) {
-          res = await journeyBattleParamService.update(row.record.id, {
-            value_num: valueNum,
-            enabled: true,
-          })
         } else {
-          res = await journeyBattleParamService.create({
-            group_code: groupCode,
-            param_code: code,
-            value_num: valueNum,
-            value_text: null,
-            enabled: true,
-            remark: null,
-          })
+          // 显式填值一律落库，默认值只是参考与重置口径，不参与保存覆盖判定
+          // 已有同值启用行无需重复写；停用的历史行即使同值也恢复启用
+          if (row.record && row.value === valueNum && row.record.enabled !== false) continue
+          if (row.record) {
+            res = await journeyBattleParamService.update(row.record.id, {
+              value_num: valueNum,
+              enabled: true,
+            })
+          } else {
+            res = await journeyBattleParamService.create({
+              group_code: groupCode,
+              param_code: code,
+              value_num: valueNum,
+              value_text: null,
+              enabled: true,
+              remark: null,
+            })
+          }
         }
         if (!res.success) {
           handleApiError(res.errorMessage, `JourneyConfig-战斗参数-保存-${code}`)
@@ -396,7 +398,7 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
           type="info"
           showIcon
           className={common.mb16}
-          message="数值留空即回落默认值；改回默认值将移除该配置行回落 App 内置值。保存只提交发生变更的项。"
+          message="填写的值按原样保存（含与默认值相同的值）；只有留空才回落默认值。保存只提交发生变更的项。"
         />
         <Form key={formKey} form={form} layout="vertical" preserve={false} initialValues={formInitial}>
           <Table
