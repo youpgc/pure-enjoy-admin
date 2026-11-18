@@ -377,6 +377,7 @@ export const JOURNEY_WEAPON_PARAM_KEY_MAP: Record<string, { color: string; label
   magnet: { color: 'gold', label: '磁吸范围' },
   heal: { color: 'green', label: '回血比例' },
   invuln: { color: 'purple', label: '无敌秒数' },
+  cooldown: { color: 'volcano', label: '冷却秒数' },
   period: { color: 'geekblue', label: '触发周期(秒)' },
   elite: { color: 'volcano', label: '精英增伤倍率' },
   chance: { color: 'purple', label: '触发概率' },
