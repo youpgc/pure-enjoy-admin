@@ -173,6 +173,7 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
       { code: 'develop_exp_mult', label: '发育期经验倍率', kind: 'number', default: 1.0, min: 0, max: 10, step: 0.1, hint: '仅发育波的经验掉落；1=不加成' },
       { code: 'auto_hunt_remain_count', label: '全图追猎·触发剩余数', kind: 'integer', default: 10, min: 1, max: 200, step: 1, hint: '本波怪铺完后，剩余普怪（妖王除外）降至该数以内才开启追踪；波末自动关闭' },
       { code: 'auto_hunt_hp_ratio', label: '全图追猎·血量门槛', kind: 'percent', default: 0.5, min: 0, max: 1, step: 0.05, hint: '玩家血量比例高于此值才允许触发' },
+      { code: 'spawn_edge_margin', label: '刷怪边界留白(px)', kind: 'number', default: 80, min: 40, max: 600, step: 10, hint: '铺怪/妖王降临点到地图四边的最小留白；越大越靠内、不贴墙' },
     ],
   },
   {
@@ -256,6 +257,7 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
     { code: 'pool', label: '妖王候选池', params: ['boss_pool_hp_base', 'boss_pool_hp_per_lv'] },
     { code: 'develop', label: '发育期', params: ['develop_extra_count', 'develop_exp_mult'] },
     { code: 'auto_hunt', label: '全图追猎', params: ['auto_hunt_remain_count', 'auto_hunt_hp_ratio'] },
+    { code: 'spawn', label: '刷怪分布', params: ['spawn_edge_margin'] },
   ],
   player: [
     { code: 'move', label: '基础移动', params: ['base_speed', 'units_per_li'] },
