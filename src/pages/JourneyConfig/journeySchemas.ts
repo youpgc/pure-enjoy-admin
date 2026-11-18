@@ -33,9 +33,11 @@ import {
   journeyWeaponSlotService,
 } from '../../services/gameService'
 import type { JourneyFieldDef, JourneyTabSchema } from './journeyTabSchema'
+import { characterAuxTabs } from './journeyCharacterAuxTabs'
 
 // 西行（journey）扩展配置表 Tab schema。
-// 关卡不在本页：81 难统一走 GameLevels（game_levels.config jsonb 存西行属性）；
+// 关卡不在本页：81 难统一走 GameLevels，西行属性在 journey_levels 子表；
+// 角色光环参数与境界名号已拆为独立 Tab（一行一键 / 一行一档）。
 // 扩展配置表按类型分 Tab 维护（关卡级三表：波次/热区/参照物在 GameLevels
 // 关卡配置抽屉；无尽妖潮波次与游历地图在 GameLevels「模式关卡」区编辑）。
 // 字段名与 /workspace/sql journey DDL 列一一对应；枚举选项与 constants/game.ts 同源。
@@ -62,7 +64,7 @@ const regionFields: JourneyFieldDef[] = [
   },
 ]
 
-// ---- 关卡：已退役（走 GameLevels / game_levels.config jsonb），见文件头说明 ----
+// ---- 关卡：已退役（走 GameLevels / journey_levels 子表），见文件头说明 ----
 
 // ---- 地图参照物 ----
 const mapObjectFields: JourneyFieldDef[] = [
@@ -256,8 +258,6 @@ const characterFields: JourneyFieldDef[] = [
   { name: 'armor', label: '初始护甲', type: 'number', min: 0, width: 100 },
   { name: 'aura_name', label: '光环名', type: 'text', width: 110 },
   { name: 'aura_desc', label: '光环说明', type: 'textarea', hideInTable: true },
-  { name: 'aura_params', label: '光环参数(JSON)', type: 'textarea', hideInTable: true, placeholder: '{"regen":0.8}' },
-  { name: 'realm_titles', label: '境界名号(JSON)', type: 'textarea', hideInTable: true, placeholder: '["石猴","美猴王","悟空","弼马温","齐天大圣","孙行者","神通大成","功圆行满","斗战胜佛"]' },
   { name: 'weapon_code', label: '特性法宝', type: 'select', optionsFrom: 'weaponsByCode', width: 150 },
   { name: 'unlock_level_no', label: '解锁关卡号', type: 'number', required: true, min: 1, max: 81, width: 110 },
   { name: 'unlock_merit_cost', label: '解锁功德', type: 'number', required: true, min: 0, width: 100 },
@@ -403,7 +403,7 @@ export const JOURNEY_LEVEL_SCOPED_SCHEMAS: JourneyTabSchema[] = [
 export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
   {
     key: 'regions', label: '区域', service: journeyRegionService, fields: regionFields,
-    intro: '区域=关卡分组（五行山→…→灵山），主题色用于地图覆层与 UI 色调；排序即西行顺序。关卡的区域归属在 GameLevels 关卡表单选择（存 game_levels.config.region_code）。',
+    intro: '区域=关卡分组（五行山→…→灵山），主题色用于地图覆层与 UI 色调；排序即西行顺序。关卡的区域归属在 GameLevels 关卡表单选择（存 journey_levels.region_code）。',
   },
   {
     key: 'monsters', label: '怪物', service: journeyMonsterService, fields: monsterFields,
@@ -446,6 +446,8 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     iconPrefix: 'char',
     intro: '解锁=通关对应出场关卡（unlock_level_no）+功德门槛（unlock_merit_cost）；唐僧为初始角色（unlock_level_no=1、功德 0）。非取经扩展角色（哪吒/红孩儿/铁扇公主/太上老君/金角大王）同链路可解锁可游玩，特性法宝跟随角色解锁自动入池；「开放」开关禁用后 App 端角色组/天赋页/出战舞台全部隐藏。',
   },
+  // 光环参数 / 境界名号两个 Tab 已抽到 journeyCharacterAuxTabs.ts，在此展开。
+  ...characterAuxTabs,
   {
     key: 'talent_branches', label: '五行天赋', service: journeyTalentBranchService, fields: talentBranchFields,
     filter: { field: 'character_code', kind: 'lookup', lookup: 'characters', placeholder: '按角色筛选' },

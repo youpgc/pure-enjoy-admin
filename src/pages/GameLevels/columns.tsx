@@ -4,9 +4,15 @@ import type { ColumnsType } from 'antd/es/table'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { JOURNEY_LEVEL_KIND_MAP } from '../../constants/game'
 import { formatDateTime } from '../../utils/format'
-import type { DbGameLevel, DbJourneyDailyMap } from '../../types/database'
+import type { DbGameLevel, DbJourneyLevel, DbJourneyDailyMap } from '../../types/database'
 
 const { Text } = Typography
+
+/// 西行关卡行：game_levels 主体 + journey_levels 子表属性合并到顶层。
+/// 只取五个专属属性列，其余子表审计列与主体同名，不并入行类型避免歧义。
+export type JourneyLevelRow = DbGameLevel &
+  Partial<Pick<DbJourneyLevel,
+    'region_code' | 'level_kind' | 'boss_fights' | 'first_clear_merit' | 'duration_target_sec'>>
 
 /// 主线关卡列：西行额外展示区域 / 难别 / 妖王战，非西行展示每日首通与通关奖励。
 export interface LevelColumnsOptions {
@@ -14,13 +20,13 @@ export interface LevelColumnsOptions {
   regions: { value: string; label: string }[]
   canWrite: boolean
   canDelete: boolean
-  onOpenConfig: (record: DbGameLevel) => void
-  onEdit: (record: DbGameLevel) => void
+  onOpenConfig: (record: JourneyLevelRow) => void
+  onEdit: (record: JourneyLevelRow) => void
   onDelete: (id: string) => void
-  onToggleDailyClear: (record: DbGameLevel, next: boolean) => void
+  onToggleDailyClear: (record: JourneyLevelRow, next: boolean) => void
 }
 
-export function buildLevelColumns(o: LevelColumnsOptions): ColumnsType<DbGameLevel> {
+export function buildLevelColumns(o: LevelColumnsOptions): ColumnsType<JourneyLevelRow> {
   return [
     { title: '关卡号', dataIndex: 'level_no', key: 'level_no', width: 90, render: (v: number) => <Text strong>{v}</Text> },
     { title: '名称', dataIndex: 'name', key: 'name' },
@@ -29,8 +35,8 @@ export function buildLevelColumns(o: LevelColumnsOptions): ColumnsType<DbGameLev
           title: '区域',
           key: 'region_code',
           width: 110,
-          render: (_: unknown, record: DbGameLevel) => {
-            const code = (record.config as Record<string, any> | null)?.region_code as string | undefined
+          render: (_: unknown, record: JourneyLevelRow) => {
+            const code = record.region_code
             if (!code) return <Text type="secondary">-</Text>
             return <Tag color="blue">{o.regions.find((r) => r.value === code)?.label ?? code}</Tag>
           },
@@ -39,8 +45,8 @@ export function buildLevelColumns(o: LevelColumnsOptions): ColumnsType<DbGameLev
           title: '难别',
           key: 'level_kind',
           width: 90,
-          render: (_: unknown, record: DbGameLevel) => {
-            const kind = (record.config as Record<string, any> | null)?.level_kind as string | undefined
+          render: (_: unknown, record: JourneyLevelRow) => {
+            const kind = record.level_kind
             if (!kind) return <Text type="secondary">-</Text>
             const info = JOURNEY_LEVEL_KIND_MAP[kind] ?? { color: 'default', label: kind }
             return <Tag color={info.color}>{info.label}</Tag>
@@ -50,13 +56,13 @@ export function buildLevelColumns(o: LevelColumnsOptions): ColumnsType<DbGameLev
           title: '妖王战',
           key: 'boss_fights',
           width: 80,
-          render: (_: unknown, record: DbGameLevel) => {
-            const n = (record.config as Record<string, any> | null)?.boss_fights as number | undefined
+          render: (_: unknown, record: JourneyLevelRow) => {
+            const n = record.boss_fights
             return n ? <Tag color="red">{n} 场</Tag> : <Text type="secondary">-</Text>
           },
         }]
       : []),
-    // 西行走功德体系（config.first_clear_merit），积分/每日首通不适用 → 条件隐藏
+    // 西行走功德体系（journey_levels.first_clear_merit），积分/每日首通不适用 → 条件隐藏
     ...(!o.isJourneyGame
       ? [
           {
@@ -105,7 +111,7 @@ export function buildLevelColumns(o: LevelColumnsOptions): ColumnsType<DbGameLev
       key: 'updated_at',
       render: (d: string) => formatDateTime(d),
     },
-    getActionColumn<DbGameLevel>((record) => [
+    getActionColumn<JourneyLevelRow>((record) => [
       ...(o.isJourneyGame
         ? [{
             key: 'level_config',

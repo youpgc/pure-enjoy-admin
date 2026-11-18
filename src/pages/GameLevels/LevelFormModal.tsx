@@ -6,7 +6,7 @@ import { JOURNEY_LEVEL_KIND_MAP } from '../../constants/game'
 import common from '../../styles/common.module.css'
 
 // 关卡新增/编辑弹窗：form 实例、初始值与保存逻辑由父页持有。
-// 西行条件字段组：所属游戏=西行（code=journey）时显示，保存并入 config jsonb。
+// 西行条件字段组：所属游戏=西行（code=journey）时显示，保存写 journey_levels 子表。
 
 interface LevelFormModalProps {
   open: boolean
@@ -99,7 +99,7 @@ const LevelFormModal: React.FC<LevelFormModalProps> = ({
           <Form.Item
             name="region_code"
             label="所属区域"
-            tooltip="西行区域（五行山/高老庄/流沙河/白虎岭），存 config.region_code；App 按区域分组并取主题色"
+            tooltip="西行区域（五行山/高老庄/流沙河/白虎岭），存 journey_levels.region_code；App 按区域分组并取主题色"
             rules={[{ required: true, message: '请选择区域' }]}
           >
             <Select placeholder="选择区域" options={regions} showSearch optionFilterProp="label" />
@@ -154,8 +154,8 @@ const LevelFormModal: React.FC<LevelFormModalProps> = ({
           </Form.Item>
         </>
       )}
-      {/* 西行关卡：奖励走功德体系（config.first_clear_merit），积分/道具/每日首通
-          均不适用；西行属性全部结构化表单项维护，不走 JSON 编辑。 */}
+      {/* 西行关卡：奖励走功德体系（journey_levels.first_clear_merit），积分/道具
+          /每日首通均不适用；西行属性全部结构化表单项维护，写独立子表。 */}
       <Form.Item name="sort_order" label="排序" initialValue={0}>
         <InputNumber className={common.fullWidth} min={0} />
       </Form.Item>

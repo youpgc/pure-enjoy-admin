@@ -315,6 +315,35 @@ export const JOURNEY_BOSS_ABILITY_MAP: Record<string, { color: string; label: st
 }
 
 // 妖王能力参数键（journey_monster_params.code，引擎逻辑判断用；展示映射）
+// 角色光环参数键（journey_character_aura_params.code，一行一键；展示映射）
+export const JOURNEY_AURA_PARAM_KEY_MAP: Record<string, { color: string; label: string }> = {
+  regen: { color: 'green', label: '生命回复/秒' },
+  kill_count: { color: 'volcano', label: '触发所需击杀数' },
+  duration: { color: 'geekblue', label: '增益持续(秒)' },
+  proc_rate: { color: 'purple', label: '触发概率' },
+  buff_sec: { color: 'geekblue', label: '增益秒数' },
+  spin_amp: { color: 'cyan', label: '转速增幅' },
+  pickup: { color: 'gold', label: '拾取范围+' },
+  exp_amp: { color: 'gold', label: '经验加成' },
+  armor: { color: 'blue', label: '护甲+' },
+  damage_amp: { color: 'red', label: '伤害增幅' },
+  crit_damage: { color: 'red', label: '暴击伤害' },
+  move_amp: { color: 'cyan', label: '移速增幅' },
+}
+
+// 境界档位标签（journey_realm_titles.tier，0~8；索引=档位）
+export const JOURNEY_REALM_TIER_LABELS: Record<string, { color: string; label: string }> = {
+  '0': { color: 'default', label: '第1档' },
+  '1': { color: 'default', label: '第2档' },
+  '2': { color: 'blue', label: '第3档' },
+  '3': { color: 'blue', label: '第4档' },
+  '4': { color: 'cyan', label: '第5档' },
+  '5': { color: 'cyan', label: '第6档' },
+  '6': { color: 'purple', label: '第7档' },
+  '7': { color: 'gold', label: '第8档' },
+  '8': { color: 'gold', label: '第9档(正果)' },
+}
+
 export const JOURNEY_MONSTER_PARAM_KEY_MAP: Record<string, { color: string; label: string }> = {
   knock_resist: { color: 'orange', label: '抗击退比例' },
   armor: { color: 'gold', label: '附加护甲' },

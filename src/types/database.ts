@@ -2781,13 +2781,40 @@ export interface DbJourneyCharacter {
   armor: number
   aura_name: string | null
   aura_desc: string | null
-  aura_params: Record<string, number>
-  realm_titles: string[] | null
   weapon_code: string | null
   unlock_level_no: number
   unlock_merit_cost: number
   enabled: boolean
   sprite_key: string | null
+}
+
+/// 西行关卡专属属性（journey_levels：一行一关，level_id=game_levels.id；
+/// 由旧 game_levels.config 的西行 5 键拆列而来）
+export interface DbJourneyLevel {
+  level_id: string
+  region_code: string | null
+  level_kind: string | null
+  boss_fights: number
+  first_clear_merit: number
+  duration_target_sec: number | null
+  created_at: string
+  updated_at: string
+}
+
+/// 角色光环参数（journey_character_aura_params：一行一键）
+export interface DbJourneyCharacterAuraParam {
+  id: string
+  character_code: string
+  code: string
+  value_num: number | null
+}
+
+/// 角色境界名号（journey_realm_titles：一行一档，tier 0~8）
+export interface DbJourneyRealmTitle {
+  id: string
+  character_code: string
+  tier: number
+  title: string
 }
 
 export interface DbJourneyRelicUnlock {

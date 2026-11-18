@@ -72,13 +72,14 @@ class GameLevelService extends BaseService<DbGameLevel> {
     page: number,
     pageSize: number,
     modeId?: string | null,
-    /// config jsonb 条件过滤（西行分类筛选）：key=顶层键，值 eq 匹配
-    configFilter?: { key: string; value: string },
+    /// 关卡 id 白名单（西行分类筛选：先由 journey_levels 子表筛出匹配
+    /// 的 level_id 集合再传入；空数组表示无匹配，undefined 表示不过滤）
+    idSet?: string[],
   ) {
     return this.paginate(page, pageSize, (q) => {
       q = q.eq('game_id', gameId)
       if (modeId) q = q.eq('mode_id', modeId)
-      if (configFilter) q = q.eq(`config->>${configFilter.key}`, configFilter.value)
+      if (idSet) q = q.in('id', idSet.length ? idSet : ['00000000-0000-0000-0000-000000000000'])
       return q
     })
   }

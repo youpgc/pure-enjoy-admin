@@ -11,8 +11,9 @@ export interface JourneyFieldDef {
   name: string
   label: string
   type: 'text' | 'number' | 'select' | 'switch' | 'textarea'
-  /// type=select：固定枚举选项（与 constants/game.ts 的 JOURNEY_*_MAP 同源取值）
-  options?: { value: string; label: string }[]
+  /// type=select：固定枚举选项（与 constants/game.ts 的 JOURNEY_*_MAP 同源取值）。
+  /// value 支持数字：integer 列（如境界档位 tier）用数字 value 避免写库类型不匹配与回显错位。
+  options?: { value: string | number; label: string }[]
   /// type=select：外键下拉（从 index.tsx 预载的查找表取选项）
   optionsFrom?: keyof JourneyLookups
   required?: boolean

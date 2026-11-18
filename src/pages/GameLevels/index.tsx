@@ -4,13 +4,13 @@ import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
-import { gameService, gameLevelService, gameModeService, journeyRegionService, journeyDailyMapService } from '../../services/gameService'
+import { gameService, gameLevelService, gameModeService, journeyRegionService, journeyDailyMapService, journeyLevelService } from '../../services/gameService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import { refreshGameMeta, refreshGameBaseLevels } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../contexts/NavigationContext'
 import type { DbGame, DbGameLevel, DbJourneyDailyMap } from '../../types/database'
 import JourneyEndlessEditor from './JourneyEndlessEditor'
-import { buildLevelColumns, buildDailyColumns } from './columns'
+import { buildLevelColumns, buildDailyColumns, type JourneyLevelRow } from './columns'
 import { levelFormInitialValues, buildLevelSavePayload } from './levelFormValues'
 import GameLevelsToolbar from './GameLevelsToolbar'
 import GameLevelsDialogs from './GameLevelsDialogs'
@@ -34,7 +34,7 @@ const GameLevels: React.FC = () => {
   const [selectedModeId, setSelectedModeId] = useState<string>(
     (restoredFiltersRef.current.selectedModeId as string) ?? ''
   )
-  // 西行分类筛选（仅所属游戏=西行时显示；config jsonb 条件，远端过滤）
+  // 西行分类筛选（仅所属游戏=西行时显示；journey_levels 子表属性过滤）
   const [regions, setRegions] = useState<{ value: string; label: string }[]>([])
   const [regionFilter, setRegionFilter] = useState<string>('')
   const [kindFilter, setKindFilter] = useState<string>('')
@@ -51,11 +51,11 @@ const GameLevels: React.FC = () => {
   // 用 ref 持有最新模式筛选值，避免 loadLevels 因 selectedModeId 变化而重建身份、
   // 进而触发「游戏切换」副作用把模式筛选重置为空。
   const selectedModeIdRef = useRef<string>('')
-  const [levels, setLevels] = useState<DbGameLevel[]>([])
+  const [levels, setLevels] = useState<JourneyLevelRow[]>([])
   const [loading, setLoading] = useState(false)
   const pager = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
-  const [editing, setEditing] = useState<DbGameLevel | null>(null)
+  const [editing, setEditing] = useState<JourneyLevelRow | null>(null)
   // 西行关卡配置抽屉（波次/热区/参照物）
   const [configLevel, setConfigLevel] = useState<DbGameLevel | null>(null)
   // 每日游历逐图独立表单（模式=每日游历的地图行「配置」入口）
@@ -142,31 +142,47 @@ const GameLevels: React.FC = () => {
     }
     setLoading(true)
     try {
+      // 西行分类筛选：属性在 journey_levels 子表，先取匹配 level_id 白名单
+      let idSet: string[] | undefined
+      if (isJourneyGame && (regionFilter || kindFilter)) {
+        const filter = regionFilter
+          ? { key: 'region_code' as const, value: regionFilter }
+          : { key: 'level_kind' as const, value: kindFilter }
+        const idRes = await journeyLevelService.filterLevelIds(filter)
+        if (!idRes.success) {
+          handleApiError(idRes.errorMessage, 'GameLevels-西行分类筛选')
+          return
+        }
+        idSet = idRes.data ?? []
+      }
       const result = await gameLevelService.paginateByGame(
         selectedGameId,
         pager.pagination.current,
         pager.pagination.pageSize,
         selectedModeId || null,
-        // 西行分类筛选走 config jsonb 条件（远端过滤，分页语义不变）
-        regionFilter
-          ? { key: 'region_code', value: regionFilter }
-          : kindFilter
-            ? { key: 'level_kind', value: kindFilter }
-            : undefined
+        idSet
       )
       if (!result.success) {
         handleApiError(result.errorMessage, 'GameLevels-加载')
         return
       }
       if (!mountedRef.current) return
-      setLevels(result.data?.data || [])
+      const pageRows = result.data?.data || []
+      // 西行：批量取子表属性合并到行顶层（区域/难别/妖王战/首通功德/时长）
+      let rows: JourneyLevelRow[] = pageRows
+      if (isJourneyGame && pageRows.length > 0) {
+        const attrMap = await journeyLevelService.findMapByLevels(pageRows.map((r) => r.id))
+        rows = pageRows.map((row) => ({ ...row, ...(attrMap.get(row.id) ?? {}) }))
+      }
+      if (!mountedRef.current) return
+      setLevels(rows)
       pager.setTotal(result.data?.total || 0)
     } catch (error) {
       handleApiError(error, 'GameLevels-加载')
     } finally {
       setLoading(false)
     }
-  }, [selectedGameId, selectedModeId, regionFilter, kindFilter, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
+  }, [selectedGameId, selectedModeId, regionFilter, kindFilter, isJourneyGame, pager.pagination.current, pager.pagination.pageSize, pager.setTotal])
 
   useEffect(() => {
     loadGames()
@@ -241,7 +257,7 @@ const GameLevels: React.FC = () => {
     setModalVisible(true)
   }
 
-  const openEdit = (record: DbGameLevel) => {
+  const openEdit = (record: JourneyLevelRow) => {
     setEditing(record)
     setModalVisible(true)
   }
@@ -276,33 +292,59 @@ const GameLevels: React.FC = () => {
       setSaving(true)
       const values = await form.validateFields()
       const saveGameCode = games.find((g) => g.id === values.game_id)?.code
-      let payload: Record<string, any>
+      let levelPayload: Record<string, any>
+      let journeyAttrs: Record<string, any> | null
       try {
-        payload = buildLevelSavePayload(values, saveGameCode)
+        const built = buildLevelSavePayload(values, saveGameCode)
+        levelPayload = built.levelPayload
+        journeyAttrs = built.journeyAttrs
       } catch {
         message.error('config / target / propUnlock 不是合法 JSON')
         setSaving(false)
         return
       }
+      let savedLevelId: string
+      // 本次新建的主表 id：子表写失败时回滚主表，避免重试产生重复关卡
+      let createdLevelId: string | null = null
       if (editing) {
-        const result = await gameLevelService.update(editing.id, payload)
+        const result = await gameLevelService.update(editing.id, levelPayload)
         if (!result.success) {
           handleApiError(result.errorMessage, 'GameLevels-更新')
           return
         }
-        message.success('更新成功')
+        savedLevelId = editing.id
       } else {
-        const result = await gameLevelService.create(payload as any)
+        const result = await gameLevelService.create(levelPayload as any)
         if (!result.success) {
           handleApiError(result.errorMessage, 'GameLevels-创建')
           return
         }
-        message.success('创建成功')
+        savedLevelId = result.data?.id ?? ''
+        createdLevelId = savedLevelId || null
+      }
+      // 西行属性写 journey_levels 子表（关卡主体 id 已就绪）
+      if (journeyAttrs && savedLevelId) {
+        const attrRes = await journeyLevelService.saveByLevel(savedLevelId, journeyAttrs)
+        if (!attrRes.success) {
+          handleApiError(attrRes.errorMessage, 'GameLevels-西行属性保存')
+          // 新建关卡子表写失败：删除刚创建的主表行，保证重试干净重建
+          if (createdLevelId) {
+            const rollback = await gameLevelService.delete(createdLevelId)
+            if (rollback.success) {
+              message.warning('西行属性保存失败，已回滚新建的关卡，请修正后重试')
+            } else {
+              message.error('西行属性保存失败且回滚失败，请手动删除刚创建的关卡后重试')
+            }
+            loadLevels()
+          }
+          return
+        }
       }
       // 关卡变更 → 全局 meta 缓存失效重拉（GameScores 等页同步）
       refreshGameMeta().catch(() => {})
       // 模式首关缓存需单独失效重拉（成绩看板兜底条件依赖）
       refreshGameBaseLevels().catch(() => {})
+      message.success(editing ? '更新成功' : '创建成功')
       setModalVisible(false)
       setEditing(null)
       form.resetFields()

@@ -1,5 +1,5 @@
 import { BaseService, successResponse, errorResponse, handleApiError } from '../utils/apiClient'
-import type { SupabaseQuery } from '../utils/apiClient'
+import type { SupabaseQuery, ApiResponse } from '../utils/apiClient'
 import type { EndlessRebuildRow } from '../utils/journeyExpPool'
 import { supabase } from '../utils/supabase'
 import type { DateRangeValue } from '../components/common/DateRangeFilter'
@@ -26,6 +26,9 @@ import type {
   DbJourneyRun,
   DbJourneyProgress,
   DbJourneyTalentBranch,
+  DbJourneyLevel,
+  DbJourneyCharacterAuraParam,
+  DbJourneyRealmTitle,
 } from '../types/database'
 
 /// 西行配置数据服务：journey_* 静态配置表与只读流水，各表继承 BaseService 八法。
@@ -42,7 +45,7 @@ class JourneyRegionService extends BaseService<DbJourneyRegion> {
 }
 
 // J2. 关卡配置已退役：西行关卡统一走 game_levels（GameLevelService），
-// 西行专属属性存 game_levels.config jsonb（region_code/level_kind 等）。
+// 西行专属属性存 journey_levels 子表（J12a，region_code/level_kind 等）。
 
 // J3. 地图参照物（按关卡）
 class JourneyMapObjectService extends BaseService<DbJourneyMapObject> {
@@ -115,6 +118,71 @@ class JourneyDropService extends BaseService<DbJourneyDrop> {
 class JourneyCharacterService extends BaseService<DbJourneyCharacter> {
   constructor() {
     super('journey_characters', { defaultOrder: { column: 'unlock_level_no', ascending: true } })
+  }
+}
+
+// J12a. 西行关卡专属属性（journey_levels：一行一关，由 config jsonb 拆列；
+//       level_id=game_levels.id，后台关卡表单按关 upsert）
+class JourneyLevelService extends BaseService<DbJourneyLevel> {
+  constructor() {
+    super('journey_levels', { defaultOrder: { column: 'level_id', ascending: true } })
+  }
+
+  /// 按西行分类筛选（region_code / level_kind）取匹配的 level_id 集合。
+  /// 全表行数=关卡数（约 81），一次取回在内存过滤，避免 embedded join 的
+  /// 复杂查询语法；返回值传给 gameLevelService.paginateByGame 作白名单。
+  async filterLevelIds(
+    filter: { key: 'region_code' | 'level_kind'; value: string } | undefined,
+  ): Promise<ApiResponse<string[]>> {
+    try {
+      const res = await this.findAll()
+      if (!res.success) return errorResponse<string[]>(res.errorMessage ?? 'journey_levels 查询失败')
+      const rows = (res.data ?? []).filter(
+        (row) => !filter || row[filter.key] === filter.value,
+      )
+      return successResponse(rows.map((row) => row.level_id))
+    } catch (err) {
+      return errorResponse<string[]>(handleApiError(err, 'journey_levels.filterLevelIds'))
+    }
+  }
+
+  /// 按关卡 id 集合批量读取属性，返回 level_id→属性 映射（列表合并展示用）。
+  async findMapByLevels(levelIds: string[]): Promise<Map<string, DbJourneyLevel>> {
+    if (levelIds.length === 0) return new Map()
+    const res = await this.findAll((q) => q.in('level_id', levelIds))
+    return new Map((res.data ?? []).map((row) => [row.level_id, row]))
+  }
+
+  /// 按关卡 id upsert（level_id 为主键，冲突即更新）；行缺失字段不写，
+  /// 由调用方组装完整属性对象。
+  async saveByLevel(levelId: string, values: Partial<DbJourneyLevel>) {
+    try {
+      const { error } = await (supabase.from('journey_levels') as any)
+        .upsert({ level_id: levelId, ...values, updated_at: new Date().toISOString() },
+          { onConflict: 'level_id' })
+      if (error) throw error
+      return successResponse(true)
+    } catch (err) {
+      return errorResponse<boolean>(handleApiError(err, 'journey_levels.saveByLevel'))
+    }
+  }
+}
+
+// J12b. 角色光环参数（journey_character_aura_params：一行一键）
+class JourneyCharacterAuraParamService extends BaseService<DbJourneyCharacterAuraParam> {
+  constructor() {
+    super('journey_character_aura_params', {
+      defaultOrder: { column: 'character_code', ascending: true },
+    })
+  }
+}
+
+// J12c. 角色境界名号（journey_realm_titles：一行一档，tier 0~8）
+class JourneyRealmTitleService extends BaseService<DbJourneyRealmTitle> {
+  constructor() {
+    super('journey_realm_titles', {
+      defaultOrder: { column: 'character_code', ascending: true },
+    })
   }
 }
 
@@ -319,6 +387,9 @@ export const journeyEvoRecipeService = new JourneyEvoRecipeService()
 export const journeyPickupService = new JourneyPickupService()
 export const journeyDropService = new JourneyDropService()
 export const journeyCharacterService = new JourneyCharacterService()
+export const journeyLevelService = new JourneyLevelService()
+export const journeyCharacterAuraParamService = new JourneyCharacterAuraParamService()
+export const journeyRealmTitleService = new JourneyRealmTitleService()
 export const journeyRelicUnlockService = new JourneyRelicUnlockService()
 export const journeyDailyMapService = new JourneyDailyMapService()
 export const journeyEndlessWaveService = new JourneyEndlessWaveService()

@@ -67,6 +67,8 @@ const PRIMARY_TABS: PrimaryTab[] = [
     label: '角色与养成',
     children: [
       crud('characters'),
+      crud('character_aura_params'),
+      crud('realm_titles'),
       crud('talent_branches'),
       crud('weapon_slots'),
       crud('evo_recipes'),
