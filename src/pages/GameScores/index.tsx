@@ -36,6 +36,7 @@ import type {
   DbGameLevel,
 } from '../../types/database'
 import { buildBestColumns, buildScoreColumns, buildValueColumns } from './columns'
+import RunDetailModal from './RunDetailModal'
 import type { BestOverviewRow } from './types'
 import styles from './index.module.css'
 import common from '../../styles/common.module.css'
@@ -136,6 +137,8 @@ const GameScores: React.FC = () => {
 
   const [expandedValues, setExpandedValues] = useState<Record<string, DbGameScoreValue[]>>({})
   const [expandingId, setExpandingId] = useState<string | null>(null)
+  // 对局详情弹窗：仅持有当前行，关闭即清空；详情数据随行返回，无需额外请求。
+  const [detailRecord, setDetailRecord] = useState<DbGameScore | null>(null)
 
   const [bestRows, setBestRows] = useState<BestOverviewRow[]>([])
   const [overviewLoading, setOverviewLoading] = useState(false)
@@ -296,6 +299,7 @@ const GameScores: React.FC = () => {
     modes: meta?.modes ?? [],
     baseLevelByMode,
     isEndlessRow,
+    onViewDetail: setDetailRecord,
   })
 
   const valueColumns = buildValueColumns(dimMap)
@@ -457,6 +461,13 @@ const GameScores: React.FC = () => {
             }
           },
         }}
+      />
+      <RunDetailModal
+        record={detailRecord}
+        modeById={modeById}
+        modes={meta?.modes ?? []}
+        gameMap={gameMap}
+        onClose={() => setDetailRecord(null)}
       />
     </div>
   )

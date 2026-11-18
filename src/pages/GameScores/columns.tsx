@@ -1,4 +1,4 @@
-import { Tag, Tooltip, Typography } from 'antd'
+import { Button, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { formatDurationSmart } from '../../utils/durationFormat'
 import { formatDateTime } from '../../utils/format'
@@ -13,7 +13,12 @@ import type {
   DbGameLevel,
 } from '../../types/database'
 import { levelConditionDesc } from './levelCondition'
-import type { BestOverviewRow, ScoreRow } from './types'
+import {
+  type BestOverviewRow,
+  type ScoreRow,
+  runDetailOf,
+  displayLevelName,
+} from './types'
 
 // GameScores 三张表格的列定义（从 index.tsx 抽离，审查 P1 单文件超 500 行）
 // 纯代码搬迁，渲染逻辑与文案零变更。
@@ -22,13 +27,6 @@ const { Text } = Typography
 
 type GameMeta = NonNullable<ReturnType<typeof useGameMeta>>
 type UserMap = ReturnType<typeof useUsernames>
-
-/// 对局详情快照（game_scores.run_detail，西行首个接入；database.ts 生成
-/// 类型滞后于线上新增列，此处局部扩展，勿改生成文件）
-type RunDetail = Record<string, unknown>
-
-const runDetailOf = (record: DbGameScore): RunDetail | null =>
-  (record as { run_detail?: RunDetail | null }).run_detail ?? null
 
 // 毫秒类维度（value_type=duration_ms 或 unit=ms）统一按秒展示
 const isMsDim = (dim?: { value_type?: string; unit?: string | null }) =>
@@ -41,6 +39,8 @@ interface ScoreColumnsParams {
   modes: DbGameMode[]
   baseLevelByMode: Record<string, DbGameLevel>
   isEndlessRow: (record: DbGameScore) => boolean
+  /// 对局详情「查看」按钮：交给宿主页弹窗展示，列本身不承载详情内容。
+  onViewDetail: (record: DbGameScore) => void
 }
 
 /// 成绩主表列
@@ -54,6 +54,7 @@ export function buildScoreColumns(
     modes,
     baseLevelByMode,
     isEndlessRow,
+    onViewDetail,
   } = params
   return [
     {
@@ -82,9 +83,7 @@ export function buildScoreColumns(
           // 「游戏」列已展示游戏名，此处剥掉前缀避免重复
           const raw = row.game_levels?.name
           if (!raw) return '关卡'
-          const gameName = gameMap[record.game_id]?.name
-          const prefix = gameName ? `${gameName}·` : ''
-          return prefix && raw.startsWith(prefix) ? raw.slice(prefix.length) : raw
+          return displayLevelName(raw, gameMap[record.game_id]?.name)
         }
         // 无 level_id（无尽会话 / 西行非关卡模式 / 2048 等无关卡感对局）：
         // 西行快照带 mode 码，按 game_id+code 回退后台配置模式名，
@@ -143,29 +142,14 @@ export function buildScoreColumns(
     {
       title: '对局详情',
       key: 'run_detail',
-      width: 180,
+      width: 90,
       render: (_, record) => {
         const detail = runDetailOf(record)
         if (!detail || Object.keys(detail).length === 0) return '-'
-        // 摘要优先展示西行角色口径（其他游戏未来接入时回落条目数）
-        const charCode = detail.character_code
-        const charLevel = detail.char_level
-        const summary =
-          typeof charCode === 'string' && charCode
-            ? `角色 ${charCode}${
-                charLevel != null ? ` · Lv${charLevel}` : ''
-              } · ${Object.keys(detail).length} 项`
-            : `${Object.keys(detail).length} 项`
         return (
-          <Tooltip
-            title={
-              <pre style={{ margin: 0, maxWidth: 420, whiteSpace: 'pre-wrap' }}>
-                {JSON.stringify(detail, null, 2)}
-              </pre>
-            }
-          >
-            <Text style={{ cursor: 'help' }}>{summary}</Text>
-          </Tooltip>
+          <Button type="link" size="small" onClick={() => onViewDetail(record)}>
+            查看
+          </Button>
         )
       },
     },

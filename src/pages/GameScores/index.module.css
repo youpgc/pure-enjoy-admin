@@ -8,3 +8,23 @@
 .selW140 {
   width: 140px;
 }
+/* 对局详情弹窗：属性分组（布局与 App 西行记录详情页一致：左标签固定宽、右值自适应） */
+.detailGroup {
+  margin-top: 16px;
+}
+.detailGroupCard {
+  margin-top: 8px;
+}
+.detailRow {
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+}
+.detailLabel {
+  width: 108px;
+  flex: 0 0 108px;
+}
+.detailValue {
+  flex: 1;
+  min-width: 0;
+}
