@@ -171,6 +171,8 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
       { code: 'boss_pool_hp_per_lv', label: '妖王候选·每级血量增量', kind: 'number', default: 3000, min: 0, max: 100000, step: 500, hint: '低等级只在低血档抽妖王，避免早波撞终盘妖王' },
       { code: 'develop_extra_count', label: '发育期每波追加怪数', kind: 'integer', default: 0, min: 0, max: 200, step: 5, hint: '妖潮起点前的发育波，撑起角色经验池' },
       { code: 'develop_exp_mult', label: '发育期经验倍率', kind: 'number', default: 1.0, min: 0, max: 10, step: 0.1, hint: '仅发育波的经验掉落；1=不加成' },
+      { code: 'auto_hunt_remain_count', label: '全图追猎·触发剩余数', kind: 'integer', default: 10, min: 1, max: 200, step: 1, hint: '本波怪铺完后，剩余普怪（妖王除外）降至该数以内才开启追踪；波末自动关闭' },
+      { code: 'auto_hunt_hp_ratio', label: '全图追猎·血量门槛', kind: 'percent', default: 0.5, min: 0, max: 1, step: 0.05, hint: '玩家血量比例高于此值才允许触发' },
     ],
   },
   {
@@ -253,6 +255,7 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
     { code: 'boss', label: '妖王配额与领地', params: ['boss_quota_gain', 'boss_leash_gain'] },
     { code: 'pool', label: '妖王候选池', params: ['boss_pool_hp_base', 'boss_pool_hp_per_lv'] },
     { code: 'develop', label: '发育期', params: ['develop_extra_count', 'develop_exp_mult'] },
+    { code: 'auto_hunt', label: '全图追猎', params: ['auto_hunt_remain_count', 'auto_hunt_hp_ratio'] },
   ],
   player: [
     { code: 'move', label: '基础移动', params: ['base_speed', 'units_per_li'] },
