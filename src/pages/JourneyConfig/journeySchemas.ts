@@ -34,6 +34,8 @@ import {
 } from '../../services/gameService'
 import type { JourneyFieldDef, JourneyTabSchema } from './journeyTabSchema'
 import { characterAuxTabs } from './journeyCharacterAuxTabs'
+import { globalsFields } from './journeyGlobalFields'
+export { globalsFields }
 
 // 西行（journey）扩展配置表 Tab schema。
 // 关卡不在本页：81 难统一走 GameLevels，西行属性在 journey_levels 子表；
@@ -41,6 +43,7 @@ import { characterAuxTabs } from './journeyCharacterAuxTabs'
 // 扩展配置表按类型分 Tab 维护（关卡级三表：波次/热区/参照物在 GameLevels
 // 关卡配置抽屉；无尽妖潮波次与游历地图在 GameLevels「模式关卡」区编辑）。
 // 字段名与 /workspace/sql journey DDL 列一一对应；枚举选项与 constants/game.ts 同源。
+// 分页 Tab 通过 filters 配置筛选项：text 包含匹配、lookup 外键精确、static 枚举精确。
 
 const opts = (
   map: Record<string, { color: string; label: string }>
@@ -301,65 +304,6 @@ const relicFields: JourneyFieldDef[] = [
   { name: 'merit_cost', label: '功德定价', type: 'number', required: true, min: 0, width: 100 },
 ]
 
-// ---- 全局参数（单行表）----
-export const globalsFields: JourneyFieldDef[] = [
-  { name: 'code', label: '参数编码', type: 'text', required: true, width: 130, placeholder: 'globals' },
-  { name: 'monster_cap', label: '同屏怪上限', type: 'number', required: true, min: 10, max: 500, width: 110 },
-  { name: 'talent_drop_rate', label: '妖王天赋点掉率', type: 'number', step: 0.01, min: 0, max: 1, width: 130 },
-  { name: 'char_level_cap', label: '角色等级上限', type: 'number', min: 10, max: 999, width: 115 },
-  { name: 'revive_merit_base', label: '还魂功德基准', type: 'number', min: 0, width: 140 },
-  { name: 'revive_merit_cap', label: '还魂功德封顶', type: 'number', min: 0, width: 140 },
-  { name: 'merit_cap', label: '每日游历功德局内上限', type: 'number', min: 0, max: 999999, width: 150 },
-  { name: 'initial_pack_size', label: '开局铺场怪物数', type: 'number', min: 0, max: 200, width: 150 },
-  { name: 'spawn_den_ratio', label: '妖穴集中刷怪概率', type: 'number', step: 0.01, min: 0, max: 1, width: 150 },
-  { name: 'upgrade_move', label: '成长卡·移速加成', type: 'number', step: 0.01, min: 0, width: 150 },
-  { name: 'upgrade_hp', label: '成长卡·生命上限', type: 'number', min: 0, width: 150 },
-  { name: 'upgrade_regen', label: '成长卡·回复/秒', type: 'number', step: 0.1, min: 0, width: 140 },
-  { name: 'upgrade_pickup', label: '成长卡·拾取范围', type: 'number', min: 0, width: 150 },
-  { name: 'exp_base', label: '经验曲线基数', type: 'number', min: 0, width: 120 },
-  { name: 'exp_per_lv', label: '经验曲线每级增量', type: 'number', min: 0, width: 150 },
-  { name: 'boss_spawn_delay_sec', label: '妖王降临延迟（秒）', type: 'number', min: 0, max: 3600, width: 160 },
-  { name: 'boss_respawn_cd_sec', label: '妖王复活冷却（秒）', type: 'number', min: 0, max: 3600, width: 160 },
-  { name: 'boss_warn_sec', label: '妖王降临预警（秒）', type: 'number', min: 0, max: 3600, width: 160 },
-  { name: 'early_game_protect_sec', label: '前期发育保护（秒）', type: 'number', min: 0, max: 3600, width: 160 },
-  { name: 'elite_rate_per_min', label: '精英率每分钟增量', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
-  { name: 'elite_rate_cap', label: '精英率上限', type: 'number', step: 0.01, min: 0, max: 1, width: 140 },
-  { name: 'buff_time_slope', label: '强度每分钟增长斜率', type: 'number', step: 0.01, min: 0, max: 5, width: 160 },
-  { name: 'buff_level_mult', label: '每点难度乘区增量', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
-  { name: 'buff_mult_cap', label: '强度乘区上限', type: 'number', step: 0.1, min: 1, max: 100, width: 140 },
-  { name: 'monster_speed_cap', label: '怪物移速上限（px/s）', type: 'number', step: 1, min: 0, max: 1000, width: 175 },
-  { name: 'level_attack_per_lv', label: '等级成长·基础攻击', type: 'number', step: 1, min: 0, max: 500, width: 175 },
-  { name: 'level_hp_per_lv', label: '等级成长·生命上限', type: 'number', step: 1, min: 0, max: 500, width: 175 },
-  { name: 'upgrade_attack', label: '成长卡·攻击力提升', type: 'number', step: 1, min: 0, max: 1000, width: 175 },
-  { name: 'attack_upgrade_cap', label: '攻击卡累计上限', type: 'number', step: 10, min: 0, max: 10000, width: 175 },
-  { name: 'boss_hp_time_k', label: '妖王血量时间系数', type: 'number', step: 0.01, min: 0, max: 2, width: 175 },
-  { name: 'boss_damage_lv_k', label: '妖王伤害等级系数', type: 'number', step: 0.01, min: 0, max: 2, width: 160 },
-  { name: 'armor_curve_k', label: '护甲减伤曲线 K', type: 'number', step: 1, min: 1, max: 1000, width: 160 },
-  { name: 'monster_armor_reduction_cap', label: '怪物减伤上限', type: 'number', step: 0.01, min: 0, max: 1, width: 150 },
-  { name: 'exp_curve_pow', label: '经验曲线幂次', type: 'number', step: 0.1, min: 1, max: 3, width: 140 },
-  { name: 'exp_mult_k', label: '经验乘区缩放系数', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
-  { name: 'monster_lv_k', label: '普怪血量等级系数', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
-  { name: 'boss_hp_lv_k', label: '妖王血量等级系数', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
-  // 精英宝箱掉率已迁至「通用战斗参数·经济与掉落」分组（elite_chest_rate），此处不再暴露。
-  { name: 'realm_amp_per', label: '境界突破增伤', type: 'number', step: 0.01, min: 0, max: 1, width: 140 },
-  { name: 'realm_hp_per', label: '境界突破生命增幅', type: 'number', step: 0.01, min: 0, max: 1, width: 165 },
-  { name: 'realm_step', label: '境界步长（级/档）', type: 'number', step: 1, min: 1, max: 99, width: 155 },
-  { name: 'weapon_grade_per_lv', label: '品阶 L9+ 每级增幅', type: 'number', step: 0.005, min: 0, max: 0.5, width: 170 },
-  { name: 'endless_boss_tide_start_wave', label: '妖潮起点波号', type: 'number', step: 1, min: 1, max: 99, width: 145 },
-  { name: 'endless_boss_count_cap', label: '同波妖王上限', type: 'number', step: 1, min: 1, max: 99, width: 140 },
-  { name: 'endless_boss_chest_rate', label: '妖王宝箱概率', type: 'number', step: 0.01, min: 0, max: 1, width: 145 },
-  { name: 'endless_boss_refine_per_wave', label: '宝葫每波炼化', type: 'number', step: 1, min: 1, max: 20, width: 145 },
-  { name: 'endless_exp_base', label: '无尽经验基数', type: 'number', step: 1, min: 0, max: 1000, width: 145 },
-  { name: 'endless_exp_per_lv', label: '无尽经验每级系数', type: 'number', step: 1, min: 1, max: 1000, width: 160 },
-  { name: 'endless_exp_pow', label: '无尽经验幂次', type: 'number', step: 0.1, min: 1, max: 4, width: 145 },
-  { name: 'endless_boss_concurrent', label: '同场并发妖王数', type: 'number', step: 1, min: 1, max: 10, width: 150 },
-  { name: 'endless_boss_arrive_cd', label: '妖王降临倒计时(秒)', type: 'number', step: 1, min: 0, max: 60, width: 165 },
-  { name: 'endless_boss_amp_per_wave', label: '妖王每波增幅', type: 'number', step: 0.01, min: 0, max: 1, width: 140 },
-  { name: 'endless_boss_hp_amp', label: '妖王血量每波增幅', type: 'number', step: 0.005, min: 0, max: 0.2, width: 165 },
-  { name: 'endless_boss_territory_radius', label: '妖王领地半径(px)', type: 'number', step: 10, min: 100, max: 2000, width: 165 },
-  { name: 'endless_boss_spread_min_dist', label: '妖王锚点最小间距(px)', type: 'number', step: 50, min: 0, max: 3000, width: 190 },
-  { name: 'endless_boss_guard_elite_ratio', label: '妖潮护卫精英占比', type: 'number', step: 0.05, min: 0, max: 1, width: 160 },
-]
 
 // ---- 武器维度槽 ----
 const weaponSlotFields: JourneyFieldDef[] = [
@@ -403,16 +347,19 @@ export const JOURNEY_LEVEL_SCOPED_SCHEMAS: JourneyTabSchema[] = [
 export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
   {
     key: 'regions', label: '区域', service: journeyRegionService, fields: regionFields,
+    filters: [{ field: 'name', kind: 'text', placeholder: '按区域名称筛选' }, { field: 'code', kind: 'text', placeholder: '按区域编码筛选' }],
     intro: '区域=关卡分组（五行山→…→灵山），主题色用于地图覆层与 UI 色调；排序即西行顺序。关卡的区域归属在 GameLevels 关卡表单选择（存 journey_levels.region_code）。',
   },
   {
     key: 'monsters', label: '怪物', service: journeyMonsterService, fields: monsterFields,
     iconPrefix: 'monster',
+    filters: [{ field: 'name', kind: 'text', placeholder: '按怪物名称筛选' }, { field: 'ai_tier', kind: 'static', options: opts(JOURNEY_AI_TIER_MAP), placeholder: '全部 AI 档' }],
     intro: '怪物静态属性；难度主轴=单怪增强（血/伤/体型/技能），同屏量级收敛在 ~200。机制行为如 charge=精英冲撞；掉落表编码匹配掉落表页签的 table_code（如 monster_normal_late）。',
   },
   {
     key: 'weapons', label: '法宝', service: journeyWeaponService, fields: weaponFields,
     iconPrefix: 'weapon',
+    filters: [{ field: 'name', kind: 'text', placeholder: '按法宝名称筛选' }, { field: 'category', kind: 'static', options: opts(JOURNEY_WEAPON_CATEGORY_MAP), placeholder: '全部分类' }],
     intro: '三分类合一表：主动法宝填攻击形态与伤害；被动加持填 attr_key/attr_value；特效触发类只走三选一。base_damage 与初始环绕参数（转速/内缘/臂长/臂宽/特效槽）在「法宝分级」页签未配置该法宝分级时生效，分级表优先。',
   },
   {
@@ -423,27 +370,31 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
   },
   {
     key: 'evo_recipes', label: '炼化配方', service: journeyEvoRecipeService, fields: evoRecipeFields,
+    filters: [{ field: 'result_name', kind: 'text', placeholder: '按进化名称筛选' }, { field: 'result_code', kind: 'text', placeholder: '按进化编码筛选' }],
     intro: '主动法宝满级+指定被动达标→宝箱触发炼化；表顺序=宝箱同时满足多配方时的优先级。',
   },
   {
     key: 'pickups', label: '拾取物', service: journeyPickupService, fields: pickupFields,
     iconPrefix: 'pickup',
+    filters: [{ field: 'name', kind: 'text', placeholder: '按拾取物名称筛选' }, { field: 'effect', kind: 'static', options: opts(JOURNEY_PICKUP_EFFECT_MAP), placeholder: '全部效果' }],
     // code 与资源名映射（金币/蟠桃/宝箱资源名与 code 不一致）
     iconNameMap: { gongde_tongqian: 'coin', pantao_pickup: 'peach', baoxiang: 'chest' },
     intro: '香火=经验；功德铜钱计入日阀；蟠桃=治疗；宝箱触发炼化/额外三选一。',
   },
   {
     key: 'drops', label: '掉落表', service: journeyDropService, fields: dropFields,
-    filter: { field: 'table_code', kind: 'text', placeholder: '按掉落表编码筛选' },
+    filters: [{ field: 'table_code', kind: 'text', placeholder: '按掉落表编码筛选' }, { field: 'source_kind', kind: 'static', options: opts(JOURNEY_DROP_SOURCE_MAP), placeholder: '全部来源' }],
     intro: '按 table_code 聚组：同组内按权重概率掉落，数量在 qty_min~qty_max 间取值。',
   },
   {
     key: 'daily_maps', label: '游历地图', service: journeyDailyMapService, fields: dailyMapFields,
+    filters: [{ field: 'name', kind: 'text', placeholder: '按地图名称筛选' }, { field: 'code', kind: 'text', placeholder: '按地图编码筛选' }],
     intro: '每日游历地图列表（运营可增删）：App 端每日任选一图进入，进入即计次（主动放弃同样占次）；主题色驱动地图渲染，功成时长为坚持目标（秒）。',
   },
   {
     key: 'characters', label: '角色', service: journeyCharacterService, fields: characterFields,
     iconPrefix: 'char',
+    filters: [{ field: 'name', kind: 'text', placeholder: '按角色名称筛选' }, { field: 'code', kind: 'text', placeholder: '按角色编码筛选' }],
     intro: '解锁=通关对应出场关卡（unlock_level_no）+功德门槛（unlock_merit_cost）；唐僧为初始角色（unlock_level_no=1、功德 0）。非取经扩展角色（哪吒/红孩儿/铁扇公主/太上老君/金角大王）同链路可解锁可游玩，特性法宝跟随角色解锁自动入池；「开放」开关禁用后 App 端角色组/天赋页/出战舞台全部隐藏。',
   },
   // 光环参数 / 境界名号两个 Tab 已抽到 journeyCharacterAuxTabs.ts，在此展开。
@@ -456,6 +407,7 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
   },
   {
     key: 'relic_unlocks', label: '图鉴解锁', service: journeyRelicUnlockService, fields: relicFields,
+    filters: [{ field: 'weapon_id', kind: 'lookup', lookup: 'weapons', placeholder: '按法宝筛选' }, { field: 'achievement_code', kind: 'text', placeholder: '按成就编码筛选' }],
     intro: '强法宝图鉴=对局成就资格（achievement_code，关联 game_achievements.code）+功德定价；未解锁法宝不进三选一候选池。',
   },
   {
@@ -465,6 +417,7 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
   {
     key: 'weapon_slots', label: '武器维度槽', service: journeyWeaponSlotService, fields: weaponSlotFields,
     iconPrefix: 'icon_slot',
+    filters: [{ field: 'name', kind: 'text', placeholder: '按维度名称筛选' }, { field: 'code', kind: 'text', placeholder: '按维度编码筛选' }],
     intro: '6 主动槽=维度槽口径：初始武器占 1 特效槽，空槽由三选一「习得」卡填入新维度；每级效果与等级上限（max_level）后台可调。',
   },
   {

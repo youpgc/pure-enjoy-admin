@@ -65,7 +65,10 @@ export interface JourneyTabSchema {
   service: BaseService<Record<string, any>>
   fields: JourneyFieldDef[]
   rowKey?: string
+  /// 单筛选项（兼容旧配置；与 filters 并存时两者一起渲染）
   filter?: JourneyFilterDef
+  /// 多筛选项：按声明顺序渲染，查询时逐项叠加（text 包含匹配 / lookup 精确匹配）
+  filters?: JourneyFilterDef[]
   /// 新增时把当前过滤值预填进该字段（level-scoped 表新增免选）
   prefillFromFilter?: boolean
   /// Tab 顶部说明

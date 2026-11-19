@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Table,
   Button,
@@ -25,13 +25,14 @@ import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { getActionColumn } from '../../components/common/ActionColumn'
-import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
+import { useJourneyFilters } from './useJourneyFilters'
 import styles from './journey.module.css'
 import common from '../../styles/common.module.css'
 import {
   columnsFromSchema,
   journeyIconColumn,
   type JourneyFieldDef,
+  type JourneyFilterDef,
   type JourneyLookups,
   type JourneyTabSchema,
 } from './journeyTabSchema'
@@ -54,16 +55,25 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
   const canWrite = hasPermission('games:write')
   const canDelete = hasPermission('games:delete')
 
-  const restoredFilters = lockedFilterValue !== undefined
-    ? null
-    : loadTabFilters(`journey_${schema.key}`)
-  const [filterValue, setFilterValue] = useState<string>(
-    lockedFilterValue ?? (restoredFilters?.filterValue as string) ?? ''
+  // 兼容旧的单 filter 配置：与 filters 合并为统一数组并按 field 去重（此处旧配置优先），
+  // 避免同字段重复渲染控件；关卡抽屉锁定场景不渲染筛选。
+  const filterDefs = useMemo<JourneyFilterDef[]>(() => {
+    const merged = [...(schema.filter ? [schema.filter] : []), ...(schema.filters ?? [])]
+    const seen = new Set<string>()
+    return merged.filter((def) => {
+      if (seen.has(def.field)) return false
+      seen.add(def.field)
+      return true
+    })
+  }, [schema.filter, schema.filters])
+  const { values: filterValues, queryValues, setFilter } = useJourneyFilters(
+    `journey_${schema.key}`,
+    filterDefs,
+    lockedFilterValue !== undefined,
   )
   const [rows, setRows] = useState<Record<string, any>[]>([])
   const [loading, setLoading] = useState(false)
   const pager = usePagination()
-  usePersistTabFilters(`journey_${schema.key}`, lockedFilterValue !== undefined ? {} : { filterValue })
 
   const [modalVisible, setModalVisible] = useState(false)
   const [editing, setEditing] = useState<Record<string, any> | null>(null)
@@ -73,21 +83,26 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
   const loadRows = useCallback(async () => {
     setLoading(true)
     try {
-      // 生效过滤：关卡配置抽屉（lockedFilterValue）固定按 level_id 锁定，
-      // 与 schema.filter 有无无关（修复抽屉展示全量数据的问题）
+      // 关卡抽屉（lockedFilterValue）固定按 level_id 锁定，忽略常规筛选；
+      // 否则逐项叠加 filters：text 包含匹配（%值%），lookup/static 精确匹配。
       const lockedActive = lockedFilterValue !== undefined && lockedFilterValue !== ''
-      const effectiveField = lockedActive ? 'level_id' : schema.filter?.field
-      const effectiveValue = lockedActive ? lockedFilterValue : filterValue
       const result = await schema.service.paginate(
         pager.pagination.current,
         pager.pagination.pageSize,
         (q) => {
-          if (effectiveField && effectiveValue) {
-            return schema.filter?.kind === 'text' && !lockedActive
-              ? q.ilike(effectiveField, `${effectiveValue}%`)
-              : q.eq(effectiveField, effectiveValue)
+          let query = q
+          if (lockedActive) {
+            query = query.eq('level_id', lockedFilterValue)
+          } else {
+            for (const def of filterDefs) {
+              const value = queryValues[def.field]
+              if (!value) continue
+              query = def.kind === 'text'
+                ? query.ilike(def.field, `%${value}%`)
+                : query.eq(def.field, value)
+            }
           }
-          return q
+          return query
         }
       )
       if (!result.success) {
@@ -103,7 +118,7 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
       if (mountedRef.current) setLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schema, filterValue, pager.pagination.current, pager.pagination.pageSize])
+  }, [schema, filterDefs, queryValues, lockedFilterValue, pager.pagination.current, pager.pagination.pageSize])
 
   useEffect(() => {
     loadRows()
@@ -177,8 +192,10 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
     const lockedActive = lockedFilterValue !== undefined && lockedFilterValue !== ''
     if (lockedActive) {
       base.level_id = lockedFilterValue
-    } else if (schema.filter && schema.prefillFromFilter && filterValue) {
-      base[schema.filter.field] = filterValue
+    } else if (schema.prefillFromFilter) {
+      for (const def of filterDefs) {
+        if (queryValues[def.field]) base[def.field] = queryValues[def.field]
+      }
     }
     return base
   }
@@ -215,38 +232,40 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
     }
   }
 
-  const filterControl = lockedFilterValue !== undefined ? null : schema.filter && (
-    schema.filter.kind === 'text' ? (
+  const filterControls = lockedFilterValue !== undefined ? null : filterDefs.map((def) => {
+    const onChange = (value: string) => {
+      setFilter(def.field, value, def.kind === 'text')
+      pager.resetPage()
+    }
+    return def.kind === 'text' ? (
       <Input
+        key={def.field}
         className={styles.sel280}
         allowClear
-        placeholder={schema.filter.placeholder ?? '前缀筛选'}
-        value={filterValue}
-        onChange={(e) => {
-          setFilterValue(e.target.value)
-          pager.resetPage()
-        }}
+        aria-label={def.placeholder ?? def.field}
+        placeholder={def.placeholder ?? '包含筛选'}
+        value={filterValues[def.field] ?? ''}
+        onChange={(e) => onChange(e.target.value)}
       />
     ) : (
       <Select
+        key={def.field}
         className={styles.sel280}
         allowClear
         showSearch
         optionFilterProp="label"
-        placeholder={schema.filter.placeholder ?? '全部'}
-        value={filterValue || undefined}
-        onChange={(v) => {
-          setFilterValue(v ?? '')
-          pager.resetPage()
-        }}
+        aria-label={def.placeholder ?? def.field}
+        placeholder={def.placeholder ?? '全部'}
+        value={filterValues[def.field] || undefined}
+        onChange={(v) => onChange(v ?? '')}
         options={
-          schema.filter.kind === 'lookup' && schema.filter.lookup
-            ? lookups[schema.filter.lookup]
-            : schema.filter.options ?? []
+          def.kind === 'lookup' && def.lookup
+            ? lookups[def.lookup]
+            : def.options ?? []
         }
       />
     )
-  )
+  })
 
   return (
     <div>
@@ -256,7 +275,7 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
       <Card className={common.mb16}>
         <div className={common.toolbar}>
           <Space wrap>
-            {filterControl}
+            {filterControls}
             <Button icon={<ReloadOutlined />} onClick={loadRows} loading={loading}>
               刷新
             </Button>
