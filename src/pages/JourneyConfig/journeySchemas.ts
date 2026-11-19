@@ -31,6 +31,7 @@ import {
   journeyTalentBranchService,
   journeyGlobalsService,
   journeyWeaponSlotService,
+  journeyUpgradeCardService,
 } from '../../services/gameService'
 import type { JourneyFieldDef, JourneyTabSchema } from './journeyTabSchema'
 import { characterAuxTabs } from './journeyCharacterAuxTabs'
@@ -318,7 +319,26 @@ const weaponSlotFields: JourneyFieldDef[] = [
   },
   { name: 'effect_per_level', label: '每级效果', type: 'text', required: true, width: 260, placeholder: '如 命中击退距离 +16' },
   { name: 'value_per_level', label: '每级数值', type: 'number', step: 0.01, min: 0, width: 105, placeholder: '0=App 内置兜底' },
+  { name: 'period_sec', label: '触发周期(秒)', type: 'number', step: 0.5, min: 0, width: 110, placeholder: '回元/护体等周期槽填；0=回落战斗参数' },
   { name: 'max_level', label: '等级上限', type: 'number', required: true, min: 1, max: 9, width: 100 },
+  { name: 'sort_order', label: '排序', type: 'number', min: 0, width: 80 },
+]
+
+// ---- 基础值成长卡（三选一五张常驻成长项）----
+const upgradeCardFields: JourneyFieldDef[] = [
+  {
+    name: 'code', label: '卡片编码', type: 'select', required: true, width: 130,
+    options: [
+      { value: 'attack', label: 'attack（伏魔真力·攻击）' },
+      { value: 'move_speed', label: 'move_speed（筋斗云气·移速）' },
+      { value: 'max_hp', label: 'max_hp（蟠桃益气·生命）' },
+      { value: 'regen', label: 'regen（木灵回春·回复）' },
+      { value: 'pickup_range', label: 'pickup_range（紫金磁引·拾取）' },
+    ],
+  },
+  { name: 'name', label: '卡片名称', type: 'text', required: true, width: 120, placeholder: '如 伏魔真力' },
+  { name: 'value', label: '每级数值', type: 'number', required: true, step: 0.01, min: 0, width: 105, placeholder: '攻击/生命/拾取填整数点；移速0.09=9%；回复为每秒' },
+  { name: 'enabled', label: '入池', type: 'switch', width: 80 },
   { name: 'sort_order', label: '排序', type: 'number', min: 0, width: 80 },
 ]
 
@@ -418,7 +438,12 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     key: 'weapon_slots', label: '武器维度槽', service: journeyWeaponSlotService, fields: weaponSlotFields,
     iconPrefix: 'icon_slot',
     filters: [{ field: 'name', kind: 'text', placeholder: '按维度名称筛选' }, { field: 'code', kind: 'text', placeholder: '按维度编码筛选' }],
-    intro: '6 主动槽=维度槽口径：初始武器占 1 特效槽，空槽由三选一「习得」卡填入新维度；每级效果与等级上限（max_level）后台可调。',
+    intro: '6 主动槽=维度槽口径：初始武器占 1 特效槽，空槽由三选一「习得」卡填入新维度；每级效果与等级上限（max_level）后台可调；触发周期(period_sec)仅回元/护体等周期槽填写，0=回落「武器与吸血穿刺」战斗参数。',
+  },
+  {
+    key: 'upgrade_cards', label: '基础值成长卡', service: journeyUpgradeCardService, fields: upgradeCardFields,
+    filters: [{ field: 'name', kind: 'text', placeholder: '按卡片名称筛选' }, { field: 'code', kind: 'text', placeholder: '按卡片编码筛选' }],
+    intro: '三选一五张常驻基础值成长卡的后台管理：名称/每级数值/是否入池均可配。攻击/生命/拾取填整数点，移速填小数（0.09=9%），回复填每秒值；展示文案由 App 按编码+数值生成，改数值即改文案。入池关闭的卡不进候选；每级数值≤0 视为未配置，回落 App 内置兜底值。抽卡权重只在「三选一·类别权重」配置，本类内均匀随机。',
   },
   {
     key: 'weapon_params', label: '法宝参数', service: journeyWeaponParamService, fields: weaponParamFields,

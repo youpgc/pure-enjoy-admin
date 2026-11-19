@@ -50,7 +50,7 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
   {
     code: 'weapon',
     label: '武器与吸血穿刺',
-    intro: '命中冷却、穿刺与吸血基准/上限。维度槽的每级增量仍在「武器维度槽」表配置。',
+    intro: '命中冷却、穿刺与吸血基准/上限，及生机/金刚/回元/护体/缚灵五槽的周期与上限。各槽每级增量仍在「武器维度槽」表配置。',
     params: [
       { code: 'hit_cd', label: '单怪命中冷却(秒)', kind: 'duration', default: 0.3, min: 0.05, max: 2, step: 0.05 },
       { code: 'burn_dwell_sec', label: '灼烧驻留触发(秒)', kind: 'duration', default: 1, min: 0.1, max: 30, step: 0.1, hint: '处于武器臂展圆内累计驻留满该时长即点燃全部灼烧，每满一次续燃；离开范围清零' },
@@ -60,6 +60,13 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
       { code: 'lifesteal_cap', label: '吸血比例上限', kind: 'percent', default: 0.2, min: 0, max: 1, step: 0.01 },
       { code: 'lifesteal_floor', label: '吸血保底回血(点)', kind: 'number', default: 2, min: 0, max: 100, step: 1 },
       { code: 'lifesteal_sec_cap', label: '吸血秒窗上限(最大生命比例)', kind: 'percent', default: 0.1, min: 0, max: 1, step: 0.01 },
+      { code: 'vitality_cap', label: '生机·生命上限加成上限', kind: 'percent', default: 0.6, min: 0, max: 0.95, step: 0.05 },
+      { code: 'ward_cap', label: '金刚·受击减伤上限', kind: 'percent', default: 0.5, min: 0, max: 0.9, step: 0.05 },
+      { code: 'recovery_period', label: '回元·触发周期(秒)', kind: 'duration', default: 4, min: 1, max: 60, step: 1 },
+      { code: 'recovery_cap', label: '回元·单次回血上限', kind: 'percent', default: 0.5, min: 0, max: 1, step: 0.05 },
+      { code: 'shield_period', label: '护体·触发周期(秒)', kind: 'duration', default: 4, min: 1, max: 60, step: 1 },
+      { code: 'slow_cap', label: '缚灵·减速上限', kind: 'percent', default: 0.7, min: 0, max: 0.95, step: 0.05 },
+      { code: 'slow_hold_sec', label: '缚灵·离圈减速保持(秒)', kind: 'duration', default: 0.6, min: 0, max: 5, step: 0.1 },
     ],
   },
   {
@@ -157,6 +164,10 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
       { code: 'daily_coin_unit', label: '每日铜钱单价', kind: 'integer', default: 8, min: 1, max: 1000, step: 1 },
       { code: 'repeat_clear_ratio', label: '重复通关奖励(首通功德比例)', kind: 'percent', default: 0.3, min: 0, max: 1, step: 0.05 },
       { code: 'repeat_clear_flat', label: '普通关重复通关固定功德', kind: 'integer', default: 10, min: 0, max: 1000, step: 1 },
+      { code: 'choice_weight_slot', label: '三选一·武器维度槽权重', kind: 'number', default: 1, min: 0, max: 100, step: 0.1, hint: '类别层权重：越小该类越少出现；该类无候选(槽满)时自动剔除' },
+      { code: 'choice_weight_passive', label: '三选一·法宝(被动加持)权重', kind: 'number', default: 1, min: 0, max: 100, step: 0.1, hint: '类别层权重；无候选时自动剔除' },
+      { code: 'choice_weight_effect', label: '三选一·触发效果权重', kind: 'number', default: 1, min: 0, max: 100, step: 0.1, hint: '类别层权重；无候选时自动剔除' },
+      { code: 'choice_weight_base', label: '三选一·基础值权重', kind: 'number', default: 1, min: 0, max: 100, step: 0.1, hint: '类别层权重；五张卡的入池开关在「基础值成长卡」页配，类内均匀随机' },
     ],
   },
   {
@@ -219,6 +230,9 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
     { code: 'hit', label: '命中冷却与灼烧驻留', params: ['hit_cd', 'burn_dwell_sec'] },
     { code: 'pierce', label: '穿刺', params: ['pierce_base', 'pierce_cap'] },
     { code: 'lifesteal', label: '吸血', params: ['lifesteal_base', 'lifesteal_cap', 'lifesteal_floor', 'lifesteal_sec_cap'] },
+    { code: 'defense', label: '生机与金刚', params: ['vitality_cap', 'ward_cap'] },
+    { code: 'sustain', label: '回元与护体', params: ['recovery_period', 'recovery_cap', 'shield_period'] },
+    { code: 'control', label: '缚灵', params: ['slow_cap', 'slow_hold_sec'] },
   ],
   spawn: [
     { code: 'cadence', label: '兜底刷怪节奏', params: ['interval_base', 'interval_tier', 'interval_minute', 'interval_min', 'batch_minutes'] },
@@ -251,6 +265,7 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
     { code: 'elite_chest', label: '精英宝箱', params: ['elite_chest_rate'] },
     { code: 'daily_coin', label: '每日铜钱雨', params: ['daily_coin_period_sec', 'daily_coin_count', 'daily_coin_unit'] },
     { code: 'repeat_clear', label: '通关奖励', params: ['repeat_clear_ratio', 'repeat_clear_flat'] },
+    { code: 'choice_weight', label: '三选一·类别权重', params: ['choice_weight_slot', 'choice_weight_passive', 'choice_weight_effect', 'choice_weight_base'] },
   ],
   endless: [
     { code: 'rhythm', label: '波次节奏', params: ['wave_rest_sec', 'wave_spread_sec'] },

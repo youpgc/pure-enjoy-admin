@@ -298,6 +298,12 @@ export const JOURNEY_SLOT_CODE_MAP: Record<string, { color: string; label: strin
   crit_rate: { color: 'gold', label: '暴击' },
   crit_damage: { color: 'magenta', label: '暴伤' },
   armor: { color: 'purple', label: '护甲' },
+  vitality: { color: 'green', label: '生机(生命上限%)' },
+  cloud: { color: 'cyan', label: '腾云(移速%)' },
+  ward: { color: 'gold', label: '金刚(受击减伤)' },
+  recovery: { color: 'green', label: '回元(损失回血)' },
+  shield: { color: 'geekblue', label: '护体(周期护盾)' },
+  slow: { color: 'blue', label: '缚灵(范围减速)' },
 }
 
 // 妖王能力（journey_monsters.ability_key，西游记背景扩展；空=无特殊能力）
@@ -389,6 +395,16 @@ export const JOURNEY_WEAPON_PARAM_KEY_MAP: Record<string, { color: string; label
   hits: { color: 'volcano', label: '触发次数' },
   weak: { color: 'orange', label: '虚弱秒数' },
   burn: { color: 'red', label: '灼烧比例' },
+  armor: { color: 'purple', label: '护甲加成(锦襕袈裟)' },
+  knockback: { color: 'orange', label: '击退加成(飞龙宝杖)' },
+  resist: { color: 'blue', label: '火系减伤(辟火罩)' },
+  bonus: { color: 'volcano', label: '追加伤害倍率(七星剑)' },
+  seconds: { color: 'cyan', label: '持续秒数' },
+  drag: { color: 'magenta', label: '拖拽距离(混天绫)' },
+  spread_period: { color: 'geekblue', label: '扩散周期秒(风火轮)' },
+  spread_range: { color: 'blue', label: '扩散半径(风火轮)' },
+  spread_ratio: { color: 'orange', label: '逐代伤害衰减(风火轮)' },
+  spread_generations: { color: 'purple', label: '最大扩散代际(风火轮)' },
 }
 
 // 功德流水来源（journey_merit_records.source_type，append-only 四类）

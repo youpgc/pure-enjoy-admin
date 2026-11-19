@@ -22,6 +22,7 @@ import type {
   DbJourneyRelicUnlock,
   DbJourneyGlobals,
   DbJourneyWeaponSlot,
+  DbJourneyUpgradeCard,
   DbJourneyMeritRecord,
   DbJourneyRun,
   DbJourneyProgress,
@@ -376,6 +377,14 @@ class JourneyWeaponSlotService extends BaseService<DbJourneyWeaponSlot> {
     })
   }
 }
+// 基础值成长卡（三选一五张常驻成长项：名称/数值/权重/入池后台可配）
+class JourneyUpgradeCardService extends BaseService<DbJourneyUpgradeCard> {
+  constructor() {
+    super('journey_upgrade_cards', {
+      defaultOrder: { column: 'sort_order', ascending: true },
+    })
+  }
+}
 export const journeyRegionService = new JourneyRegionService()
 export const journeyMapObjectService = new JourneyMapObjectService()
 export const journeyHeatZoneService = new JourneyHeatZoneService()
@@ -402,3 +411,4 @@ export const journeyTalentBranchService = new JourneyTalentBranchService()
 export const journeyProgressService = new JourneyProgressService()
 export const journeyGlobalsService = new JourneyGlobalsService()
 export const journeyWeaponSlotService = new JourneyWeaponSlotService()
+export const journeyUpgradeCardService = new JourneyUpgradeCardService()

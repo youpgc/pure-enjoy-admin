@@ -2894,6 +2894,22 @@ export interface DbJourneyWeaponSlot {
   effect_per_level: string
   value_per_level?: number
   max_level: number
+  weight?: number
+  /// 周期触发秒数（仅回元/护体等周期槽使用；0=App 回落战斗参数兜底）
+  period_sec?: number
+  sort_order: number
+}
+
+/// 三选一基础值成长卡（伏魔真力/筋斗云气/蟠桃益气/木灵回春/紫金磁引）：
+/// 名称/每级数值/是否入池后台可配，文案由 App 按 code+数值生成。
+/// weight 为历史遗留列，抽卡权重只在 economy 组类别层配置，类内均匀随机。
+export interface DbJourneyUpgradeCard {
+  id: string
+  code: string
+  name: string
+  value: number
+  weight?: number
+  enabled?: boolean
   sort_order: number
 }
 
