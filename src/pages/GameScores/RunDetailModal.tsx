@@ -89,10 +89,33 @@ export default function RunDetailModal({
     color: 'default',
     label: record.status,
   }
+  // 角色摘要口径与 App 西行记录详情页一致：三段独立拼接，任一有值即展示，
+  // 避免角色名缺失时连带吞掉等级/波次；数值取整与 App 的 .round() 对齐。
+  const charName = detail?.['character_name']
   const charCode = detail?.['character_code']
   const charLevel = detail?.['char_level']
+  const wave = detail?.['wave']
+  const kills = detail?.['kills']
+  const meritGained = detail?.['merit_gained']
   const hp = detail?.['hp']
   const maxHp = detail?.['max_hp']
+  const charParts: string[] = []
+  if (typeof charName === 'string' && charName) {
+    charParts.push(charName)
+  } else if (typeof charCode === 'string' && charCode) {
+    charParts.push(charCode)
+  }
+  if (typeof charLevel === 'number' && charLevel > 0) {
+    charParts.push(`Lv${Math.round(charLevel)}`)
+  }
+  if (typeof wave === 'number' && wave > 0) {
+    charParts.push(`第 ${Math.round(wave)} 波`)
+  }
+  const charLine = charParts.join(' · ')
+  const statParts: string[] = []
+  if (typeof kills === 'number') statParts.push(`击杀 ${kills}`)
+  if (typeof meritGained === 'number') statParts.push(`功德 +${meritGained}`)
+  const statLine = statParts.join(' · ')
 
   return (
     <Modal
@@ -109,12 +132,8 @@ export default function RunDetailModal({
           <Text strong style={{ fontSize: 16 }}>{title}</Text>
           <Space wrap size={[12, 4]}>
             <Tag color={status.color}>{status.label}</Tag>
-            {typeof charCode === 'string' && charCode ? (
-              <Text type="secondary">
-                角色 {charCode}
-                {typeof charLevel === 'number' ? ` · Lv${charLevel}` : ''}
-              </Text>
-            ) : null}
+            {charLine ? <Text type="secondary">{charLine}</Text> : null}
+            {statLine ? <Text type="secondary">{statLine}</Text> : null}
             {typeof hp === 'number' && typeof maxHp === 'number' ? (
               <Text type="secondary">生命 {hp}/{maxHp}</Text>
             ) : null}
