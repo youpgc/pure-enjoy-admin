@@ -294,7 +294,7 @@ class JourneyRunService extends BaseService<DbJourneyRun> {
   constructor() {
     super('journey_runs', {
       defaultOrder: { column: 'created_at', ascending: false },
-      select: 'id,user_id,level_no,kills,merit_gained,duration_ms,cleared,created_at,run_detail',
+      select: 'id,user_id,level_no,kills,merit_gained,duration_ms,cleared,type,name,created_at,run_detail',
     })
   }
 
@@ -347,7 +347,7 @@ class JourneyProgressService extends BaseService<DbJourneyProgress> {
     super('journey_progress', {
       defaultOrder: { column: 'updated_at', ascending: false },
       select:
-        'user_id,merit_balance,farthest_level_no,total_kills,talent_pool,talent_levels,unlocked_characters,unlocked_weapons,selected_character,updated_at',
+        'user_id,merit_balance,farthest_level_no,total_kills,total_merit_earned,talent_pool,talent_levels,unlocked_characters,unlocked_weapons,selected_character,last_daily_date,updated_at',
     })
   }
 

@@ -115,6 +115,19 @@ const ProgressTab: React.FC = () => {
       render: (v: number) => (v > 0 ? `第${v}难` : '—'),
     },
     { title: '总击杀', dataIndex: 'total_kills', width: 100 },
+    {
+      title: '累计功德',
+      dataIndex: 'total_merit_earned',
+      width: 100,
+      render: (v: number | undefined) => v ?? '—',
+    },
+    {
+      // 每日游历当日 BJ 日期键（yyyy-MM-dd），非时间戳，不套 formatDateTime
+      title: '每日游历',
+      dataIndex: 'last_daily_date',
+      width: 110,
+      render: (v: string | null | undefined) => v || '—',
+    },
     { title: '剩余天赋点', dataIndex: 'talent_pool', width: 110 },
     {
       title: '出战角色',
@@ -186,7 +199,7 @@ const ProgressTab: React.FC = () => {
         dataSource={rows}
         pagination={tablePagination}
         size="middle"
-        scroll={{ x: 900 }}
+        scroll={{ x: 1120 }}
       />
     </>
   )

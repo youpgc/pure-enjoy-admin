@@ -82,6 +82,9 @@ const RunsTab: React.FC = () => {
       dataIndex: 'level_no',
       width: 110,
       render: (v: number, record) => {
+        // 新数据按 type 带 name（关卡名/游历地图名/无尽名），直接展示
+        if (record.name) return record.name
+        // 旧数据回落 run_detail.mode 推导模式名
         const modeCode = record.run_detail?.['mode']
         if (typeof modeCode === 'string' && modeNameByCode[modeCode]) {
           return modeNameByCode[modeCode]

@@ -2927,7 +2927,8 @@ export interface DbJourneyMeritRecord {
   created_at: string
 }
 
-// 对局流水（一场对局一条；level_no 1..81 对应 81 难）
+// 对局流水（一场对局一条；level_no 0..81，0=每日游历/无尽等虚拟关）
+// type=模式真源（mainline/daily/endless），name=按 type 的展示名（渐进加列，可空）
 export interface DbJourneyRun {
   id: string
   user_id: string
@@ -2938,6 +2939,8 @@ export interface DbJourneyRun {
   cleared: boolean
   created_at: string
   run_detail?: Record<string, unknown> | null
+  type?: string | null
+  name?: string | null
 }
 
 // 局外进度快照（服务端化：一行=一个用户，user_id 为主键、无自增 id；
@@ -2953,6 +2956,9 @@ export interface DbJourneyProgress {
   unlocked_weapons: string[]
   selected_character: string
   updated_at: string
+  // 累计获得功德（成就真源）与每日游历当日 BJ 日期键（渐进加列）
+  total_merit_earned?: number
+  last_daily_date?: string | null
 }
 
 // 五行天赋分支静态配置（Admin 可编辑；v4 分支树制：character_code+element+
