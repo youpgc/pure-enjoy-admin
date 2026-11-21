@@ -386,7 +386,7 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     key: 'weapon_levels', label: '法宝分级', service: journeyWeaponLevelService, fields: weaponLevelFields,
     filter: { field: 'weapon_id', kind: 'lookup', lookup: 'weapons', placeholder: '按法宝筛选' },
     prefillFromFilter: true,
-    intro: '法宝 1~8 级数值；佛光弹 heal_amount 随级增长（命中固定回血）。',
+    intro: '法宝 1~8 级数值：damage=环绕/各形态伤害；interval_ms=穿透弹/回旋/光束周期；proj_count=单次弹数；heal_amount=紫金葫芦命中固定回血；value_num=领域/近身伤害。',
   },
   {
     key: 'evo_recipes', label: '炼化配方', service: journeyEvoRecipeService, fields: evoRecipeFields,
