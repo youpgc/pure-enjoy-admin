@@ -50,10 +50,19 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
   {
     code: 'weapon',
     label: '武器与吸血穿刺',
-    intro: '命中冷却、穿刺与吸血基准/上限，及生机/金刚/回元/护体/缚灵五槽的周期与上限。各槽每级增量仍在「武器维度槽」表配置。',
+    intro: '命中冷却、穿刺与吸血基准/上限、领域脉冲周期/扩散半径/驻留递增封顶、灼烧等级成长与法宝灼烧比例/时长、弹道目标上限与弹体寿命，及生机/金刚/回元/护体/缚灵五槽的周期与上限。各槽每级增量仍在「武器维度槽」表配置。',
     params: [
       { code: 'hit_cd', label: '单怪命中冷却(秒)', kind: 'duration', default: 0.3, min: 0.05, max: 2, step: 0.05 },
       { code: 'burn_dwell_sec', label: '灼烧驻留触发(秒)', kind: 'duration', default: 1, min: 0.1, max: 30, step: 0.1, hint: '处于武器臂展圆内累计驻留满该时长即点燃全部灼烧，每满一次续燃；离开范围清零' },
+      { code: 'field_pulse_period_sec', label: '领域脉冲周期(秒)', kind: 'duration', default: 1.5, min: 0.1, max: 60, step: 0.1, hint: '八卦炉真火/紫金葫芦每1.5秒触发一次范围真实伤害；领域内驻留怪另按每秒结算' },
+      { code: 'field_pulse_radius_ratio', label: '脉冲扩散半径(臂长倍数)', kind: 'number', default: 0.3, min: 0.01, max: 5, step: 0.05, hint: '脉冲以领域内每只怪为起点向外扩散，半径=武器臂长×该倍数，可波及臂展外怪物' },
+      { code: 'field_dwell_cap_mult', label: '领域驻留封顶倍率', kind: 'number', default: 6, min: 1, max: 20, step: 0.5, hint: '驻留越久伤害越高：伤害=分级数值×驻留倍率，倍率由1线性升到该封顶值' },
+      { code: 'field_dwell_cap_sec', label: '驻留达封顶秒数', kind: 'duration', default: 6, min: 0.5, max: 60, step: 0.5, hint: '怪在领域内连续驻留满该秒数时倍率封顶；离开范围清零重新累计' },
+      { code: 'burn_level_growth', label: '灼烧等级成长', kind: 'percent', default: 0.04, min: 0, max: 0.2, step: 0.01, hint: '武器灼烧槽增益=槽值×槽等级×(1+(角色等级−1)×该值)；灼烧不随驻留递增，只靠升级与角色等级提升' },
+      { code: 'attack_burn_ratio', label: '法宝灼烧伤害比例', kind: 'percent', default: 0.25, min: 0, max: 2, step: 0.01, hint: '弹道灼烧=命中伤害×该比例；领域灼烧=领域每秒伤害基准×该比例。灼烧为固定伤害，不随驻留递增' },
+      { code: 'attack_burn_sec', label: '法宝灼烧持续时间(秒)', kind: 'duration', default: 2, min: 0.1, max: 30, step: 0.1, hint: '弹道灼烧与领域灼烧各自的点燃时长；按来源独立计时，不同来源互不覆盖' },
+      { code: 'attack_target_cap', label: '弹道单次目标上限', kind: 'number', default: 3, min: 1, max: 20, step: 1, hint: '每颗弹体或每次光束扫击最多命中几只怪' },
+      { code: 'attack_shot_life_sec', label: '弹体存在时间(秒)', kind: 'duration', default: 8, min: 0.5, max: 60, step: 0.5, hint: '穿透弹/回旋弹飞行超时强制销毁，兜底异常射程或速度配置；正常按射程到头或返程销毁' },
       { code: 'pierce_base', label: '穿刺基准比例', kind: 'percent', default: 0.1, min: 0, max: 1, step: 0.01 },
       { code: 'pierce_cap', label: '穿刺比例上限', kind: 'percent', default: 0.3, min: 0, max: 1, step: 0.01 },
       { code: 'lifesteal_base', label: '吸血基准比例', kind: 'percent', default: 0.03, min: 0, max: 1, step: 0.005 },
@@ -228,6 +237,7 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
   ],
   weapon: [
     { code: 'hit', label: '命中冷却与灼烧驻留', params: ['hit_cd', 'burn_dwell_sec'] },
+    { code: 'parallel', label: '并行法宝攻击', params: ['field_pulse_period_sec', 'field_pulse_radius_ratio', 'field_dwell_cap_mult', 'field_dwell_cap_sec', 'burn_level_growth', 'attack_burn_ratio', 'attack_burn_sec', 'attack_target_cap', 'attack_shot_life_sec'] },
     { code: 'pierce', label: '穿刺', params: ['pierce_base', 'pierce_cap'] },
     { code: 'lifesteal', label: '吸血', params: ['lifesteal_base', 'lifesteal_cap', 'lifesteal_floor', 'lifesteal_sec_cap'] },
     { code: 'defense', label: '生机与金刚', params: ['vitality_cap', 'ward_cap'] },

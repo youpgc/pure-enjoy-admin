@@ -166,7 +166,7 @@ const weaponFields: JourneyFieldDef[] = [
   { name: 'projectile_speed', label: '弹速', type: 'number', min: 0, hideInTable: true },
   { name: 'pierce', label: '穿透数', type: 'number', min: 0, hideInTable: true },
   { name: 'aoe_radius', label: 'AOE 半径', type: 'number', min: 0, hideInTable: true },
-  { name: 'heal_fixed', label: '固定回血', type: 'number', min: 0, width: 95 },
+  { name: 'heal_fixed', label: '固定回血(已停用)', type: 'number', min: 0, width: 95, hideInTable: true },
   { name: 'attr_key', label: '属性键(被动)', type: 'text', width: 110 },
   { name: 'attr_value', label: '属性值(被动)', type: 'number', step: 0.01, hideInTable: true },
   { name: 'sprite_key', label: '资源键', type: 'text', hideInTable: true },
@@ -212,7 +212,7 @@ const weaponLevelFields: JourneyFieldDef[] = [
   { name: 'damage', label: '伤害', type: 'number', min: 0, width: 90 },
   { name: 'interval_ms', label: '间隔(ms)', type: 'number', min: 0, width: 100 },
   { name: 'proj_count', label: '弹体数', type: 'number', min: 0, width: 90 },
-  { name: 'heal_amount', label: '回血量', type: 'number', min: 0, width: 90 },
+  { name: 'heal_amount', label: '回血量(已停用)', type: 'number', min: 0, width: 90, hideInTable: true },
   { name: 'value_num', label: '数值参数', type: 'number', step: 0.01, hideInTable: true },
 ]
 
@@ -386,7 +386,7 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     key: 'weapon_levels', label: '法宝分级', service: journeyWeaponLevelService, fields: weaponLevelFields,
     filter: { field: 'weapon_id', kind: 'lookup', lookup: 'weapons', placeholder: '按法宝筛选' },
     prefillFromFilter: true,
-    intro: '法宝 1~8 级数值：damage=环绕/各形态伤害；interval_ms=穿透弹/回旋/光束周期；proj_count=单次弹数；heal_amount=紫金葫芦命中固定回血；value_num=领域/近身伤害。',
+    intro: '法宝 1~8 级数值：damage=环绕/各形态伤害；interval_ms=穿透弹/回旋/光束周期；proj_count=单次弹数；value_num=领域每秒伤害基准。heal_amount/heal_fixed 已停用：紫金葫芦剥离回血，引擎不再消费这两列（保留列、不再生效）。领域脉冲周期/扩散半径、驻留倍率上限在「战斗参数 → 武器与吸血穿刺 → 并行法宝攻击」配置。',
   },
   {
     key: 'evo_recipes', label: '炼化配方', service: journeyEvoRecipeService, fields: evoRecipeFields,
