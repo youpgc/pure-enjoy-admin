@@ -108,6 +108,13 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
     return map
   }, [group, groupCode, byCode])
 
+  /// 已配置口径：仅统计注册项内、已落库、未停用且填了值的项；
+  /// 与下方卡片保持一致，排除已下线残留行与停用行。
+  const configuredCount = useMemo(
+    () => Object.values(rowsByCode).filter((r) => r.value !== null).length,
+    [rowsByCode],
+  )
+
   const subGroups = useMemo<BattleParamSubGroupDef[]>(
     () =>
       JOURNEY_BATTLE_PARAM_SUBGROUPS[groupCode] ??
@@ -309,7 +316,7 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
           <Space wrap>
             <Button icon={<ReloadOutlined />} onClick={loadRows} loading={loading}>刷新</Button>
             <Text type="secondary">
-              已配置 {rows.length} / {group?.params.length ?? 0} 项 · 未配置项回落 App 默认值
+              已配置 {configuredCount} / {group?.params.length ?? 0} 项 · 未配置项回落 App 默认值
             </Text>
           </Space>
         </div>
