@@ -182,7 +182,7 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
   {
     code: 'endless',
     label: '无尽妖潮',
-    intro: '无尽波次节奏与妖王配额递增。波次专项值（配额/精英比等）仍在「全局参数」与波次表。',
+    intro: '无尽波次节奏、妖王配额递增，以及经验池成长：三类怪共享波次经验成长系数、妖王经验走独立基准（脱离限血选怪锁死的低血档）。升级需求曲线（exp_base/per_lv/pow）仍在「全局参数」。',
     params: [
       { code: 'wave_rest_sec', label: '波间休整(秒)', kind: 'duration', default: 1.2, min: 0, max: 30, step: 0.1 },
       { code: 'wave_spread_sec', label: '每波铺怪总时长(秒)', kind: 'duration', default: 18, min: 1, max: 120, step: 1 },
@@ -192,6 +192,8 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
       { code: 'boss_pool_hp_per_lv', label: '妖王候选·每级血量增量', kind: 'number', default: 3000, min: 0, max: 100000, step: 500, hint: '低等级只在低血档抽妖王，避免早波撞终盘妖王' },
       { code: 'develop_extra_count', label: '发育期每波追加怪数', kind: 'integer', default: 0, min: 0, max: 200, step: 5, hint: '妖潮起点前的发育波，撑起角色经验池' },
       { code: 'develop_exp_mult', label: '发育期经验倍率', kind: 'number', default: 1.0, min: 0, max: 10, step: 0.1, hint: '仅发育波的经验掉落；1=不加成' },
+      { code: 'exp_wave_gain', label: '波次经验成长系数', kind: 'number', default: 0.02, min: 0, max: 0.2, step: 0.005, hint: '普通/精英/妖王三类怪经验共用乘区=1+该值×(波号−1)；0=不随波成长（会卡17波）' },
+      { code: 'boss_exp_base', label: '妖王经验基准', kind: 'number', default: 200, min: 0, max: 5000, step: 10, hint: '妖王经验不再取限血选怪锁死的 exp_drop 低血档，改用该基准×强度×波次成长' },
       { code: 'auto_hunt_remain_count', label: '全图追猎·触发剩余数', kind: 'integer', default: 10, min: 1, max: 200, step: 1, hint: '本波怪铺完后，剩余普怪（妖王除外）降至该数以内才开启追踪；波末自动关闭' },
       { code: 'auto_hunt_hp_ratio', label: '全图追猎·血量门槛', kind: 'percent', default: 0.5, min: 0, max: 1, step: 0.05, hint: '玩家血量比例高于此值才允许触发' },
       { code: 'spawn_edge_margin', label: '刷怪边界留白(px)', kind: 'number', default: 80, min: 40, max: 600, step: 10, hint: '铺怪/妖王降临点到地图四边的最小留白；越大越靠内、不贴墙' },
@@ -282,6 +284,7 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
     { code: 'boss', label: '妖王配额与领地', params: ['boss_quota_gain', 'boss_leash_gain'] },
     { code: 'pool', label: '妖王候选池', params: ['boss_pool_hp_base', 'boss_pool_hp_per_lv'] },
     { code: 'develop', label: '发育期', params: ['develop_extra_count', 'develop_exp_mult'] },
+    { code: 'exp_pool', label: '经验池成长', params: ['exp_wave_gain', 'boss_exp_base'] },
     { code: 'auto_hunt', label: '全图追猎', params: ['auto_hunt_remain_count', 'auto_hunt_hp_ratio'] },
     { code: 'spawn', label: '刷怪分布', params: ['spawn_edge_margin'] },
   ],

@@ -51,7 +51,7 @@ export const globalsFields: JourneyFieldDef[] = [
   { name: 'endless_boss_refine_per_wave', label: '宝葫每波炼化', type: 'number', step: 1, min: 1, max: 20, width: 145 },
   { name: 'endless_exp_base', label: '无尽经验基数', type: 'number', step: 1, min: 0, max: 1000, width: 145 },
   { name: 'endless_exp_per_lv', label: '无尽经验每级系数', type: 'number', step: 1, min: 1, max: 1000, width: 160 },
-  { name: 'endless_exp_pow', label: '无尽经验幂次', type: 'number', step: 0.1, min: 1, max: 4, width: 145 },
+  { name: 'endless_exp_pow', label: '无尽经验幂次', type: 'number', step: 0.05, min: 1, max: 4, width: 145 },
   { name: 'endless_boss_concurrent', label: '同场并发妖王数', type: 'number', step: 1, min: 1, max: 10, width: 150 },
   { name: 'endless_boss_arrive_cd', label: '妖王降临倒计时(秒)', type: 'number', step: 1, min: 0, max: 60, width: 165 },
   { name: 'endless_boss_amp_per_wave', label: '妖王每波增幅', type: 'number', step: 0.01, min: 0, max: 1, width: 140 },
