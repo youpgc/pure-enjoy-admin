@@ -5,6 +5,7 @@ import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
 import { gameService, gameLevelService, gameModeService, journeyRegionService, journeyDailyMapService, journeyLevelService } from '../../services/gameService'
+import { journeyMonsterService } from '../../services/journeyConfigService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import { refreshGameMeta, refreshGameBaseLevels } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../contexts/NavigationContext'
@@ -36,6 +37,8 @@ const GameLevels: React.FC = () => {
   )
   // 西行分类筛选（仅所属游戏=西行时显示；journey_levels 子表属性过滤）
   const [regions, setRegions] = useState<{ value: string; label: string }[]>([])
+  // 西行妖王选项（本关妖王下拉；code 为值，避免 uuid 随环境漂移）
+  const [bosses, setBosses] = useState<{ value: string; label: string }[]>([])
   const [regionFilter, setRegionFilter] = useState<string>('')
   const [kindFilter, setKindFilter] = useState<string>('')
   const selectedGameCode = games.find((g) => g.id === selectedGameId)?.code ?? ''
@@ -90,6 +93,18 @@ const GameLevels: React.FC = () => {
       if (!mountedRef.current || !res.success) return
       setRegions(
         (res.data ?? []).map((r) => ({ value: r.code, label: r.name }))
+      )
+    }).catch(() => {})
+  }, [mountedRef])
+
+  // 西行妖王选项（本关妖王下拉用；只列 boss 档，失败静默留空）
+  useEffect(() => {
+    journeyMonsterService.findAll().then((res) => {
+      if (!mountedRef.current || !res.success) return
+      setBosses(
+        (res.data ?? [])
+          .filter((m) => m.ai_tier === 'boss')
+          .map((m) => ({ value: m.code, label: `${m.name}（${m.code}）` }))
       )
     }).catch(() => {})
   }, [mountedRef])
@@ -359,6 +374,7 @@ const GameLevels: React.FC = () => {
   const columns = buildLevelColumns({
     isJourneyGame,
     regions,
+    bosses,
     canWrite,
     canDelete,
     onOpenConfig: (record) => setConfigLevel(record),
@@ -444,7 +460,7 @@ const GameLevels: React.FC = () => {
       )}
 
       <GameLevelsDialogs
-        lookups={{ games, modes, regions }}
+        lookups={{ games, modes, regions, bosses }}
         formState={{
           instance: form,
           formKey: `${editing?.id ?? 'create'}-${selectedGameId}`,

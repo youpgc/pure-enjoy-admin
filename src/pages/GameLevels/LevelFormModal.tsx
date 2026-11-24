@@ -19,6 +19,8 @@ interface LevelFormModalProps {
   modes: { id: string; code: string; name: string }[]
   /** 西行区域下拉选项（regions 预载下发） */
   regions: { value: string; label: string }[]
+  /** 西行妖王下拉选项（boss 档怪物；本关妖王覆盖本段妖王） */
+  bosses: { value: string; label: string }[]
   /** Form 重挂载 key（编辑态 + 当前游戏，保证切换后回显） */
   formKey: string
   onSubmit: () => void
@@ -38,6 +40,7 @@ const LevelFormModal: React.FC<LevelFormModalProps> = ({
   games,
   modes,
   regions,
+  bosses,
   formKey,
   onSubmit,
   onClose,
@@ -111,6 +114,13 @@ const LevelFormModal: React.FC<LevelFormModalProps> = ({
             rules={[{ required: true, message: '请选择难别' }]}
           >
             <Select placeholder="选择难别" options={LEVEL_KIND_OPTIONS} />
+          </Form.Item>
+          <Form.Item
+            name="boss_code"
+            label="本关妖王"
+            tooltip="留空=沿用所属区域的「本段妖王」；指定后本关打该妖王（车迟国三关分别挂虎力/鹿力/羊力）"
+          >
+            <Select placeholder="留空=本段妖王" options={bosses} showSearch optionFilterProp="label" allowClear />
           </Form.Item>
           <Form.Item name="boss_fights" label="妖王战数" tooltip="0=无妖王战；>0 末端触发妖王战，可多场（如三打白骨精=3）" initialValue={0}>
             <InputNumber className={common.fullWidth} min={0} max={9} />

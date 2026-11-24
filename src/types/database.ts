@@ -2794,6 +2794,8 @@ export interface DbJourneyLevel {
   level_id: string
   region_code: string | null
   level_kind: string | null
+  /// 本关妖王编码（覆盖区域 boss_code；NULL/空=沿用本段妖王）
+  boss_code: string | null
   boss_fights: number
   first_clear_merit: number
   duration_target_sec: number | null

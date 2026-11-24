@@ -5,6 +5,7 @@ import type { JourneyLevelRow } from './columns'
 export const JOURNEY_LEVEL_ATTR_KEYS = [
   'region_code',
   'level_kind',
+  'boss_code',
   'boss_fights',
   'first_clear_merit',
   'duration_target_sec',
@@ -76,6 +77,9 @@ export function buildLevelSavePayload(
       const value = values[key]
       if (value !== undefined && value !== null && value !== '') {
         journeyAttrs[key] = value
+      } else if (key === 'boss_code') {
+        // 清空「本关妖王」需显式写 null 才能回落到本段妖王；其它属性空值跳过不写。
+        journeyAttrs[key] = null
       }
       delete payload[key]
     }

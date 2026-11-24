@@ -12,12 +12,13 @@ const { Text } = Typography
 /// 只取五个专属属性列，其余子表审计列与主体同名，不并入行类型避免歧义。
 export type JourneyLevelRow = DbGameLevel &
   Partial<Pick<DbJourneyLevel,
-    'region_code' | 'level_kind' | 'boss_fights' | 'first_clear_merit' | 'duration_target_sec'>>
+    'region_code' | 'level_kind' | 'boss_code' | 'boss_fights' | 'first_clear_merit' | 'duration_target_sec'>>
 
 /// 主线关卡列：西行额外展示区域 / 难别 / 妖王战，非西行展示每日首通与通关奖励。
 export interface LevelColumnsOptions {
   isJourneyGame: boolean
   regions: { value: string; label: string }[]
+  bosses: { value: string; label: string }[]
   canWrite: boolean
   canDelete: boolean
   onOpenConfig: (record: JourneyLevelRow) => void
@@ -50,6 +51,17 @@ export function buildLevelColumns(o: LevelColumnsOptions): ColumnsType<JourneyLe
             if (!kind) return <Text type="secondary">-</Text>
             const info = JOURNEY_LEVEL_KIND_MAP[kind] ?? { color: 'default', label: kind }
             return <Tag color={info.color}>{info.label}</Tag>
+          },
+        },
+        {
+          title: '本关妖王',
+          key: 'boss_code',
+          width: 120,
+          render: (_: unknown, record: JourneyLevelRow) => {
+            const code = record.boss_code
+            if (!code) return <Text type="secondary">本段</Text>
+            const label = o.bosses.find((b) => b.value === code)?.label
+            return <Tag color="red">{label ?? code}</Tag>
           },
         },
         {

@@ -10,6 +10,7 @@ interface Props {
     games: DbGame[]
     modes: { id: string; code: string; name: string }[]
     regions: { value: string; label: string }[]
+    bosses: { value: string; label: string }[]
   }
   formState: {
     instance: FormInstance
@@ -46,6 +47,7 @@ const GameLevelsDialogs: React.FC<Props> = ({ lookups, formState, state, actions
         games={lookups.games}
         modes={lookups.modes}
         regions={lookups.regions}
+        bosses={lookups.bosses}
         formKey={formState.formKey}
         onSubmit={actions.onSubmit}
         onClose={actions.onCloseModal}
