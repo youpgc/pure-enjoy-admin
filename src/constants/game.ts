@@ -334,7 +334,12 @@ export const JOURNEY_AURA_PARAM_KEY_MAP: Record<string, { color: string; label: 
   armor: { color: 'blue', label: '护甲+' },
   damage_amp: { color: 'red', label: '伤害增幅' },
   crit_damage: { color: 'red', label: '暴击伤害' },
+  crit_rate: { color: 'gold', label: '基础暴击率' },
   move_amp: { color: 'cyan', label: '移速增幅' },
+  hurt_reduce: { color: 'blue', label: '受击减伤比例' },
+  shield_per_level: { color: 'gold', label: '每级护盾点数' },
+  shield_max: { color: 'gold', label: '单次护盾点数上限' },
+  shield_period: { color: 'geekblue', label: '护盾周期(秒)' },
 }
 
 // 境界档位标签（journey_realm_titles.tier，0~8；索引=档位）
