@@ -123,6 +123,10 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
       { code: 'charge_recover_sec', label: '收招时长(秒)', kind: 'duration', default: 1.0, min: 0.1, max: 5, step: 0.1 },
       { code: 'stage_damage_gain', label: '逐场伤害递增', kind: 'percent', default: 0.25, min: 0, max: 2, step: 0.05 },
       { code: 'stage_hp_gain', label: '逐场血量递增', kind: 'percent', default: 0.55, min: 0, max: 2, step: 0.05 },
+      { code: 'skill_gcd', label: '妖王主动技公共冷却(秒)', kind: 'duration', default: 3, min: 0, max: 30, step: 0.1, hint: '仅妖王参与；逐怪 journey_monster_params.skill_gcd 可覆盖；状态型被动不占冷却' },
+      { code: 'blind_damage', label: '致盲期玩家对妖伤害削减', kind: 'percent', default: 0.35, min: 0, max: 0.95, step: 0.01 },
+      { code: 'drain_damage', label: '套取期玩家增伤削减', kind: 'percent', default: 0.25, min: 0, max: 0.95, step: 0.01, hint: '乘算削减，不受增伤合计上限影响' },
+      { code: 'skill_dot_tick', label: '妖王持续伤害跳伤节拍(秒)', kind: 'duration', default: 1, min: 0.1, max: 60, step: 0.1, hint: '毒雾/灼烧领域对玩家的结算间隔' },
     ],
   },
   {
@@ -259,6 +263,7 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
   boss: [
     { code: 'charge', label: '冲撞时序', params: ['charge_trigger_dist', 'charge_windup_sec', 'charge_dash_sec', 'charge_speed_mult', 'charge_recover_sec'] },
     { code: 'stage', label: '逐场递增', params: ['stage_damage_gain', 'stage_hp_gain'] },
+    { code: 'debuff', label: '技能冷却与负面态', params: ['skill_gcd', 'blind_damage', 'drain_damage', 'skill_dot_tick'] },
   ],
   ability: [
     { code: 'bajie', label: '八戒', params: ['bajie_guard_mult', 'bajie_knock_mult'] },
