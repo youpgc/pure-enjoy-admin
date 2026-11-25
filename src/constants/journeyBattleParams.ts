@@ -114,7 +114,7 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
   {
     code: 'boss',
     label: '妖王冲撞',
-    intro: '妖王冲撞状态机的时序、距离与逐场递增。冷却仍走「妖王参数」逐怪配置。',
+    intro: '妖王冲撞状态机的时序、距离与逐场递增。冷却仍走「怪物参数」逐怪配置。',
     params: [
       { code: 'charge_trigger_dist', label: '冲撞触发距离(px)', kind: 'number', default: 340, min: 50, max: 2000, step: 10 },
       { code: 'charge_windup_sec', label: '蓄力预警(秒)', kind: 'duration', default: 0.7, min: 0.1, max: 5, step: 0.1 },

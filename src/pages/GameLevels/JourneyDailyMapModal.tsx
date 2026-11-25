@@ -1,3 +1,6 @@
+/// 【已退役 · 源码保留便于恢复】每日游历地图配置弹窗。
+/// 入口已迁至「西行管理 → 关卡编排 → 游历地图」，本组件已无引用，
+/// 同类功能由 JourneyConfig/JourneyDailyMapTab 承载。保留源码不删除。
 import { useEffect, useState } from 'react'
 import { Modal, Form, Input, InputNumber, Select, Switch } from 'antd'
 import { handleApiError } from '../../utils/apiClient'

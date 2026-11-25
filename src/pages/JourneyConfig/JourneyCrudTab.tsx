@@ -46,7 +46,7 @@ interface JourneyCrudTabProps {
   lockedFilterValue?: string
 }
 
-/// 西行配置通用 CRUD Tab：按 schema 渲染过滤条 / 表格 / 结构化表单弹窗。
+/// 西行管理通用 CRUD Tab：按 schema 渲染过滤条 / 表格 / 结构化表单弹窗。
 /// 表单字段与 journey_* 表列一一对应（类型化控件，无 JSON 编辑器）；
 /// 各 Tab 仅在 journeySchemas.ts 声明差异，渲染逻辑收敛于此组件。
 const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, lockedFilterValue }) => {
@@ -97,9 +97,18 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
             for (const def of filterDefs) {
               const value = queryValues[def.field]
               if (!value) continue
-              query = def.kind === 'text'
-                ? query.ilike(def.field, `%${value}%`)
-                : query.eq(def.field, value)
+              if (def.kind === 'monsterTier') {
+                // 档位是 monsters 表属性，逐怪参数表本身无该列：先解析出
+                // 对应怪物 id 再按外键过滤，避免向 PostgREST 查不存在的列。
+                const ids = lookups.monstersById
+                  .filter((o) => o.tier === value)
+                  .map((o) => o.value)
+                query = query.in(def.targetField ?? def.field, ids.length > 0 ? ids : [''])
+              } else {
+                query = def.kind === 'text'
+                  ? query.ilike(def.field, `%${value}%`)
+                  : query.eq(def.field, value)
+              }
             }
           }
           return query
@@ -118,7 +127,7 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
       if (mountedRef.current) setLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schema, filterDefs, queryValues, lockedFilterValue, pager.pagination.current, pager.pagination.pageSize])
+  }, [schema, filterDefs, queryValues, lookups, lockedFilterValue, pager.pagination.current, pager.pagination.pageSize])
 
   useEffect(() => {
     loadRows()
@@ -194,7 +203,10 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
       base.level_id = lockedFilterValue
     } else if (schema.prefillFromFilter) {
       for (const def of filterDefs) {
-        if (queryValues[def.field]) base[def.field] = queryValues[def.field]
+        // 虚拟筛选项（如怪物档位）不写入表单，避免保存时带上不存在的列
+        if (queryValues[def.field] && schema.fields.some((f) => f.name === def.field)) {
+          base[def.field] = queryValues[def.field]
+        }
       }
     }
     return base

@@ -2,7 +2,7 @@ import { Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { BaseService } from '../../utils/apiClient'
 
-// 西行配置页：字段 schema 定义（按表类型一对一，结构化表单、无 JSON 编辑器）。
+// 西行管理页：字段 schema 定义（按表类型一对一，结构化表单、无 JSON 编辑器）。
 // 每个 Tab = 一张 journey_* 表的 schema，由 JourneyCrudTab 统一渲染表格与表单。
 
 /// 表单/表格字段定义
@@ -31,30 +31,39 @@ export interface JourneyFieldDef {
   enumMap?: Record<string, { color: string; label: string }>
 }
 
+/// 下拉选项：tier 仅怪物查找表使用，供逐怪参数按 AI 档位筛选。
+export interface JourneyLookupOption {
+  value: string
+  label: string
+  tier?: string
+}
+
 /// 外键查找表（index.tsx 预载后下发）
 export interface JourneyLookups {
-  regions: { value: string; label: string }[]
-  levels: { value: string; label: string }[]
-  monsters: { value: string; label: string }[]
+  regions: JourneyLookupOption[]
+  levels: JourneyLookupOption[]
+  monsters: JourneyLookupOption[]
   /// 以怪物 id（uuid）为 value 的查找表：monster_params.monster_id 等
   /// uuid 外键列专用（monsters 表 value=code 仅用于 code 语义列）
-  monstersById: { value: string; label: string }[]
-  weapons: { value: string; label: string }[]
+  monstersById: JourneyLookupOption[]
+  weapons: JourneyLookupOption[]
   /// 以法宝 code 为 value 的查找表：character_fields.weapon_code 等 code 语义列
-  weaponsByCode: { value: string; label: string }[]
-  passiveWeapons: { value: string; label: string }[]
-  pickups: { value: string; label: string }[]
-  characters: { value: string; label: string }[]
+  weaponsByCode: JourneyLookupOption[]
+  passiveWeapons: JourneyLookupOption[]
+  pickups: JourneyLookupOption[]
+  characters: JourneyLookupOption[]
 }
 
 /// 列表过滤：按外键（如 level_id）、静态枚举（如 element）或文本前缀（如 table_code）
 export interface JourneyFilterDef {
   field: string
-  kind: 'lookup' | 'text' | 'static'
+  kind: 'lookup' | 'text' | 'static' | 'monsterTier'
   /// kind=lookup 时的查找表
   lookup?: keyof JourneyLookups
-  /// kind=static 时的固定选项
+  /// kind=static / monsterTier 时的固定选项
   options?: { value: string; label: string }[]
+  /// 过滤值写入查询时使用的真实列（档位筛选为虚拟字段，映射到 monster_id）
+  targetField?: string
   placeholder?: string
 }
 

@@ -7,6 +7,7 @@ import { handleApiError } from '../../utils/apiClient'
 import { journeyEndlessWaveService, journeyMonsterService } from '../../services/gameService'
 import { usePermission } from '../../hooks/usePermission'
 import { useMounted } from '../../hooks/useMounted'
+import common from '../../styles/common.module.css'
 
 const { Text } = Typography
 
@@ -216,10 +217,10 @@ const JourneyEndlessEditor: React.FC = () => {
       <Alert
         type="info"
         showIcon
-        className="mb16"
+        className={common.mb16}
         message="每波按「先小妖发育、末尾精英施压」分段刷怪：波内普通怪由怪种配置（留空=分阶随机池），末尾精英数由「末尾精英」指定（0=引擎按波号公式兜底）。妖王波由「妖王配额」>0 判定，妖王种类由引擎从全妖王池随机、后台不逐波指定。第 99 波清空即终局结算。"
       />
-      <Space wrap className="mb16">
+      <Space wrap className={common.mb16}>
         <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
           刷新
         </Button>

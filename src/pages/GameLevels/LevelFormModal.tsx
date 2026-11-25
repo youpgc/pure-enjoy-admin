@@ -2,11 +2,10 @@ import React from 'react'
 import { Modal, Form, Input, InputNumber, Select, Switch } from 'antd'
 import type { FormInstance } from 'antd'
 import type { DbGame, DbGameLevel } from '../../types/database'
-import { JOURNEY_LEVEL_KIND_MAP } from '../../constants/game'
 import common from '../../styles/common.module.css'
 
 // 关卡新增/编辑弹窗：form 实例、初始值与保存逻辑由父页持有。
-// 西行条件字段组：所属游戏=西行（code=journey）时显示，保存写 journey_levels 子表。
+// 关卡主体通用表单；西行子表属性在西行管理的「关卡编排」中维护。
 
 interface LevelFormModalProps {
   open: boolean
@@ -17,19 +16,11 @@ interface LevelFormModalProps {
   resolveValues: () => Record<string, any>
   games: DbGame[]
   modes: { id: string; code: string; name: string }[]
-  /** 西行区域下拉选项（regions 预载下发） */
-  regions: { value: string; label: string }[]
-  /** 西行妖王下拉选项（boss 档怪物；本关妖王覆盖本段妖王） */
-  bosses: { value: string; label: string }[]
   /** Form 重挂载 key（编辑态 + 当前游戏，保证切换后回显） */
   formKey: string
   onSubmit: () => void
   onClose: () => void
 }
-
-const LEVEL_KIND_OPTIONS = Object.entries(JOURNEY_LEVEL_KIND_MAP).map(
-  ([value, v]) => ({ value, label: v.label })
-)
 
 const LevelFormModal: React.FC<LevelFormModalProps> = ({
   open,
@@ -39,14 +30,12 @@ const LevelFormModal: React.FC<LevelFormModalProps> = ({
   resolveValues,
   games,
   modes,
-  regions,
-  bosses,
   formKey,
   onSubmit,
   onClose,
 }) => {
-  // 按条件判断：所属游戏=西行才显示西行字段组（watch 跟随表单内游戏选择；
-  // 编辑回显时 watch 未就绪用 editing.game_id 兜底）
+  // 西行关卡的子表属性已迁入「西行管理 → 关卡编排」；这里只保留主体字段，
+  // isJourney 仅用于难号上限与难名口径。
   const watchedGameId = Form.useWatch('game_id', form)
   const effectiveGameId = (watchedGameId as string | undefined) ?? editing?.game_id
   const selectedGame = games.find((g) => g.id === effectiveGameId)
@@ -97,47 +86,6 @@ const LevelFormModal: React.FC<LevelFormModalProps> = ({
         <Input placeholder={isJourney ? '如 金蝉遭贬' : '如 第 1 关 / 第二关'} />
       </Form.Item>
 
-      {isJourney && (
-        <>
-          <Form.Item
-            name="region_code"
-            label="所属区域"
-            tooltip="西行区域（五行山/高老庄/流沙河/白虎岭），存 journey_levels.region_code；App 按区域分组并取主题色"
-            rules={[{ required: true, message: '请选择区域' }]}
-          >
-            <Select placeholder="选择区域" options={regions} showSearch optionFilterProp="label" />
-          </Form.Item>
-          <Form.Item
-            name="level_kind"
-            label="难别"
-            tooltip="叙事/战斗/试炼/节点/妖王战等；妖王战难配置妖王战数"
-            rules={[{ required: true, message: '请选择难别' }]}
-          >
-            <Select placeholder="选择难别" options={LEVEL_KIND_OPTIONS} />
-          </Form.Item>
-          <Form.Item
-            name="boss_code"
-            label="本关妖王"
-            tooltip="留空=沿用所属区域的「本段妖王」；指定后本关打该妖王（车迟国三关分别挂虎力/鹿力/羊力）"
-          >
-            <Select placeholder="留空=本段妖王" options={bosses} showSearch optionFilterProp="label" allowClear />
-          </Form.Item>
-          <Form.Item name="boss_fights" label="妖王战数" tooltip="0=无妖王战；>0 末端触发妖王战，可多场（如三打白骨精=3）" initialValue={0}>
-            <InputNumber className={common.fullWidth} min={0} max={9} />
-          </Form.Item>
-          <Form.Item name="first_clear_merit" label="首通功德" tooltip="首次通关发放的功德（天赋点来源=首通计数，与功德无关）" initialValue={0}>
-            <InputNumber className={common.fullWidth} min={0} />
-          </Form.Item>
-          <Form.Item
-            name="duration_target_sec"
-            label="坚持通关时长(秒)"
-            tooltip="无妖难（区域妖王=无）的通关口径：坚持满该时长即功成，罗盘位显示倒计时；妖王难不消费此值。留空 = 默认 300 秒"
-          >
-            <InputNumber className={common.fullWidth} min={0} placeholder="留空 = 300 秒" />
-          </Form.Item>
-        </>
-      )}
-
       {!isJourney && (
         <>
           <Form.Item name="config" label="关卡布局(config, JSON)">
@@ -165,7 +113,7 @@ const LevelFormModal: React.FC<LevelFormModalProps> = ({
         </>
       )}
       {/* 西行关卡：奖励走功德体系（journey_levels.first_clear_merit），积分/道具
-          /每日首通均不适用；西行属性全部结构化表单项维护，写独立子表。 */}
+          /每日首通均不适用；西行属性在「西行管理 → 关卡编排 → 关卡属性」维护。 */}
       <Form.Item name="sort_order" label="排序" initialValue={0}>
         <InputNumber className={common.fullWidth} min={0} />
       </Form.Item>

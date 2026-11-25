@@ -15,6 +15,12 @@ import type { DbGameLevel, DbJourneyRegion, DbJourneyMonster, DbJourneyWeapon, D
 import JourneyCrudTab from './JourneyCrudTab'
 import JourneyGlobalsTab from './JourneyGlobalsTab'
 import JourneyBattleParamsTab from './JourneyBattleParamsTab'
+import JourneyBossAbilities from '../JourneyBossAbilities'
+import JourneyWallet from '../JourneyWallet'
+import JourneyEndlessEditor from '../GameLevels/JourneyEndlessEditor'
+import JourneyLevelAttrsTab from './JourneyLevelAttrsTab'
+import JourneyLevelScopedTab from './JourneyLevelScopedTab'
+import JourneyDailyMapTab from './JourneyDailyMapTab'
 import { JOURNEY_TAB_SCHEMAS } from './journeySchemas'
 import { JOURNEY_BATTLE_PARAM_GROUPS } from '../../constants/journeyBattleParams'
 import type { JourneyLookups, JourneyTabSchema } from './journeyTabSchema'
@@ -24,7 +30,7 @@ import common from '../../styles/common.module.css'
 type SecondaryTab = {
   key: string
   label: string
-  kind: 'crud' | 'globals' | 'params'
+  kind: 'crud' | 'globals' | 'params' | 'abilities' | 'levelAttrs' | 'dailyMaps' | 'levelScoped' | 'endless'
   schema?: JourneyTabSchema
   groupCode?: string
 }
@@ -33,7 +39,9 @@ type SecondaryTab = {
 type PrimaryTab = {
   key: string
   label: string
-  children: SecondaryTab[]
+  children?: SecondaryTab[]
+  /// 整页承载的内容（如西行钱包），不套二级 Tab 条
+  content?: React.ReactNode
 }
 
 const schemaOf = (key: string): JourneyTabSchema | undefined =>
@@ -44,10 +52,10 @@ const crud = (key: string, label?: string): SecondaryTab => {
   return { key, label: label ?? schema?.label ?? key, kind: 'crud', schema }
 }
 
-/// 西行配置中心：一级分类 + 二级具体内容两级菜单。
-/// 关卡级三表在 GameLevels 关卡配置抽屉；无尽妖潮波次与游历地图编辑器
-/// 在 GameLevels「模式关卡」区；本页 lookup 的「关卡」选项即 game_levels
-/// 西行行的 level_no→难名。表由 /workspace/sql/journey DDL 创建。
+/// 西行管理中心：一级分类 + 二级具体内容两级菜单。
+/// 西行关卡子表属性、波次/热区/参照物、游历地图与无尽妖潮统一收归
+/// 「关卡编排」；本页 lookup 的「关卡」选项即 game_levels 西行行的
+/// level_no→难名。表由 /workspace/sql/journey DDL 创建。
 const PRIMARY_TABS: PrimaryTab[] = [
   {
     key: 'basic',
@@ -82,6 +90,7 @@ const PRIMARY_TABS: PrimaryTab[] = [
       { key: 'globals', label: '全局参数', kind: 'globals' },
       crud('weapon_params'),
       crud('monster_params'),
+      { key: 'boss_abilities', label: '妖王能力', kind: 'abilities' },
       ...JOURNEY_BATTLE_PARAM_GROUPS.map<SecondaryTab>((g) => ({
         key: `battle_${g.code}`,
         label: g.label,
@@ -92,8 +101,18 @@ const PRIMARY_TABS: PrimaryTab[] = [
   },
   {
     key: 'level',
-    label: '关卡与玩法',
-    children: [crud('daily_maps')],
+    label: '关卡编排',
+    children: [
+      { key: 'level_attrs', label: '关卡属性', kind: 'levelAttrs' },
+      { key: 'daily_maps', label: '游历地图', kind: 'dailyMaps' },
+      { key: 'level_scoped', label: '关卡细节', kind: 'levelScoped' },
+      { key: 'endless', label: '无尽妖潮', kind: 'endless' },
+    ],
+  },
+  {
+    key: 'wallet',
+    label: '西行钱包',
+    content: <JourneyWallet />,
   },
 ]
 const JourneyConfig: React.FC = () => {
@@ -130,7 +149,8 @@ const JourneyConfig: React.FC = () => {
         journeyCharacterService.findAll(),
       ])
       // 表未建（SQL 未执行）时 findAll 走失败分支返回 success=false，不抛异常
-      const failed = [regions, monsters, weapons, pickups, characters].some((r) => !r.success)
+      // levels 也纳入判定：journey 游戏未配置或查询失败时关卡下拉为空，需显式告警
+      const failed = [regions, levels, monsters, weapons, pickups, characters].some((r) => !r.success)
       if (failed) {
         if (mountedRef.current) {
           setLoadError('journey 配置表暂不可用（SQL 未执行或网络异常），下拉选项可能为空')
@@ -146,9 +166,18 @@ const JourneyConfig: React.FC = () => {
       setLookups({
         regions: regionRows.map((r) => ({ value: r.id, label: `${r.name}（${r.code}）` })),
         levels: levelRows.map((l) => ({ value: l.id, label: `第${l.level_no}难 ${l.name}` })),
-        monsters: monsterRows.map((m) => ({ value: m.code, label: `${m.name}（${m.code}）` })),
-        // uuid 外键列专用（monster_params.monster_id），value=id 而非 code
-        monstersById: monsterRows.map((m) => ({ value: m.id, label: `${m.name}（${m.code}）` })),
+        monsters: monsterRows.map((m) => ({
+          value: m.code,
+          label: `${m.name}（${m.code}）`,
+          tier: m.ai_tier ?? undefined,
+        })),
+        // uuid 外键列专用（monster_params.monster_id），value=id 而非 code；
+        // tier 供逐怪参数按 AI 档位筛选（普通/精英/妖王）
+        monstersById: monsterRows.map((m) => ({
+          value: m.id,
+          label: `${m.name}（${m.code}）`,
+          tier: m.ai_tier ?? undefined,
+        })),
         weapons: weaponRows.map((w) => ({ value: w.id, label: `${w.name}（${w.code}）` })),
         weaponsByCode: weaponRows.map((w) => ({ value: w.code, label: `${w.name}（${w.code}）` })),
         passiveWeapons: weaponRows
@@ -172,7 +201,7 @@ const JourneyConfig: React.FC = () => {
   if (loading) {
     return (
       <div className={common.flexCenter} style={{ padding: '80px 0' }}>
-        <Spin tip="加载西行配置查找表…" />
+        <Spin tip="加载西行管理查找表…" />
       </div>
     )
   }
@@ -185,6 +214,16 @@ const JourneyConfig: React.FC = () => {
         return child.groupCode ? (
           <JourneyBattleParamsTab groupCode={child.groupCode} />
         ) : null
+      case 'abilities':
+        return <JourneyBossAbilities />
+      case 'levelAttrs':
+        return <JourneyLevelAttrsTab lookups={lookups} />
+      case 'dailyMaps':
+        return <JourneyDailyMapTab lookups={lookups} />
+      case 'levelScoped':
+        return <JourneyLevelScopedTab lookups={lookups} />
+      case 'endless':
+        return <JourneyEndlessEditor />
       case 'crud':
       default:
         return child.schema ? (
@@ -210,11 +249,11 @@ const JourneyConfig: React.FC = () => {
         items={PRIMARY_TABS.map((primary) => ({
           key: primary.key,
           label: primary.label,
-          children: (
+          children: primary.content ?? (
             <Tabs
-              defaultActiveKey={primary.children[0]?.key}
+              defaultActiveKey={primary.children?.[0]?.key}
               destroyInactiveTabPane
-              items={primary.children.map((child) => ({
+              items={(primary.children ?? []).map((child) => ({
                 key: child.key,
                 label: child.label,
                 children: renderSecondary(child),

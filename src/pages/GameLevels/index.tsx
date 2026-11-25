@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Table, Empty, message, Form } from 'antd'
+import { Alert, Table, Empty, message, Form } from 'antd'
 import { handleApiError } from '../../utils/apiClient'
 import { usePagination } from '../../hooks/usePagination'
 import { useMounted } from '../../hooks/useMounted'
 import { usePermission } from '../../hooks/usePermission'
-import { gameService, gameLevelService, gameModeService, journeyRegionService, journeyDailyMapService, journeyLevelService } from '../../services/gameService'
+import { gameService, gameLevelService, gameModeService, journeyRegionService, journeyLevelService } from '../../services/gameService'
 import { journeyMonsterService } from '../../services/journeyConfigService'
 import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache'
 import { refreshGameMeta, refreshGameBaseLevels } from '../../utils/gameMetaCache'
 import { useNavigation } from '../../contexts/NavigationContext'
-import type { DbGame, DbGameLevel, DbJourneyDailyMap } from '../../types/database'
-import JourneyEndlessEditor from './JourneyEndlessEditor'
-import { buildLevelColumns, buildDailyColumns, type JourneyLevelRow } from './columns'
+import type { DbGame, DbGameLevel } from '../../types/database'
+import { buildLevelColumns, type JourneyLevelRow } from './columns'
 import { levelFormInitialValues, buildLevelSavePayload } from './levelFormValues'
 import GameLevelsToolbar from './GameLevelsToolbar'
 import GameLevelsDialogs from './GameLevelsDialogs'
@@ -35,19 +34,19 @@ const GameLevels: React.FC = () => {
   const [selectedModeId, setSelectedModeId] = useState<string>(
     (restoredFiltersRef.current.selectedModeId as string) ?? ''
   )
-  // 西行分类筛选（仅所属游戏=西行时显示；journey_levels 子表属性过滤）
+  // 西行区域选项（仅所属游戏=西行时显示；用于列表筛选与区域列展示）
   const [regions, setRegions] = useState<{ value: string; label: string }[]>([])
-  // 西行妖王选项（本关妖王下拉；code 为值，避免 uuid 随环境漂移）
+  // 西行妖王选项（用于列表「本关妖王」列展示；code 为值，避免 uuid 随环境漂移）
   const [bosses, setBosses] = useState<{ value: string; label: string }[]>([])
   const [regionFilter, setRegionFilter] = useState<string>('')
   const [kindFilter, setKindFilter] = useState<string>('')
   const selectedGameCode = games.find((g) => g.id === selectedGameId)?.code ?? ''
   const isJourneyGame = selectedGameCode === 'journey'
-  // 西行模式分流：无尽妖潮/每日游历模式 → 整页展示对应模式编辑器，
-  // 隐藏主线关卡列表（关卡行入口口径：每模式独立配置视图）
+  // 西行模式分流：无尽妖潮/每日游历模式 → 展示迁移提示，
+  // 对应编辑器已收归「西行管理 → 关卡编排」。
   const selectedModeCode =
     modes.find((m) => m.id === selectedModeId)?.code ?? ''
-  // 西行模式编辑器视图（无尽妖潮/每日游历）：隐藏主线列表与主线专用控件
+  // 西行模式视图（无尽妖潮/每日游历）：隐藏主线列表，展示迁移提示
   const modeEditorView =
     isJourneyGame &&
     (selectedModeCode === 'endless' || selectedModeCode === 'daily')
@@ -59,11 +58,6 @@ const GameLevels: React.FC = () => {
   const pager = usePagination()
   const [modalVisible, setModalVisible] = useState(false)
   const [editing, setEditing] = useState<JourneyLevelRow | null>(null)
-  // 西行关卡配置抽屉（波次/热区/参照物）
-  const [configLevel, setConfigLevel] = useState<DbGameLevel | null>(null)
-  // 每日游历逐图独立表单（模式=每日游历的地图行「配置」入口）
-  const [dailyMaps, setDailyMaps] = useState<DbJourneyDailyMap[]>([])
-  const [dailyEditRow, setDailyEditRow] = useState<DbJourneyDailyMap | null>(null)
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
 
@@ -108,20 +102,6 @@ const GameLevels: React.FC = () => {
       )
     }).catch(() => {})
   }, [mountedRef])
-
-  // 西行游历地图行（模式关卡区：逐图独立表单入口；失败静默留空）
-  useEffect(() => {
-    if (!isJourneyGame) {
-      setDailyMaps([])
-      return
-    }
-    journeyDailyMapService.findAll().then((res) => {
-      if (!mountedRef.current || !res.success) return
-      const rows = [...(res.data ?? [])]
-      rows.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-      setDailyMaps(rows)
-    }).catch(() => {})
-  }, [isJourneyGame, mountedRef])
 
   const loadModes = useCallback(
     async (): Promise<{ id: string; code: string; name: string }[]> => {
@@ -306,52 +286,25 @@ const GameLevels: React.FC = () => {
     try {
       setSaving(true)
       const values = await form.validateFields()
-      const saveGameCode = games.find((g) => g.id === values.game_id)?.code
       let levelPayload: Record<string, any>
-      let journeyAttrs: Record<string, any> | null
       try {
-        const built = buildLevelSavePayload(values, saveGameCode)
+        const built = buildLevelSavePayload(values)
         levelPayload = built.levelPayload
-        journeyAttrs = built.journeyAttrs
       } catch {
         message.error('config / target / propUnlock 不是合法 JSON')
         setSaving(false)
         return
       }
-      let savedLevelId: string
-      // 本次新建的主表 id：子表写失败时回滚主表，避免重试产生重复关卡
-      let createdLevelId: string | null = null
       if (editing) {
         const result = await gameLevelService.update(editing.id, levelPayload)
         if (!result.success) {
           handleApiError(result.errorMessage, 'GameLevels-更新')
           return
         }
-        savedLevelId = editing.id
       } else {
         const result = await gameLevelService.create(levelPayload as any)
         if (!result.success) {
           handleApiError(result.errorMessage, 'GameLevels-创建')
-          return
-        }
-        savedLevelId = result.data?.id ?? ''
-        createdLevelId = savedLevelId || null
-      }
-      // 西行属性写 journey_levels 子表（关卡主体 id 已就绪）
-      if (journeyAttrs && savedLevelId) {
-        const attrRes = await journeyLevelService.saveByLevel(savedLevelId, journeyAttrs)
-        if (!attrRes.success) {
-          handleApiError(attrRes.errorMessage, 'GameLevels-西行属性保存')
-          // 新建关卡子表写失败：删除刚创建的主表行，保证重试干净重建
-          if (createdLevelId) {
-            const rollback = await gameLevelService.delete(createdLevelId)
-            if (rollback.success) {
-              message.warning('西行属性保存失败，已回滚新建的关卡，请修正后重试')
-            } else {
-              message.error('西行属性保存失败且回滚失败，请手动删除刚创建的关卡后重试')
-            }
-            loadLevels()
-          }
           return
         }
       }
@@ -377,15 +330,9 @@ const GameLevels: React.FC = () => {
     bosses,
     canWrite,
     canDelete,
-    onOpenConfig: (record) => setConfigLevel(record),
     onEdit: openEdit,
     onDelete: handleDelete,
     onToggleDailyClear: handleToggleDailyClear,
-  })
-
-  const dailyColumns = buildDailyColumns({
-    canWrite,
-    onConfigure: (row) => setDailyEditRow(row),
   })
 
   return (
@@ -438,15 +385,16 @@ const GameLevels: React.FC = () => {
 
       {!selectedGameId ? (
         <Empty description="请先创建游戏后再配置关卡" />
-      ) : modeEditorView && selectedModeCode === 'endless' ? (
-        <JourneyEndlessEditor />
-      ) : modeEditorView && selectedModeCode === 'daily' ? (
-        <Table
-          columns={dailyColumns}
-          dataSource={dailyMaps}
-          rowKey="id"
-          pagination={false}
-          size="small"
+      ) : modeEditorView ? (
+        <Alert
+          type="info"
+          showIcon
+          message="西行模式配置已迁入「西行管理 → 关卡编排」"
+          description={
+            selectedModeCode === 'endless'
+              ? '无尽妖潮波次请到「关卡编排 → 无尽妖潮」维护。'
+              : '每日游历地图请到「关卡编排 → 游历地图」维护。'
+          }
         />
       ) : (
         <Table
@@ -460,30 +408,20 @@ const GameLevels: React.FC = () => {
       )}
 
       <GameLevelsDialogs
-        lookups={{ games, modes, regions, bosses }}
+        lookups={{ games, modes }}
         formState={{
           instance: form,
           formKey: `${editing?.id ?? 'create'}-${selectedGameId}`,
           resolveValues: formInitialValues,
           saving,
         }}
-        state={{ modalVisible, editing, configLevel, dailyEditRow }}
+        state={{ modalVisible, editing }}
         actions={{
           onSubmit: handleSave,
           onCloseModal: () => {
             setModalVisible(false)
             setEditing(null)
             form.resetFields()
-          },
-          onCloseConfig: () => setConfigLevel(null),
-          onCloseDaily: () => setDailyEditRow(null),
-          onDailySaved: () => {
-            journeyDailyMapService.findAll().then((res) => {
-              if (!mountedRef.current || !res.success) return
-              const rows = [...(res.data ?? [])]
-              rows.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-              setDailyMaps(rows)
-            }).catch(() => {})
           },
         }}
       />

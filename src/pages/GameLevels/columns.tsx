@@ -1,15 +1,15 @@
-import { Space, Switch, Tag, Typography, Button } from 'antd'
-import { EditOutlined, DeleteOutlined, SettingOutlined } from '@ant-design/icons'
+import { Space, Switch, Tag, Typography } from 'antd'
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { getActionColumn } from '../../components/common/ActionColumn'
 import { JOURNEY_LEVEL_KIND_MAP } from '../../constants/game'
 import { formatDateTime } from '../../utils/format'
-import type { DbGameLevel, DbJourneyLevel, DbJourneyDailyMap } from '../../types/database'
+import type { DbGameLevel, DbJourneyLevel } from '../../types/database'
 
 const { Text } = Typography
 
 /// 西行关卡行：game_levels 主体 + journey_levels 子表属性合并到顶层。
-/// 只取五个专属属性列，其余子表审计列与主体同名，不并入行类型避免歧义。
+/// 只取六个专属属性列，其余子表审计列与主体同名，不并入行类型避免歧义。
 export type JourneyLevelRow = DbGameLevel &
   Partial<Pick<DbJourneyLevel,
     'region_code' | 'level_kind' | 'boss_code' | 'boss_fights' | 'first_clear_merit' | 'duration_target_sec'>>
@@ -21,7 +21,6 @@ export interface LevelColumnsOptions {
   bosses: { value: string; label: string }[]
   canWrite: boolean
   canDelete: boolean
-  onOpenConfig: (record: JourneyLevelRow) => void
   onEdit: (record: JourneyLevelRow) => void
   onDelete: (id: string) => void
   onToggleDailyClear: (record: JourneyLevelRow, next: boolean) => void
@@ -124,15 +123,6 @@ export function buildLevelColumns(o: LevelColumnsOptions): ColumnsType<JourneyLe
       render: (d: string) => formatDateTime(d),
     },
     getActionColumn<JourneyLevelRow>((record) => [
-      ...(o.isJourneyGame
-        ? [{
-            key: 'level_config',
-            label: '配置',
-            icon: <SettingOutlined />,
-            disabled: !o.canWrite,
-            onClick: () => o.onOpenConfig(record),
-          }]
-        : []),
       {
         key: 'edit',
         label: '编辑',
@@ -150,57 +140,5 @@ export function buildLevelColumns(o: LevelColumnsOptions): ColumnsType<JourneyLe
         onClick: () => o.onDelete(record.id),
       },
     ], { width: 150 }),
-  ]
-}
-
-/// 每日游历地图列：怪物池只展示种数，配置入口回传整行。
-export interface DailyColumnsOptions {
-  canWrite: boolean
-  onConfigure: (row: DbJourneyDailyMap) => void
-}
-
-export function buildDailyColumns(o: DailyColumnsOptions): ColumnsType<DbJourneyDailyMap> {
-  return [
-    { title: '地图', key: 'name', render: (_: unknown, r) => (
-        <Space>
-          <Tag color="cyan">游历</Tag>
-          {r.name}
-          <Text type="secondary">（{r.code}）</Text>
-        </Space>
-      ) },
-    { title: '主题色', dataIndex: 'theme_color', key: 'theme_color', width: 100 },
-    { title: '功成时长(秒)', dataIndex: 'duration_target_sec', key: 'duration_target_sec', width: 120 },
-    {
-      title: '怪物池',
-      key: 'monster_pool',
-      width: 140,
-      render: (_: unknown, r) => {
-        const n = (r.monster_pool ?? '').split(',').map((s) => s.trim()).filter(Boolean).length
-        return n > 0 ? <Tag color="blue">{n} 种</Tag> : <Text type="secondary">全怪池</Text>
-      },
-    },
-    { title: '排序', dataIndex: 'sort', key: 'sort', width: 80 },
-    {
-      title: '状态',
-      dataIndex: 'enabled',
-      key: 'enabled',
-      width: 90,
-      render: (v: boolean | null) => (v !== false ? <Tag color="green">开放</Tag> : <Tag>禁用</Tag>),
-    },
-    {
-      title: '操作',
-      key: 'act',
-      width: 110,
-      render: (_: unknown, r) => (
-        <Button
-          size="small"
-          icon={<SettingOutlined />}
-          disabled={!o.canWrite}
-          onClick={() => o.onConfigure(r)}
-        >
-          配置
-        </Button>
-      ),
-    },
   ]
 }

@@ -25,7 +25,7 @@ import {
   journeyDropService,
   journeyCharacterService,
   journeyRelicUnlockService,
-  journeyDailyMapService,
+  // journeyDailyMapService 已不用：游历地图由 JourneyDailyMapTab 以多选怪物池表单维护
   journeyWeaponParamService,
   journeyMonsterParamService,
   journeyTalentBranchService,
@@ -39,10 +39,10 @@ import { globalsFields } from './journeyGlobalFields'
 export { globalsFields }
 
 // 西行（journey）扩展配置表 Tab schema。
-// 关卡不在本页：81 难统一走 GameLevels，西行属性在 journey_levels 子表；
+// 关卡主体在 GameLevels 创建（game_levels），西行属性在 journey_levels 子表；
+// 两者的查看与编辑统一收归「西行管理 → 关卡编排」。
 // 角色光环参数与境界名号已拆为独立 Tab（一行一键 / 一行一档）。
-// 扩展配置表按类型分 Tab 维护（关卡级三表：波次/热区/参照物在 GameLevels
-// 关卡配置抽屉；无尽妖潮波次与游历地图在 GameLevels「模式关卡」区编辑）。
+// 关卡级三表（波次/热区/参照物）、游历地图与无尽妖潮的入口均在「关卡编排」。
 // 字段名与 /workspace/sql journey DDL 列一一对应；枚举选项与 constants/game.ts 同源。
 // 分页 Tab 通过 filters 配置筛选项：text 包含匹配、lookup 外键精确、static 枚举精确。
 
@@ -172,22 +172,30 @@ const weaponFields: JourneyFieldDef[] = [
   { name: 'sprite_key', label: '资源键', type: 'text', hideInTable: true },
 ]
 
-// ---- 每日游历地图 ----
-const dailyMapFields: JourneyFieldDef[] = [
-  { name: 'code', label: '地图编码', type: 'text', required: true, placeholder: '如 huaguoshan' },
-  { name: 'name', label: '地图名称', type: 'text', required: true, placeholder: '如 花果山' },
-  { name: 'theme_color', label: '主题色', type: 'text', placeholder: '#6FBF9A' },
-  { name: 'milestone_li', label: '里程碑里数', type: 'number', min: 0, width: 110 },
-  { name: 'description', label: '描述', type: 'textarea', hideInTable: true },
-  { name: 'monster_pool', label: '怪物池', type: 'text', hideInTable: true, placeholder: '怪 code 逗号分隔；空=全怪池兜底（关卡列表「游历」行可用多选编辑）' },
-  { name: 'sort', label: '排序', type: 'number', min: 0, width: 80 },
-  { name: 'enabled', label: '启用', type: 'switch', width: 80 },
+// ---- 每日游历地图（通用 CRUD schema 已不用，保留源码便于恢复）----
+// 游历地图由「西行管理 → 关卡编排 → 游历地图」的 JourneyDailyMapTab 维护：
+// monster_pool 以多选呈现，字段口径与下表一致。
+// const dailyMapFields: JourneyFieldDef[] = [
+//   { name: 'code', label: '地图编码', type: 'text', required: true, placeholder: '如 huaguoshan' },
+//   { name: 'name', label: '地图名称', type: 'text', required: true, placeholder: '如 花果山' },
+//   { name: 'theme_color', label: '主题色', type: 'text', placeholder: '#6FBF9A' },
+//   { name: 'milestone_li', label: '里程碑里数', type: 'number', min: 0, width: 110 },
+//   { name: 'description', label: '描述', type: 'textarea', hideInTable: true },
+//   { name: 'monster_pool', label: '怪物池', type: 'text', hideInTable: true, placeholder: '怪 code 逗号分隔；空=全怪池兜底' },
+//   { name: 'sort', label: '排序', type: 'number', min: 0, width: 80 },
+//   { name: 'enabled', label: '启用', type: 'switch', width: 80 },
+// ]
+
+// ---- 逐怪数值参数（monster_id+code 一行一键，覆盖全部 AI 档位）----
+const MONSTER_TIER_FILTER_OPTIONS = [
+  { value: 'normal', label: '普通' },
+  { value: 'elite', label: '精英' },
+  { value: 'boss', label: '妖王' },
 ]
 
-// ---- 妖王能力参数（妖王数值后台化：monster_id+code 一行一键）----
 const monsterParamFields: JourneyFieldDef[] = [
   // monster_id 为 uuid 外键列：下拉必须用 id 值查找表（monsters 表 value=code）
-  { name: 'monster_id', label: '妖王', type: 'select', optionsFrom: 'monstersById', required: true, width: 180 },
+  { name: 'monster_id', label: '怪物', type: 'select', optionsFrom: 'monstersById', required: true, width: 180 },
   {
     name: 'code', label: '参数键', type: 'select', required: true, width: 150,
     options: opts(JOURNEY_MONSTER_PARAM_KEY_MAP), enumMap: mapOf(JOURNEY_MONSTER_PARAM_KEY_MAP),
@@ -343,7 +351,7 @@ const upgradeCardFields: JourneyFieldDef[] = [
 ]
 
 // ---- 关卡级配置 schema（波次/密度热区/地图参照物：挂在 GameLevels
-//      关卡配置抽屉按 level_id 编辑，西行配置页只做基础数据）----
+//      在西行管理 → 关卡编排 → 关卡细节按 level_id 编辑）----
 export const JOURNEY_LEVEL_SCOPED_SCHEMAS: JourneyTabSchema[] = [
   {
     key: 'waves', label: '波次', service: journeyWaveService, fields: waveFields,
@@ -360,21 +368,21 @@ export const JOURNEY_LEVEL_SCOPED_SCHEMAS: JourneyTabSchema[] = [
   },
 ]
 
-// 无尽妖潮波次不再走本页 schema：入口收编进 GameLevels「模式关卡」区
-// ——「无尽妖潮」关卡行 → 配置弹窗（JourneyEndlessModal 逐波折叠、
-// 行内控件即时保存）；游历地图同口径（JourneyDailyMapModal）。
+// 无尽妖潮波次不走本页 schema：入口在「西行管理 → 关卡编排 → 无尽妖潮」，
+// 复用 JourneyEndlessEditor；游历地图同在「关卡编排 → 游历地图」。
+// 原 GameLevels「模式关卡」入口已退役。
 
 export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
   {
     key: 'regions', label: '区域', service: journeyRegionService, fields: regionFields,
     filters: [{ field: 'name', kind: 'text', placeholder: '按区域名称筛选' }, { field: 'code', kind: 'text', placeholder: '按区域编码筛选' }],
-    intro: '区域=关卡分组（五行山→…→灵山），主题色用于地图覆层与 UI 色调；排序即西行顺序。关卡的区域归属在 GameLevels 关卡表单选择（存 journey_levels.region_code）。',
+    intro: '区域=关卡分组（五行山→…→灵山），主题色用于地图覆层与 UI 色调；排序即西行顺序。关卡的区域归属在「西行管理 → 关卡编排 → 关卡属性」维护（存 journey_levels.region_code）。',
   },
   {
     key: 'monsters', label: '怪物', service: journeyMonsterService, fields: monsterFields,
     iconPrefix: 'monster',
     filters: [{ field: 'name', kind: 'text', placeholder: '按怪物名称筛选' }, { field: 'ai_tier', kind: 'static', options: opts(JOURNEY_AI_TIER_MAP), placeholder: '全部 AI 档' }],
-    intro: '怪物静态属性；难度主轴=单怪增强（血/伤/体型/技能），同屏量级收敛在 ~200。机制行为如 charge=精英冲撞；掉落表编码匹配掉落表页签的 table_code（如 monster_normal_late）。',
+    intro: '怪物静态属性；难度主轴=单怪增强（血/伤/体型/技能），同屏量级收敛在 ~200。charge_* 冲撞参数只在妖王路径读取，普通/精英不生效；掉落表编码匹配掉落表页签的 table_code（如 monster_normal_late）。',
   },
   {
     key: 'weapons', label: '法宝', service: journeyWeaponService, fields: weaponFields,
@@ -406,11 +414,12 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     filters: [{ field: 'table_code', kind: 'text', placeholder: '按掉落表编码筛选' }, { field: 'source_kind', kind: 'static', options: opts(JOURNEY_DROP_SOURCE_MAP), placeholder: '全部来源' }],
     intro: '按 table_code 聚组：同组内按权重概率掉落，数量在 qty_min~qty_max 间取值。',
   },
-  {
-    key: 'daily_maps', label: '游历地图', service: journeyDailyMapService, fields: dailyMapFields,
-    filters: [{ field: 'name', kind: 'text', placeholder: '按地图名称筛选' }, { field: 'code', kind: 'text', placeholder: '按地图编码筛选' }],
-    intro: '每日游历地图列表（运营可增删）：App 端每日任选一图进入，进入即计次（主动放弃同样占次）；主题色驱动地图渲染，功成时长为坚持目标（秒）。',
-  },
+  // 游历地图的入口在「西行管理 → 关卡编排 → 游历地图」，保留本条 schema 便于恢复。
+  // {
+  //   key: 'daily_maps', label: '游历地图', service: journeyDailyMapService, fields: dailyMapFields,
+  //   filters: [{ field: 'name', kind: 'text', placeholder: '按地图名称筛选' }, { field: 'code', kind: 'text', placeholder: '按地图编码筛选' }],
+  //   intro: '每日游历地图列表（运营可增删）：App 端每日任选一图进入，进入即计次（主动放弃同样占次）；主题色驱动地图渲染。',
+  // },
   {
     key: 'characters', label: '角色', service: journeyCharacterService, fields: characterFields,
     iconPrefix: 'char',
@@ -452,9 +461,13 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     intro: '被动加持(passive)/特效(effect)法宝的数值参数（一行一键，code=参数语义键）：App 引擎按法宝+参数键读取，行缺失回落内置默认值。主动法宝(category=active)不读本表——其初始环绕参数在「法宝」页的 orbit_speed/inner_radius/outer_radius/blade_width/base_damage 列，1~8 级成长在「法宝分级」页，升级效果在「武器维度槽」页；本表对其无效，无需补空行。常用键：移速 move/生命 hp/回复 regen/经验 exp/转速 spin/臂长 radius/伤害 damage/磁吸 magnet/回血比例 heal/无敌秒数 invuln/冷却秒数 cooldown（>0 进入冷却制，=0 本局仅一次）/触发周期 period/精英增伤 elite/触发概率 chance/定身秒数 root/反伤比例 thorns/链伤比例 chain/作用范围 range/目标数 targets/触发次数 hits/虚弱秒数 weak/灼烧比例 burn。',
   },
   {
-    key: 'monster_params', label: '妖王参数', service: journeyMonsterParamService, fields: monsterParamFields,
-    filter: { field: 'monster_id', kind: 'lookup', lookup: 'monstersById', placeholder: '按怪物筛选' },
+    key: 'monster_params', label: '怪物参数', service: journeyMonsterParamService, fields: monsterParamFields,
+    filter: {
+      field: 'monster_tier', kind: 'monsterTier', targetField: 'monster_id',
+      options: MONSTER_TIER_FILTER_OPTIONS, placeholder: '按怪物档位筛选',
+    },
+    filters: [{ field: 'monster_id', kind: 'lookup', lookup: 'monstersById', placeholder: '按怪物筛选' }],
     prefillFromFilter: true,
-    intro: '妖王能力数值参数（一行一键，code=参数语义键）：App 引擎按怪物+参数键读取，行缺失回落内置默认值。常用键：抗击退 knock_resist/附加护甲 armor/移速倍率 move_mult/冲撞伤害倍率 charge_ratio/冲撞击退距离 charge_knockback/冲撞冷却 charge_cd/阵风周期 wind_period/吹离距离 wind_push/火圈周期 fire_period/火圈半径 fire_range/火圈伤害比例 fire_ratio/摄魂周期 pull_period/拉拽距离 pull_dist/狂暴增幅 frenzy_mult/狂暴触发线 frenzy_hp/定身秒数 web_root/禁疗秒数 poison_block。',
+    intro: '逐怪数值参数（一行一键，code=参数语义键）：表本身不限定 AI 档位，App 按怪物+参数键读取，行缺失回落内置默认值。armor/move_mult/knock_resist 对普通、精英、妖王均生效；charge_*、skill_gcd 及各能力键只在妖王路径读取，普通/精英行是历史全怪种子、当前不生效。只管理妖王能力数值请用右侧「妖王能力」页。',
   },
 ]

@@ -1,3 +1,6 @@
+/// 【已退役 · 源码保留便于恢复】关卡配置抽屉（波次/热区/参照物）。
+/// 入口已迁至「西行管理 → 关卡编排 → 关卡细节」，本组件已无引用，
+/// 同类功能由 JourneyConfig/JourneyLevelScopedTab 承载。保留源码不删除。
 import { useEffect, useState } from 'react'
 import { Drawer, Tabs } from 'antd'
 import { journeyMonsterService, gameLevelService } from '../../services/gameService'

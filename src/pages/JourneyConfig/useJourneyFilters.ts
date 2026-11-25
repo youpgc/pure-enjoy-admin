@@ -5,7 +5,7 @@ import { loadTabFilters, usePersistTabFilters } from '../../utils/tabFilterCache
 /// 文本筛选输入防抖时长（毫秒）：避免逐字符触发服务端查询。
 const TEXT_FILTER_DEBOUNCE_MS = 300
 
-/// 西行配置表格筛选状态：区分即时 UI 值与防抖后的查询值。
+/// 西行管理表格筛选状态：区分即时 UI 值与防抖后的查询值。
 /// text 输入延迟同步到查询值以减轻请求；lookup/static 选择即时生效。
 /// 筛选值按 schema.key 跨页签重挂载持久化。
 export function useJourneyFilters(
