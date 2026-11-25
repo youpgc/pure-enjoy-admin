@@ -182,6 +182,7 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
     }
     setSaving(true)
     let changed = 0
+    const failedCodes: string[] = []
     try {
       for (const code of editingSub.params) {
         const row = rowsByCode[code]
@@ -214,10 +215,20 @@ const JourneyBattleParamsTab: React.FC<JourneyBattleParamsTabProps> = ({ groupCo
           }
         }
         if (!res.success) {
+          failedCodes.push(code)
           handleApiError(res.errorMessage, `JourneyConfig-战斗参数-保存-${code}`)
           continue
         }
         changed++
+      }
+      /// 部分失败时保留弹窗，让运营看到失败项并重试，避免误判为全部保存成功。
+      const failedLabels = failedCodes.map((code) => rowsByCode[code]?.label ?? code)
+      if (failedCodes.length > 0) {
+        message.warning(
+          `已保存 ${changed} 项，${failedCodes.length} 项失败：${failedLabels.join('、')}。请重试失败项。`,
+        )
+        await loadRows()
+        return
       }
       if (changed > 0) {
         message.success(`已保存 ${changed} 项变更`)

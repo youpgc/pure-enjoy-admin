@@ -58,6 +58,7 @@ export function buildLevelColumns(o: LevelColumnsOptions): ColumnsType<JourneyLe
           width: 120,
           render: (_: unknown, record: JourneyLevelRow) => {
             const code = record.boss_code
+            if (code === '') return <Text type="secondary">本关无妖</Text>
             if (!code) return <Text type="secondary">本段</Text>
             const label = o.bosses.find((b) => b.value === code)?.label
             return <Tag color="red">{label ?? code}</Tag>

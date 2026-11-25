@@ -237,6 +237,7 @@ class JourneyMonsterParamService extends BaseService<DbJourneyMonsterParam> {
 
   /// 整包保存：有值行一次 upsert（单条语句，失败整批回滚），留空行一次删除。
   /// 先写后删：写失败不改动删行；删失败保留旧值，避免参数整包丢失。
+  /// 两步不具备事务原子性，失败时通过阶段标记告知调用方已生效的部分。
   async saveBundle(
     upserts: { monster_id: string; code: string; value_num: number }[],
     deleteIds: string[],
@@ -245,12 +246,16 @@ class JourneyMonsterParamService extends BaseService<DbJourneyMonsterParam> {
       if (upserts.length > 0) {
         const { error } = await (supabase.from('journey_monster_params') as any)
           .upsert(upserts, { onConflict: 'monster_id,code' })
-        if (error) throw error
+        if (error) throw new Error(`写入 ${upserts.length} 项参数失败：${error.message}`)
       }
       if (deleteIds.length > 0) {
         const { error } = await (supabase.from('journey_monster_params') as any)
           .delete().in('id', deleteIds)
-        if (error) throw error
+        if (error) {
+          throw new Error(
+            `清空 ${deleteIds.length} 项失败（已写入的 ${upserts.length} 项仍生效，刷新可见）：${error.message}`,
+          )
+        }
       }
       return successResponse(true)
     } catch (err) {

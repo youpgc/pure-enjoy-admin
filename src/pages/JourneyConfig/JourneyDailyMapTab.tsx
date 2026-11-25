@@ -12,6 +12,7 @@ import {
   Switch,
   Table,
   Tag,
+  Tooltip,
   Typography,
   message,
 } from 'antd'
@@ -71,7 +72,16 @@ const JourneyDailyMapTab: React.FC<{ lookups: JourneyLookups }> = ({ lookups }) 
       </Space>
     ) },
     { title: '主题色', dataIndex: 'theme_color', key: 'theme_color', width: 110 },
-    { title: '里程碑里数', dataIndex: 'milestone_li', key: 'milestone_li', width: 110 },
+    {
+      title: (
+        <Tooltip title="进关播报用的累计里数，同时驱动刷怪密度 0~4 档；不是通关条件。">
+          里程碑里数
+        </Tooltip>
+      ),
+      dataIndex: 'milestone_li',
+      key: 'milestone_li',
+      width: 110,
+    },
     {
       title: '怪物池',
       key: 'monster_pool',
@@ -216,7 +226,11 @@ const JourneyDailyMapTab: React.FC<{ lookups: JourneyLookups }> = ({ lookups }) 
           <Form.Item name="theme_color" label="主题色（hex，驱动地图渲染）">
             <Input placeholder="#6FBF9A" />
           </Form.Item>
-          <Form.Item name="milestone_li" label="里程碑里数（进关播报）">
+          <Form.Item
+            name="milestone_li"
+            label="里程碑里数（进关播报）"
+            tooltip="同时驱动每日游历的刷怪密度分档（0~4 档）；不是通关条件。"
+          >
             <InputNumber min={0} className={common.fullWidth} />
           </Form.Item>
           <Form.Item name="monster_pool" label="怪物池（多选；空=全怪池）">

@@ -64,6 +64,10 @@ export interface JourneyFilterDef {
   options?: { value: string; label: string }[]
   /// 过滤值写入查询时使用的真实列（档位筛选为虚拟字段，映射到 monster_id）
   targetField?: string
+  /// kind=monsterTier：档位变化时需清理的关联筛选字段（选中项不属于新档位时清空）
+  cascadeField?: string
+  /// kind=lookup 且选项带 tier：选项按该档位筛选字段过滤，选中项自动回填档位
+  tierField?: string
   placeholder?: string
 }
 

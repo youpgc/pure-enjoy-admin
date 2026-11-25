@@ -114,7 +114,7 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
   {
     code: 'boss',
     label: '妖王冲撞',
-    intro: '妖王冲撞状态机的时序、距离与逐场递增。冷却仍走「怪物参数」逐怪配置。',
+    intro: '妖王冲撞状态机的时序、距离、护罩上限与逐场递增。冷却仍走「怪物参数」逐怪配置。',
     params: [
       { code: 'charge_trigger_dist', label: '冲撞触发距离(px)', kind: 'number', default: 340, min: 50, max: 2000, step: 10 },
       { code: 'charge_windup_sec', label: '蓄力预警(秒)', kind: 'duration', default: 0.7, min: 0.1, max: 5, step: 0.1 },
@@ -127,6 +127,7 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
       { code: 'blind_damage', label: '致盲期玩家对妖伤害削减', kind: 'percent', default: 0.35, min: 0, max: 0.95, step: 0.01 },
       { code: 'drain_damage', label: '套取期玩家增伤削减', kind: 'percent', default: 0.25, min: 0, max: 0.95, step: 0.01, hint: '乘算削减，不受增伤合计上限影响' },
       { code: 'skill_dot_tick', label: '妖王持续伤害跳伤节拍(秒)', kind: 'duration', default: 1, min: 0.1, max: 60, step: 0.1, hint: '毒雾/灼烧领域对玩家的结算间隔' },
+      { code: 'ward_cap', label: '妖王护罩上限(生命比例)', kind: 'percent', default: 0.35, min: 0, max: 0.9, step: 0.05, hint: '受击授予护罩的总量上限，按妖王最大生命比例计' },
     ],
   },
   {
@@ -206,7 +207,7 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
   {
     code: 'player',
     label: '玩家移动',
-    intro: '基础移速与里程换算。移速加成来自维度槽/光环，此处为基础值。',
+    intro: '基础移速与里程换算。无妖主线章回的通关里程目标=基础移速×关卡「里程锚点(秒)」÷每里世界单位；改动这里会同步改变关卡属性页显示的目标里数。移速加成来自维度槽/光环，此处仅基础值。',
     params: [
       { code: 'base_speed', label: '基础移速(px/s)', kind: 'number', default: 240, min: 50, max: 2000, step: 10 },
       { code: 'units_per_li', label: '1 里对应世界单位', kind: 'number', default: 25, min: 1, max: 500, step: 1 },
@@ -264,6 +265,7 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
     { code: 'charge', label: '冲撞时序', params: ['charge_trigger_dist', 'charge_windup_sec', 'charge_dash_sec', 'charge_speed_mult', 'charge_recover_sec'] },
     { code: 'stage', label: '逐场递增', params: ['stage_damage_gain', 'stage_hp_gain'] },
     { code: 'debuff', label: '技能冷却与负面态', params: ['skill_gcd', 'blind_damage', 'drain_damage', 'skill_dot_tick'] },
+    { code: 'ward', label: '护罩', params: ['ward_cap'] },
   ],
   ability: [
     { code: 'bajie', label: '八戒', params: ['bajie_guard_mult', 'bajie_knock_mult'] },
@@ -294,6 +296,11 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
     { code: 'spawn', label: '刷怪分布', params: ['spawn_edge_margin'] },
   ],
   player: [
-    { code: 'move', label: '基础移动', params: ['base_speed', 'units_per_li'] },
+    {
+      code: 'move',
+      label: '基础移动',
+      intro: '两参数参与无妖主线章回的通关里程换算：目标里数=基础移速×关卡里程锚点÷每里世界单位。',
+      params: ['base_speed', 'units_per_li'],
+    },
   ],
 }

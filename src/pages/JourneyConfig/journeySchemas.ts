@@ -187,11 +187,10 @@ const weaponFields: JourneyFieldDef[] = [
 // ]
 
 // ---- 逐怪数值参数（monster_id+code 一行一键，覆盖全部 AI 档位）----
-const MONSTER_TIER_FILTER_OPTIONS = [
-  { value: 'normal', label: '普通' },
-  { value: 'elite', label: '精英' },
-  { value: 'boss', label: '妖王' },
-]
+/// 档位筛选项由统一 AI 档映射派生，避免与怪物页档位标签漂移。
+const MONSTER_TIER_FILTER_OPTIONS = Object.entries(JOURNEY_AI_TIER_MAP).map(
+  ([value, info]) => ({ value, label: info.label }),
+)
 
 const monsterParamFields: JourneyFieldDef[] = [
   // monster_id 为 uuid 外键列：下拉必须用 id 值查找表（monsters 表 value=code）
@@ -465,8 +464,12 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     filter: {
       field: 'monster_tier', kind: 'monsterTier', targetField: 'monster_id',
       options: MONSTER_TIER_FILTER_OPTIONS, placeholder: '按怪物档位筛选',
+      cascadeField: 'monster_id',
     },
-    filters: [{ field: 'monster_id', kind: 'lookup', lookup: 'monstersById', placeholder: '按怪物筛选' }],
+    filters: [{
+      field: 'monster_id', kind: 'lookup', lookup: 'monstersById', placeholder: '按怪物筛选',
+      tierField: 'monster_tier',
+    }],
     prefillFromFilter: true,
     intro: '逐怪数值参数（一行一键，code=参数语义键）：表本身不限定 AI 档位，App 按怪物+参数键读取，行缺失回落内置默认值。armor/move_mult/knock_resist 对普通、精英、妖王均生效；charge_*、skill_gcd 及各能力键只在妖王路径读取，普通/精英行是历史全怪种子、当前不生效。只管理妖王能力数值请用右侧「妖王能力」页。',
   },

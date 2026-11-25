@@ -245,9 +245,31 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
   }
 
   const filterControls = lockedFilterValue !== undefined ? null : filterDefs.map((def) => {
+    // 档位与怪物筛选联动：档位限定怪物下拉选项；选怪物回填档位；
+    // 改档位时若当前怪物不属于新档位则清空，避免两个条件互斥查空表。
     const onChange = (value: string) => {
+      if (def.kind === 'monsterTier' && def.cascadeField) {
+        const selected = filterValues[def.cascadeField]
+        if (selected && value) {
+          const linked = filterDefs.find((d) => d.field === def.cascadeField)
+          const list = linked?.lookup ? lookups[linked.lookup] : []
+          if (!list.some((o) => o.value === selected && o.tier === value)) {
+            setFilter(def.cascadeField, '', false)
+          }
+        }
+      } else if (def.tierField) {
+        const list = def.lookup ? lookups[def.lookup] : []
+        const hit = value ? list.find((o) => o.value === value) : null
+        if (hit?.tier) setFilter(def.tierField, hit.tier, false)
+      }
       setFilter(def.field, value, def.kind === 'text')
       pager.resetPage()
+    }
+    let options: { value: string; label: string }[] = def.options ?? []
+    if (def.kind === 'lookup' && def.lookup) {
+      const list = lookups[def.lookup]
+      const tier = def.tierField ? filterValues[def.tierField] : ''
+      options = tier ? list.filter((o) => o.tier === tier) : list
     }
     return def.kind === 'text' ? (
       <Input
@@ -270,11 +292,7 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
         placeholder={def.placeholder ?? '全部'}
         value={filterValues[def.field] || undefined}
         onChange={(v) => onChange(v ?? '')}
-        options={
-          def.kind === 'lookup' && def.lookup
-            ? lookups[def.lookup]
-            : def.options ?? []
-        }
+        options={options}
       />
     )
   })
