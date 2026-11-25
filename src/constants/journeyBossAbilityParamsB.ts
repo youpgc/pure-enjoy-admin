@@ -260,4 +260,20 @@ export const BOSS_ABILITY_PARAMS_B: Record<string, BossAbilityParams> = {
       ram_oil_period: 10,
     },
   },
+  shield_break: {
+    keys: [
+      'reflect_mult',
+      'shield_break_period',
+      'shield_break_ratio',
+      'shield_break_raw',
+      'shield_damage_bonus',
+    ],
+    defaults: {
+      reflect_mult: 0.5,
+      shield_break_period: 9,
+      shield_break_ratio: 0.6,
+      shield_break_raw: 1,
+      shield_damage_bonus: 0.25,
+    },
+  },
 }

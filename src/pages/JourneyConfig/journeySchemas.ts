@@ -405,8 +405,8 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     iconPrefix: 'pickup',
     filters: [{ field: 'name', kind: 'text', placeholder: '按拾取物名称筛选' }, { field: 'effect', kind: 'static', options: opts(JOURNEY_PICKUP_EFFECT_MAP), placeholder: '全部效果' }],
     // code 与资源名映射（金币/蟠桃/宝箱资源名与 code 不一致）
-    iconNameMap: { gongde_tongqian: 'coin', pantao_pickup: 'peach', baoxiang: 'chest' },
-    intro: '香火=经验；功德铜钱计入日阀；蟠桃=治疗；宝箱触发炼化/额外三选一。',
+    iconNameMap: { gongde_tongqian: 'coin', pantao_pickup: 'peach', baoxiang: 'chest', huxin_dan: 'huxin' },
+    intro: '香火=经验；功德铜钱计入日阀；蟠桃=治疗；宝箱触发炼化/额外三选一；护心丹抵扣伤害。',
   },
   {
     key: 'drops', label: '掉落表', service: journeyDropService, fields: dropFields,
@@ -457,7 +457,7 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     key: 'weapon_params', label: '法宝参数', service: journeyWeaponParamService, fields: weaponParamFields,
     filter: { field: 'weapon_id', kind: 'lookup', lookup: 'weapons', placeholder: '按法宝筛选' },
     prefillFromFilter: true,
-    intro: '被动加持(passive)/特效(effect)法宝的数值参数（一行一键，code=参数语义键）：App 引擎按法宝+参数键读取，行缺失回落内置默认值。主动法宝(category=active)不读本表——其初始环绕参数在「法宝」页的 orbit_speed/inner_radius/outer_radius/blade_width/base_damage 列，1~8 级成长在「法宝分级」页，升级效果在「武器维度槽」页；本表对其无效，无需补空行。常用键：移速 move/生命 hp/回复 regen/经验 exp/转速 spin/臂长 radius/伤害 damage/磁吸 magnet/回血比例 heal/无敌秒数 invuln/冷却秒数 cooldown（>0 进入冷却制，=0 本局仅一次）/触发周期 period/精英增伤 elite/触发概率 chance/定身秒数 root/反伤比例 thorns/链伤比例 chain/作用范围 range/目标数 targets/触发次数 hits/虚弱秒数 weak/灼烧比例 burn。',
+    intro: '被动加持(passive)/特效(effect)法宝的数值参数（一行一键，code=参数语义键）：App 引擎按法宝+参数键读取，行缺失回落内置默认值。主动法宝(category=active)不读本表——其初始环绕参数在「法宝」页的 orbit_speed/inner_radius/outer_radius/blade_width/base_damage 列，1~8 级成长在「法宝分级」页，升级效果在「武器维度槽」页；本表对其无效，无需补空行。常用键：移速 move/生命 hp/回复 regen/经验 exp/转速 spin/臂长 radius/伤害 damage/磁吸 magnet/回血比例 heal/无敌秒数 invuln/冷却秒数 cooldown（>0 进入冷却制，=0 本局仅一次）/触发周期 period/精英增伤 elite/触发概率 chance/定身秒数 root/反伤比例 thorns/链伤比例 chain/作用范围 range/目标数 targets/触发次数 hits/虚弱秒数 weak/灼烧比例 burn/盾抵反震倍率 reflect_ratio(1.0=100%，与金钟罩维度叠加后钳到 reflect_cap，默认上限 3.0=300%，实际以参数值为准)/盾破震荡半径 burst_radius 与比例 burst_ratio/震荡无视护甲 burst_armor_ignore(1=是)。',
   },
   {
     key: 'monster_params', label: '怪物参数', service: journeyMonsterParamService, fields: monsterParamFields,

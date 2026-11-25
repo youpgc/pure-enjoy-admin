@@ -71,6 +71,7 @@ export const JOURNEY_PICKUP_EFFECT_MAP: Record<string, { color: string; label: s
   merit: { color: 'gold', label: '功德' },
   heal: { color: 'green', label: '治疗' },
   chest: { color: 'purple', label: '宝箱' },
+  shield: { color: 'blue', label: '护盾' },
 }
 
 // 掉落来源（journey_drops.source_kind）
@@ -96,6 +97,7 @@ export const JOURNEY_SLOT_CODE_MAP: Record<string, { color: string; label: strin
   vitality: { color: 'green', label: '生机(生命上限%)' },
   cloud: { color: 'cyan', label: '腾云(移速%)' },
   ward: { color: 'gold', label: '金刚(受击减伤)' },
+  reflect: { color: 'volcano', label: '金钟罩(盾抵反震)' },
   recovery: { color: 'green', label: '回元(损失回血)' },
   shield: { color: 'geekblue', label: '护体(周期护盾)' },
   slow: { color: 'blue', label: '缚灵(范围减速)' },
@@ -133,6 +135,7 @@ export const JOURNEY_BOSS_ABILITY_MAP: Record<string, { color: string; label: st
   black_wind: { color: 'purple', label: '黑风卷·吸拉致盲' },
   deer_belly: { color: 'red', label: '剖腹剜心·预警真伤破甲' },
   ram_oil: { color: 'volcano', label: '油锅炼狱·火域致盲' },
+  shield_break: { color: 'geekblue', label: '破盾·撕盾与带盾压制' },
 }
 
 // 妖王能力参数键（journey_monster_params.code，引擎逻辑判断用；展示映射）
@@ -317,6 +320,11 @@ export const JOURNEY_MONSTER_PARAM_KEY_MAP: Record<string, { color: string; labe
   black_wind_period: { color: 'purple', label: '黑风卷周期(秒)' },
   deer_belly_period: { color: 'red', label: '剖腹剜心周期(秒)' },
   ram_oil_period: { color: 'volcano', label: '油锅炼狱周期(秒)' },
+  shield_break_period: { color: 'geekblue', label: '破盾周期(秒)' },
+  shield_break_ratio: { color: 'gold', label: '护盾撕开比例' },
+  shield_break_raw: { color: 'red', label: '盾破震荡伤害基准倍率' },
+  shield_damage_bonus: { color: 'red', label: '对带盾角色伤害加成' },
+  reflect_mult: { color: 'orange', label: '反震衰减系数' },
   mist_tick: { color: 'geekblue', label: '毒雾判定间隔(秒)' },
   fire_first_delay: { color: 'geekblue', label: '火车首段延迟(秒)' },
   fang_radius: { color: 'blue', label: '九头噬弹半径' },
@@ -388,6 +396,11 @@ export const JOURNEY_WEAPON_PARAM_KEY_MAP: Record<string, { color: string; label
   spread_range: { color: 'blue', label: '扩散半径(风火轮)' },
   spread_ratio: { color: 'orange', label: '逐代伤害衰减(风火轮)' },
   spread_generations: { color: 'purple', label: '最大扩散代际(风火轮)' },
+  reflect_ratio: { color: 'orange', label: '反震倍率(照妖镜)' },
+  reflect_cap: { color: 'volcano', label: '反震倍率上限' },
+  burst_radius: { color: 'blue', label: '盾破震荡半径(震妖钟)' },
+  burst_ratio: { color: 'red', label: '盾破震荡伤害比例' },
+  burst_armor_ignore: { color: 'purple', label: '震荡无视护甲(1=是)' },
 }
 
 // 功德流水来源（journey_merit_records.source_type，append-only 四类）
