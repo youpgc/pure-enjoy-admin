@@ -32,7 +32,7 @@ import type {
   DbJourneyRealmTitle,
 } from '../types/database'
 
-/// 西行配置数据服务：journey_* 静态配置表与只读流水，各表继承 BaseService 八法。
+/// 西行管理数据服务：journey_* 静态配置表与只读流水，各表继承 BaseService 八法。
 /// 表结构以 journey DDL 为准；表未部署时页面会得到空表或报错提示。
 
 // ==================== 西行（journey）配置服务（journey_* 静态配置表） ====================
@@ -233,6 +233,29 @@ class JourneyWeaponParamService extends BaseService<DbJourneyWeaponParam> {
 class JourneyMonsterParamService extends BaseService<DbJourneyMonsterParam> {
   constructor() {
     super('journey_monster_params', { defaultOrder: { column: 'monster_id', ascending: true } })
+  }
+
+  /// 整包保存：有值行一次 upsert（单条语句，失败整批回滚），留空行一次删除。
+  /// 先写后删：写失败不改动删行；删失败保留旧值，避免参数整包丢失。
+  async saveBundle(
+    upserts: { monster_id: string; code: string; value_num: number }[],
+    deleteIds: string[],
+  ) {
+    try {
+      if (upserts.length > 0) {
+        const { error } = await (supabase.from('journey_monster_params') as any)
+          .upsert(upserts, { onConflict: 'monster_id,code' })
+        if (error) throw error
+      }
+      if (deleteIds.length > 0) {
+        const { error } = await (supabase.from('journey_monster_params') as any)
+          .delete().in('id', deleteIds)
+        if (error) throw error
+      }
+      return successResponse(true)
+    } catch (err) {
+      return errorResponse<boolean>(handleApiError(err, 'journey_monster_params.saveBundle'))
+    }
   }
 }
 

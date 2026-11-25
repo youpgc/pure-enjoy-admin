@@ -1,0 +1,12 @@
+/* 妖王能力参数网格：标签 / 当前值 / 缺省值三列对齐。 */
+.paramGrid {
+  display: grid;
+  grid-template-columns: 1fr 120px 90px;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+/* 表头次要文字的字号：与 antd Text secondary token 叠加。 */
+.paramHead {
+  font-size: 12px;
+}
