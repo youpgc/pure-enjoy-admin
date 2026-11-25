@@ -276,4 +276,10 @@ export const BOSS_ABILITY_PARAMS_B: Record<string, BossAbilityParams> = {
       shield_damage_bonus: 0.25,
     },
   },
+  execute: {
+    keys: ['execute_hp_ratio'],
+    defaults: {
+      execute_hp_ratio: 0.1,
+    },
+  },
 }

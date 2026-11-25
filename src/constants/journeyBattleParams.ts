@@ -159,6 +159,19 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
     ],
   },
   {
+    code: 'execute',
+    label: '处决',
+    intro: '武器维度槽「处决」的血线口径：普通怪按残血比例（下限+每级增量，钳上限），妖王按绝对血线（基准+每级增量，钳最大生命的比例上下限），均不随角色等级放大；处决只清血条，保命/还魂/击杀奖励走各自链路。',
+    params: [
+      { code: 'normal_floor', label: '普通怪血线下限', kind: 'percent', default: 0.01, min: 0, max: 1, step: 0.005, hint: '处决等级1的残血比例；每级增量在「武器维度槽」处决行的 value_per_level 配置' },
+      { code: 'normal_cap', label: '普通怪血线上限', kind: 'percent', default: 0.15, min: 0, max: 1, step: 0.01, hint: '普通怪与精英残血处决的最高比例' },
+      { code: 'boss_base', label: '妖王血线基准(点)', kind: 'number', default: 5000, min: 0, max: 100000, step: 500, hint: '处决等级1的妖王绝对血线；不乘角色等级项' },
+      { code: 'boss_step', label: '妖王血线每级增量(点)', kind: 'number', default: 5625, min: 0, max: 100000, step: 125, hint: '每升一级处决增加的绝对血线；9级约达基准+8×增量' },
+      { code: 'boss_floor_ratio', label: '妖王血线占命下限', kind: 'percent', default: 0.01, min: 0, max: 0.2, step: 0.005, hint: '防止低血妖王被过高绝对血线满血即斩' },
+      { code: 'boss_cap_ratio', label: '妖王血线占命上限', kind: 'percent', default: 0.03, min: 0, max: 0.2, step: 0.005, hint: '远低于阶段技 40%~50% 血线，不跳过妖王阶段能力与多场推进' },
+    ],
+  },
+  {
     code: 'economy',
     label: '经济与掉落',
     intro: '宝箱收益、还魂效果、掉落兜底与通关奖励系数。功德定价仍在对应配置表/后台参数。',
@@ -237,6 +250,10 @@ export interface BattleParamSubGroupDef {
 /// 分组内的子分类：每组参数按语义聚合成卡片，与全局参数的信息卡形态一致。
 /// params 必须覆盖所属分组的全部参数键且不重不漏，未列入的参数不会展示。
 export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupDef[]> = {
+  execute: [
+    { code: 'normal', label: '普通怪与精英', params: ['normal_floor', 'normal_cap'] },
+    { code: 'boss', label: '妖王绝对血线', params: ['boss_base', 'boss_step', 'boss_floor_ratio', 'boss_cap_ratio'] },
+  ],
   damage: [
     { code: 'rhythm', label: '伤害节拍', params: ['hurt_interval'] },
     { code: 'defense', label: '护甲与虚弱', params: ['player_armor_cap', 'weaken_mult'] },

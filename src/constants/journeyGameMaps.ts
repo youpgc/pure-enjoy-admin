@@ -98,6 +98,7 @@ export const JOURNEY_SLOT_CODE_MAP: Record<string, { color: string; label: strin
   cloud: { color: 'cyan', label: '腾云(移速%)' },
   ward: { color: 'gold', label: '金刚(受击减伤)' },
   reflect: { color: 'volcano', label: '金钟罩(盾抵反震)' },
+  execute: { color: 'red', label: '处决(残血斩杀)' },
   recovery: { color: 'green', label: '回元(损失回血)' },
   shield: { color: 'geekblue', label: '护体(周期护盾)' },
   slow: { color: 'blue', label: '缚灵(范围减速)' },
@@ -136,6 +137,7 @@ export const JOURNEY_BOSS_ABILITY_MAP: Record<string, { color: string; label: st
   deer_belly: { color: 'red', label: '剖腹剜心·预警真伤破甲' },
   ram_oil: { color: 'volcano', label: '油锅炼狱·火域致盲' },
   shield_break: { color: 'geekblue', label: '破盾·撕盾与带盾压制' },
+  execute: { color: 'red', label: '处决·角色残血斩杀' },
 }
 
 // 妖王能力参数键（journey_monster_params.code，引擎逻辑判断用；展示映射）
@@ -324,6 +326,7 @@ export const JOURNEY_MONSTER_PARAM_KEY_MAP: Record<string, { color: string; labe
   shield_break_ratio: { color: 'gold', label: '护盾撕开比例' },
   shield_break_raw: { color: 'red', label: '盾破震荡伤害基准倍率' },
   shield_damage_bonus: { color: 'red', label: '对带盾角色伤害加成' },
+  execute_hp_ratio: { color: 'red', label: '处决血线(角色生命比例)' },
   reflect_mult: { color: 'orange', label: '反震衰减系数' },
   mist_tick: { color: 'geekblue', label: '毒雾判定间隔(秒)' },
   fire_first_delay: { color: 'geekblue', label: '火车首段延迟(秒)' },

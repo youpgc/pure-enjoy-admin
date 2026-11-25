@@ -446,7 +446,7 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     key: 'weapon_slots', label: '武器维度槽', service: journeyWeaponSlotService, fields: weaponSlotFields,
     iconPrefix: 'icon_slot',
     filters: [{ field: 'name', kind: 'text', placeholder: '按维度名称筛选' }, { field: 'code', kind: 'text', placeholder: '按维度编码筛选' }],
-    intro: '6 主动槽=维度槽口径：初始武器占 1 特效槽，空槽由三选一「习得」卡填入新维度；每级效果与等级上限（max_level）后台可调；触发周期(period_sec)仅回元/护体等周期槽填写，0=回落「武器与吸血穿刺」战斗参数。',
+    intro: '6 主动槽=维度槽口径：初始武器占 1 特效槽，空槽由三选一「习得」卡填入新维度；每级效果与等级上限（max_level）后台可调；触发周期(period_sec)仅回元/护体等周期槽填写，0=回落「武器与吸血穿刺」战斗参数。处决槽每级增量填 value_per_level（如 0.0175=1.75%），普通怪血线上下限/妖王绝对血线在「战斗参数 → 处决」配置。',
   },
   {
     key: 'upgrade_cards', label: '基础值成长卡', service: journeyUpgradeCardService, fields: upgradeCardFields,
@@ -471,6 +471,6 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
       tierField: 'monster_tier',
     }],
     prefillFromFilter: true,
-    intro: '逐怪数值参数（一行一键，code=参数语义键）：表本身不限定 AI 档位，App 按怪物+参数键读取，行缺失回落内置默认值。armor/move_mult/knock_resist 对普通、精英、妖王均生效；charge_*、skill_gcd 及各能力键只在妖王路径读取，普通/精英行是历史全怪种子、当前不生效。只管理妖王能力数值请用右侧「妖王能力」页。',
+    intro: '逐怪数值参数（一行一键，code=参数语义键）：表本身不限定 AI 档位，App 按怪物+参数键读取，行缺失回落内置默认值。armor/move_mult/knock_resist 对普通、精英、妖王均生效；charge_*、skill_gcd 及各能力键只在妖王路径读取，普通/精英行是历史全怪种子、当前不生效。妖王处决能力用 execute_hp_ratio（角色生命比例，默认 0.10，低于该线受该妖王任意伤害即斩，穿透护盾但不穿透免死/无敌帧/还魂）。只管理妖王能力数值请用右侧「妖王能力」页。',
   },
 ]
