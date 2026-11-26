@@ -50,9 +50,9 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
   {
     code: 'weapon',
     label: '武器与吸血穿刺',
-    intro: '命中冷却、穿刺与吸血基准/上限、领域脉冲周期/扩散半径/驻留递增封顶、灼烧等级成长与法宝灼烧比例/时长、弹道目标上限与弹体寿命，及生机/金刚/回元/护体/缚灵五槽的周期与上限。各槽每级增量仍在「武器维度槽」表配置。',
+    intro: '命中豁免、穿刺与吸血基准/上限、领域脉冲周期/扩散半径/驻留递增封顶、灼烧等级成长与法宝灼烧比例/时长、弹道目标上限与弹体寿命，及生机/金刚/回元/护体/缚灵五槽的周期与上限。各槽每级增量仍在「武器维度槽」表配置。',
     params: [
-      { code: 'hit_cd', label: '单怪命中冷却(秒)', kind: 'duration', default: 0.3, min: 0.05, max: 2, step: 0.05 },
+      { code: 'hit_cd', label: '单扇叶命中豁免(秒)', kind: 'duration', default: 0.3, min: 0.05, max: 2, step: 0.05, hint: '同一扇叶命中后在该窗口内不再结算伤害与命中效果，扇叶之间互不共享' },
       { code: 'burn_dwell_sec', label: '灼烧驻留触发(秒)', kind: 'duration', default: 1, min: 0.1, max: 30, step: 0.1, hint: '处于武器臂展圆内累计驻留满该时长即点燃全部灼烧，每满一次续燃；离开范围清零' },
       { code: 'field_pulse_period_sec', label: '领域脉冲周期(秒)', kind: 'duration', default: 1.5, min: 0.1, max: 60, step: 0.1, hint: '八卦炉真火/紫金葫芦每1.5秒触发一次范围真实伤害；领域内驻留怪另按每秒结算' },
       { code: 'field_pulse_radius_ratio', label: '脉冲扩散半径(臂长倍数)', kind: 'number', default: 0.3, min: 0.01, max: 5, step: 0.05, hint: '脉冲以领域内每只怪为起点向外扩散，半径=武器臂长×该倍数，可波及臂展外怪物' },
