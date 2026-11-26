@@ -2772,6 +2772,35 @@ export interface DbJourneyMonsterParam {
   value_num: number | null
 }
 
+/// 妖王能力行（journey_monster_abilities：一行一「妖王×能力」）
+export interface DbJourneyMonsterAbility {
+  id: string
+  monster_id: string
+  slot: number
+  ability_key: string
+  enabled: boolean
+  created_at?: string
+}
+
+/// 能力专属参数（journey_monster_ability_params：一行一「能力行×参数键」）
+export interface DbJourneyMonsterAbilityParam {
+  id: string
+  ability_id: string
+  code: string
+  value_num: number | null
+  created_at?: string
+}
+
+/// 同关逐战妖王编排（journey_level_boss_fights：一行一场）
+export interface DbJourneyLevelBossFight {
+  id: string
+  level_id: string
+  fight_no: number
+  boss_code: string
+  note: string | null
+  created_at?: string
+}
+
 export interface DbJourneyCharacter {
   id: string
   code: string

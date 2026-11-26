@@ -1,17 +1,23 @@
 import type { ColumnsType } from 'antd/es/table'
-import { Button, Tag, Typography } from 'antd'
+import { Button, Space, Switch, Tag, Typography } from 'antd'
 import { JOURNEY_AI_TIER_MAP, JOURNEY_BOSS_ABILITY_MAP } from '../../constants/game'
 import { bossAbilityParamCount } from '../../constants/journeyBossAbilities'
 
 const { Text } = Typography
 
-/// 总览行：一只妖王一行，聚合怪物主行 + 该能力应配参数行的覆盖状态。
+/// 总览行：一行一「妖王×能力」。
+/// abilityId 非空=能力承载表行（参数走能力专属表）；空=怪物主表单能力（参数走逐怪表）。
 export interface BossAbilityRow {
   monsterId: string
   code: string
   name: string
   aiTier: string
   abilityKey: string
+  /// 能力承载行 id；空=沿用 journey_monsters.ability_key 单值
+  abilityId?: string
+  slot?: number
+  /// 能力承载行的启用开关；兼容单值行无此字段
+  enabled?: boolean
   /// 已配参数行数（该能力应配键中，本怪有显式数值的行）
   configured: number
   /// 应配参数行数（能力映射的键数）
@@ -38,6 +44,8 @@ const COVERAGE_META: Record<CoverageKind, { color: string; label: string }> = {
 
 export function buildBossAbilityColumns(
   onEdit: (row: BossAbilityRow) => void,
+  onDelete?: (row: BossAbilityRow) => void,
+  onToggle?: (row: BossAbilityRow, enabled: boolean) => void,
 ): ColumnsType<BossAbilityRow> {
   return [
     {
@@ -76,9 +84,36 @@ export function buildBossAbilityColumns(
       },
     },
     {
-      title: '操作', key: 'action', width: 90,
+      title: '来源', key: 'source', width: 90,
       render: (_: unknown, row: BossAbilityRow) => (
-        <Button type="link" size="small" onClick={() => onEdit(row)}>编辑</Button>
+        <Tag color={row.abilityId ? 'blue' : 'default'}>
+          {row.abilityId ? `能力槽 ${row.slot ?? 0}` : '单值'}
+        </Tag>
+      ),
+    },
+    {
+      title: '启用', key: 'enabled', width: 80,
+      render: (_: unknown, row: BossAbilityRow) => {
+        if (!row.abilityId) return <Text type="secondary">—</Text>
+        return (
+          <Switch
+            size="small"
+            checked={row.enabled !== false}
+            onChange={(v) => onToggle?.(row, v)}
+            aria-label={`${row.name} ${row.abilityKey} 启用开关`}
+          />
+        )
+      },
+    },
+    {
+      title: '操作', key: 'action', width: 130,
+      render: (_: unknown, row: BossAbilityRow) => (
+        <Space size={0}>
+          <Button type="link" size="small" onClick={() => onEdit(row)}>编辑</Button>
+          {row.abilityId && onDelete && (
+            <Button type="link" size="small" danger onClick={() => onDelete(row)}>移除</Button>
+          )}
+        </Space>
       ),
     },
   ]

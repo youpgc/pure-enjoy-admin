@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Drawer, InputNumber, Space, Tag, Typography, message } from 'antd'
 import { handleApiError } from '../../utils/apiClient'
-import { journeyMonsterParamService } from '../../services/journeyConfigService'
+import {
+  journeyMonsterParamService,
+  journeyMonsterAbilityParamService,
+} from '../../services/journeyConfigService'
 import { JOURNEY_BOSS_ABILITY_MAP, JOURNEY_MONSTER_PARAM_KEY_MAP } from '../../constants/game'
 import { JOURNEY_BOSS_ABILITY_PARAMS } from '../../constants/journeyBossAbilities'
 import common from '../../styles/common.module.css'
@@ -62,14 +65,14 @@ const AbilityParamDrawer: React.FC<Props> = ({ open, row, paramRows, onClose, on
   }, [row, open, keys, paramRows])
 
   /// 保存整包：有值行一次 upsert（有则改、无则增），留空行一次删除。
-  /// 批量提交避免逐键写入中途失败造成部分生效。
+  /// 能力承载行的参数写能力专属表，单值兼容行写逐怪参数表。
   const handleSave = async () => {
     if (!row) return
     setSaving(true)
     try {
       const byCode = new Map(paramRows.map((p) => [p.code, p]))
-      const upserts: { monster_id: string; code: string; value_num: number }[] = []
       const deleteIds: string[] = []
+      const ownedUpserts: { code: string; value_num: number }[] = []
       for (const key of keys) {
         const value = editing[key] ?? null
         const existing = byCode.get(key)
@@ -79,10 +82,19 @@ const AbilityParamDrawer: React.FC<Props> = ({ open, row, paramRows, onClose, on
           continue
         }
         if (!existing || existing.value_num !== value) {
-          upserts.push({ monster_id: row.monsterId, code: key, value_num: value })
+          ownedUpserts.push({ code: key, value_num: value })
         }
       }
-      const res = await journeyMonsterParamService.saveBundle(upserts, deleteIds)
+      const isCarrier = !!row.abilityId
+      const res = isCarrier
+        ? await journeyMonsterAbilityParamService.saveBundle(
+            ownedUpserts.map((u) => ({ ability_id: row.abilityId!, ...u })),
+            deleteIds,
+          )
+        : await journeyMonsterParamService.saveBundle(
+            ownedUpserts.map((u) => ({ monster_id: row.monsterId, ...u })),
+            deleteIds,
+          )
       if (!res.success) {
         handleApiError(res.errorMessage, '妖王能力-整包保存')
         return
@@ -134,7 +146,7 @@ const AbilityParamDrawer: React.FC<Props> = ({ open, row, paramRows, onClose, on
             showIcon
             className={common.mb16}
             message={`共 ${editRows.length} 个能力参数`}
-            description="留空即回落 App 内置缺省值（保存时删除该参数行）；留空展示的灰色数值为当前缺省。改动将批量写入「怪物参数」表。"
+            description={`留空即回落 App 内置缺省值（保存时删除该参数行）；留空展示的灰色数值为当前缺省。改动将批量写入「${row?.abilityId ? '能力专属参数' : '怪物参数'}」表。`}
           />
           <div className={styles.paramGrid}>
             <Text type="secondary" className={styles.paramHead}>参数键</Text>

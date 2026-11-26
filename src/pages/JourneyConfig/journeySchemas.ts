@@ -28,6 +28,7 @@ import {
   // journeyDailyMapService 已不用：游历地图由 JourneyDailyMapTab 以多选怪物池表单维护
   journeyWeaponParamService,
   journeyMonsterParamService,
+  journeyLevelBossFightService,
   journeyTalentBranchService,
   journeyGlobalsService,
   journeyWeaponSlotService,
@@ -349,9 +350,21 @@ const upgradeCardFields: JourneyFieldDef[] = [
   { name: 'sort_order', label: '排序', type: 'number', min: 0, width: 80 },
 ]
 
-// ---- 关卡级配置 schema（波次/密度热区/地图参照物：挂在 GameLevels
+// ---- 同关逐战妖王编排（journey_level_boss_fights：一行一场）----
+const bossFightFields: JourneyFieldDef[] = [
+  { name: 'level_id', label: '关卡', type: 'text', required: true, width: 220, placeholder: '关卡细节自动带入' },
+  { name: 'fight_no', label: '场次', type: 'number', required: true, min: 1, max: 9, width: 80 },
+  { name: 'boss_code', label: '妖王', type: 'select', required: true, width: 180, optionsFrom: 'monsters' },
+  { name: 'note', label: '彩蛋/剧情标签', type: 'text', width: 160, placeholder: '如 白骨三变；展示在降临横幅' },
+]
+
+// ---- 关卡级配置 schema（波次/密度热区/地图参照物/妖王编排：挂在 GameLevels
 //      在西行管理 → 关卡编排 → 关卡细节按 level_id 编辑）----
 export const JOURNEY_LEVEL_SCOPED_SCHEMAS: JourneyTabSchema[] = [
+  {
+    key: 'boss_fights', label: '妖王编排', service: journeyLevelBossFightService, fields: bossFightFields,
+    intro: '一行一场指定本关妖王，场次从 1 起、可同可异；留空则沿用关卡/区域的妖王配置。填了编排后战斗场次以编排行数为准，无需单独改「妖王战数」。备注作为彩蛋标签展示在降临横幅。',
+  },
   {
     key: 'waves', label: '波次', service: journeyWaveService, fields: waveFields,
     iconPrefix: 'monster', iconField: 'monster_code',

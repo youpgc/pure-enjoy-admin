@@ -18,6 +18,9 @@ import type {
   DbJourneyEndlessWave,
   DbJourneyWeaponParam,
   DbJourneyMonsterParam,
+  DbJourneyMonsterAbility,
+  DbJourneyMonsterAbilityParam,
+  DbJourneyLevelBossFight,
   DbJourneyCharacter,
   DbJourneyRelicUnlock,
   DbJourneyGlobals,
@@ -34,6 +37,9 @@ import type {
 
 /// 西行管理数据服务：journey_* 静态配置表与只读流水，各表继承 BaseService 八法。
 /// 表结构以 journey DDL 为准；表未部署时页面会得到空表或报错提示。
+
+/// 每只妖王最多可挂的能力数：slot 0~15，与 journey_monster_abilities 的 CHECK 约束一致。
+export const MAX_JOURNEY_MONSTER_ABILITIES = 16
 
 // ==================== 西行（journey）配置服务（journey_* 静态配置表） ====================
 // 表结构以 /workspace/sql journey DDL 为准；SQL 执行前页面查询会得到空表/报错提示。
@@ -264,6 +270,76 @@ class JourneyMonsterParamService extends BaseService<DbJourneyMonsterParam> {
   }
 }
 
+// J28. 妖王能力行（journey_monster_abilities：一妖多能力承载）
+class JourneyMonsterAbilityService extends BaseService<DbJourneyMonsterAbility> {
+  constructor() {
+    super('journey_monster_abilities', {
+      defaultOrder: { column: 'monster_id', ascending: true },
+    })
+  }
+
+  /// 整包保存某妖王的能力行：先删旧行再写新行（能力数量少，整包替换更简单）。
+  /// 能力专属参数由 ability_id 外键级联删除，删行会连带清掉其参数。
+  async saveForMonster(monsterId: string, abilities: { slot: number; ability_key: string }[]) {
+    if (abilities.length > MAX_JOURNEY_MONSTER_ABILITIES) {
+      return errorResponse<boolean>(`每只妖王最多 ${MAX_JOURNEY_MONSTER_ABILITIES} 项能力`)
+    }
+    try {
+      const { error: delErr } = await (supabase.from('journey_monster_abilities') as any)
+        .delete().eq('monster_id', monsterId)
+      if (delErr) throw new Error(`清空妖王能力失败：${delErr.message}`)
+      if (abilities.length > 0) {
+        const rows = abilities.map((a) => ({ ...a, monster_id: monsterId, enabled: true }))
+        const { error } = await (supabase.from('journey_monster_abilities') as any).insert(rows)
+        if (error) throw new Error(`写入妖王能力失败：${error.message}`)
+      }
+      return successResponse(true)
+    } catch (err) {
+      return errorResponse<boolean>(handleApiError(err, 'journey_monster_abilities.saveForMonster'))
+    }
+  }
+}
+
+// J29. 能力专属参数（journey_monster_ability_params：能力行×参数键）
+class JourneyMonsterAbilityParamService extends BaseService<DbJourneyMonsterAbilityParam> {
+  constructor() {
+    super('journey_monster_ability_params', {
+      defaultOrder: { column: 'ability_id', ascending: true },
+    })
+  }
+
+  /// 整包保存某能力行的参数：有值行 upsert、留空行删除，与怪物参数抽屉同范式。
+  async saveBundle(
+    upserts: { ability_id: string; code: string; value_num: number }[],
+    deleteIds: string[],
+  ) {
+    try {
+      if (upserts.length > 0) {
+        const { error } = await (supabase.from('journey_monster_ability_params') as any)
+          .upsert(upserts, { onConflict: 'ability_id,code' })
+        if (error) throw new Error(`写入 ${upserts.length} 项能力参数失败：${error.message}`)
+      }
+      if (deleteIds.length > 0) {
+        const { error } = await (supabase.from('journey_monster_ability_params') as any)
+          .delete().in('id', deleteIds)
+        if (error) throw new Error(`清空 ${deleteIds.length} 项能力参数失败：${error.message}`)
+      }
+      return successResponse(true)
+    } catch (err) {
+      return errorResponse<boolean>(handleApiError(err, 'journey_monster_ability_params.saveBundle'))
+    }
+  }
+}
+
+// J30. 同关逐战妖王编排（journey_level_boss_fights：一行一场）
+class JourneyLevelBossFightService extends BaseService<DbJourneyLevelBossFight> {
+  constructor() {
+    super('journey_level_boss_fights', {
+      defaultOrder: { column: 'fight_no', ascending: true },
+    })
+  }
+}
+
 // 通用战斗参数行（journey_battle_params）。表由
 // /workspace/sql/pending/feature_journey_battle_params_20261117.sql 建立，
 // 生成类型尚未随 DDL 刷新，此处按该脚本列定义本地声明，不臆测 database.ts。
@@ -432,6 +508,9 @@ export const journeyDailyMapService = new JourneyDailyMapService()
 export const journeyEndlessWaveService = new JourneyEndlessWaveService()
 export const journeyWeaponParamService = new JourneyWeaponParamService()
 export const journeyMonsterParamService = new JourneyMonsterParamService()
+export const journeyMonsterAbilityService = new JourneyMonsterAbilityService()
+export const journeyMonsterAbilityParamService = new JourneyMonsterAbilityParamService()
+export const journeyLevelBossFightService = new JourneyLevelBossFightService()
 export const journeyBattleParamService = new JourneyBattleParamService()
 export const journeyMeritRecordService = new JourneyMeritRecordService()
 export const journeyRunService = new JourneyRunService()
