@@ -79,6 +79,7 @@ const PRIMARY_TABS: PrimaryTab[] = [
       crud('realm_titles'),
       crud('talent_branches'),
       crud('weapon_slots'),
+      crud('unlock_entries', '解锁规则'),
       crud('upgrade_cards'),
       crud('evo_recipes'),
     ],

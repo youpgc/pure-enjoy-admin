@@ -2856,6 +2856,21 @@ export interface DbJourneyRelicUnlock {
   seq: number
 }
 
+// 统一解锁规则：一行一「目标 × 条件 × 功德定价」
+export interface DbJourneyUnlockEntry {
+  id: string
+  code: string
+  target_kind: 'ability' | 'slot' | 'weapon' | 'passive'
+  target_code: string
+  condition_type: 'none' | 'level_cleared' | 'achievement' | 'total_kills' | 'merit_earned' | 'revived' | 'boss_killed'
+  condition_value: string
+  merit_cost: number
+  enabled: boolean
+  remark: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface DbJourneyGlobals {
   id: number
   code: string
@@ -2944,7 +2959,7 @@ export interface DbJourneyUpgradeCard {
   sort_order: number
 }
 
-// 功德流水（append-only；source_type ∈ run_settle/talent_spend/character_unlock，
+// 功德流水（append-only；source_type ∈ run_settle/talent_spend/character_unlock/revive_spend/unlock_spend，
 // balance_after 为入账/扣减后的余额快照）
 export interface DbJourneyMeritRecord {
   id: string
@@ -2985,6 +3000,7 @@ export interface DbJourneyProgress {
   talent_levels: Record<string, number>
   unlocked_characters: string[]
   unlocked_weapons: string[]
+  unlocked_entries?: string[]
   selected_character: string
   updated_at: string
   // 累计获得功德（成就真源）与每日游历当日 BJ 日期键（渐进加列）

@@ -17,6 +17,8 @@ export interface JourneyFieldDef {
   /// type=select：外键下拉（从 index.tsx 预载的查找表取选项）
   optionsFrom?: keyof JourneyLookups
   required?: boolean
+  /// 新增行的默认值（switch 默认 false；DDL 默认启用的列在此显式声明）。
+  defaultValue?: boolean
   min?: number
   max?: number
   step?: number

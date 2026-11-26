@@ -18,7 +18,7 @@ const JourneyWallet: React.FC = () => (
       showIcon
       className={common.mb16}
       message="西行钱包说明"
-      description="功德为西行（journey）独立货币，与宠物金币/积分互不通用；流水 append-only 只读，变动后余额见「余额快照」列（balance_after）。来源四类：对局结算 / 天赋升级 / 角色解锁 / 还魂丹复活。「进度快照」读 journey_progress（一行=一个用户）。journey_merit_records、journey_runs、journey_progress 表 SQL 尚未执行时本页查询报错属预期，执行后即可正常查看。"
+      description="功德为西行（journey）独立货币，与宠物金币/积分互不通用；流水 append-only 只读，变动后余额见「余额快照」列（balance_after）。来源五类：对局结算 / 天赋升级 / 角色解锁 / 还魂丹复活 / 统一解锁。「进度快照」读 journey_progress（一行=一个用户）。journey_merit_records、journey_runs、journey_progress 表 SQL 尚未执行时本页查询报错属预期，执行后即可正常查看。"
     />
     <Tabs
       defaultActiveKey="merit"

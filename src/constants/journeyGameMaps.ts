@@ -505,4 +505,24 @@ export const JOURNEY_MERIT_SOURCE_MAP: Record<string, { color: string; label: st
   talent_spend: { color: 'orange', label: '天赋升级' },
   character_unlock: { color: 'purple', label: '角色解锁' },
   revive_spend: { color: 'red', label: '还魂丹复活' },
+  unlock_spend: { color: 'magenta', label: '统一解锁' },
+}
+
+/// 统一解锁目标类型：能力只登记不门控，维度槽/法宝/被动参与三选一门控。
+export const JOURNEY_UNLOCK_TARGET_KIND_MAP: Record<string, { color: string; label: string }> = {
+  ability: { color: 'blue', label: '妖王能力' },
+  slot: { color: 'gold', label: '武器维度槽' },
+  weapon: { color: 'purple', label: '特效法宝' },
+  passive: { color: 'green', label: '被动法宝' },
+}
+
+/// 统一解锁条件类型：condition_value 按类型承载成就码/妖王码/数值。
+export const JOURNEY_UNLOCK_CONDITION_TYPE_MAP: Record<string, { color: string; label: string }> = {
+  none: { color: 'default', label: '纯功德直购' },
+  level_cleared: { color: 'blue', label: '通关难数（第几难）' },
+  achievement: { color: 'gold', label: '达成成就' },
+  total_kills: { color: 'red', label: '累计击杀' },
+  merit_earned: { color: 'green', label: '累计功德' },
+  revived: { color: 'orange', label: '曾还魂' },
+  boss_killed: { color: 'purple', label: '伏诛妖王' },
 }

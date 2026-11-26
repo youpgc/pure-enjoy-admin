@@ -194,7 +194,7 @@ const JourneyCrudTab: React.FC<JourneyCrudTabProps> = ({ schema, lookups, locked
     if (editing) return { ...editing }
     const base: Record<string, any> = {}
     for (const f of schema.fields) {
-      if (f.type === 'switch') base[f.name] = false
+      if (f.type === 'switch') base[f.name] = f.defaultValue ?? false
       if (f.type === 'number') base[f.name] = f.min ?? 0
     }
     // level-scoped 表：新增时预填当前过滤的关卡（抽屉锁定场景同样预填）

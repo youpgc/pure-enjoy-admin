@@ -13,6 +13,27 @@ import { formatDateTime } from '../../utils/format'
 import common from '../../styles/common.module.css'
 import { PAGE_SIZE, isProgressAnomaly } from './helpers'
 
+/// 统一解锁条目的目标类型中文标签（与 journey_unlock_entries.target_kind 同源）。
+const UNLOCK_KIND_LABEL: Record<string, string> = {
+  ability: '妖王能力',
+  slot: '维度槽',
+  weapon: '特效法宝',
+  passive: '被动法宝',
+}
+
+/// 已解锁条目渲染：「维度槽:execute」→「维度槽 execute」，未知类型保留原编码。
+const renderUnlockedEntries = (values: string[] | undefined) => {
+  if (!values?.length) return '—'
+  return values
+    .map((v) => {
+      const sep = v.indexOf(':')
+      if (sep < 0) return v
+      const kind = v.slice(0, sep)
+      return `${UNLOCK_KIND_LABEL[kind] ?? kind} ${v.slice(sep + 1)}`
+    })
+    .join('、')
+}
+
 const ProgressTab: React.FC = () => {
   const mountedRef = useMounted()
   const { pagination, setTotal, tablePagination } = usePagination(PAGE_SIZE)
@@ -129,6 +150,12 @@ const ProgressTab: React.FC = () => {
       render: (v: string | null | undefined) => v || '—',
     },
     { title: '剩余天赋点', dataIndex: 'talent_pool', width: 110 },
+    {
+      title: '已解锁条目',
+      dataIndex: 'unlocked_entries',
+      width: 240,
+      render: renderUnlockedEntries,
+    },
     {
       title: '出战角色',
       dataIndex: 'selected_character',

@@ -36,6 +36,7 @@ import {
 } from '../../services/gameService'
 import type { JourneyFieldDef, JourneyTabSchema } from './journeyTabSchema'
 import { characterAuxTabs } from './journeyCharacterAuxTabs'
+import { unlockEntryTabs } from './journeyUnlockEntryTab'
 import { globalsFields } from './journeyGlobalFields'
 export { globalsFields }
 
@@ -313,7 +314,6 @@ const relicFields: JourneyFieldDef[] = [
   { name: 'merit_cost', label: '功德定价', type: 'number', required: true, min: 0, width: 100 },
 ]
 
-
 // ---- 武器维度槽 ----
 const weaponSlotFields: JourneyFieldDef[] = [
   { name: 'code', label: '维度编码', type: 'text', required: true, width: 130, placeholder: '如 knockback' },
@@ -449,8 +449,9 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
   {
     key: 'relic_unlocks', label: '图鉴解锁', service: journeyRelicUnlockService, fields: relicFields,
     filters: [{ field: 'weapon_id', kind: 'lookup', lookup: 'weapons', placeholder: '按法宝筛选' }, { field: 'achievement_code', kind: 'text', placeholder: '按成就编码筛选' }],
-    intro: '强法宝图鉴=对局成就资格（achievement_code，关联 game_achievements.code）+功德定价；未解锁法宝不进三选一候选池。',
+    intro: '旧图鉴解锁口径：对局成就资格（achievement_code，关联 game_achievements.code）+功德定价；未解锁法宝不进三选一候选池。同一法宝若在「角色与养成 → 解锁规则」配了规则，则以规则为准（条件与定价都读规则），本页行仅在无规则时生效。',
   },
+  ...unlockEntryTabs,
   {
     key: 'globals', label: '全局参数', service: journeyGlobalsService, fields: globalsFields,
     intro: '单行参数表（id 恒为 1）：按分组信息卡只读展示，每组独立弹窗编辑，不提供新增与删除；列未填值时 App 回落内置兜底。',

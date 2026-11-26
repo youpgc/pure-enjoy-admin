@@ -23,6 +23,7 @@ import type {
   DbJourneyLevelBossFight,
   DbJourneyCharacter,
   DbJourneyRelicUnlock,
+  DbJourneyUnlockEntry,
   DbJourneyGlobals,
   DbJourneyWeaponSlot,
   DbJourneyUpgradeCard,
@@ -501,7 +502,7 @@ class JourneyProgressService extends BaseService<DbJourneyProgress> {
     super('journey_progress', {
       defaultOrder: { column: 'updated_at', ascending: false },
       select:
-        'user_id,merit_balance,farthest_level_no,total_kills,total_merit_earned,talent_pool,talent_levels,unlocked_characters,unlocked_weapons,selected_character,last_daily_date,updated_at',
+        'user_id,merit_balance,farthest_level_no,total_kills,total_merit_earned,talent_pool,talent_levels,unlocked_characters,unlocked_weapons,unlocked_entries,selected_character,last_daily_date,updated_at',
     })
   }
 
@@ -539,6 +540,15 @@ class JourneyUpgradeCardService extends BaseService<DbJourneyUpgradeCard> {
     })
   }
 }
+// 统一解锁规则（维度槽/法宝/被动/能力）：一行一目标的条件与功德定价
+class JourneyUnlockEntryService extends BaseService<DbJourneyUnlockEntry> {
+  constructor() {
+    super('journey_unlock_entries', {
+      defaultOrder: { column: 'code', ascending: true },
+    })
+  }
+}
+
 export const journeyRegionService = new JourneyRegionService()
 export const journeyMapObjectService = new JourneyMapObjectService()
 export const journeyHeatZoneService = new JourneyHeatZoneService()
@@ -554,6 +564,7 @@ export const journeyLevelService = new JourneyLevelService()
 export const journeyCharacterAuraParamService = new JourneyCharacterAuraParamService()
 export const journeyRealmTitleService = new JourneyRealmTitleService()
 export const journeyRelicUnlockService = new JourneyRelicUnlockService()
+export const journeyUnlockEntryService = new JourneyUnlockEntryService()
 export const journeyDailyMapService = new JourneyDailyMapService()
 export const journeyEndlessWaveService = new JourneyEndlessWaveService()
 export const journeyWeaponParamService = new JourneyWeaponParamService()
