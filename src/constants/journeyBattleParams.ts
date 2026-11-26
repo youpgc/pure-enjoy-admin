@@ -297,7 +297,12 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
   economy: [
     { code: 'chest', label: '宝箱收益', params: ['chest_choice_rate', 'chest_merit_base', 'chest_merit_double', 'chest_merit_double_rate'] },
     { code: 'revive', label: '还魂', params: ['revive_hp_ratio', 'revive_push_from', 'revive_push_to'] },
-    { code: 'drop', label: '掉落表', params: ['drop_coin_fallback', 'drop_peach_fallback'] },
+    {
+      code: 'drop',
+      label: '掉落表',
+      intro: '这两项仅为掉落表为空时的兜底概率。护心丹等具体道具的掉落概率在「基础数据 → 掉落表」按拾取物 huxin_dan 的权重配置；本卡片不控制它。',
+      params: ['drop_coin_fallback', 'drop_peach_fallback'],
+    },
     { code: 'elite_chest', label: '精英宝箱', params: ['elite_chest_rate'] },
     { code: 'daily_coin', label: '每日铜钱雨', params: ['daily_coin_period_sec', 'daily_coin_count', 'daily_coin_unit'] },
     { code: 'repeat_clear', label: '通关奖励', params: ['repeat_clear_ratio', 'repeat_clear_flat'] },
