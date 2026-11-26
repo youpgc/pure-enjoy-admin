@@ -110,6 +110,10 @@ export const JOURNEY_SLOT_CODE_MAP: Record<string, { color: string; label: strin
   recovery: { color: 'green', label: '回元(损失回血)' },
   shield: { color: 'geekblue', label: '护体(周期护盾)' },
   slow: { color: 'blue', label: '缚灵(范围减速)' },
+  bloodlust: { color: 'red', label: '嗜血(低血攻速)' },
+  desperation: { color: 'volcano', label: '背水一战(低血增伤)' },
+  qiankun: { color: 'geekblue', label: '乾坤(命中获盾)' },
+  poison: { color: 'green', label: '淬毒(命中中毒)' },
 }
 
 // 妖王能力（journey_monsters.ability_key，西游记背景扩展；空=无特殊能力）

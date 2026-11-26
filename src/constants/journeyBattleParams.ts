@@ -50,7 +50,7 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
   {
     code: 'weapon',
     label: '武器与吸血穿刺',
-    intro: '命中豁免、穿刺与吸血基准/上限、领域脉冲周期/扩散半径/驻留递增封顶、灼烧等级成长与法宝灼烧比例/时长、弹道目标上限与弹体寿命，及生机/金刚/回元/护体/缚灵五槽的周期与上限。各槽每级增量仍在「武器维度槽」表配置。',
+    intro: '命中豁免、穿刺与吸血基准/上限、领域脉冲周期/扩散半径/驻留递增封顶、灼烧等级成长与法宝灼烧比例/时长、弹道目标上限与弹体寿命，及生机/金刚/回元/护体/缚灵五槽的周期与上限；另含嗜血/背水的低血阈值与乾坤/淬毒的护盾基数、毒伤比例和持续时长。各槽每级增量仍在「武器维度槽」表配置。',
     params: [
       { code: 'hit_cd', label: '单扇叶命中豁免(秒)', kind: 'duration', default: 0.3, min: 0.05, max: 2, step: 0.05, hint: '同一扇叶命中后在该窗口内不再结算伤害与命中效果，扇叶之间互不共享' },
       { code: 'burn_dwell_sec', label: '灼烧驻留触发(秒)', kind: 'duration', default: 1, min: 0.1, max: 30, step: 0.1, hint: '处于武器臂展圆内累计驻留满该时长即点燃全部灼烧，每满一次续燃；离开范围清零' },
@@ -76,6 +76,11 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
       { code: 'shield_period', label: '护体·触发周期(秒)', kind: 'duration', default: 4, min: 1, max: 60, step: 1 },
       { code: 'slow_cap', label: '缚灵·减速上限', kind: 'percent', default: 0.7, min: 0, max: 0.95, step: 0.05 },
       { code: 'slow_hold_sec', label: '缚灵·离圈减速保持(秒)', kind: 'duration', default: 0.6, min: 0, max: 5, step: 0.1 },
+      { code: 'bloodlust_min_hp_ratio', label: '嗜血·最低血量阈值', kind: 'percent', default: 0.1, min: 0.01, max: 1, step: 0.01, hint: '血量降到该比例时嗜血攻速升满档；每缺失 10% 血量升 1 档，满血仍享基础加成' },
+      { code: 'desperation_min_hp_ratio', label: '背水·最低血量阈值', kind: 'percent', default: 0.1, min: 0.01, max: 1, step: 0.01, hint: '血量降到该比例时背水增伤升满档；档位规则与嗜血相同' },
+      { code: 'qiankun_base', label: '乾坤·命中护盾基数', kind: 'number', default: 20, min: 0, max: 500, step: 5, hint: '1 级命中获盾点数；每级增量在武器维度槽 qiankun 行的 value_per_level 配置，总上限=最大生命' },
+      { code: 'poison_base', label: '淬毒·基础毒伤比例', kind: 'percent', default: 0.05, min: 0, max: 1, step: 0.005, hint: '1 级每秒毒伤=伤害基础值（武器伤害+等级攻击+角色基础攻击）×该比例；每级增量在武器维度槽 poison 行配置；真实伤害、不可叠加、二次命中重置时长' },
+      { code: 'poison_sec', label: '淬毒·持续秒数', kind: 'duration', default: 5, min: 0.5, max: 30, step: 0.5, hint: '同一目标单次中毒持续时长；二次命中按该时长重置' },
     ],
   },
   {
@@ -267,6 +272,8 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
     { code: 'defense', label: '生机与金刚', params: ['vitality_cap', 'ward_cap'] },
     { code: 'sustain', label: '回元与护体', params: ['recovery_period', 'recovery_cap', 'shield_period'] },
     { code: 'control', label: '缚灵', params: ['slow_cap', 'slow_hold_sec'] },
+    { code: 'low_hp', label: '嗜血与背水', params: ['bloodlust_min_hp_ratio', 'desperation_min_hp_ratio'] },
+    { code: 'hit_slots', label: '乾坤与淬毒', params: ['qiankun_base', 'poison_base', 'poison_sec'] },
   ],
   spawn: [
     { code: 'cadence', label: '兜底刷怪节奏', params: ['interval_base', 'interval_tier', 'interval_minute', 'interval_min', 'batch_minutes'] },

@@ -460,7 +460,7 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     key: 'weapon_slots', label: '武器维度槽', service: journeyWeaponSlotService, fields: weaponSlotFields,
     iconPrefix: 'icon_slot',
     filters: [{ field: 'name', kind: 'text', placeholder: '按维度名称筛选' }, { field: 'code', kind: 'text', placeholder: '按维度编码筛选' }],
-    intro: '6 主动槽=维度槽口径：初始武器占 1 特效槽，空槽由三选一「习得」卡填入新维度；每级效果与等级上限（max_level）后台可调；触发周期(period_sec)仅回元/护体等周期槽填写，0=回落「武器与吸血穿刺」战斗参数。处决槽每级增量填 value_per_level（如 0.0175=1.75%），普通怪血线上下限/妖王绝对血线在「战斗参数 → 处决」配置。',
+    intro: '6 主动槽=维度槽口径：初始武器占 1 特效槽，空槽由三选一「习得」卡填入新维度；每级效果与等级上限（max_level）后台可调；触发周期(period_sec)仅回元/护体等周期槽填写，0=回落「武器与吸血穿刺」战斗参数。处决槽每级增量填 value_per_level（如 0.0175=1.75%），普通怪血线上下限/妖王绝对血线在「战斗参数 → 处决」配置。嗜血/背水一战每缺失 10% 血量升 1 档，满血为基础档，最低血量阈值在「战斗参数 → 嗜血与背水」配置；乾坤/淬毒的基数、比例与持续时长在「战斗参数 → 乾坤与淬毒」配置，每级增量填本表 value_per_level。',
   },
   {
     key: 'upgrade_cards', label: '基础值成长卡', service: journeyUpgradeCardService, fields: upgradeCardFields,
