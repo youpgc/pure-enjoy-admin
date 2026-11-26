@@ -2,6 +2,14 @@
 // 从 game.ts 拆出：取值须与 /workspace/sql journey DDL 的 CHECK 约束一致，App 端 journey_seed 同步维护。
 // 对外导出保持不变，调用方仍从 constants/game 引入。
 
+// 妖王能力图标根目录（public/journey-abilities 与 App assets/games/journey 同名同步）
+// ⚠️ 须带 BASE_URL 前缀，vite base=/pure-enjoy-admin/ 时硬编码根路径会 404。
+export const JOURNEY_ABILITY_ICON_BASE = import.meta.env.BASE_URL + 'journey-abilities'
+export const journeyAbilityIcon = (key: string): string =>
+  `${JOURNEY_ABILITY_ICON_BASE}/ability_${key}.svg`
+export const journeyMonsterIcon = (code: string): string =>
+  `${JOURNEY_ABILITY_ICON_BASE}/monster_${code}.svg`
+
 // ==================== 西行（journey）枚举 ====================
 // 取值须与 /workspace/sql journey DDL 的 CHECK 约束一致；App 端 journey_seed 同步维护。
 
@@ -127,7 +135,7 @@ export const JOURNEY_BOSS_ABILITY_MAP: Record<string, { color: string; label: st
   devour: { color: 'red', label: '吞噬·强拉高伤' },
   three_bells: { color: 'volcano', label: '紫金铃·三色轮转' },
   spear_thrust: { color: 'orange', label: '蟠龙拐·直线突刺' },
-  earth_trap: { color: 'brown', label: '地陷·短定身减速' },
+  earth_trap: { color: 'orange', label: '地陷·短定身减速' },
   plum_flower: { color: 'purple', label: '分瓣梅花·假身分兵' },
   nine_seize: { color: 'red', label: '九头衔人·长距拉拽' },
   ice_charge: { color: 'cyan', label: '犀角冰撞·冰霜领域' },
@@ -138,6 +146,18 @@ export const JOURNEY_BOSS_ABILITY_MAP: Record<string, { color: string; label: st
   ram_oil: { color: 'volcano', label: '油锅炼狱·火域致盲' },
   shield_break: { color: 'geekblue', label: '破盾·撕盾与带盾压制' },
   execute: { color: 'red', label: '处决·角色残血斩杀' },
+  sleeve_cosmos: { color: 'gold', label: '袖里乾坤·超远吸拉长定身' },
+  heavenly_eye: { color: 'volcano', label: '天眼识破·真伤破甲致盲' },
+  banana_storm: { color: 'green', label: '芭蕉神扇·吹飞火系落点' },
+  five_mountain: { color: 'orange', label: '五行山镇压·大落点长定身' },
+  golden_bell: { color: 'gold', label: '金铙困形·限移视野收窄' },
+  silk_fate: { color: 'magenta', label: '情丝缚魂·叠层满层定身' },
+  trunk_coil: { color: 'volcano', label: '象鼻绞杀·卷住绞杀抛飞' },
+  swallow_sky: { color: 'red', label: '吞天巨口·近身真伤斩杀' },
+  pure_dew: { color: 'cyan', label: '杨柳甘露·驱散负面回血' },
+  lotus_guard: { color: 'geekblue', label: '金莲护体·护罩近身反伤' },
+  ghost_fog: { color: 'purple', label: '玄阴黑雾·致盲减速毒伤' },
+  divine_fire: { color: 'volcano', label: '六丁神火·灼烧叠层真伤' },
 }
 
 // 妖王能力参数键（journey_monster_params.code，引擎逻辑判断用；展示映射）
@@ -202,7 +222,7 @@ export const JOURNEY_MONSTER_PARAM_KEY_MAP: Record<string, { color: string; labe
   form_ward: { color: 'gold', label: '幻形护罩倍率' },
   form_blind: { color: 'volcano', label: '幻形致盲秒数' },
   steal_ward: { color: 'gold', label: '套取护罩倍率' },
-  sting_add: { color: 'green', label: '毒刺叠层增量' },
+  sting_add: { color: 'green', label: '叠层增量(毒刺/神火共用)' },
   sting_max: { color: 'red', label: '毒刺爆发层数' },
   sting_window: { color: 'geekblue', label: '毒刺窗口(秒)' },
   sting_burst_ratio: { color: 'red', label: '毒刺爆发倍率' },
@@ -229,7 +249,7 @@ export const JOURNEY_MONSTER_PARAM_KEY_MAP: Record<string, { color: string; labe
   bind_root: { color: 'purple', label: '根系缠绕秒数' },
   combat_regen: { color: 'green', label: '战斗中回血(生命/秒)' },
   bag_pull: { color: 'magenta', label: '人种袋吸拉距离' },
-  cymbal_ward: { color: 'gold', label: '金铙护罩倍率' },
+  cymbal_ward: { color: 'gold', label: '人种袋护罩倍率' },
   devour_ratio: { color: 'red', label: '吞噬伤害倍率' },
   bell_burn_ratio: { color: 'volcano', label: '火铃灼烧比例' },
   bell_blind: { color: 'volcano', label: '烟铃致盲秒数' },
@@ -362,6 +382,79 @@ export const JOURNEY_MONSTER_PARAM_KEY_MAP: Record<string, { color: string; labe
   oil_ratio: { color: 'red', label: '油锅每跳伤害比例' },
   oil_blind: { color: 'volcano', label: '油锅油烟致盲(秒)' },
 
+  // 稀有妖王能力（模块 B）
+  cosmos_range: { color: 'blue', label: '袖里乾坤吸拉距离' },
+  cosmos_pull: { color: 'blue', label: '袖里乾坤拉拽距离' },
+  cosmos_root: { color: 'purple', label: '袖里乾坤定身(秒)' },
+  cosmos_ward: { color: 'gold', label: '袖里乾坤护罩比例' },
+  sleeve_cosmos_period: { color: 'geekblue', label: '袖里乾坤周期(秒)' },
+  eye_range: { color: 'blue', label: '天眼落点半径' },
+  eye_delay: { color: 'geekblue', label: '天眼前摇(秒)' },
+  eye_ratio: { color: 'red', label: '天眼真伤倍率' },
+  eye_armor_break: { color: 'orange', label: '天眼破甲比例' },
+  eye_blind: { color: 'volcano', label: '天眼致盲(秒)' },
+  heavenly_eye_period: { color: 'geekblue', label: '天眼周期(秒)' },
+  storm_range: { color: 'blue', label: '芭蕉扇吹飞距离' },
+  storm_push: { color: 'cyan', label: '芭蕉扇吹飞力度' },
+  storm_radius: { color: 'blue', label: '芭蕉扇火落点半径' },
+  storm_delay: { color: 'geekblue', label: '芭蕉扇落点前摇(秒)' },
+  storm_ratio: { color: 'red', label: '芭蕉扇火伤倍率' },
+  banana_storm_period: { color: 'geekblue', label: '芭蕉扇周期(秒)' },
+  mountain_range: { color: 'blue', label: '五行山落点半径' },
+  mountain_delay: { color: 'geekblue', label: '五行山前摇(秒)' },
+  mountain_ratio: { color: 'red', label: '五行山伤害倍率' },
+  mountain_root: { color: 'purple', label: '五行山定身(秒)' },
+  mountain_sec: { color: 'geekblue', label: '五行山压制持续(秒)' },
+  mountain_tick: { color: 'geekblue', label: '五行山压制间隔(秒)' },
+  mountain_press: { color: 'cyan', label: '五行山压制减速' },
+  five_mountain_period: { color: 'geekblue', label: '五行山周期(秒)' },
+  cymbal_root: { color: 'purple', label: '金铙困形时长(秒)' },
+  cymbal_range: { color: 'blue', label: '金铙持续伤半径' },
+  cymbal_sec: { color: 'geekblue', label: '金铙持续伤时长(秒)' },
+  cymbal_tick: { color: 'geekblue', label: '金铙持续伤间隔(秒)' },
+  cymbal_ratio: { color: 'red', label: '金铙每跳伤害比例' },
+  golden_bell_period: { color: 'geekblue', label: '金铙周期(秒)' },
+  silk_speed: { color: 'cyan', label: '情丝弹速' },
+  silk_radius: { color: 'blue', label: '情丝弹半径' },
+  silk_life: { color: 'geekblue', label: '情丝弹存活(秒)' },
+  silk_ratio: { color: 'red', label: '情丝伤害比例' },
+  silk_add: { color: 'magenta', label: '情丝每次叠层' },
+  silk_max: { color: 'magenta', label: '情丝满层阈值' },
+  silk_window: { color: 'geekblue', label: '情丝叠层窗口(秒)' },
+  silk_root: { color: 'purple', label: '情丝满层定身(秒)' },
+  silk_fate_period: { color: 'geekblue', label: '情丝周期(秒)' },
+  coil_range: { color: 'blue', label: '象鼻卷住距离' },
+  coil_pull: { color: 'cyan', label: '象鼻卷拉距离' },
+  coil_radius: { color: 'blue', label: '象鼻绞杀半径' },
+  coil_sec: { color: 'geekblue', label: '象鼻绞杀持续(秒)' },
+  coil_tick: { color: 'geekblue', label: '象鼻绞杀间隔(秒)' },
+  coil_ratio: { color: 'red', label: '象鼻每跳伤害比例' },
+  coil_throw: { color: 'cyan', label: '象鼻抛飞力度' },
+  coil_throw_delay: { color: 'geekblue', label: '象鼻抛飞前摇(秒)' },
+  trunk_coil_period: { color: 'geekblue', label: '象鼻周期(秒)' },
+  sky_range: { color: 'blue', label: '吞天近身距离' },
+  sky_width: { color: 'blue', label: '吞天落点半径' },
+  sky_delay: { color: 'geekblue', label: '吞天前摇(秒)' },
+  sky_ratio: { color: 'red', label: '吞天真伤倍率' },
+  sky_execute_ratio: { color: 'red', label: '吞天斩杀血线' },
+  swallow_sky_period: { color: 'geekblue', label: '吞天周期(秒)' },
+  dew_clean: { color: 'cyan', label: '甘露驱散种类数' },
+  dew_heal: { color: 'green', label: '甘露自身回血系数' },
+  pure_dew_period: { color: 'geekblue', label: '甘露周期(秒)' },
+  lotus_ward: { color: 'gold', label: '金莲护罩比例' },
+  lotus_thorns: { color: 'red', label: '金莲反伤比例' },
+  lotus_guard_period: { color: 'geekblue', label: '金莲周期(秒)' },
+  fog_range: { color: 'blue', label: '黑雾施加距离' },
+  fog_blind: { color: 'volcano', label: '黑雾致盲(秒)' },
+  fog_slow: { color: 'cyan', label: '黑雾减速比例' },
+  fog_slow_sec: { color: 'geekblue', label: '黑雾减速时长(秒)' },
+  fog_ratio: { color: 'magenta', label: '黑雾毒刺叠层' },
+  ghost_fog_period: { color: 'geekblue', label: '黑雾周期(秒)' },
+  divine_range: { color: 'blue', label: '神火领域半径' },
+  divine_sec: { color: 'geekblue', label: '神火领域持续(秒)' },
+  divine_tick: { color: 'geekblue', label: '神火判定间隔(秒)' },
+  divine_ratio: { color: 'red', label: '神火每跳伤害比例' },
+  divine_fire_period: { color: 'geekblue', label: '神火周期(秒)' },
 }
 
 // 法宝数值参数键（journey_weapon_params.code，引擎逻辑判断用；展示映射）

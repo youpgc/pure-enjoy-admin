@@ -278,20 +278,70 @@ class JourneyMonsterAbilityService extends BaseService<DbJourneyMonsterAbility> 
     })
   }
 
-  /// 整包保存某妖王的能力行：先删旧行再写新行（能力数量少，整包替换更简单）。
-  /// 能力专属参数由 ability_id 外键级联删除，删行会连带清掉其参数。
-  async saveForMonster(monsterId: string, abilities: { slot: number; ability_key: string }[]) {
+  /// 整包保存某妖王的能力行：按 slot 做差异写（新增/更新/删除），
+  /// 不整表先删后插——能力专属参数以 ability_id 外键级联，删行会连带清掉
+  /// 后台已配好的参数，且插入失败时旧配置不可恢复。
+  /// 未显式传 enabled 的行沿用旧值，避免保存名单时把停用状态改回启用。
+  async saveForMonster(
+    monsterId: string,
+    abilities: { slot: number; ability_key: string; enabled?: boolean }[],
+  ) {
     if (abilities.length > MAX_JOURNEY_MONSTER_ABILITIES) {
       return errorResponse<boolean>(`每只妖王最多 ${MAX_JOURNEY_MONSTER_ABILITIES} 项能力`)
     }
+    if (abilities.some((a) => a.slot < 0 || a.slot >= MAX_JOURNEY_MONSTER_ABILITIES)) {
+      return errorResponse<boolean>(`能力槽位必须在 0~${MAX_JOURNEY_MONSTER_ABILITIES - 1} 之间`)
+    }
+    if (new Set(abilities.map((a) => a.slot)).size !== abilities.length) {
+      return errorResponse<boolean>('同一妖王的能力槽位不可重复')
+    }
     try {
-      const { error: delErr } = await (supabase.from('journey_monster_abilities') as any)
-        .delete().eq('monster_id', monsterId)
-      if (delErr) throw new Error(`清空妖王能力失败：${delErr.message}`)
-      if (abilities.length > 0) {
-        const rows = abilities.map((a) => ({ ...a, monster_id: monsterId, enabled: true }))
-        const { error } = await (supabase.from('journey_monster_abilities') as any).insert(rows)
+      const existingRes = await this.findAll((q) => q.eq('monster_id', monsterId))
+      if (!existingRes.success) {
+        return errorResponse<boolean>(existingRes.errorMessage ?? '读取妖王能力失败')
+      }
+      const bySlot = new Map((existingRes.data ?? []).map((row) => [row.slot, row]))
+      const wanted = new Set(abilities.map((a) => a.slot))
+      const removes = (existingRes.data ?? [])
+        .filter((row) => !wanted.has(row.slot))
+        .map((row) => row.id)
+      const inserts = abilities
+        .filter((a) => !bySlot.has(a.slot))
+        .map((a) => ({
+          monster_id: monsterId,
+          slot: a.slot,
+          ability_key: a.ability_key,
+          enabled: a.enabled ?? true,
+        }))
+      const updates = abilities
+        .filter((a) => bySlot.has(a.slot))
+        .map((a) => {
+          const row = bySlot.get(a.slot)!
+          return {
+            id: row.id,
+            slot: a.slot,
+            ability_key: a.ability_key,
+            enabled: a.enabled ?? row.enabled,
+          }
+        })
+        .filter((row) => {
+          const old = bySlot.get(row.slot)!
+          return old.ability_key !== row.ability_key || old.enabled !== row.enabled
+        })
+      if (removes.length > 0) {
+        const { error } = await (supabase.from('journey_monster_abilities') as any)
+          .delete().in('id', removes)
+        if (error) throw new Error(`移除妖王能力失败：${error.message}`)
+      }
+      if (inserts.length > 0) {
+        const { error } = await (supabase.from('journey_monster_abilities') as any)
+          .insert(inserts)
         if (error) throw new Error(`写入妖王能力失败：${error.message}`)
+      }
+      if (updates.length > 0) {
+        const { error } = await (supabase.from('journey_monster_abilities') as any)
+          .upsert(updates, { onConflict: 'id' })
+        if (error) throw new Error(`更新妖王能力失败：${error.message}`)
       }
       return successResponse(true)
     } catch (err) {

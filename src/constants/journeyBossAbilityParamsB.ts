@@ -282,4 +282,76 @@ export const BOSS_ABILITY_PARAMS_B: Record<string, BossAbilityParams> = {
       execute_hp_ratio: 0.1,
     },
   },
+  sleeve_cosmos: {
+    keys: ['cosmos_range', 'cosmos_pull', 'cosmos_root', 'cosmos_ward', 'sleeve_cosmos_period'],
+    defaults: {
+      cosmos_range: 520, cosmos_pull: 380, cosmos_root: 3.2, cosmos_ward: 0.9, sleeve_cosmos_period: 14,
+    },
+  },
+  heavenly_eye: {
+    keys: ['eye_range', 'eye_delay', 'eye_ratio', 'eye_armor_break', 'eye_blind', 'heavenly_eye_period'],
+    defaults: {
+      eye_range: 110, eye_delay: 0.7, eye_ratio: 1.4, eye_armor_break: 0.5, eye_blind: 3.5, heavenly_eye_period: 11,
+    },
+  },
+  banana_storm: {
+    keys: ['storm_range', 'storm_push', 'storm_radius', 'storm_delay', 'storm_ratio', 'banana_storm_period'],
+    defaults: {
+      storm_range: 420, storm_push: 320, storm_radius: 170, storm_delay: 0.9, storm_ratio: 1.2, banana_storm_period: 11,
+    },
+  },
+  five_mountain: {
+    keys: ['mountain_range', 'mountain_delay', 'mountain_ratio', 'mountain_root', 'mountain_sec', 'mountain_tick', 'mountain_press', 'five_mountain_period'],
+    defaults: {
+      mountain_range: 200, mountain_delay: 1.2, mountain_ratio: 1.6, mountain_root: 4, mountain_sec: 5, mountain_tick: 0.8, mountain_press: 0.5, five_mountain_period: 16,
+    },
+  },
+  golden_bell: {
+    keys: ['cymbal_root', 'cymbal_range', 'cymbal_sec', 'cymbal_tick', 'cymbal_ratio', 'golden_bell_period'],
+    defaults: {
+      cymbal_root: 3, cymbal_range: 150, cymbal_sec: 4, cymbal_tick: 0.8, cymbal_ratio: 0.14, golden_bell_period: 12,
+    },
+  },
+  silk_fate: {
+    keys: ['silk_speed', 'silk_radius', 'silk_life', 'silk_ratio', 'silk_add', 'silk_max', 'silk_window', 'silk_root', 'silk_fate_period'],
+    defaults: {
+      silk_speed: 240, silk_radius: 12, silk_life: 4, silk_ratio: 0.3, silk_add: 1, silk_max: 4, silk_window: 6, silk_root: 1.6, silk_fate_period: 10,
+    },
+  },
+  trunk_coil: {
+    keys: ['coil_range', 'coil_pull', 'coil_radius', 'coil_sec', 'coil_tick', 'coil_ratio', 'coil_throw', 'coil_throw_delay', 'trunk_coil_period'],
+    defaults: {
+      coil_range: 220, coil_pull: 160, coil_radius: 120, coil_sec: 3, coil_tick: 0.7, coil_ratio: 0.18, coil_throw: 260, coil_throw_delay: 1.4, trunk_coil_period: 11,
+    },
+  },
+  swallow_sky: {
+    keys: ['sky_range', 'sky_width', 'sky_delay', 'sky_ratio', 'sky_execute_ratio', 'swallow_sky_period'],
+    defaults: {
+      sky_range: 200, sky_width: 120, sky_delay: 0.6, sky_ratio: 1.8, sky_execute_ratio: 0.12, swallow_sky_period: 9,
+    },
+  },
+  pure_dew: {
+    keys: ['dew_clean', 'dew_heal', 'pure_dew_period'],
+    defaults: {
+      dew_clean: 4, dew_heal: 2, pure_dew_period: 15,
+    },
+  },
+  lotus_guard: {
+    keys: ['lotus_ward', 'lotus_thorns', 'lotus_guard_period'],
+    defaults: {
+      lotus_ward: 0.8, lotus_thorns: 0.3, lotus_guard_period: 12,
+    },
+  },
+  ghost_fog: {
+    keys: ['fog_range', 'fog_blind', 'fog_slow', 'fog_slow_sec', 'fog_ratio', 'sting_max', 'sting_window', 'sting_burst_ratio', 'ghost_fog_period'],
+    defaults: {
+      fog_range: 260, fog_blind: 2.5, fog_slow: 0.35, fog_slow_sec: 3, fog_ratio: 1, sting_max: 3, sting_window: 6, sting_burst_ratio: 1.2, ghost_fog_period: 10,
+    },
+  },
+  divine_fire: {
+    keys: ['divine_range', 'divine_sec', 'divine_tick', 'divine_ratio', 'sting_add', 'sting_max', 'sting_window', 'sting_burst_ratio', 'divine_fire_period'],
+    defaults: {
+      divine_range: 190, divine_sec: 5, divine_tick: 0.6, divine_ratio: 0.16, sting_add: 1, sting_max: 3, sting_window: 6, sting_burst_ratio: 1.2, divine_fire_period: 10,
+    },
+  },
 }
