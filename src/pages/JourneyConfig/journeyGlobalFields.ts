@@ -38,6 +38,11 @@ export const globalsFields: JourneyFieldDef[] = [
   { name: 'monster_armor_reduction_cap', label: '怪物减伤上限', type: 'number', step: 0.01, min: 0, max: 1, width: 150 },
   { name: 'exp_curve_pow', label: '经验曲线幂次', type: 'number', step: 0.1, min: 1, max: 3, width: 140 },
   { name: 'exp_mult_k', label: '经验乘区缩放系数', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
+  { name: 'exp_lv_pow', label: '经验成长·等级幂次', type: 'number', step: 0.1, min: 0, max: 4, width: 160 },
+  { name: 'exp_lv_base_lv', label: '经验成长·基准等级', type: 'number', step: 1, min: 1, max: 999, width: 160 },
+  { name: 'exp_time_gain', label: '经验成长·每分钟增幅', type: 'number', step: 0.01, min: 0, max: 1, width: 170 },
+  { name: 'exp_gain_cap', label: '经验成长乘区上限', type: 'number', step: 1, min: 1, max: 1000, width: 160 },
+  { name: 'eco_elite_large_hp', label: '大型精英进池血线', type: 'number', step: 50, min: 1, max: 100000, width: 160 },
   { name: 'monster_lv_k', label: '普怪血量等级系数', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
   { name: 'boss_hp_lv_k', label: '妖王血量等级系数', type: 'number', step: 0.01, min: 0, max: 1, width: 160 },
   // 精英宝箱掉率由「通用战斗参数·经济与掉落」分组承载，本表不暴露。

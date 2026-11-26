@@ -69,6 +69,10 @@ export const JOURNEY_GLOBALS_GROUPS: JourneyGlobalsGroup[] = [
       item('exp_per_lv', '每升一级追加的经验量'),
       item('exp_curve_pow', '升级需求曲线的幂次：主线/每日所需=基数+每级增量×等级^幂次'),
       item('exp_mult_k', '怪物经验随强度乘区缩放的系数：经验×(1+乘区×K)，0=不随乘区缩放'),
+      item('exp_lv_pow', '经验产出的等级成长幂次：等级项=(等级/基准等级)^幂次，时间项放大等级增量；默认 1.0 低于需求幂次 1.5，使每级击杀数缓慢上调；0=不随等级成长'),
+      item('exp_lv_base_lv', '经验成长基准等级：该等级及以下成长系数为 1，前期产出不变（默认 20）'),
+      item('exp_time_gain', '经验产出随局内时间的每分钟增幅：成长乘区=1+(等级项−1)×(1+分钟×该值)；只放大等级增量，不改怪物强度'),
+      item('exp_gain_cap', '经验成长乘区硬上限：等级项与合成后的成长乘区均钳到此值，防止后期无界膨胀'),
     ],
   },
   {
@@ -99,6 +103,7 @@ export const JOURNEY_GLOBALS_GROUPS: JourneyGlobalsGroup[] = [
       item('monster_armor_reduction_cap', '怪物侧护甲减伤上限（0~1），高于玩家侧上限'),
       item('monster_lv_k', '普通怪血量随玩家等级成长的系数，0=不随等级成长'),
       item('boss_hp_lv_k', '妖王血量随玩家等级成长的系数，与时间项叠乘，0=不随等级成长'),
+      item('eco_elite_large_hp', '大型精英进池血线：中型精英上限，低于等于该血量者在普通怪退场后登场；取 1600 使换挡窗口即可遭遇高经验精英'),
     ],
   },
   {
