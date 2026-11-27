@@ -326,6 +326,7 @@ const weaponSlotFields: JourneyFieldDef[] = [
     ],
   },
   { name: 'effect_per_level', label: '每级效果', type: 'text', required: true, width: 260, placeholder: '如 命中击退距离 +16' },
+  { name: 'base_value', label: '1级初始值', type: 'number', step: 0.01, min: 0, width: 110, placeholder: '0=回落原1级基准' },
   { name: 'value_per_level', label: '每级数值', type: 'number', step: 0.01, min: 0, width: 105, placeholder: '0=App 内置兜底' },
   { name: 'period_sec', label: '触发周期(秒)', type: 'number', step: 0.5, min: 0, width: 110, placeholder: '回元/护体等周期槽填；0=回落战斗参数' },
   { name: 'max_level', label: '等级上限', type: 'number', required: true, min: 1, max: 9, width: 100 },
@@ -460,7 +461,7 @@ export const JOURNEY_TAB_SCHEMAS: JourneyTabSchema[] = [
     key: 'weapon_slots', label: '武器维度槽', service: journeyWeaponSlotService, fields: weaponSlotFields,
     iconPrefix: 'icon_slot',
     filters: [{ field: 'name', kind: 'text', placeholder: '按维度名称筛选' }, { field: 'code', kind: 'text', placeholder: '按维度编码筛选' }],
-    intro: '6 主动槽=维度槽口径：初始武器占 1 特效槽，空槽由三选一「习得」卡填入新维度；每级效果与等级上限（max_level）后台可调；触发周期(period_sec)仅回元/护体等周期槽填写，0=回落「武器与吸血穿刺」战斗参数。处决槽每级增量填 value_per_level（如 0.0175=1.75%），普通怪血线上下限/妖王绝对血线在「战斗参数 → 处决」配置。嗜血/背水一战每缺失 10% 血量升 1 档，满血为基础档，最低血量阈值在「战斗参数 → 嗜血与背水」配置；乾坤/淬毒的基数、比例与持续时长在「战斗参数 → 乾坤与淬毒」配置，每级增量填本表 value_per_level。',
+    intro: '6 主动槽=维度槽口径：初始武器占 1 特效槽，空槽由三选一「习得」卡填入新维度；每级效果与等级上限（max_level）后台可调。1 级初始值（base_value）与每级数值（value_per_level）独立配置，数值=初始值+每级值×(等级−1)；初始值填 0=回落原 1 级基准（线性槽取每级值、吸血/穿刺/处决/乾坤/淬毒取对应战斗参数基数），不填不改线上行为；调整初始值后请同步修改每级效果文案（习得卡直接展示该文案）。触发周期(period_sec)仅回元/护体等周期槽填写，0=回落「武器与吸血穿刺」战斗参数。处决槽每级增量填 value_per_level（如 0.0175=1.75%），普通怪血线上下限/妖王绝对血线在「战斗参数 → 处决」配置。嗜血/背水一战每缺失 10% 血量升 1 档，满血为基础档，最低血量阈值在「战斗参数 → 嗜血与背水」配置；乾坤/淬毒的基数、比例与持续时长在「战斗参数 → 乾坤与淬毒」配置，每级增量填本表 value_per_level。',
   },
   {
     key: 'upgrade_cards', label: '基础值成长卡', service: journeyUpgradeCardService, fields: upgradeCardFields,

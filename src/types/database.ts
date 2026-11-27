@@ -2939,6 +2939,8 @@ export interface DbJourneyWeaponSlot {
   kind: string
   effect_per_level: string
   value_per_level?: number
+  /// 1级初始值（0=App 回落原1级基准，与 value_per_level 每级增量独立）
+  base_value?: number
   max_level: number
   weight?: number
   /// 周期触发秒数（仅回元/护体等周期槽使用；0=App 回落战斗参数兜底）
