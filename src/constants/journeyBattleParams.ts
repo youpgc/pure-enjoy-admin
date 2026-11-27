@@ -87,13 +87,15 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
   {
     code: 'spawn',
     label: '刷怪生态',
-    intro: '无波次关的兜底刷怪节奏与妖王据点守卫布置。有波次配置时波次优先。',
+    intro: '波次关精英供给（循环层混入与精英波复刷）、无波次关兜底刷怪节奏与妖王据点守卫布置。有波次配置时波次优先。',
     params: [
       { code: 'interval_base', label: '兜底刷怪间隔基准(秒)', kind: 'duration', default: 0.8, min: 0.1, max: 5, step: 0.05 },
       { code: 'interval_tier', label: '密度档间隔缩减', kind: 'number', default: 0.1, min: 0, max: 1, step: 0.01 },
       { code: 'interval_minute', label: '每分钟间隔缩减', kind: 'number', default: 0.12, min: 0, max: 1, step: 0.01 },
       { code: 'interval_min', label: '间隔下限(秒)', kind: 'duration', default: 0.28, min: 0.05, max: 2, step: 0.01 },
       { code: 'batch_minutes', label: '批量递增分钟跨度', kind: 'number', default: 1.5, min: 0.5, max: 10, step: 0.5 },
+      { code: 'loop_elite_ratio', label: '循环层精英混入比例', kind: 'percent', default: 0.18, min: 0, max: 1, step: 0.01, hint: '波次关循环层每次刷怪抽生态精英的概率；前期保护期内不生效' },
+      { code: 'elite_wave_repeat_sec', label: '精英波复刷周期(秒)', kind: 'duration', default: 45, min: 0, max: 600, step: 5, hint: '时间轴精英波刷完后按该周期复刷；0=关闭（波次按完成处理，回落兜底刷怪）' },
       { code: 'boss_guard_count', label: '妖王据点守卫只数', kind: 'integer', default: 10, min: 0, max: 60, step: 1 },
       { code: 'boss_guard_ring_min', label: '守卫环带内径(px)', kind: 'number', default: 120, min: 20, max: 1000, step: 10 },
       { code: 'boss_guard_ring_span', label: '守卫环带宽度(px)', kind: 'number', default: 140, min: 20, max: 1000, step: 10 },
