@@ -53,6 +53,7 @@ export const JOURNEY_BATTLE_PARAM_GROUPS: BattleParamGroupDef[] = [
     intro: '命中豁免、穿刺与吸血基准/上限、领域脉冲周期/扩散半径/驻留递增封顶、灼烧等级成长与法宝灼烧比例/时长、弹道目标上限与弹体寿命，及生机/金刚/回元/护体/缚灵五槽的周期与上限；另含嗜血/背水的低血阈值与乾坤/淬毒的护盾基数、毒伤比例和持续时长。各槽每级增量仍在「武器维度槽」表配置。',
     params: [
       { code: 'hit_cd', label: '单扇叶命中豁免(秒)', kind: 'duration', default: 0.3, min: 0.05, max: 2, step: 0.05, hint: '同一扇叶命中后在该窗口内不再结算伤害与命中效果，扇叶之间互不共享' },
+      { code: 'knockback_cd', label: '击退按目标冷却(秒)', kind: 'duration', default: 0.3, min: 0, max: 5, step: 0.05, hint: '仅环绕扇叶命中触发击退；同一目标在该窗口内只结算一次物理位移，与单扇叶命中豁免独立' },
       { code: 'burn_dwell_sec', label: '灼烧驻留触发(秒)', kind: 'duration', default: 1, min: 0.1, max: 30, step: 0.1, hint: '处于武器臂展圆内累计驻留满该时长即点燃全部灼烧，每满一次续燃；离开范围清零' },
       { code: 'field_pulse_period_sec', label: '领域脉冲周期(秒)', kind: 'duration', default: 1.5, min: 0.1, max: 60, step: 0.1, hint: '八卦炉真火/紫金葫芦每1.5秒触发一次范围真实伤害；领域内驻留怪另按每秒结算' },
       { code: 'field_pulse_radius_ratio', label: '脉冲扩散半径(臂长倍数)', kind: 'number', default: 0.3, min: 0.01, max: 5, step: 0.05, hint: '脉冲以领域内每只怪为起点向外扩散，半径=武器臂长×该倍数，可波及臂展外怪物' },
@@ -265,7 +266,7 @@ export const JOURNEY_BATTLE_PARAM_SUBGROUPS: Record<string, BattleParamSubGroupD
     { code: 'crit', label: '增伤与暴击', params: ['amp_cap', 'crit_rate_cap', 'crit_dmg_min', 'crit_dmg_cap'] },
   ],
   weapon: [
-    { code: 'hit', label: '命中冷却与灼烧驻留', params: ['hit_cd', 'burn_dwell_sec'] },
+    { code: 'hit', label: '命中冷却与灼烧驻留', params: ['hit_cd', 'knockback_cd', 'burn_dwell_sec'] },
     { code: 'parallel', label: '并行法宝攻击', params: ['field_pulse_period_sec', 'field_pulse_radius_ratio', 'field_dwell_cap_mult', 'field_dwell_cap_sec', 'burn_level_growth', 'attack_burn_ratio', 'attack_burn_sec', 'attack_target_cap', 'attack_shot_life_sec'] },
     { code: 'pierce', label: '穿刺', params: ['pierce_base', 'pierce_cap'] },
     { code: 'lifesteal', label: '吸血', params: ['lifesteal_base', 'lifesteal_cap', 'lifesteal_floor', 'lifesteal_sec_cap'] },
